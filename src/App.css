@@ -375,3 +375,7 @@
   height: 5px;
   background: #9a9a9a;
 }
+
+.code-pane, .console-pane { flex: 1; min-width: 0; overflow: auto; margin: 0; background: #fff; }
+.console-pane { font: 12px Menlo, Consolas, monospace; padding: 6px; white-space: pre-wrap; }
+.code-placeholder { font: 12px Menlo, Consolas, monospace; padding: 6px; margin: 0; white-space: pre-wrap; }

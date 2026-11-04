@@ -2,6 +2,7 @@
 // labelled groups of big 32 px buttons and rows of small 18 px buttons,
 // three small rows as tall as one big button. Its contents come from
 // ribbonModel.ts.
+import { runAction } from '../app/actions'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CommandState } from './commands'
 import { Icon } from './icons'
@@ -340,8 +341,8 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   const [docClass, setDocClass] = useState('article')
   const [fontSize, setFontSizeState] = useState('12')
   const [styleLevel, setStyleState] = useState(0)
-  const setFontSize = (v: string) => { setFontSizeState(v); console.log(`fontsize:${v}`) }
-  const setStyleLevel = (lv: number) => { setStyleState(lv); console.log(`style:${lv}`) }
+  const setFontSize = (v: string) => { setFontSizeState(v); void runAction('fontsize', v) }
+  const setStyleLevel = (lv: number) => { setStyleState(lv); void runAction('style', lv) }
   const closeMenu = useCallback(() => setMenu(null), [])
   const visible = RIBBON_TABS.filter(t => !t.context || t.context === context)
   const shown = visible.find(t => t.name === current) ?? visible[0]
@@ -350,11 +351,12 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   // the same channel, so they also log.
   const menuCmd: CommandState = {
     isChecked: cmd.isChecked,
+    setChecked: cmd.setChecked,
     trigger: id => {
       if (COMMANDS[id]) cmd.trigger(id)
       else if (id.startsWith('fontsize:')) setFontSize(id.slice(9))
       else if (id.startsWith('style:')) setStyleLevel(Number(id.slice(6)))
-      else console.log(id)
+      else void runAction(id)
     },
   }
   const ctx: Ctx = { cmd, menu, openMenu: setMenu, docClass, fontSize, setFontSize,

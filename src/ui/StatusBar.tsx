@@ -103,6 +103,7 @@ export interface StatusBarProps {
   onPdfFitWidth: () => void
   showPdfZoom: boolean
   compiler: string
+  message?: string
 }
 
 export function StatusBar(p: StatusBarProps) {
@@ -112,6 +113,7 @@ export function StatusBar(p: StatusBarProps) {
         {p.fileName
           ? <b>{p.fileName}</b>
           : <><b>Untitled</b>{'  —  '}<span className='sb-faint'>not saved yet</span></>}
+        {p.message && <span className='sb-faint'>{'  —  '}{p.message}</span>}
       </div>
       <ThemeSwitch dark={p.dark} onToggle={p.onToggleTheme} />
       <ToolIcon name='zoom_out' tip='Zoom out' onClick={() => p.onZoom(Math.max(25, p.zoom - 10))} />

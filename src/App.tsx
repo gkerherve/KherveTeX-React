@@ -5,7 +5,10 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 
 import pkg from '../package.json'
 import { useCommandState } from './ui/commands'
 import { MenuBar } from './ui/MenuBar'
-import { PlaceholderPage } from './ui/PlaceholderPage'
+import { useApp } from './app/store'
+import { CodeView } from './codeview/CodeView'
+import { EditorPane } from './editor/EditorPane'
+import { PdfPanel } from './preview/PdfPanel'
 import { Ribbon } from './ui/Ribbon'
 import type { ContextKind } from './ui/ribbonModel'
 import { StatusBar } from './ui/StatusBar'
@@ -44,7 +47,13 @@ export default function App() {
   const [pdfWidth, setPdfWidth] = useState(269)
   const [deskRef, deskWidth] = useWidth<HTMLDivElement>()
   const [pdfRef, pdfInner] = useWidth<HTMLDivElement>()
-  const fileName = null
+  const path = useApp(s => s.path)
+  const tab = useApp(s => s.tab)
+  const layout = useApp(s => s.layout)
+  const log = useApp(s => s.compile.log)
+  const status = useApp(s => s.status)
+  const fileName = path ? path.split(/[\\/]/).pop()! : null
+  const showPdf = layout === 'side'
 
   useEffect(() => {
     document.title = `KherveTeX v${VERSION} — ${fileName ?? 'Untitled'}`
@@ -83,29 +92,28 @@ export default function App() {
         <MenuBar cmd={cmd} />
         <Ribbon cmd={cmd} context={context} />
         <div className='workspace'>
-          <div ref={deskRef} className='desk' onClick={() => setContext(null)}>
+          <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}>
             <div className='desk-inner' style={{ padding: DESK_PAD }}>
               <div className='page-card' style={{ width: PAGE_W, height: PAGE_H, zoom: zoom / 100 }}>
-                <PlaceholderPage onContext={setContext} />
+                <EditorPane onContext={setContext} />
               </div>
             </div>
           </div>
-          <div className='splitter' onPointerDown={dragSplitter} />
-          <div ref={pdfRef} className='pdf-panel' style={{ width: pdfWidth }}>
-            {[0, 1].map(i => (
-              <div key={i} className='pdf-page'
-                style={{ width: PAGE_W, height: PAGE_H, zoom: pdfZoom / 100 }}>
-                {i === 0 && <PlaceholderPage />}
-              </div>
-            ))}
-          </div>
+          {tab === 'code' && <div className='code-pane'><CodeView /></div>}
+          {tab === 'console' && <pre className='console-pane'>{log}</pre>}
+          {showPdf && <>
+            <div className='splitter' onPointerDown={dragSplitter} />
+            <div ref={pdfRef} className='pdf-panel' style={{ width: pdfWidth }}>
+              <PdfPanel zoom={pdfZoom} pageW={PAGE_W} pageH={PAGE_H} />
+            </div>
+          </>}
         </div>
         <StatusBar fileName={fileName} dark={dark} onToggleTheme={() => setDark(!dark)}
           zoom={Math.round(zoom)} onZoom={setManualZoom}
           // Qt's PDF slider keeps its own value while the page fits the width.
           pdfZoom={pdfManualZoom ?? 100} onPdfZoom={setPdfManualZoom}
           pdfFitWidth={pdfManualZoom === null} onPdfFitWidth={() => setPdfManualZoom(null)}
-          showPdfZoom compiler='LaTeX (tectonic): OK' />
+          showPdfZoom compiler='LaTeX (tectonic): OK' message={status} />
       </div>
     </TooltipProvider>
   )
