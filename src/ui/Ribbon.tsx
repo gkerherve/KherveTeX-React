@@ -5,6 +5,7 @@
 import { runAction } from '../app/actions'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CommandState } from './commands'
+import { useRibbonWidgets } from '../editor/ribbonState'
 import { Icon } from './icons'
 import { Popup } from './Menu'
 import {
@@ -190,12 +191,14 @@ function StyleGallery({ ctx }: { ctx: Ctx }) {
 }
 
 function NumberedTile() {
-  const [on, setOn] = useState(true)
+  const w = useRibbonWidgets()
+  const on = w.numbered
   const tip = useTipProps({ rich: lookupTip('numbered')! })
   return (
     <button type='button' {...tip} className={'rb-btn rb-tile rb-tile-solo' + (on ? ' on' : '')}
       aria-pressed={on} aria-label='Numbered headings'
-      onClick={() => { setOn(!on); console.log(`numbered_headings:${!on}`) }}>
+      disabled={!w.numberedEnabled}
+      onClick={() => { void runAction('numbered_headings', !on) }}>
       <Icon name='numbered_heading_tile' width={TILE_W} height={TILE_H} />
     </button>
   )
@@ -338,11 +341,13 @@ function TabBar({ tabs, current, onPick }: {
 export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKind | null }) {
   const [current, setCurrent] = useState('Home')
   const [menu, setMenu] = useState<OpenMenu | null>(null)
-  const [docClass, setDocClass] = useState('article')
-  const [fontSize, setFontSizeState] = useState('12')
-  const [styleLevel, setStyleState] = useState(0)
-  const setFontSize = (v: string) => { setFontSizeState(v); void runAction('fontsize', v) }
-  const setStyleLevel = (lv: number) => { setStyleState(lv); void runAction('style', lv) }
+  // The hidden combos' state follows the caret (editor/ribbonState.ts).
+  const widgets = useRibbonWidgets()
+  const { docClass, fontSize, styleLevel } = widgets
+  const setFontSize = (v: string) => { void runAction('fontsize', v) }
+  const setStyleLevel = (lv: number) => {
+    if (!(lv in widgets.disabledStyles)) void runAction('style', lv)
+  }
   const closeMenu = useCallback(() => setMenu(null), [])
   const visible = RIBBON_TABS.filter(t => !t.context || t.context === context)
   const shown = visible.find(t => t.name === current) ?? visible[0]
@@ -375,7 +380,7 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
       </div>
       {menu?.kind === 'classGrid' && (
         <ClassGrid rect={menu.rect} current={docClass} onClose={closeMenu}
-          onPick={cls => { setDocClass(cls); console.log(`doc_class:${cls}`); closeMenu() }} />
+          onPick={cls => { void runAction('doc_class', cls); closeMenu() }} />
       )}
       {menu?.entries && (
         <Popup key={menu.owner} entries={menu.entries} anchor={menu.rect} cmd={menuCmd}

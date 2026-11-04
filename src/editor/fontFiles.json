@@ -1,0 +1,102 @@
+{
+ "DejaVu Serif": {
+  "00": true,
+  "01": true,
+  "10": true
+ },
+ "KTeX LMMono10": {
+  "00": true
+ },
+ "KTeX LMMono12": {
+  "00": true
+ },
+ "KTeX LMMono9": {
+  "00": true
+ },
+ "KTeX LMRoman10": {
+  "00": true,
+  "01": true,
+  "10": true,
+  "11": true
+ },
+ "KTeX LMRoman12": {
+  "00": true,
+  "01": true,
+  "10": true
+ },
+ "KTeX LMRoman17": {
+  "00": true
+ },
+ "KTeX LMRoman5": {
+  "00": true
+ },
+ "KTeX LMRoman6": {
+  "00": true
+ },
+ "KTeX LMRoman7": {
+  "00": true,
+  "01": true
+ },
+ "KTeX LMRoman8": {
+  "00": true,
+  "01": true,
+  "10": true
+ },
+ "KTeX LMRoman9": {
+  "00": true,
+  "01": true,
+  "10": true
+ },
+ "KTeX LMRomanCaps10": {
+  "00": true
+ },
+ "KTeX LMRomanSlant10": {
+  "00": true
+ },
+ "KTeX LMRomanSlant12": {
+  "00": true
+ },
+ "KTeX LMRomanSlant17": {
+  "00": true
+ },
+ "KTeX LMSans10": {
+  "00": true,
+  "01": true,
+  "10": true
+ },
+ "KTeX LMSans12": {
+  "00": true,
+  "01": true
+ },
+ "KTeX LMSans17": {
+  "00": true,
+  "01": true
+ },
+ "KTeX LMSans8": {
+  "00": true,
+  "01": true
+ },
+ "Linux Biolinum O": {
+  "00": true,
+  "01": true,
+  "10": true
+ },
+ "Linux Libertine O": {
+  "00": true,
+  "01": true,
+  "10": true,
+  "11": true
+ },
+ "TeX Gyre Heros": {
+  "00": true,
+  "01": true,
+  "10": true,
+  "11": true
+ },
+ "TeX Gyre Termes": {
+  "00": true,
+  "01": true,
+  "10": true,
+  "11": true
+ }
+}

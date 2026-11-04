@@ -1,0 +1,42 @@
+/* The visual editor's dialogs: Qt QFormLayout rows, a QTabWidget for
+   Document settings, the style file table, and the find bar. */
+.dlg-ed .dlg-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+.dlg-ed .dlg-span { grid-column: 1 / -1; }
+.dlg-ed .dlg-row { display: flex; gap: 6px; align-items: center; }
+.dlg-ed .dlg-row input { flex: 1; }
+.dlg-ed .dlg-check { display: flex; gap: 6px; align-items: center; }
+.dlg-ed input, .dlg-ed select, .dlg-ed textarea, .dlg textarea, .dlg input { font: inherit; }
+.dlg textarea { min-width: 360px; }
+.dlg-figure { min-width: 420px; }
+.dlg-docsettings { width: 560px; height: 540px; }
+.dlg-docsettings .dlg-body { flex: 1; }
+.dlg-tabs { display: flex; gap: 0; border-bottom: 1px solid #a0a0a0; }
+.dlg-tabs button {
+  border: 1px solid #a0a0a0; border-bottom: none; background: #e6e6e6; padding: 3px 10px;
+  margin-right: -1px; font: inherit;
+}
+.dlg-tabs button.on { background: var(--panel-bg, #f0f0f0); position: relative; top: 1px; }
+.dlg-tabpage { flex: 1; padding: 10px 4px; display: flex; flex-direction: column; }
+.dlg-packages { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.dlg-packages textarea { flex: 1; min-height: 300px; }
+.dlg-styles { width: 700px; height: 500px; }
+.dlg-styles .dlg-body { flex: 1; min-height: 0; }
+.dlg-styles .dlg-table { flex: 1; overflow: auto; background: #fff; border: 1px solid #a0a0a0; }
+.dlg-styles table { width: 100%; border-collapse: collapse; }
+.dlg-styles th { position: sticky; top: 0; background: #f0f0f0; border: 1px solid #d0d0d0; text-align: left;
+  font-weight: normal; padding: 2px 6px; }
+.dlg-styles td { padding: 2px 6px; white-space: nowrap; }
+.dlg-styles tr:nth-child(even) td { background: #f7f7f7; }
+.dlg-styles tr.selected td { background: #0078d7; color: #fff; }
+.dlg-label { white-space: pre-wrap; }
+
+/* _FindBar: a compact find & replace bar along the bottom of the editor. */
+.kt-findbar {
+  position: fixed; z-index: 300;
+  display: grid; grid-template-columns: auto 1fr auto auto auto auto; gap: 2px 6px; align-items: center;
+  padding: 2px 6px; background: var(--panel-bg, #f0f0f0); border-top: 1px solid #c0c0c0;
+  font: 9pt "Segoe UI", system-ui, sans-serif; color: var(--text, #000);
+}
+.kt-findbar input[type='text'] { font: inherit; min-width: 160px; }
+.kt-findbar button { font: inherit; }
+.kt-findbar .kt-findbar-close { width: 28px; border: none; background: none; }

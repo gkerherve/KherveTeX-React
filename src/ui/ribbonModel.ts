@@ -315,16 +315,21 @@ const cmds: Command[] = [
   { id: 'margins', text: 'Margins', icon: 'page_margins', tip: 'margins', popup: 'instant',
     menu: [
       ...MARGIN_PRESETS.map(([name, [t, b, l, r]]): MenuItem => ({
-        text: name, detail: `Top ${t} cm  Bottom ${b} cm  Left ${l} cm  Right ${r} cm`,
+        text: name, command: `margin_${name}`, detail: `Top ${t} cm  Bottom ${b} cm  Left ${l} cm  Right ${r} cm`,
         checkable: true, checked: name === 'Normal',
       })),
       '-', { text: 'Custom Margins…', command: 'doc_props' },
     ] },
   { id: 'size', text: 'Size', icon: 'page_size', tip: 'pagesize', popup: 'instant',
     menu: PAGE_SIZES.map(([code, w, h]): MenuItem => ({
-      text: code, detail: `${(w * 2.54).toFixed(1)} cm × ${(h * 2.54).toFixed(1)} cm`,
+      text: code, command: `pagesize_${code}`, detail: `${(w * 2.54).toFixed(1)} cm × ${(h * 2.54).toFixed(1)} cm`,
       icon: 'paper_thumb', iconArg: `${w}x${h}`, checkable: true, checked: code === 'A4',
     })) },
+  // The Margins and Size menu entries, checked against the document.
+  ...MARGIN_PRESETS.map(([name]): Command => ({ id: `margin_${name}`, text: name, checkable: true,
+    group: 'margins', checked: name === 'Normal' })),
+  ...PAGE_SIZES.map(([code]): Command => ({ id: `pagesize_${code}`, text: code, checkable: true,
+    group: 'pagesize', checked: code === 'A4' })),
   { id: 'doc_class', text: 'article', icon: 'class_thumbnail', iconArg: 'article', tip: 'class',
     popup: 'instant', menuKind: 'classGrid', iconW: 26, iconH: 33 },
 
@@ -353,11 +358,11 @@ const cmds: Command[] = [
   { id: 'tbl_sort_down', text: 'Sort Z→A', icon: 'sort_icon', iconArg: 'desc' },
   { id: 'tbl_shading', text: 'Shading', icon: 'shading_icon', iconArg: '#ffeb3b', popup: 'split',
     menu: [
-      { text: 'No Color' },
+      { text: 'No Color', command: 'shade:none' },
       ...([['#ffeb3b', 'Yellow'], ['#fde2e1', 'Light red'], ['#dff0d8', 'Light green'],
         ['#dce8f7', 'Light blue'], ['#eeeeee', 'Grey'], ['#fff2cc', 'Cream']] as const)
-        .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: c })),
-      '-', { text: 'More Colors…' },
+        .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: c, command: `shade:${c}` })),
+      '-', { text: 'More Colors…', command: 'shade_more' },
     ] },
   { id: 'tbl_align_l', text: 'Align Left', icon: 'align_left', checkable: true, group: 'tblalign',
     checked: true },
