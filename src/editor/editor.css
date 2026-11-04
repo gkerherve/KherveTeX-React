@@ -273,13 +273,20 @@
   font-style: normal;
 }
 
-/* Two or three columns (column_count, or a class's own): CSS columns
-   over the flow. Margins collapse here, as the flex column cannot split. */
+/* Two or three columns (column_count, or a class's own). Each sheet's
+   share of the flow is one row of CSS columns; the rows are cut by
+   column-spanning spacers (paginate.ts). Measured one column wide first. */
 .kt-cols > .kt-flow {
   display: block;
   column-count: var(--kt-cols);
   column-gap: var(--kt-colgap);
   column-fill: balance;
 }
-.kt-cols > .kt-flow > * { break-inside: avoid-column; }
-.kt-cols > .kt-flow > p, .kt-cols > .kt-flow > div.kt-theorem { break-inside: auto; }
+.kt-cols > .kt-flow > .kt-figure, .kt-cols > .kt-flow > .kt-math-block,
+.kt-cols > .kt-flow > .kt-raw-float { break-inside: avoid-column; }
+.kt-page-gap-span { display: block; column-span: all; }
+.kt-col-measure > .kt-flow { column-count: auto; columns: auto; width: var(--kt-colw); }
+.kt-col-measure .kt-page-gap { display: none; }
+.kt-col-measure > .kt-flow > [data-span='1'] { width: var(--kt-fullw); max-width: none; }
+/* "N (cont.)": a sheet that exists only because the page overflowed. */
+.kt-cont { position: absolute; text-align: center; color: rgb(170, 120, 60); white-space: pre; }

@@ -246,7 +246,8 @@ const TODAY = () => new Date()
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December']
 
-export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0]): DocLayout {
+export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0],
+  pdfBreaks: ReadonlySet<number> = new Set()): DocLayout {
   const look = lookFor(meta.documentclass, meta.body_font_pt)
   const g = look.geometry
   const pt = PT_PX
@@ -410,7 +411,10 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     else if (state === S.TITLE || state === S.AUTHOR || state === S.AFFILIATION || state === S.CORRESPONDENCE) L.align = 'center'
     else if (state === S.RAW) { L.top = 6; L.bottom = 6 }
 
-    let startsSheet = titleBreaks.has(i)
+    // Start a new sheet exactly where the compiled PDF does; with columns
+    // a forced break would only start a new column, so paging is left to
+    // the layout there.
+    let startsSheet = titleBreaks.has(i) || (geometry.cols <= 1 && pdfBreaks.has(b.pos))
     L.breakBefore = startsSheet
     let number = ''
     let level: number | null = state === S.CHAPTER ? 0 : (state >= 1 && state <= 5 ? state : null)
@@ -714,4 +718,71 @@ export function pagePx(meta: DocMeta): { width: number; height: number } {
     return { width: Math.round(p.width_in * DPI), height: Math.round(p.height_in * DPI) }
   }
   return { width: Math.round(g.page_w * PT_PX), height: Math.round(g.page_h * PT_PX) }
+}
+
+// ---------- the compiled PDF's page starts (paged_edit.py) ----------
+
+// Collapse whitespace, strip accents and lowercase, so PDF-extracted text
+// can match the editor's (_normalize_for_match).
+export function normalizeForMatch(s: string): string {
+  return s.normalize('NFKD').replace(/\p{Mn}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+// Where a PDF page's first line (normalised) starts in a block's text, or
+// -1. A match at the block's start always counts; one inside the block
+// (a page starting mid-paragraph) only when the key is long enough to be
+// unambiguous (anchor_offset).
+export function anchorOffset(blockText: string, keyNorm: string): number {
+  const norm = normalizeForMatch(blockText)
+  if (!norm) return -1
+  if (keyNorm.length < 16) {
+    if (norm === keyNorm) return 0
+  } else if (norm.startsWith(keyNorm) || (norm.length >= 3 && keyNorm.startsWith(norm))) {
+    return 0
+  }
+  if (keyNorm.length >= 12) {
+    const idx = norm.indexOf(keyNorm)
+    if (idx > 0) return Math.min(blockText.length, idx)
+  }
+  return -1
+}
+
+export type PageAnchor = [number, string]
+
+// The text blocks (by position) the last compiled PDF starts a page with
+// (_pdf_page_start_blocks). Only pages that begin at a block's start are
+// forced; anchors match in order, each search after the previous hit.
+export function pdfPageStartBlocks(doc: PMNode, anchors: readonly PageAnchor[]): Set<number> {
+  const out = new Set<number>()
+  const blocks = collect(doc)
+  let at = 0
+  for (const [, snippet] of anchors) {
+    const key = normalizeForMatch(snippet).slice(0, 16)
+    if (key.length < 3) continue
+    for (let i = at; i < blocks.length; i++) {
+      if (blocks[i].isTable) continue
+      const off = anchorOffset(blocks[i].text.replace(/\ufffc/g, ''), key)
+      if (off === 0) { out.add(blocks[i].pos); at = i + 1; break }
+      if (off > 0) { at = i; break }
+    }
+  }
+  return out
+}
+
+// Each anchor's block and the offset of its text in it, for finding the
+// line a PDF page starts on (page_anchor_positions).
+export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { page: number; pos: number; offset: number }[] {
+  const out: { page: number; pos: number; offset: number }[] = []
+  const blocks = collect(doc)
+  let at = 0
+  for (const [page, snippet] of anchors) {
+    const keyNorm = normalizeForMatch((snippet || '').trim().slice(0, 24))
+    if (keyNorm.length < 3) continue
+    for (let i = at; i < blocks.length; i++) {
+      if (blocks[i].isTable) continue
+      const idx = anchorOffset(blocks[i].text.replace(/\ufffc/g, ''), keyNorm)
+      if (idx >= 0) { out.push({ page, pos: blocks[i].pos, offset: idx }); at = i; break }
+    }
+  }
+  return out
 }

@@ -10,8 +10,10 @@ import { tableEditing } from 'prosemirror-tables'
 import { EditorView } from 'prosemirror-view'
 import { runAction } from '../app/actions.ts'
 import type { EquationEditing } from '../app/actions/math.ts'
+import type { PageEditing } from '../app/actions/page.ts'
 import { setEditorApi, type EditorApi } from '../app/editorApi.ts'
 import { appStore, editDoc } from '../app/store.ts'
+import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
 import * as M from '../core/model.ts'
 import { dirname, isAbsolute, join } from '../core/paths.ts'
 import { ReferenceResolver } from '../core/references.ts'
@@ -21,8 +23,8 @@ import * as C from './commands.ts'
 import { docFromPM, docToPM } from './convert.ts'
 import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
-import { screenFontFor, type DocLayout, type PageGeometry } from './layout.ts'
-import { computeSpacers, sameSpacers } from './paginate.ts'
+import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
+import { computeColumnSpacers, computeSpacers, sameSpacers } from './paginate.ts'
 import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { showContextMenu } from './contextMenu.ts'
 import { setRibbonWidgets } from './ribbonState.ts'
@@ -78,8 +80,9 @@ export class EditorController implements ViewHost {
   private resolverTimer = 0
   private pageTimer = 0
   private pageIter = 0
+  private columnShrink: number[] = []
   private sheets = 1
-  private images = new Map<string, string | null>()
+  private images = new Map<string, { abs: string; url: string } | null>()
   private exportQueued = false
   private lastContext: ContextKind | null = null
   private destroyed = false
@@ -132,6 +135,7 @@ export class EditorController implements ViewHost {
       if (!this.destroyed) this.view.dispatch(this.view.state.tr.setMeta(SPELL_REFRESH, true).setMeta('addToHistory', false))
     })
     document.fonts?.addEventListener?.('loadingdone', this.onFonts)
+    window.addEventListener(FIGURE_UPDATED_EVENT, this.onFigureUpdated)
     void loadFonts(this.families()).then(() => this.relayout())
     this.schedulePages(0)
     this.syncToolbar()
@@ -144,6 +148,7 @@ export class EditorController implements ViewHost {
     this.unsubSpell()
     bibListeners.delete(this.refreshResolverNow)
     document.fonts?.removeEventListener?.('loadingdone', this.onFonts)
+    window.removeEventListener(FIGURE_UPDATED_EVENT, this.onFigureUpdated)
     clearTimeout(this.pageTimer)
     clearTimeout(this.resolverTimer)
     if (current === this) { setCurrent(null); setEditorApi(null) }
@@ -262,8 +267,58 @@ export class EditorController implements ViewHost {
     void loadFonts(this.families()).then(() => this.relayout())
   }
 
+  // _sheet_labels: each sheet named for the PDF page it shows; a sheet that
+  // only exists because the editor's page overflowed reads "N (cont.)".
+  private sheetLabels(sheets: number): string[] {
+    const H = this.layout.geometry.heightPx
+    const anchors = layoutKey.getState(this.view.state)!.anchors
+    if (!anchors.length || this.layout.geometry.cols > 1) {
+      return Array.from({ length: sheets }, (_, k) => String(k + this.firstPage))
+    }
+    const starts = new Map<number, number>([[0, this.firstPage]])
+    const z = this.zoom()
+    const top0 = this.flowEl.getBoundingClientRect().top
+    for (const t of anchorTargets(this.view.state.doc, anchors)) {
+      let y: number
+      try {
+        y = (this.view.coordsAtPos(Math.min(t.pos + 1 + t.offset, this.view.state.doc.content.size)).top - top0) / z
+      } catch { continue }
+      const k = Math.floor(y / H)
+      if (!starts.has(k)) starts.set(k, t.page)
+    }
+    const out: string[] = []
+    let cur = 1
+    for (let k = 0; k < sheets; k++) {
+      if (starts.has(k)) { cur = starts.get(k)!; out.push(String(cur)) } else out.push(`${cur} (cont.)`)
+    }
+    return out
+  }
+
+  private firstPage = 1
+
+  // set_first_page_number: a project document continues from the pages
+  // of the documents before it.
+  setPageNumberStart(n: number): void {
+    const v = Math.max(1, Math.trunc(n || 1))
+    if (v === this.firstPage) return
+    this.firstPage = v
+    this.paint(this.layout.geometry)
+  }
+
+  // set_page_anchors + sync_pages_to_pdf: the compiled PDF's page count
+  // and the first text of each page after the first.
+  setPageAnchors(anchors: readonly PageAnchor[]): void {
+    this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { anchors: [...anchors] })
+      .setMeta('addToHistory', false).setMeta(NO_EXPORT, true))
+  }
+
+  // set_heading_offset: numbered headings used by the project's earlier
+  // documents, per level (index 0 = chapter).
   setHeadingOffset(headingOffset: number[]): void {
-    this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { headingOffset }).setMeta('addToHistory', false))
+    const off = [...(headingOffset ?? [])].slice(0, 6)
+    while (off.length < 6) off.push(0)
+    this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { headingOffset: off })
+      .setMeta('addToHistory', false).setMeta(NO_EXPORT, true))
   }
 
   private refreshResolverNow = (): void => {
@@ -287,20 +342,38 @@ export class EditorController implements ViewHost {
     return g.widthPx - g.leftPx - g.rightPx
   }
 
+  // A figure's image, by its model path: a URL once loaded, null until then
+  // (the figure shows its path meanwhile, as Qt shows a missing image).
   resolveImage(path: string): string | null {
     if (!path) return null
-    const base = appStore().get().path
-    const abs = isAbsolute(path) || !base ? path : join(dirname(base), path)
-    if (this.images.has(abs)) return this.images.get(abs) ?? null
-    this.images.set(abs, null)
-    const loader = imageLoader ?? defaultImageLoader
-    void loader(abs).then(url => {
+    const hit = this.images.get(path)
+    if (hit !== undefined) return hit?.url ?? null
+    this.images.set(path, null)
+    void (async () => {
+      const abs = await resolveFigurePath(path)
+      if (abs === null || this.destroyed) return
+      const url = await (imageLoader ?? defaultImageLoader)(abs)
       if (!url || this.destroyed) return
-      this.images.set(abs, url)
+      this.images.set(path, { abs, url })
       for (const a of this.atoms) a.render()
       this.schedulePages(0)
-    })
+    })()
     return null
+  }
+
+  // refresh_figure_image: a drawing or flowchart was saved again.
+  private onFigureUpdated = (e: Event): void => {
+    const changed = (e as CustomEvent<{ path?: string }>).detail?.path ?? ''
+    let any = false
+    for (const [path, entry] of this.images) {
+      const abs = entry?.abs ?? path
+      if (!changed || abs === changed || abs.endsWith(changed) || changed.endsWith(path)) {
+        if (entry) URL.revokeObjectURL(entry.url)
+        this.images.delete(path)
+        any = true
+      }
+    }
+    if (any) for (const a of this.atoms) a.render()
   }
 
   onMathDoubleClick(pos: number, _display: boolean): void {
@@ -357,12 +430,15 @@ export class EditorController implements ViewHost {
     this.flowEl.classList.toggle('kt-cols', g.cols > 1)
     f.setProperty('--kt-cols', String(g.cols))
     f.setProperty('--kt-colgap', `${g.colGapPx}px`)
+    const full = g.widthPx - g.leftPx - g.rightPx
+    f.setProperty('--kt-fullw', `${full}px`)
+    f.setProperty('--kt-colw', `${(full - g.colGapPx * (g.cols - 1)) / g.cols}px`)
   }
 
   // Re-measure the flow and move page breaks, a few rounds until stable.
   schedulePages(delay: number, continuing = false): void {
     if (this.destroyed) return
-    if (!continuing) this.pageIter = 0
+    if (!continuing) { this.pageIter = 0; this.columnShrink = [] }
     clearTimeout(this.pageTimer)
     this.pageTimer = window.setTimeout(() => this.paginate(), delay)
   }
@@ -370,16 +446,10 @@ export class EditorController implements ViewHost {
   private paginate(): void {
     if (this.destroyed || !this.view.dom.isConnected) return
     const geo = this.layout.geometry
-    if (geo.cols > 1) {
-      // Columns flow in one long sheet (CSS columns); no page breaks.
-      const old = pagesKey.getState(this.view.state)!.spacers
-      if (old.length) this.view.dispatch(this.view.state.tr.setMeta(pagesKey, []).setMeta('addToHistory', false))
-      this.sheets = 1
-      this.paint(geo)
-      return
-    }
-    const { spacers, measure } = computeSpacers(this.view, geo, this.flowEl)
     const old = pagesKey.getState(this.view.state)!.spacers
+    const { spacers, measure } = geo.cols > 1
+      ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink)
+      : computeSpacers(this.view, geo, this.flowEl)
     if (!sameSpacers(old, spacers) && this.pageIter < 6) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))
@@ -396,8 +466,8 @@ export class EditorController implements ViewHost {
   // _paint_sheets, _paint_furniture and _paint_footnotes.
   private paint(geo: PageGeometry): void {
     const H = geo.heightPx
-    const n = geo.cols > 1 ? 1 : this.sheets
-    const total = geo.cols > 1 ? Math.max(H, this.flowEl.scrollHeight) : n * H
+    const n = this.sheets
+    const total = n * H
     this.root.style.height = `${total}px`
     this.flowEl.style.minHeight = `${total}px`
     const g = this.pageGapPx()
@@ -477,7 +547,18 @@ export class EditorController implements ViewHost {
       date_uk: `${now.getDate()} ${month} ${now.getFullYear()}`, pages: String(sheets),
       h1: '', h2: '', num1: '', num2: '',
     }
+    const labels = this.sheetLabels(sheets)
     for (let k = 0; k < sheets; k++) {
+      const label = labels[k]
+      if (label.includes('cont')) {
+        // A sheet the editor's page overflowed onto: "N (cont.)", in the
+        // sheet painter's own colour, and no class furniture.
+        const g = k < sheets - 1 ? gap / 2 : 0
+        const size = L.bodyChar.sizePx * 0.9
+        out.push(`<div class="kt-cont" style="left:0;right:0;top:${(k + 1) * H - geo.bottomPx / 2 - g - size * 0.6}px;`
+          + `font-family:${L.bodyChar.family};font-size:${size}px">${esc(label)}</div>`)
+        continue
+      }
       let opensChapter = false
       let firstH2: [string, string] | null = null
       for (const h of starts.get(k) ?? []) {
@@ -494,10 +575,11 @@ export class EditorController implements ViewHost {
         Object.assign(fields, { h2: firstH2[0], num2: firstH2[1] })
         for (const h of starts.get(k) ?? []) if (h.level !== 1) Object.assign(fields, { h2: h.title, num2: h.number })
       }
-      const pageNo = k + 1
+      const number = label.split(' ')[0]
+      const pageNo = /^\d+$/.test(number) ? Number(number) : k + 1
       const kind = k === 0 ? 'first' : opensChapter && 'chapter' in furniture ? 'chapter'
         : pageNo % 2 === 0 ? 'even' : 'odd'
-      shown.page = String(pageNo)
+      shown.page = number
       const top = k * H
       for (const item of furniture[kind] ?? []) {
         const y = top + item.y * pt
@@ -596,8 +678,12 @@ export class EditorController implements ViewHost {
 
   // ---------- EditorApi ----------
 
-  private api(): EditorApi & EquationEditing {
+  private api(): EditorApi & EquationEditing & PageEditing {
     return {
+      // Projects and the compiled PDF (src/app/actions/page.ts).
+      setPageNumberStart: n => this.setPageNumberStart(n),
+      setHeadingOffset: c => this.setHeadingOffset(c ?? []),
+      setPageAnchors: (_pages, anchors) => this.setPageAnchors(anchors),
       // The contextual Equation tab (src/app/actions/math.ts).
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },
@@ -673,12 +759,31 @@ function resolvePdfFont(name: string, meta: M.DocMeta) {
   return replaced && !name.includes('Sans') ? { ...f, family: screenFontFor(meta) } : f
 }
 
+// editor._resolve_image_path: an absolute path that exists, else relative
+// to the document's folder, else to the figures folder.
+async function resolveFigurePath(p: string): Promise<string | null> {
+  try {
+    const { platform } = await import('../platform/index.ts')
+    const pf = platform()
+    if (isAbsolute(p) && await pf.exists(p)) return p
+    const docPath = appStore().get().path
+    if (docPath) {
+      const c = join(dirname(docPath), p)
+      if (await pf.exists(c)) return c
+    }
+    const { imagesDir } = await import('../drawing/host.ts')
+    const c = join(await imagesDir(), p)
+    return (await pf.exists(c)) ? c : null
+  } catch {
+    return null
+  }
+}
+
 // In the desktop app files come through the platform layer.
 async function defaultImageLoader(path: string): Promise<string | null> {
   try {
-    const { platform } = await import('../platform')
+    const { platform } = await import('../platform/index.ts')
     const p = platform()
-    if (!(await p.exists(path))) return null
     const data = await p.readFile(path)
     const ext = path.split('.').pop()?.toLowerCase() ?? ''
     const type = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'

@@ -61,7 +61,24 @@ describe('test_table_design.py', () => {
     expect(out).toContain('table.cell(rowspan: 2)[y]')
   })
 
-  it.skip('test_word_export — needs the docx exporter, not ported', () => {})
-  it.skip('test_editor_header_sort_shading_style — Qt editor', () => {})
-  it.skip('test_editor_merge_and_split — Qt editor', () => {})
+  it('test_word_export', async () => {
+    const { exportDocx } = await import('../src/core/docxExport.ts')
+    const { NS, find, findall, parseXml, tableCells } = await import('../src/core/docxPackage.ts')
+    const { unzipSync } = await import('fflate')
+    const { XMLSerializer } = await import('@xmldom/xmldom')
+    const { nodeFs } = await import('./nodeFs.ts')
+    const bytes = await exportDocx(document([makeTable({ repeat_header: true })]), '.', nodeFs)
+    const body = find(parseXml(unzipSync(bytes)['word/document.xml']).documentElement!, NS.w, 'body')!
+    const tbl = findall(body, NS.w, 'tbl')[0]
+    const cells = tableCells(tbl)
+    const cols = findall(find(tbl, NS.w, 'tblGrid')!, NS.w, 'gridCol').length
+    const cell = (r: number, c: number) => cells[c + r * cols]
+    const xml = (n: Parameters<InstanceType<typeof XMLSerializer>['serializeToString']>[0]) => new XMLSerializer().serializeToString(n)
+    expect(cell(1, 1)).toBe(cell(1, 2))
+    expect(cell(2, 0)).toBe(cell(3, 0))
+    expect(xml(findall(tbl, NS.w, 'tr')[0])).toContain('tblHeader')
+    expect(xml(cell(1, 1))).toContain('FFEB3B')
+  })
+  // test_editor_header_sort_shading_style and test_editor_merge_and_split
+  // drive the editor: tests/editor.commands.test.ts runs them.
 })

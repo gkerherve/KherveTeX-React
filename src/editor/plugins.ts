@@ -6,11 +6,12 @@ import { Plugin, PluginKey, type EditorState } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 import type { DocMeta } from '../core/model.ts'
 import { tableCellStyles } from './views.ts'
-import { BASELINE_AT, layoutDocument, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
+import { BASELINE_AT, layoutDocument, pdfPageStartBlocks, type PageAnchor, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
 
 export interface LayoutPluginState {
   meta: DocMeta
   headingOffset: number[]
+  anchors: readonly PageAnchor[]
   layout: DocLayout
   decos: DecorationSet
 }
@@ -21,6 +22,8 @@ export const layoutKey = new PluginKey<LayoutPluginState>('kt-layout')
 export interface LayoutMeta {
   meta?: DocMeta
   headingOffset?: number[]
+  // (page, first text) of each compiled PDF page after the first.
+  anchors?: readonly PageAnchor[]
 }
 
 export function charCss(c: CharStyle): string {
@@ -111,6 +114,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
         : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : ''
     }
     if (L.breakBefore) attrs['data-break'] = '1'
+    if (L.spans) attrs['data-span'] = '1'
     if (L.equationNumber) attrs['data-eqno'] = L.equationNumber
     decos.push(Decoration.node(pos, pos + node.nodeSize, attrs, { layout: L }))
     const labels = (L.above.length || L.runIn) && node.isTextblock
@@ -133,18 +137,19 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
 }
 
 export function layoutPlugin(meta: DocMeta): Plugin<LayoutPluginState> {
-  const compute = (doc: PMNode, m: DocMeta, off: number[]): LayoutPluginState => {
-    const layout = layoutDocument(doc, m, off)
-    return { meta: m, headingOffset: off, layout, decos: buildDecorations(doc, layout) }
+  const compute = (doc: PMNode, m: DocMeta, off: number[], anchors: readonly PageAnchor[]): LayoutPluginState => {
+    const layout = layoutDocument(doc, m, off, anchors.length ? pdfPageStartBlocks(doc, anchors) : new Set())
+    return { meta: m, headingOffset: off, anchors, layout, decos: buildDecorations(doc, layout) }
   }
   return new Plugin<LayoutPluginState>({
     key: layoutKey,
     state: {
-      init: (_c, state) => compute(state.doc, meta, [0, 0, 0, 0, 0, 0]),
+      init: (_c, state) => compute(state.doc, meta, [0, 0, 0, 0, 0, 0], []),
       apply(tr, prev) {
         const m = tr.getMeta(layoutKey) as LayoutMeta | undefined
         if (!tr.docChanged && !m) return prev
-        return compute(tr.doc, m?.meta ?? prev.meta, m?.headingOffset ?? prev.headingOffset)
+        return compute(tr.doc, m?.meta ?? prev.meta, m?.headingOffset ?? prev.headingOffset,
+          m?.anchors ?? prev.anchors)
       },
     },
     props: {
@@ -159,23 +164,44 @@ export interface Spacer {
   // Document position the spacer sits at.
   pos: number
   height: number
-  // Block-level (before a block) or inline (at a line start).
-  block: boolean
+  // Before a block, at a line start, before a table row, or (columns)
+  // across the columns where the next sheet starts.
+  kind: 'block' | 'inline' | 'row' | 'span'
+  // A row spacer's table width in cells.
+  cols?: number
+  // A span spacer inside a paragraph.
+  inline?: boolean
 }
 
 interface PagesState { spacers: Spacer[]; decos: DecorationSet }
 
 export const pagesKey = new PluginKey<PagesState>('kt-pages')
 
+function spacerEl(s: Spacer): HTMLElement {
+  let el: HTMLElement
+  if (s.kind === 'row') {
+    el = document.createElement('tr')
+    const td = document.createElement('td')
+    td.colSpan = Math.max(1, s.cols ?? 1)
+    td.style.cssText = `height:${Math.max(0, s.height)}px;padding:0;border:none;background:none`
+    el.appendChild(td)
+  } else {
+    el = document.createElement(s.kind === 'inline' ? 'span' : 'div')
+    if (s.kind === 'block' || s.kind === 'span') {
+      if (s.height >= 0) el.style.height = `${s.height}px`
+      else { el.style.height = '0px'; el.style.marginBottom = `${s.height}px` }
+    } else {
+      el.style.height = `${s.height}px`
+    }
+  }
+  el.className = `kt-page-gap kt-page-gap-${s.kind}`
+  el.contentEditable = 'false'
+  return el
+}
+
 function spacerDecos(doc: PMNode, spacers: Spacer[]): DecorationSet {
-  return DecorationSet.create(doc, spacers.map(s => Decoration.widget(s.pos, () => {
-    const el = document.createElement(s.block ? 'div' : 'span')
-    el.className = s.block ? 'kt-page-gap kt-page-gap-block' : 'kt-page-gap kt-page-gap-inline'
-    el.contentEditable = 'false'
-    if (s.height >= 0) el.style.height = `${s.height}px`
-    else { el.style.height = '0px'; el.style.marginBottom = `${s.height}px` }
-    return el
-  }, { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.block ? 'b' : 'i'}-${s.height.toFixed(2)}` })))
+  return DecorationSet.create(doc, spacers.map(s => Decoration.widget(s.pos, () => spacerEl(s),
+    { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}` })))
 }
 
 export function pagesPlugin(): Plugin<PagesState> {

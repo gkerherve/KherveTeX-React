@@ -123,6 +123,7 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
     '-', { text: 'Select All', run: () => { void runAction('select_all') } },
   )
 
+  const fig = C.currentFigure(state)
   if (C.currentTable(state)) {
     entries.push('-',
       { text: 'Insert row above', run: () => ed.run(C.tableInsertRow(false)) },
@@ -133,8 +134,48 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
       { text: 'Delete column', run: () => ed.run(C.tableDeleteColumn) },
       { text: 'Delete table', run: () => ed.run(C.tableDelete) })
   }
-  show(entries, e.clientX, e.clientY)
+  const x = e.clientX, y = e.clientY
+  if (!fig) { show(entries, x, y); return true }
+  // A drawing or flowchart reopens its editor; a drawing also opens in
+  // KhervePaint (the sources beside the PNG decide, as editor.py checks).
+  void figureEntries(fig.node.attrs.path, fig.node.attrs.source).then(extra => show([...entries, ...extra], x, y))
   return true
+}
+
+async function figureEntries(path: string, source: string): Promise<Entry[]> {
+  try {
+    const { platform } = await import('../platform/index.ts')
+    const { flowchartSourceFor, drawingSourceFor } = await import('../core/drawingFiles.ts')
+    const { withSuffix } = await import('../core/paths.ts')
+    const exists = (p: string) => platform().exists(p)
+    const resolved = await resolveForMenu(path)
+    if (resolved === null) return []
+    if (source === 'flowchart' || await flowchartSourceFor(resolved, exists) !== null) {
+      return ['-', { text: 'Edit flowchart…', run: () => { void runAction('fig_edit') } }]
+    }
+    if (await drawingSourceFor(resolved, exists) !== null && await exists(withSuffix(resolved, '.svg'))) {
+      return ['-', { text: 'Edit drawing…', run: () => { void runAction('fig_edit') } },
+        { text: 'Edit in KhervePaint', run: () => {
+          void import('../drawing/insert.ts').then(m => m.editInKhervePaint(resolved))
+        } }]
+    }
+  } catch { /* no platform: no extra entries */ }
+  return []
+}
+
+// The figure's file as _resolve_image_path finds it.
+async function resolveForMenu(p: string): Promise<string | null> {
+  if (!p) return null
+  const { platform } = await import('../platform/index.ts')
+  const { dirname, isAbsolute, join } = await import('../core/paths.ts')
+  const { appStore } = await import('../app/store.ts')
+  const pf = platform()
+  if (isAbsolute(p) && await pf.exists(p)) return p
+  const doc = appStore().get().path
+  if (doc && await pf.exists(join(dirname(doc), p))) return join(dirname(doc), p)
+  const { imagesDir } = await import('../drawing/host.ts')
+  const c = join(await imagesDir(), p)
+  return (await pf.exists(c)) ? c : null
 }
 
 // convert_selection_to_equation: the selected text, as the equation

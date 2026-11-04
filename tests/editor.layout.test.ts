@@ -7,7 +7,8 @@ import * as M from '../src/core/model.ts'
 import { isBroken, lookFor, LOOKS, numberLabel } from '../src/editor/classLooks.ts'
 import { docToPM } from '../src/editor/convert.ts'
 import { baselineskipPt } from '../src/editor/latexFonts.ts'
-import { BASELINE_AT, layoutDocument, PX_PER_CM, screenFontFor, type BlockLayout } from '../src/editor/layout.ts'
+import { anchorOffset, BASELINE_AT, layoutDocument, normalizeForMatch, pdfPageStartBlocks, PX_PER_CM, screenFontFor,
+  type BlockLayout } from '../src/editor/layout.ts'
 import { TEMPLATE_CHOICES } from '../src/ui/ribbonModel.ts'
 
 const PT = 96 / 72
@@ -176,5 +177,33 @@ describe('test_class_looks.py', () => {
   it('numbered equations count through the document', () => {
     const L = lay([M.mathBlock('a', true), M.mathBlock('b'), M.mathBlock('\\begin{align}c\\end{align}')])
     expect(L.blocks.map(b => b.equationNumber)).toEqual(['(1)', '', '(2)'])
+  })
+})
+
+describe('the compiled PDF and projects (paged_edit.py)', () => {
+  it('test_sheets_start_where_the_pdf_pages_start', () => {
+    const long = 'word '.repeat(60)
+    const blocks = [M.section(1, [M.text('Intro')]), M.paragraph([M.text('Lists are mentioned here. ' + long)]),
+      M.section(1, [M.text('Lists')]), M.paragraph([M.text(long)])]
+    const pm = docToPM(M.document(blocks))
+    // The PDF put the "Lists" heading at the top of page 2; the earlier
+    // paragraph that merely mentions the word must not take the break.
+    const breaks = pdfPageStartBlocks(pm, [[2, 'Lists']])
+    const L = layoutDocument(pm, M.docMeta(), undefined, breaks)
+    expect(L.blocks.map(b => b.breakBefore)).toEqual([false, false, true, false])
+  })
+
+  it('anchor_offset: short keys must be the whole line, long ones may start mid-block', () => {
+    expect(normalizeForMatch('  Ünïcode   TEXT ')).toBe('unicode text')
+    expect(anchorOffset('Lists', 'lists')).toBe(0)
+    expect(anchorOffset('Lists are here', 'lists')).toBe(-1)
+    const key = normalizeForMatch('the second page starts here')
+    expect(anchorOffset('Some words before; the second page starts here and on', key)).toBe(19)
+  })
+
+  it('heading counters continue from the earlier documents of a project', () => {
+    const L = layoutDocument(docToPM(M.document([M.section(1, [M.text('A')]), M.section(2, [M.text('B')])])),
+      M.docMeta(), [0, 3, 0, 0, 0, 0])
+    expect(L.blocks.map(b => b.number)).toEqual(['4', '4.1'])
   })
 })

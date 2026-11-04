@@ -8,6 +8,7 @@ import { redo, undo } from 'prosemirror-history'
 import * as M from '../../core/model.ts'
 import { COMPILE_END, COMPILE_START, NOT_COMPILE_END, NOT_COMPILE_START } from '../../core/compiler.ts'
 import { importBodyFragment } from '../../core/importers.ts'
+import { dirname } from '../../core/paths.ts'
 import * as C from '../../editor/commands.ts'
 import { editor } from '../../editor/controller.ts'
 import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
@@ -160,13 +161,30 @@ async function comment(): Promise<void> {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-  run(C.addComment(note.trim(), commentAuthor, ts))
+  run(C.addComment(note.trim(), commentAuthor ?? await gitAuthor(), ts))
 }
 
-let commentAuthor = ''
-// The name comments are signed with (MainWindow reads it from git config).
-export function setCommentAuthor(name: string): void {
+let commentAuthor: string | null = null
+// The name comments are signed with, overriding git's.
+export function setCommentAuthor(name: string | null): void {
   commentAuthor = name
+}
+
+// MainWindow._insert_comment: the user's git identity for the document's
+// repository (the enclosing one, else its folder), "" when there is none.
+async function gitAuthor(): Promise<string> {
+  const path = appStore().get().path
+  if (!path) return ''
+  try {
+    const { git } = await import('../../platform/git.ts')
+    const g = git()
+    if (!g.isAvailable()) return ''
+    const folder = dirname(path)
+    const repo = (await g.findEnclosingRepo(folder)) ?? folder
+    return (await g.defaultSignature(repo))?.name ?? ''
+  } catch {
+    return ''
+  }
 }
 
 async function theoremTitle(): Promise<void> {

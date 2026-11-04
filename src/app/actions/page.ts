@@ -9,6 +9,21 @@ import { docSettingsDialog, styleDialog, type StyleFile } from '../../ui/dialogs
 import { registerActions, type Handler } from '../actions.ts'
 import { appStore, editDoc } from '../store.ts'
 
+// What projects and the compile loop tell the visual editor beyond
+// EditorApi (DocumentEditor.set_first_page_number, set_heading_offset,
+// PagedTextEdit.set_page_anchors): reach it as
+// `editorApi() as EditorApi & PageEditing`.
+export interface PageEditing {
+  // Printed number of the first sheet (a project chapter continues).
+  setPageNumberStart(n: number): void
+  // Numbered headings already used before this document, per level
+  // (index 0 = chapter); null resets.
+  setHeadingOffset(counters: number[] | null): void
+  // The compiled PDF's page count and [(page_no, first text), ...] of
+  // every page after the first (MainWindow._on_compile_done).
+  setPageAnchors(pageCount: number, anchors: [number, string][]): void
+}
+
 // The document's meta as it stands (the store's: chemistry may have added
 // a package since the editor last exported).
 function meta(): DocMeta {

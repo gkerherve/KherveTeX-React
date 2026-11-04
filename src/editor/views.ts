@@ -124,7 +124,7 @@ class FigureView implements NodeView {
       if (p !== undefined) host.onFigureDoubleClick(p)
     })
   }
-  private render() {
+  render() {
     const a = this.node.attrs
     this.dom.dataset.align = a.align || 'center'
     const rows: HTMLElement[] = []
@@ -419,7 +419,12 @@ export function nodeViews(host: ViewHost, atoms: Set<{ render(): void }>) {
     math_inline: (node: PMNode, view: EditorView, getPos: () => number | undefined) => new MathInlineView(node, host, view, getPos),
     math_block: (node: PMNode, _v: EditorView, getPos: () => number | undefined) =>
       new MathBlockView(node, host, getPos),
-    figure: (node: PMNode, _v: EditorView, getPos: () => number | undefined) => new FigureView(node, host, getPos),
+    figure: (node: PMNode, _v: EditorView, getPos: () => number | undefined) => {
+      // Registered so a loaded or redrawn image shows at once.
+      const v = new FigureView(node, host, getPos)
+      atoms.add(v)
+      return Object.assign(v, { destroy: () => { atoms.delete(v) } })
+    },
     table: (node: PMNode) => new TableView(node),
     raw_float: (node: PMNode) => new RawFloatView(node),
     citation: atom, crossref: atom, footnote: atom, inline_raw: atom, inline_json: atom,

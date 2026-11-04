@@ -1,5 +1,6 @@
 // Port of tests/test_theorems.py (serializer and model parts).
 import { describe, expect, it } from 'vitest'
+import { lectureNotes } from '../src/core/examples.ts'
 import { document, section, text, theorem } from '../src/core/model.ts'
 import type { Block } from '../src/core/model.ts'
 import { serializeDocument } from '../src/core/serializer.ts'
@@ -35,7 +36,13 @@ describe('test_theorems.py', () => {
     expect(out).toContain('*Example.* e')
   })
 
-  it.skip('test_lecture_notes_example_has_no_raw_theorems — needs khervedoc.examples, not ported', () => {})
+  it('test_lecture_notes_example_has_no_raw_theorems', () => {
+    const doc = lectureNotes()
+    expect(doc.children.some(b => b.type === 'Theorem')).toBe(true)
+    expect(doc.children.some(b => b.type === 'RawLatex'
+      && /^\s*\\begin\{(theorem|lemma|definition|proof|example)\}/.test(b.text))).toBe(false)
+  })
 
-  it.skip('test_editor_round_trip_enter_and_kind — Qt editor', () => {})
+  // test_editor_round_trip_enter_and_kind drives the editor:
+  // tests/editor.commands.test.ts runs it.
 })

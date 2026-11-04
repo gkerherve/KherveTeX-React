@@ -22,6 +22,9 @@ import {
 import { setSetting, setting } from '../platform/settings'
 import { setCommandChecked } from '../ui/commands'
 import { TEMPLATE_CHOICES } from '../ui/ribbonModel'
+import { editorApi, type EditorApi } from './editorApi'
+import type { PageEditing } from './actions/page'
+import { pageAnchors } from './pageAnchors'
 import { appStore, type AppState } from './store'
 
 export type Engine = 'latex' | 'typst'
@@ -225,9 +228,15 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     if (path !== null) {
       void platform().writeFile(join(dirname(path), `${docStem(path)}.pdf`), pdf).catch(() => {})
     }
-    // TODO(visual editor): page count and the first text of each page
-    // (MainWindow: set_pdf_page_count / set_page_anchors) for the editor's
-    // page-break overlay, once EditorApi offers it.
+    // Tell the editor how many pages the PDF has and the first text of
+    // each later page, so its page breaks sit where the PDF's pages start
+    // rather than at a uniform spacing (which falls apart when page 1 has
+    // a title block).
+    const bytes = pdf
+    void pageAnchors(bytes).then(([count, anchors]) => {
+      const ed = editorApi() as (EditorApi & Partial<PageEditing>) | null
+      ed?.setPageAnchors?.(count, anchors)
+    }).catch(() => {})
   } else {
     const tail = result.log ? result.log.split(/\r?\n/).filter((_, i, a) => i >= a.length - 10).join('\n') : ''
     setUi({ message: `${result.error}\n\n${tail}`, consoleError: true })
