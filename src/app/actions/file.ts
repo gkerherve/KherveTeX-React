@@ -52,16 +52,34 @@ export function fileAccess(): FileAccess {
 
 // ---- title ----
 
-// MainWindow._update_title: "KherveTeX v<major.minor> — <name>".
-// TODO(git phase): the " [branch]" suffix when the folder is a git repo.
+// MainWindow._update_title: "KherveTeX v<major.minor> — <name> [branch]".
+// The branch suffix is kept by actions/git.ts for the open document's folder.
+let branchSuffix = { path: '', suffix: '' }
 export function windowTitle(): string {
   const path = appStore().get().path
   if (path === null && importedStem !== null) return `KherveTeX ${VERSION} — ${importedStem} (imported)`
-  return `KherveTeX ${VERSION} — ${path ? basename(path) : 'Untitled'}`
+  const branch = path !== null && branchSuffix.path === path ? branchSuffix.suffix : ''
+  return `KherveTeX ${VERSION} — ${path ? basename(path) + branch : 'Untitled'}`
 }
 
 function updateTitle(): void {
   void platform().setTitle(windowTitle()).catch(() => {})
+}
+
+// " [dev]" for the document at `path`.
+export function setBranchSuffix(path: string, suffix: string): void {
+  if (path === branchSuffix.path && suffix === branchSuffix.suffix) return
+  branchSuffix = { path, suffix }
+  updateTitle()
+}
+
+// Run after every successful save with (folder, file name, document stem):
+// MainWindow._write_to ends with _git_snapshot(path.parent, path.name, stem).
+type SaveListener = (folder: string, name: string, stem: string | null) => void | Promise<void>
+const saveListeners = new Set<SaveListener>()
+export function onAfterSave(l: SaveListener): () => void {
+  saveListeners.add(l)
+  return () => { saveListeners.delete(l) }
 }
 
 let statusTimer: ReturnType<typeof setTimeout> | null = null
@@ -380,7 +398,7 @@ async function writeTo(target: string): Promise<void> {
   // Only clear the flag if nothing was typed while saving.
   appStore().set(s => ({ dirty: s.doc === doc ? false : s.dirty, status: '' }))
   if (path !== target) showMessage(`Saved as ${basename(path)} (new format)`, 6000)
-  // TODO(git phase): _git_snapshot(folder, name, stem) — commit and push.
+  for (const l of saveListeners) await l(dirname(path), basename(path), texBasename)
 }
 
 // ---- export ----

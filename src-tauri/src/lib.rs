@@ -2,6 +2,7 @@
 //! the OS integration the frontend (src/platform/tauri.ts) calls.
 
 mod fsops;
+mod git;
 mod process;
 mod system;
 mod tectonic;
@@ -56,6 +57,27 @@ pub fn run() {
             system::settings_read,
             system::settings_write,
             system::launch_args,
+            git::git_is_available,
+            git::git_init_repo,
+            git::git_find_enclosing_repo,
+            git::git_commit_all,
+            git::git_get_remotes,
+            git::git_set_remote,
+            git::git_remove_remote,
+            git::git_current_branch,
+            git::git_pull,
+            git::git_push,
+            git::git_system_git_available,
+            git::git_restore_to_commit,
+            git::git_history,
+            git::git_history_detailed,
+            git::git_list_branches,
+            git::git_create_branch,
+            git::git_switch_branch,
+            git::git_delete_branch,
+            git::git_history_graph,
+            git::git_diff_for_commit,
+            git::git_default_signature,
         ])
         .run(tauri::generate_context!())
         .expect("error while running KherveTeX");

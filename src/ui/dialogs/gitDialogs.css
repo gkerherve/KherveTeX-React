@@ -1,0 +1,54 @@
+/* The git dialogs: history_dialog.py's HistoryDialog (1200 x 750, branch
+   bar over a QSplitter of the commit table and the details) and
+   remote_dialog.py's RemoteDialog (660 x 460). */
+.dlg-label { white-space: pre-wrap; }
+
+.dlg-history { width: min(1200px, 96vw); height: min(750px, 92vh); max-width: 96vw; max-height: 92vh; }
+.dlg-history .hist-titlebar { display: flex; align-items: center; justify-content: space-between; }
+.dlg-history .hist-x { border: none; background: transparent; font-size: 15px; line-height: 1; padding: 0 4px; }
+.dlg-history .hist-x:hover { color: #c42b1c; }
+.dlg-history .hist-body-wrap { flex: 1; min-height: 0; overflow: hidden; }
+.hist-branchbar { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+.hist-branch-label { font-weight: bold; }
+.hist-combo { min-width: 150px; font: inherit; }
+.hist-split { flex: 1; min-height: 0; display: flex; }
+.hist-table { flex: none; min-width: 120px; overflow: auto; background: #fff; border: 1px solid #a0a0a0; outline: none; }
+.hist-table table { width: 100%; border-collapse: collapse; table-layout: fixed; user-select: none; }
+.hist-table th { position: sticky; top: 0; z-index: 1; background: #f0f0f0; border: 1px solid #d0d0d0;
+  border-top: 0; padding: 2px 6px; text-align: left; font-weight: normal; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.hist-table td { padding: 2px 6px; height: 28px; vertical-align: middle; overflow-wrap: anywhere; }
+.hist-table tr.alt td { background: #f7f7f7; }
+.hist-table tr.selected td { background: #0078d7; color: #fff; }
+.hist-table td.hist-when { font-size: 9pt; }
+.hist-table td.hist-graph-cell { position: relative; padding: 0; }
+.hist-graph { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hist-handle { flex: none; width: 5px; cursor: col-resize; }
+.hist-right { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 6px; }
+.hist-meta { padding: 8px; background: #f7f7f7; user-select: text; overflow-wrap: anywhere; }
+.hist-subject { font-size: 12pt; }
+.hist-grey { color: #666; }
+.hist-tag { background: #d0e8ff; color: #0a5090; padding: 1px 5px; border-radius: 3px;
+  font-size: 9pt; font-weight: bold; margin-right: 4px; }
+.hist-body { margin: 6px 0 0 0; white-space: pre-wrap; font: inherit; }
+.hist-diff { flex: 1; min-height: 0; overflow: auto; background: #fff; border: 1px solid #a0a0a0;
+  padding: 2px 4px; font: 10pt Consolas, Menlo, "DejaVu Sans Mono", monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; outline: none; }
+.hist-diff .hd-header { color: #7a7a7a; font-style: italic; }
+.hist-diff .hd-hunk { color: #1a4fa0; font-weight: bold; }
+.hist-diff .hd-add { color: #0a6f00; background: #e6f7e6; }
+.hist-diff .hd-del { color: #a8001a; background: #fde0e0; }
+.hist-restore { align-self: stretch; }
+
+.dlg-remote { width: min(660px, 94vw); height: min(460px, 90vh); }
+.dlg-remote .rem-body { flex: 1; min-height: 0; }
+.rem-intro { user-select: text; }
+.rem-table { flex: 1; min-height: 60px; overflow: auto; background: #fff; border: 1px solid #a0a0a0; }
+.rem-table table { width: 100%; border-collapse: collapse; user-select: none; }
+.rem-table th { position: sticky; top: 0; background: #f0f0f0; border: 1px solid #d0d0d0; border-top: 0;
+  padding: 2px 6px; text-align: left; font-weight: normal; white-space: nowrap; }
+.rem-table td { padding: 2px 6px; white-space: nowrap; }
+.rem-table .rem-name { width: 1%; }
+.rem-table tr.selected td { background: #0078d7; color: #fff; }
+.rem-buttons { display: flex; gap: 6px; }
+.rem-help { color: #666; user-select: text; }
