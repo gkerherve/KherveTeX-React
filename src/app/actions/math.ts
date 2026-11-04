@@ -1,0 +1,142 @@
+// Equations and chemistry: MainWindow's _insert_symbol,
+// _insert_equation_template, _apply_equation_template, _insert_chemistry,
+// _insert_chemfig, the Insert ▸ Inline math / Math block entry points
+// (DocumentEditor.open_equation_editor) and the contextual Equation tab
+// (edit_current_equation, set_current_equation_numbered,
+// delete_current_equation).
+import { registerActions } from '../actions'
+import { editorApi, type EditorApi } from '../editorApi'
+import { appStore } from '../store'
+import { inlineRaw, mathBlock, mathInline, rawLatex } from '../../core/model'
+import { isTextModeSymbol } from '../../math/symbols'
+
+// What the contextual Equation tab needs beyond EditorApi. The visual
+// editor implements these; until it does the buttons only report it.
+export interface EquationEditing {
+  equationNumbered?(): boolean
+  setEquationNumbered?(on: boolean): void
+  deleteEquation?(): void
+}
+
+const ed = (): (EditorApi & EquationEditing) | null => editorApi() as (EditorApi & EquationEditing) | null
+
+const dialogs = () => import('../../math/dialogs')
+
+// insert_math_block_with / insert_inline_math_with: nothing for empty LaTeX.
+function insertMathBlock(latex: string, numbered = false): void {
+  if (!latex.trim()) return
+  ed()?.insertBlock(mathBlock(latex, numbered))
+}
+
+function insertInlineMath(latex: string): void {
+  if (!latex) return
+  ed()?.insertInline(mathInline(latex))
+}
+
+// meta.packages.append(pkg) on first use, as MainWindow does for mhchem
+// and chemfig.
+function ensurePackage(pkg: string): void {
+  const s = appStore()
+  const doc = s.get().doc
+  if (doc.meta.packages.includes(pkg)) return
+  s.set({ doc: { ...doc, meta: { ...doc.meta, packages: [...doc.meta.packages, pkg] } }, dirty: true })
+}
+
+// Route a symbol-palette pick to math-inline or raw-inline insert: text-mode
+// macros like \Kstroke would not render inside $...$.
+export function dispatchSymbolPick(latex: string): void {
+  if (isTextModeSymbol(latex)) {
+    if (latex) ed()?.insertInline(inlineRaw(latex))
+  } else insertInlineMath(latex)
+}
+
+export function applyEquationTemplate(latex: string): void {
+  if (latex.includes('\\begin{')) insertMathBlock(latex)
+  else insertInlineMath(latex)
+}
+
+// Toolbar entry point: build an equation in the equation editor, preset to
+// inline or display (numbered) layout.
+async function openEquationEditor(display: boolean): Promise<void> {
+  const { execEquationEditor } = await dialogs()
+  const r = await execEquationEditor({ showLayout: true, display })
+  if (!r) return
+  const latex = r.latex.trim()
+  if (!latex) return
+  if (r.display || latex.includes('\\begin{')) insertMathBlock(latex, r.numbered)
+  else insertInlineMath(latex)
+}
+
+registerActions({
+  symbol: async () => {
+    const { showSymbolPicker } = await import('../../math/SymbolPicker')
+    showSymbolPicker(dispatchSymbolPick)
+  },
+
+  equation_builder: async () => {
+    const { execEquationEditor } = await dialogs()
+    const r = await execEquationEditor()
+    if (!r) return
+    const latex = r.latex
+    if (!latex) return
+    // \begin{equation} (numbered) unless the template already carries its
+    // own environment (align, cases, ...).
+    if (r.display) insertMathBlock(latex, r.numbered)
+    else applyEquationTemplate(latex)
+  },
+
+  math_inline: () => openEquationEditor(false),
+  math_block: () => openEquationEditor(true),
+
+  // Chemistry needs no model node of its own: \ce{} is a math-mode macro, so
+  // it rides inside the ordinary math nodes.
+  chemistry: async () => {
+    const { execChemistryEditor } = await dialogs()
+    const r = await execChemistryEditor()
+    if (!r || !r.latex) return
+    ensurePackage('mhchem')
+    if (r.display) insertMathBlock(r.latex, true)
+    else insertInlineMath(r.latex)
+  },
+
+  // chemfig is text-mode, so it goes in as a RawLatex block the serializer
+  // emits verbatim.
+  chemfig: async () => {
+    const { execChemfigEditor } = await dialogs()
+    const latex = await execChemfigEditor()
+    if (!latex) return
+    ensurePackage('chemfig')
+    if (latex.trim()) ed()?.insertBlock(rawLatex(latex))
+  },
+
+  eq_edit: async () => {
+    const e = ed()
+    const latex = e?.selection().mathLatex ?? null
+    if (e === null || latex === null) return
+    const { askMath } = await dialogs()
+    const fresh = await askMath(latex)
+    if (fresh !== null) e.replaceMath(fresh)
+  },
+
+  // Checkable: the ribbon passes no state, so it toggles.
+  eq_numbered: (arg?: unknown) => {
+    const e = ed()
+    if (!e) return
+    if (!e.setEquationNumbered) {
+      appStore().set({ status: 'Numbering equations needs the visual editor.' })
+      return
+    }
+    const on = typeof arg === 'boolean' ? arg : !(e.equationNumbered?.() ?? false)
+    e.setEquationNumbered(on)
+  },
+
+  eq_delete: () => {
+    const e = ed()
+    if (!e) return
+    if (!e.deleteEquation) {
+      appStore().set({ status: 'Deleting equations needs the visual editor.' })
+      return
+    }
+    e.deleteEquation()
+  },
+})

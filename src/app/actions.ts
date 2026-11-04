@@ -3,18 +3,24 @@
 // areas never edit a shared list. A command with no handler only logs.
 export type Handler = (arg?: unknown) => void | Promise<void>
 
-const handlers = new Map<string, Handler>()
+// The eager glob below is hoisted above this module's body, so each action
+// module calls registerActions before a top-level `const` here would be
+// initialised. A hoisted function holds the table instead.
+function table(): Map<string, Handler> {
+  const t = table as { map?: Map<string, Handler> }
+  return (t.map ??= new Map())
+}
 
 export function registerActions(map: Record<string, Handler>): void {
-  for (const [id, h] of Object.entries(map)) handlers.set(id, h)
+  for (const [id, h] of Object.entries(map)) table().set(id, h)
 }
 
 export function hasAction(id: string): boolean {
-  return handlers.has(id)
+  return table().has(id)
 }
 
 export async function runAction(id: string, arg?: unknown): Promise<void> {
-  const h = handlers.get(id)
+  const h = table().get(id)
   if (!h) { console.log('unwired command:', id); return }
   try {
     await h(arg)

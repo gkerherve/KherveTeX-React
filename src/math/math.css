@@ -1,0 +1,147 @@
+/* The equation, chemistry and chemfig editors and the symbol palette —
+   equation_editor.py's _DIALOG_QSS and widget styles. */
+
+/* ---------------------------------------------------- equation canvas */
+.mathedit { position: relative; cursor: text; outline: none; width: 100%; height: 100%; box-sizing: border-box; }
+.mathedit-svg { position: absolute; inset: 0; pointer-events: none; }
+.mathedit-input {
+  position: absolute; width: 1px; height: 1px; padding: 0; border: 0;
+  opacity: 0; resize: none; overflow: hidden; pointer-events: none;
+}
+.mathedit-completer {
+  position: absolute; z-index: 5; width: 240px; box-sizing: border-box;
+  margin: 0; padding: 3px; list-style: none; overflow-y: auto;
+  background: white; border: 1px solid #c8d0db; border-radius: 6px;
+  font-size: 13px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.mathedit-completer li {
+  padding: 3px 8px; border-radius: 4px; height: 20px; line-height: 20px;
+  font: 15px "Latin Modern Math", serif; white-space: pre; cursor: default;
+}
+.mathedit-completer li.sel { background: #2f6fde; color: white; }
+.mathedit-glyph { display: inline-block; min-width: 3ch; margin-right: 2ch; }
+
+/* ------------------------------------------------ the source field */
+.latexedit { position: relative; box-sizing: border-box; }
+.latexedit-back, .latexedit-text {
+  position: absolute; inset: 0; box-sizing: border-box; margin: 0;
+  padding: 4px; font: inherit; line-height: 1.35; letter-spacing: normal;
+  white-space: pre-wrap; overflow-wrap: break-word; overflow: auto;
+}
+.latexedit-back { color: #000; pointer-events: none; border: 1px solid transparent; }
+.latexedit-back mark { background: #cfe4fb; color: #1a4d8f; border-radius: 0; }
+.latexedit-text {
+  color: transparent; caret-color: #000; background: transparent; resize: none;
+  border: 1px solid #a0a0a0; outline: none;
+}
+.latexedit-text::placeholder { color: #a0a0a0; }
+.latexedit-text::selection { background: rgba(0, 120, 215, 0.35); color: transparent; }
+
+/* --------------------------------------------- equation editor dialog */
+.dlg.eqed { width: 860px; height: 640px; background: #f4f6f9; font-size: 13px; }
+.eqed-ribbon { background: #fff; border-bottom: 1px solid #dde2e8; padding: 4px 10px 8px; }
+.eqed-tabs { display: flex; gap: 2px; }
+.eqed-tab {
+  padding: 6px 16px; border: none; border-bottom: 2px solid transparent;
+  background: transparent; color: #5b6573; font: inherit; font-weight: 600;
+}
+.eqed-tab:hover { color: #1f2937; }
+.eqed-tab.sel { color: #1f5fd1; border-bottom-color: #2f6fde; }
+.eqed-page { padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.eqed-strip { display: flex; gap: 2px; flex-wrap: nowrap; overflow: hidden; }
+.eqed-cat {
+  width: 68px; height: 54px; flex: none; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border: 1px solid transparent; border-radius: 6px; padding: 3px 2px;
+  background: transparent; color: #374151; font: inherit; font-size: 11px;
+}
+.eqed-cat:hover { background: #eef3fb; border-color: #d4e1f7; }
+.eqed-cat.sel { background: #e3edfd; border-color: #9dbcf2; color: #1f5fd1; }
+.eqed-symtab { width: auto; height: 28px; flex-direction: row; padding: 3px 8px; white-space: pre; }
+.eqed-icon { display: inline-flex; line-height: 0; }
+.eqed-stack { background: #fff; overflow: auto; }
+.eqed-stack-tpl { height: 112px; overflow-y: hidden; }
+.eqed-stack-sym { height: 142px; }
+.eqed-flow { display: flex; align-items: center; gap: 6px; padding: 2px; height: 100%; box-sizing: border-box; }
+.eqed-tpl, .eqed-sym {
+  flex: none; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid #e3e7ed; border-radius: 6px; padding: 0; color: #16181d;
+}
+.eqed-tpl:hover, .eqed-sym:hover { background: #eef4ff; border-color: #8fb2ef; }
+.eqed-tpl:active, .eqed-sym:active { background: #dce8fd; }
+.eqed-symgrid { display: grid; grid-template-columns: repeat(18, 36px); gap: 3px; }
+.eqed-sym { width: 36px; height: 34px; font-size: 19px; }
+.eqed-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 12px; }
+.eqed-canvas {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  background: #fff; border: 1px solid #d6dce4; border-radius: 10px; padding: 1px 1px 6px;
+}
+.eqed-scroll { flex: 1; min-height: 0; overflow: auto; display: flex; background: white; border-radius: 9px 9px 0 0; }
+.eqed-hint { color: #8a94a3; font-size: 11px; text-align: center; white-space: pre; }
+.eqed-hint-left { text-align: left; }
+.eqed-source { display: flex; flex-direction: column; gap: 4px; }
+.eqed-source[hidden] { display: none; }
+.eqed-latex { height: 84px; font: 11pt Menlo, Consolas, monospace; }
+.eqed-latex .latexedit-text { background: transparent; border: 1px solid #d6dce4; border-radius: 6px; }
+.eqed-latex .latexedit-back { background: #fbfcfd; border-radius: 6px; }
+.eqed-bar { display: flex; align-items: center; gap: 10px; }
+.eqed-bar label { display: inline-flex; align-items: center; gap: 4px; }
+.eqed-bar label.disabled { color: #a0a0a0; }
+.eqed-slothint { color: #1f5fd1; font-size: 11px; }
+.eqed-stretch { flex: 1; }
+.eqed-btn, .eqed-toggle {
+  padding: 6px 16px; border-radius: 6px; border: 1px solid #cfd6df; background: #fff; font: inherit; color: #000;
+}
+.eqed-btn:hover { background: #f1f4f8; }
+.eqed-btn.primary { background: #2f6fde; color: white; border-color: #2f6fde; font-weight: 600; }
+.eqed-btn.primary:hover { background: #245fcb; }
+.eqed-toggle { padding: 5px 10px; color: #374151; }
+.eqed-toggle.sel { background: #e3edfd; border-color: #9dbcf2; color: #1f5fd1; }
+
+/* ------------------------------------ chemistry / chemfig palette dialog */
+.dlg.pal { max-width: 95vw; max-height: 95vh; }
+.pal-root { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.pal-preview {
+  display: flex; align-items: center; justify-content: center; overflow: auto;
+  background: white; border: 1px solid #ccc; border-radius: 4px; padding: 12px;
+}
+.pal-svg { display: inline-flex; line-height: 0; }
+.pal-toolbar { display: grid; gap: 2px; padding: 4px; border: 1px solid #c0c0c0; border-radius: 2px; }
+.pal-cat { border: 1px solid transparent; border-radius: 3px; background: transparent; padding: 0; font: inherit; }
+.pal-cat.sel { border-color: #1a6dd8; background: #e0edfa; }
+.pal-catlabel { font-weight: bold; color: #444; padding: 2px 4px; }
+.pal-stack { max-height: 160px; overflow-y: auto; overflow-x: hidden; }
+.pal-grid { display: grid; grid-template-columns: repeat(5, max-content); gap: 4px; padding: 4px; }
+.pal-tpl {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid #ccc; border-radius: 3px; padding: 2px; background: #fff; font: inherit;
+  overflow: hidden;
+}
+.pal-tpl:hover { border-color: #1a6dd8; background: #e8f0fa; }
+.pal-srclabel { color: #666; font-size: 9pt; }
+.pal-latex { height: 72px; flex: none; font: 10pt Consolas, Menlo, monospace; }
+.pal-latex .latexedit-back { background: #fff; }
+.pal-phhint { color: #888; font-size: 8pt; min-height: 1em; }
+.pal-check { display: inline-flex; align-items: center; gap: 4px; }
+.pal-note { color: #888; font-size: 8pt; }
+.pal .dlg-buttons { padding: 0; margin-top: auto; }
+
+/* ------------------------------------------------------ symbol palette */
+.sympick-host[hidden] { display: none; }
+.sympick {
+  position: fixed; z-index: 900; width: 440px; height: 480px;
+  display: flex; flex-direction: column;
+  background: var(--panel-bg, #f0f0f0); border: 1px solid #a0a0a0;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); font: 9pt "Segoe UI", system-ui, sans-serif;
+}
+.sympick-title {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 6px 4px 10px; border-bottom: 1px solid #d0d0d0; font-weight: 600; cursor: move; user-select: none;
+}
+.sympick-close { border: none; background: transparent; padding: 2px 6px; cursor: default; }
+.sympick-close:hover { background: #e81123; color: white; }
+.sympick-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px; display: flex; flex-direction: column; gap: 8px; }
+.sympick-group { color: #444; padding-top: 4px; }
+.sympick-grid { display: grid; grid-template-columns: repeat(10, 32px); gap: 2px; margin-top: 8px; }
+.sympick-grid button { width: 32px; height: 28px; padding: 0; font-size: 12pt; }
+.eqed-scroll > .mathedit { flex: 1 0 auto; width: auto; height: auto; }

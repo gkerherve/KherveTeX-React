@@ -1,0 +1,36 @@
+.dlg-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.18);
+}
+.dlg {
+  background: var(--panel-bg, #f0f0f0); color: var(--text, #000);
+  border: 1px solid #a0a0a0; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  font: 9pt "Segoe UI", system-ui, sans-serif;
+  min-width: 360px; max-width: 90vw; max-height: 90vh;
+  display: flex; flex-direction: column;
+}
+.dlg-title { padding: 6px 10px; border-bottom: 1px solid #d0d0d0; font-weight: 600; }
+.dlg-body { padding: 10px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.dlg-buttons { padding: 8px 10px; display: flex; justify-content: flex-end; gap: 6px; }
+.dlg-buttons button { min-width: 75px; }
+/* Overleaf dialog (overleaf_dialog.py): 520 px minimum, a QFormLayout of
+   label / field rows, notes in the placeholder-text grey. */
+.dlg-overleaf { min-width: 520px; width: 520px; }
+.dlg-overleaf .dlg-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+.dlg-overleaf .dlg-muted { color: #7f7f7f; }
+/* Citation picker (citation_picker.py): 820 x 520, QFormLayouts above and
+   below a row-selecting table whose Title column stretches. */
+.dlg-cite { width: 820px; height: 520px; }
+.dlg-cite .dlg-body { flex: 1; min-height: 0; }
+.dlg-cite .dlg-cite-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+.dlg-cite .dlg-cite-table { flex: 1; min-height: 120px; overflow: auto; background: #fff; border: 1px solid #a0a0a0; }
+.dlg-cite table { width: 100%; border-collapse: collapse; table-layout: auto; user-select: none; }
+.dlg-cite th { position: sticky; top: 0; background: #f0f0f0; border: 1px solid #d0d0d0; border-top: 0;
+  padding: 2px 6px; text-align: left; font-weight: normal; white-space: nowrap; }
+.dlg-cite td { padding: 2px 6px; white-space: nowrap; border-bottom: 1px solid #f0f0f0; }
+.dlg-cite .dlg-cite-title { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dlg-cite tr.selected td { background: #0078d7; color: #fff; }
+.dlg-cite .dlg-cite-empty { white-space: normal; }
+.dlg-cite .dlg-cite-buttons { align-items: center; }
+.dlg-cite .dlg-cite-hint { flex: 1; color: gray; }
