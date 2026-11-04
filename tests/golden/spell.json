@@ -1,0 +1,224 @@
+{
+ "suggestions": {
+  "wrold": [
+   "world",
+   "wold"
+  ],
+  "Wrold": [
+   "World",
+   "Wold"
+  ],
+  "WROLD": [
+   "WORLD",
+   "WOLD"
+  ],
+  "helo": [
+   "help",
+   "hell",
+   "held",
+   "hello",
+   "hero",
+   "helm",
+   "halo"
+  ],
+  "machne": [
+   "machine"
+  ],
+  "recieve": [
+   "receive",
+   "relieve"
+  ],
+  "teh": [
+   "the",
+   "ten",
+   "tea",
+   "te",
+   "eh",
+   "tee",
+   "ted"
+  ],
+  "adress": [
+   "dress",
+   "address"
+  ],
+  "seperate": [
+   "separate"
+  ],
+  "occured": [
+   "occurred"
+  ],
+  "definately": [
+   "definitely"
+  ],
+  "untill": [
+   "until"
+  ],
+  "beleive": [
+   "believe"
+  ],
+  "goverment": [
+   "government"
+  ],
+  "thier": [
+   "their",
+   "thief",
+   "tier",
+   "trier",
+   "shier",
+   "thieu"
+  ],
+  "wierd": [
+   "weird",
+   "wired",
+   "wield"
+  ],
+  "acommodate": [
+   "accommodate"
+  ],
+  "enviroment": [
+   "environment"
+  ],
+  "spectroscopy": [
+   "spectroscopy"
+  ],
+  "photoelectron": [
+   "photoelectron"
+  ],
+  "xps": [
+   "ups",
+   "ops",
+   "ps",
+   "x's",
+   "xis"
+  ],
+  "kherve": [
+   "there",
+   "here",
+   "where",
+   "serve",
+   "nerve",
+   "heave",
+   "swerve"
+  ],
+  "qwzxv": [],
+  "don't": [
+   "don't"
+  ],
+  "isnt": [
+   "isn't",
+   "inst"
+  ],
+  "editr": [
+   "editor",
+   "edit",
+   "edits",
+   "edith"
+  ],
+  "Lattex": [
+   "Latte",
+   "Latter",
+   "Latex",
+   "Lattes",
+   "Lastex",
+   "Latten"
+  ],
+  "Tabel": [
+   "Table",
+   "Label",
+   "Abel",
+   "Tael",
+   "Mabel",
+   "Babel",
+   "Tabes"
+  ],
+  "fiugre": [
+   "figure"
+  ],
+  "equaton": [
+   "equation",
+   "equator"
+  ]
+ },
+ "misspelled": {
+  "wrold": true,
+  "Wrold": true,
+  "WROLD": true,
+  "helo": true,
+  "machne": true,
+  "recieve": true,
+  "teh": true,
+  "adress": true,
+  "seperate": true,
+  "occured": true,
+  "definately": true,
+  "untill": true,
+  "beleive": true,
+  "goverment": true,
+  "thier": true,
+  "wierd": true,
+  "acommodate": true,
+  "enviroment": true,
+  "spectroscopy": false,
+  "photoelectron": false,
+  "xps": true,
+  "kherve": true,
+  "qwzxv": true,
+  "don't": false,
+  "isnt": true,
+  "editr": true,
+  "Lattex": true,
+  "Tabel": true,
+  "fiugre": true,
+  "equaton": true,
+  "hello": false,
+  "editor": false,
+  "ok": false,
+  "h2o": false,
+  "nan": false,
+  "inf": false
+ },
+ "ranges": {
+  "Teh quick brwon fox jumpd over the lazy dog.": [
+   [
+    0,
+    3
+   ],
+   [
+    10,
+    15
+   ],
+   [
+    20,
+    25
+   ]
+  ],
+  "We mesured the spectra of TiO2 with XPS at 1486.6 eV, don't we?": [
+   [
+    3,
+    10
+   ],
+   [
+    26,
+    29
+   ],
+   [
+    36,
+    39
+   ]
+  ],
+  "Recieved — the photoelectron-spectroscopy reslts were 'good'.": [
+   [
+    0,
+    8
+   ],
+   [
+    15,
+    41
+   ],
+   [
+    42,
+    48
+   ]
+  ]
+ }
+}
