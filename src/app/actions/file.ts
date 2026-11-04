@@ -1,0 +1,568 @@
+// The File menu: New, Open, Save, Save As, Close, Import, Export, Show in
+// file explorer and Open Recent — MainWindow's file actions in
+// khervedoc/mainwindow.py (_new, _open_path, _save, _save_as, _write_to,
+// _import_tex, _import_md, _export_tex, _export_latex_zip, _export_pdf,
+// _show_in_explorer, _remember_recent, _update_title, offer_save_before).
+import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import pkg from '../../../package.json'
+import { importMd, importTex, type ImportFs } from '../../core/importers'
+import {
+  exportLatexZip, isKdoczPath, isLegacyBundle, loadKdocz, NATIVE_SUFFIX, readBundledBib,
+  readProjectJson, saveKdocz, type FileAccess,
+} from '../../core/kdocz'
+import { document as newDocument, fromJson, paragraph, toJson, type DocMeta, type Document as KDocument } from '../../core/model'
+import { basename, dirname, join, normalize, suffix, withSuffix } from '../../core/paths'
+import { serializeDocument } from '../../core/serializer'
+import { serializeDocument as serializeTypst } from '../../core/typstSerializer'
+import { isTauri, platform, type FileFilter } from '../../platform'
+import { critical, messageBox, warning } from '../../platform/MessageBox'
+import { loadSettings, setSetting, setting } from '../../platform/settings'
+import { hasAction, registerActions, runAction } from '../actions'
+import {
+  compileUi, docStem, fullCompile, resolvedSourceDir, setImportSourceDir, showCachedPdf, shutdownCompiles,
+} from '../compile'
+import { appStore, replaceDoc, type LayoutMode } from '../store'
+import { setCommandChecked } from '../../ui/commands'
+import { GALLERY } from '../../ui/ribbonModel'
+import { showWelcomeDialog } from '../../ui/WelcomeDialog'
+
+const VERSION = 'v' + pkg.version.split('.').slice(0, 2).join('.')
+const RECENT_FILES_MAX = 8
+// project_store.WORK_DIR: working files live in .kherve/ so the folder
+// shows only the .ktex.
+const WORK_DIR = '.kherve'
+const BIB_FILE = 'kherveref.bib'
+
+const OPENABLE_SUFFIXES = new Set(['.ktex', '.ktexz', '.kdocz', '.tex', '.md', '.markdown', '.docx', '.pdf', '.json'])
+const IMAGE_SUFFIXES = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff', '.webp', '.svg'])
+
+// Cited KherveRef entries carried by the open document (from its .ktex),
+// used when its library is not on this machine.
+let bundledBib = ''
+// Set when the document came in through an importer: the title shows
+// "<stem> (imported)" until it is saved.
+let importedStem: string | null = null
+let recent: string[] = []
+
+export function fileAccess(): FileAccess {
+  const p = platform()
+  return { exists: p.exists, read: p.readFile, write: p.writeFile }
+}
+
+// ---- title ----
+
+// MainWindow._update_title: "KherveTeX v<major.minor> — <name>".
+// TODO(git phase): the " [branch]" suffix when the folder is a git repo.
+export function windowTitle(): string {
+  const path = appStore().get().path
+  if (path === null && importedStem !== null) return `KherveTeX ${VERSION} — ${importedStem} (imported)`
+  return `KherveTeX ${VERSION} — ${path ? basename(path) : 'Untitled'}`
+}
+
+function updateTitle(): void {
+  void platform().setTitle(windowTitle()).catch(() => {})
+}
+
+let statusTimer: ReturnType<typeof setTimeout> | null = null
+// statusBar().showMessage(msg, ms)
+function showMessage(msg: string, ms: number): void {
+  appStore().set({ status: msg })
+  if (statusTimer) clearTimeout(statusTimer)
+  statusTimer = setTimeout(() => { if (appStore().get().status === msg) appStore().set({ status: '' }) }, ms)
+}
+
+// ---- new documents ----
+
+// _apply_user_defaults: the user's Document-defaults preferences over a
+// new document's meta.
+export function applyUserDefaults(meta: DocMeta): DocMeta {
+  return {
+    ...meta,
+    body_font_pt: Number(setting('default/body_font_pt', meta.body_font_pt)),
+    body_font_family: String(setting('default/body_font_family', meta.body_font_family)),
+    visual_font_family: String(setting('default/visual_font_family', meta.visual_font_family)),
+    line_spacing: Number(setting('default/line_spacing', meta.line_spacing)),
+    paragraph_indent: Boolean(setting('default/paragraph_indent', meta.paragraph_indent)),
+    margin_top_cm: Number(setting('default/margin_top_cm', meta.margin_top_cm)),
+    margin_bottom_cm: Number(setting('default/margin_bottom_cm', meta.margin_bottom_cm)),
+    margin_left_cm: Number(setting('default/margin_left_cm', meta.margin_left_cm)),
+    margin_right_cm: Number(setting('default/margin_right_cm', meta.margin_right_cm)),
+    page_size: String(setting('default/page_size', meta.page_size)),
+  }
+}
+
+// _blank_document: an empty page, what the app opens on and New gives.
+export function blankDocument(): KDocument {
+  const doc = newDocument([paragraph([])])
+  return { ...doc, meta: applyUserDefaults(doc.meta) }
+}
+
+// closeEvent: persist the document defaults so new documents start with
+// the user's preferred font size, family, margins etc.
+function saveUserDefaults(): void {
+  const m = appStore().get().doc.meta
+  setSetting('default/body_font_pt', m.body_font_pt)
+  setSetting('default/body_font_family', m.body_font_family)
+  setSetting('default/visual_font_family', m.visual_font_family)
+  setSetting('default/line_spacing', m.line_spacing)
+  setSetting('default/paragraph_indent', m.paragraph_indent)
+  setSetting('default/margin_top_cm', m.margin_top_cm)
+  setSetting('default/margin_bottom_cm', m.margin_bottom_cm)
+  setSetting('default/margin_left_cm', m.margin_left_cm)
+  setSetting('default/margin_right_cm', m.margin_right_cm)
+  setSetting('default/page_size', m.page_size)
+}
+
+// A document that came from an example or template, not a file.
+export function openUnsaved(doc: KDocument): void {
+  bundledBib = ''
+  importedStem = null
+  setImportSourceDir(null)
+  replaceDoc({ ...doc, meta: applyUserDefaults(doc.meta) }, { path: null, dirty: false })
+  updateTitle()
+}
+
+export async function newDocumentAction(reason = 'starting a new document'): Promise<void> {
+  if (!(await offerSaveBefore(reason))) return
+  // TODO(projects phase): self._leave_project()
+  bundledBib = ''
+  importedStem = null
+  setImportSourceDir(null)
+  replaceDoc(blankDocument(), { path: null, dirty: false })
+  updateTitle()
+}
+
+// ---- unsaved changes ----
+
+// Ask to save unsaved edits before e.g. opening another document. False
+// means the user cancelled.
+export async function offerSaveBefore(reason: string): Promise<boolean> {
+  const s = appStore().get()
+  if (!s.dirty) return true
+  const name = s.path ? basename(s.path) : 'Untitled'
+  const answer = await messageBox({
+    title: 'Unsaved changes', icon: 'question',
+    text: `Save the changes to ${name} before ${reason}?`,
+    buttons: [{ label: 'Save', default: true }, { label: 'Discard' }, { label: 'Cancel' }],
+  })
+  if (answer === 'Cancel' || answer === null) return false
+  if (answer === 'Save') {
+    await save()
+    // Save As can be cancelled; going on would lose the edits.
+    return !appStore().get().dirty
+  }
+  return true
+}
+
+// ---- opening ----
+
+const OPEN_FILTERS: FileFilter[] = [
+  { name: 'All supported', extensions: ['ktex', 'ktexz', 'kdocz', 'json', 'tex', 'md', 'markdown', 'docx', 'pdf'] },
+  { name: 'KherveTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
+  { name: 'JSON', extensions: ['json'] },
+  { name: 'LaTeX', extensions: ['tex'] },
+  { name: 'Markdown', extensions: ['md', 'markdown'] },
+  { name: 'Word', extensions: ['docx'] },
+  { name: 'PDF', extensions: ['pdf'] },
+  { name: 'All files', extensions: [] },
+]
+
+export async function openAction(): Promise<void> {
+  const picked = await platform().openFileDialog({ title: 'Open document', filters: OPEN_FILTERS })
+  if (!picked?.length) return
+  if (!(await offerSaveBefore(`opening ${basename(picked[0])}`))) return
+  await openPath(picked[0])
+}
+
+// import_tex with base_dir: \input / \include targets are inlined. The
+// importer reads files synchronously, so the files it asks for are fetched
+// and the import re-run until it asks for nothing new.
+export async function importTexFile(path: string): Promise<KDocument> {
+  const p = platform()
+  const text = (await p.readText(path)).replace(/\r\n?/g, '\n')
+  const known = new Map<string, string | null>()
+  for (let round = 0; round < 30; round++) {
+    const asked = new Set<string>()
+    const fs: ImportFs = {
+      isFile: (f) => {
+        const k = normalize(f)
+        if (!known.has(k)) { asked.add(k); return false }
+        return known.get(k) !== null
+      },
+      readText: (f) => known.get(normalize(f)) ?? null,
+      resolve: normalize,
+    }
+    const doc = importTex(text, dirname(path), fs)
+    if (!asked.size) return doc
+    for (const f of asked) {
+      const st = await p.stat(f)
+      known.set(f, st?.isFile ? await p.readText(f).catch(() => null) : null)
+    }
+  }
+  return importTex(text, dirname(path), { isFile: (f) => known.get(normalize(f)) != null,
+    readText: (f) => known.get(normalize(f)) ?? null, resolve: normalize })
+}
+
+function finishImport(doc: KDocument, path: string): void {
+  importedStem = docStem(path)
+  // Remember where the file came from so relative \includegraphics paths
+  // (e.g. Images/foo.png next to main.tex) resolve when the preview
+  // compiles in a temp build dir.
+  setImportSourceDir(dirname(path))
+  replaceDoc(doc, { path: null, dirty: false })
+  updateTitle()
+  showMessage(`Imported ${basename(path)} — Save As to keep it`, 6000)
+}
+
+function isProjectPathName(path: string): boolean {
+  return path.toLowerCase().endsWith('.kdocproj.json')
+}
+
+export async function openPath(path: string): Promise<void> {
+  const p = platform()
+  const fs = fileAccess()
+  // Intercept project files before the normal document path.
+  if (isProjectPathName(path) || (isKdoczPath(path) && (await readProjectJson(path, fs)) !== null)) {
+    // TODO(projects phase): _open_project_from_path.
+    await warning('Projects', 'Opening a project (thesis, book) is not in this version yet.')
+    return
+  }
+  const sfx = suffix(path).toLowerCase()
+  const isImport = ['.tex', '.md', '.markdown', '.docx', '.pdf'].includes(sfx)
+  appStore().set({ status: isImport ? 'Importing…' : 'Opening…' })
+  let doc: KDocument
+  let bib = ''
+  try {
+    if (isKdoczPath(path)) {
+      const extractDir = await p.makeTempDir('kdocz-')
+      ;[doc] = await loadKdocz(path, extractDir, fs)
+      bib = await readBundledBib(path, fs)
+    } else if (sfx === '.tex') {
+      doc = await importTexFile(path)
+    } else if (sfx === '.md' || sfx === '.markdown') {
+      doc = importMd(await p.readText(path))
+    } else if (sfx === '.docx' || sfx === '.pdf') {
+      // TODO(import phase): importers.import_docx / import_pdf.
+      appStore().set({ status: '' })
+      await warning(sfx === '.docx' ? 'Word import' : 'PDF import',
+        `Importing ${sfx} files is not in this version yet.`)
+      return
+    } else {
+      doc = fromJson(await p.readText(path))
+      const bundled = join(join(dirname(path), WORK_DIR), BIB_FILE)
+      if (await p.exists(bundled)) bib = await p.readText(bundled)
+    }
+  } catch (exc) {
+    appStore().set({ status: '' })
+    await critical('Open failed', exc instanceof Error ? exc.message : String(exc))
+    return
+  }
+  bundledBib = bib
+  appStore().set({ status: '' })
+  if (isImport) {
+    finishImport(doc, path)
+    return
+  }
+  importedStem = null
+  setImportSourceDir(null)
+  const cached = join(dirname(path), `${docStem(path)}.pdf`)
+  if (await p.exists(cached)) await showCachedPdf(cached)
+  replaceDoc(doc, { path, dirty: false })
+  updateTitle()
+  rememberRecent(path)
+  // TODO(KherveRef): _refresh_kherveref_bib(doc) feeds the editor the
+  // bibliography so citations display as they will compile.
+}
+
+// open_dropped: the first document replaces this one (after offering to
+// save it). TODO(visual editor): pictures go into the document as figures
+// (editor.drop_image_file); TODO(windows): further documents open in
+// windows of their own.
+export async function openDropped(paths: string[]): Promise<void> {
+  const docs = paths.filter(f => {
+    const s = suffix(f).toLowerCase()
+    return OPENABLE_SUFFIXES.has(s) && !IMAGE_SUFFIXES.has(s)
+  })
+  if (!docs.length) return
+  const first = docs[0]
+  if (await offerSaveBefore(`opening ${basename(first)}`)) await openPath(first)
+}
+
+async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 'md'): Promise<void> {
+  const picked = await platform().openFileDialog({ title, filters })
+  if (!picked?.length) return
+  if (!(await offerSaveBefore(`importing ${basename(picked[0])}`))) return
+  const path = picked[0]
+  appStore().set({ status: 'Importing…' })
+  let doc: KDocument
+  try {
+    doc = kind === 'tex' ? await importTexFile(path) : importMd(await platform().readText(path))
+  } catch (exc) {
+    appStore().set({ status: '' })
+    await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
+    return
+  }
+  appStore().set({ status: '' })
+  bundledBib = ''
+  finishImport(doc, path)
+}
+
+// ---- saving ----
+
+function hasNativeSuffix(path: string): boolean {
+  const name = basename(path).toLowerCase()
+  return name.endsWith('.ktex') || name.endsWith('.ktexz') || name.endsWith('.ktex.json')
+    || name.endsWith('.kdocz') || name.endsWith('.kdoc.json')
+}
+
+export async function save(): Promise<void> {
+  // TODO(projects phase): with a project open, _save_project().
+  const path = appStore().get().path
+  if (path === null) await saveAs()
+  else await writeTo(path)
+}
+
+export async function saveAs(): Promise<void> {
+  const picked = await platform().saveFileDialog({
+    title: 'Save document', defaultName: 'document.ktex',
+    filters: [{ name: 'KherveTeX document', extensions: ['ktex'] }, { name: 'JSON KherveTeX', extensions: ['json'] }],
+  })
+  if (!picked) return
+  let path = picked
+  // No extension typed: the bundled format, self-contained for documents
+  // with images.
+  if (!hasNativeSuffix(path)) {
+    path = basename(path).toLowerCase().endsWith('.json') ? withSuffix(path, '.ktex.json') : withSuffix(path, NATIVE_SUFFIX)
+  }
+  importedStem = null
+  setImportSourceDir(null)
+  appStore().set({ path })
+  updateTitle()
+  await writeTo(path)
+  rememberRecent(path)
+}
+
+async function writeTo(target: string): Promise<void> {
+  const p = platform()
+  const fs = fileAccess()
+  let path = target
+  appStore().set({ status: 'Saving…' })
+  const doc = appStore().get().doc
+  // TODO(visual editor): editor.cleanup_orphaned_equations(doc).
+  if (isLegacyBundle(path) && path === appStore().get().path) {
+    // Old .ktexz / .kdocz bundles become .ktex on their next save; the
+    // old file is left in place untouched.
+    path = withSuffix(path, NATIVE_SUFFIX)
+    appStore().set({ path })
+    updateTitle()
+    rememberRecent(path)
+  }
+  // The .tex export sits alongside in both formats so users can inspect
+  // the source without unzipping.
+  const texBasename = docStem(path)
+  // TODO(KherveRef): _refresh_kherveref_bib(doc) re-reads the library; the
+  // copy the document carries is kept until then.
+  const bibText = doc.meta.ref_library ? bundledBib : ''
+  try {
+    if (isKdoczPath(path)) await saveKdocz(doc, path, fs, bibText)
+    else await p.writeText(path, toJson(doc))
+    const work = join(dirname(path), WORK_DIR)
+    await p.mkdir(work)
+    if (bibText) await p.writeText(join(work, BIB_FILE), bibText)
+    await p.writeText(join(work, `${texBasename}.tex`), serializeDocument(doc))
+    if (compileUi().engine === 'typst') await p.writeText(join(work, `${texBasename}.typ`), serializeTypst(doc))
+  } catch (exc) {
+    appStore().set({ status: '' })
+    await critical('Save failed', exc instanceof Error ? exc.message : String(exc))
+    return
+  }
+  // Only clear the flag if nothing was typed while saving.
+  appStore().set(s => ({ dirty: s.doc === doc ? false : s.dirty, status: '' }))
+  if (path !== target) showMessage(`Saved as ${basename(path)} (new format)`, 6000)
+  // TODO(git phase): _git_snapshot(folder, name, stem) — commit and push.
+}
+
+// ---- export ----
+
+async function exportTex(): Promise<void> {
+  const doc = appStore().get().doc
+  if (compileUi().engine === 'typst') {
+    const path = await platform().saveFileDialog({ title: 'Export Typst', defaultName: 'document.typ',
+      filters: [{ name: 'Typst', extensions: ['typ'] }] })
+    if (path) await platform().writeText(path, serializeTypst(doc))
+  } else {
+    const path = await platform().saveFileDialog({ title: 'Export LaTeX', defaultName: 'document.tex',
+      filters: [{ name: 'LaTeX', extensions: ['tex'] }] })
+    if (path) await platform().writeText(path, serializeDocument(doc))
+  }
+}
+
+async function exportLatexPackage(): Promise<void> {
+  const cur = appStore().get().path
+  const stem = cur ? docStem(cur) : 'document'
+  const picked = await platform().saveFileDialog({ title: 'Export LaTeX package', defaultName: `${stem}.zip`,
+    filters: [{ name: 'Zip archive', extensions: ['zip'] }] })
+  if (!picked) return
+  const path = suffix(picked).toLowerCase() === '.zip' ? picked : withSuffix(picked, '.zip')
+  const base = resolvedSourceDir() ?? '.'
+  await platform().writeFile(path, await exportLatexZip(appStore().get().doc, base, fileAccess(), stem))
+  showMessage(`Exported ${path}`, 4000)
+}
+
+async function exportPdf(): Promise<void> {
+  let target: string | null = null
+  const result = await fullCompile('export PDF', async () => {
+    target = await platform().saveFileDialog({ title: 'Export PDF', defaultName: 'document.pdf',
+      filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+    return target !== null
+  })
+  if (result === null || target === null) return
+  if (result.ok && result.pdfPath !== null) {
+    await platform().writeFile(target, await platform().readFile(result.pdfPath))
+    showMessage(`Exported ${target}`, 4000)
+  } else {
+    await critical('Compile failed', result.error || 'Unknown error')
+  }
+}
+
+async function showInExplorer(): Promise<void> {
+  const path = appStore().get().path
+  if (path === null) {
+    showMessage('Save the document first', 3000)
+    return
+  }
+  await platform().reveal(path)
+}
+
+// ---- recent files ----
+
+export function recentFiles(): string[] {
+  return [...recent]
+}
+
+function rememberRecent(path: string): void {
+  recent = [path, ...recent.filter(r => r !== path)].slice(0, RECENT_FILES_MAX)
+  setSetting('recent_files', recent)
+  for (const l of recentListeners) l()
+}
+
+const recentListeners = new Set<() => void>()
+// TODO(menus): File ▸ Open Recent lists recentFiles() and runs
+// open_recent with the path; the menu model is static for now.
+export function subscribeRecent(l: () => void): () => void {
+  recentListeners.add(l)
+  return () => { recentListeners.delete(l) }
+}
+
+async function openRecent(arg: unknown): Promise<void> {
+  if (typeof arg !== 'string') return
+  if (!(await offerSaveBefore(`opening ${basename(arg)}`))) return
+  await openPath(arg)
+}
+
+// ---- welcome page ----
+
+// MainWindow.apply_layout_mode: "side" and "window" show the live PDF;
+// "visual" and "page" hide it and stop background compiles.
+export function applyLayoutMode(mode: LayoutMode): void {
+  const visual = mode === 'visual' || mode === 'page'
+  appStore().set({ layout: mode, autoCompile: !visual })
+  setCommandChecked(visual ? 'visual_only' : mode === 'window' ? 'pdf_window' : 'side_by_side', true)
+  setCommandChecked('auto_compile', !visual)
+  setSetting('layout_mode', mode)
+}
+
+// The examples area installs how a gallery entry (its index in
+// examples.GALLERY order) opens in place of the empty page
+// (MainWindow._open_example_here).
+let openExample: ((index: number) => void | Promise<void>) | null = null
+export function setExampleOpener(fn: ((index: number) => void | Promise<void>) | null): void {
+  openExample = fn
+}
+
+const GALLERY_LABELS = GALLERY.flatMap(([, , labels]) => labels)
+
+export async function showWelcome(): Promise<void> {
+  const exists = await Promise.all(recent.map(r => platform().exists(r).catch(() => false)))
+  const r = await showWelcomeDialog({
+    recent: [...recent], recentExists: exists, examples: GALLERY_LABELS,
+    layout: setting<LayoutMode>('layout_mode', 'side'), showAtStart: setting('show_welcome', true),
+  })
+  setSetting('show_welcome', r.showAtStart)
+  applyLayoutMode(r.layout)
+  const c = r.choice
+  if (c.kind === 'new') await newDocumentAction()
+  else if (c.kind === 'open') await openAction()
+  else if (c.kind === 'project') await runAction('new_project')
+  else if (c.kind === 'recent') await openRecent(c.path)
+  else if (c.kind === 'tour' || c.kind === 'example') {
+    const index = c.kind === 'tour' ? 0 : c.index
+    if (openExample) await openExample(index)
+    else if (c.kind === 'tour' && hasAction('tour')) await runAction('tour')
+    else showMessage('The examples are not in this version yet', 4000)
+  }
+}
+
+// ---- start-up ----
+
+let started = false
+
+// Load the recent list (existing files only), open a file given on the
+// command line, and hook the window's close and file drops.
+export async function startFileService(): Promise<boolean> {
+  if (started) return false
+  started = true
+  await loadSettings()
+  const p = platform()
+  const raw = setting<unknown>('recent_files', [])
+  const list = Array.isArray(raw) ? raw.map(String) : typeof raw === 'string' ? [raw] : []
+  const exists = await Promise.all(list.map(f => p.exists(f).catch(() => false)))
+  recent = list.filter((_, i) => exists[i])
+  updateTitle()
+  let lastPath = appStore().get().path
+  appStore().subscribe(() => {
+    const path = appStore().get().path
+    if (path !== lastPath) { lastPath = path; updateTitle() }
+  })
+
+  if (isTauri()) {
+    await getCurrentWindow().onCloseRequested(async (e) => {
+      if (!(await offerSaveBefore('closing'))) { e.preventDefault(); return }
+      saveUserDefaults()
+      await shutdownCompiles()
+    })
+    await getCurrentWebview().onDragDropEvent(ev => {
+      if (ev.payload.type === 'drop') void openDropped(ev.payload.paths)
+    })
+  } else {
+    window.addEventListener('beforeunload', (e) => {
+      saveUserDefaults()
+      if (appStore().get().dirty) e.preventDefault()
+    })
+  }
+
+  // A file passed on the command line (a double-clicked .ktex).
+  const args = await p.launchArgs().catch(() => [])
+  for (const a of args) {
+    if (await p.exists(a)) { await openPath(a); return true }
+  }
+  return false
+}
+
+registerActions({
+  new: () => newDocumentAction(),
+  // MainWindow wires Close document to _new.
+  close_doc: () => newDocumentAction('closing it'),
+  open: () => openAction(),
+  open_recent: (arg) => openRecent(arg),
+  save: () => save(),
+  save_as: () => saveAs(),
+  import_tex: () => importAction('Import LaTeX', [{ name: 'LaTeX', extensions: ['tex'] }, { name: 'All files', extensions: [] }], 'tex'),
+  import_md: () => importAction('Import Markdown', [{ name: 'Markdown', extensions: ['md', 'markdown'] }, { name: 'All files', extensions: [] }], 'md'),
+  export_tex: () => exportTex(),
+  export_latex_zip: () => exportLatexPackage(),
+  export_pdf: () => exportPdf(),
+  show_in_explorer: () => showInExplorer(),
+  welcome: () => showWelcome(),
+})

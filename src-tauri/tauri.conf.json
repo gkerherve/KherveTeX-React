@@ -1,0 +1,67 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "KherveTeX",
+  "version": "0.2.0",
+  "identifier": "com.kerherve.khervetex",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "node src-tauri/fetch_tectonic.mjs --dev && npm run dev",
+    "beforeBuildCommand": "node src-tauri/fetch_tectonic.mjs && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "KherveTeX",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 760,
+        "minHeight": 500,
+        "resizable": true,
+        "center": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "externalBin": ["binaries/tectonic"],
+    "resources": ["resources/**/*"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["ktex", "ktexz", "kdocz"],
+        "name": "KherveTeX document",
+        "description": "KherveTeX document",
+        "role": "Editor"
+      }
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "publisher": "Gwilherm Kerherve",
+    "shortDescription": "WYSIWYG editor that writes LaTeX",
+    "copyright": "Gwilherm Kerherve",
+    "category": "Productivity",
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
+    }
+  }
+}

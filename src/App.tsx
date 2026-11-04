@@ -2,12 +2,13 @@
 // the PDF side panel and the status bar, laid out as KherveTeX's
 // MainWindow in its default "PDF side panel" mode.
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
-import pkg from '../package.json'
 import { useCommandState } from './ui/commands'
 import { MenuBar } from './ui/MenuBar'
+import { useCompileUi } from './app/compile'
 import { useApp } from './app/store'
 import { CodeView } from './codeview/CodeView'
 import { EditorPane } from './editor/EditorPane'
+import { pagePx } from './editor/layout'
 import { PdfPanel } from './preview/PdfPanel'
 import { Ribbon } from './ui/Ribbon'
 import type { ContextKind } from './ui/ribbonModel'
@@ -15,14 +16,12 @@ import { StatusBar } from './ui/StatusBar'
 import { TooltipProvider } from './ui/Tooltip'
 import './App.css'
 
-// A4 at 96 dpi.
+// A4 at 96 dpi: the PDF panel's page.
 const PAGE_W = 794
-const PAGE_H = 1123
 // The desk's margin around the page card.
 const DESK_PAD = 23
 const PDF_PAD = 7
 
-const VERSION = pkg.version.split('.').slice(0, 2).join('.')
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null)
@@ -52,12 +51,13 @@ export default function App() {
   const layout = useApp(s => s.layout)
   const log = useApp(s => s.compile.log)
   const status = useApp(s => s.status)
+  const compiling = useApp(s => s.compile.running)
+  const compilerText = useCompileUi(u => u.statusText) + (compiling ? '   Compiling\u2026' : '')
   const fileName = path ? path.split(/[\\/]/).pop()! : null
   const showPdf = layout === 'side'
+  // The visual page is as wide as the document's paper (or its class's).
+  const pageW = pagePx(useApp(s => s.doc.meta)).width
 
-  useEffect(() => {
-    document.title = `KherveTeX v${VERSION} — ${fileName ?? 'Untitled'}`
-  }, [fileName])
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
@@ -65,7 +65,7 @@ export default function App() {
 
   const fitWidth = cmd.isChecked('fit_page_width')
   const fitZoom = deskWidth > 0
-    ? Math.max(25, (deskWidth - 2 * DESK_PAD) / PAGE_W * 100) : 100
+    ? Math.max(25, (deskWidth - 2 * DESK_PAD) / pageW * 100) : 100
   const zoom = fitWidth && manualZoom === null ? fitZoom : manualZoom ?? 100
   const pdfFitZoom = pdfInner > 0
     ? Math.max(25, (pdfInner - 2 * PDF_PAD) / PAGE_W * 100) : 100
@@ -94,7 +94,7 @@ export default function App() {
         <div className='workspace'>
           <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}>
             <div className='desk-inner' style={{ padding: DESK_PAD }}>
-              <div className='page-card' style={{ width: PAGE_W, height: PAGE_H, zoom: zoom / 100 }}>
+              <div className='page-card' style={{ zoom: zoom / 100 }}>
                 <EditorPane onContext={setContext} />
               </div>
             </div>
@@ -104,7 +104,7 @@ export default function App() {
           {showPdf && <>
             <div className='splitter' onPointerDown={dragSplitter} />
             <div ref={pdfRef} className='pdf-panel' style={{ width: pdfWidth }}>
-              <PdfPanel zoom={pdfZoom} pageW={PAGE_W} pageH={PAGE_H} />
+              <PdfPanel zoom={pdfZoom} fit={pdfManualZoom === null} />
             </div>
           </>}
         </div>
@@ -113,7 +113,7 @@ export default function App() {
           // Qt's PDF slider keeps its own value while the page fits the width.
           pdfZoom={pdfManualZoom ?? 100} onPdfZoom={setPdfManualZoom}
           pdfFitWidth={pdfManualZoom === null} onPdfFitWidth={() => setPdfManualZoom(null)}
-          showPdfZoom compiler='LaTeX (tectonic): OK' message={status} />
+          showPdfZoom compiler={compilerText} message={status} />
       </div>
     </TooltipProvider>
   )

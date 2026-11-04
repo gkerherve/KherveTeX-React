@@ -377,5 +377,7 @@
 }
 
 .code-pane, .console-pane { flex: 1; min-width: 0; overflow: auto; margin: 0; background: #fff; }
-.console-pane { font: 12px Menlo, Consolas, monospace; padding: 6px; white-space: pre-wrap; }
+.code-pane { overflow: hidden; }
+/* MainWindow._make_console: dark, monospace 10 pt, no wrapping. */
+.console-pane { font: 10pt Consolas, 'Courier New', Menlo, monospace; padding: 6px; white-space: pre; background: #1e1e1e; color: #d4d4d4; }
 .code-placeholder { font: 12px Menlo, Consolas, monospace; padding: 6px; margin: 0; white-space: pre-wrap; }
