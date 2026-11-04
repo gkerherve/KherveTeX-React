@@ -1,0 +1,377 @@
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  background: var(--surface);
+}
+
+/* ----- menu bar (QMenuBar in chrome_stylesheet) ----- */
+
+.menubar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 25px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--chrome);
+  user-select: none;
+}
+
+.menubar-item {
+  padding: 2px 10px;
+  border-radius: 3px;
+  line-height: 16px;
+  cursor: default;
+}
+
+.menubar-item.open,
+.menubar-item:hover { background: var(--menu-sel); }
+
+/* ----- popup menus (QMenu) ----- */
+
+.qmenu {
+  position: fixed;
+  z-index: 100;
+  min-width: 120px;
+  padding: 2px 0;
+  border: 1px solid var(--border);
+  background: var(--chrome);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  user-select: none;
+}
+
+.qmenu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 3px 24px 3px 6px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.qmenu-item:hover,
+.qmenu-item.open { background: var(--menu-sel); }
+
+.qmenu-item.disabled { color: var(--placeholder); }
+.qmenu-item.disabled:hover { background: transparent; }
+
+.qmenu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: calc(var(--menu-icon) + 4px);
+  min-height: 18px;
+  padding: 1px 0;
+  border-radius: 3px;
+}
+
+.qmenu-icon.on { background: var(--pressed-blue); }
+
+.qmenu-text { flex: 1 1 auto; }
+
+.qmenu-detail {
+  padding-left: 24px;
+  color: var(--text-muted);
+}
+
+.qmenu-arrow {
+  position: absolute;
+  right: 8px;
+  display: flex;
+}
+
+.qmenu-item { position: relative; }
+
+.qmenu-sep {
+  height: 1px;
+  margin: 3px 8px;
+  background: var(--border);
+}
+
+/* ----- tooltips (QToolTip) ----- */
+
+.qtip {
+  position: fixed;
+  z-index: 200;
+  max-width: 320px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  background: var(--chrome);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.qtip-rich { width: 300px; white-space: normal; }
+.qtip-rich p { margin: 0; }
+.qtip-rich p + p { margin-top: 1em; }
+.qtip-muted { color: #777777; }
+
+/* ----- central area: desk, splitter, PDF side panel ----- */
+
+.workspace {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.desk {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: auto;
+  background: var(--desk);
+  scrollbar-gutter: stable;
+}
+
+.desk-inner {
+  display: flex;
+  justify-content: center;
+  width: max-content;
+  min-width: 100%;
+}
+
+.page-card {
+  flex: none;
+  border: 1px solid var(--page-border);
+  background: var(--page);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.16);
+}
+
+.splitter {
+  flex: none;
+  width: 4px;
+  border-left: 1px solid var(--surface);
+  background: var(--border);
+  cursor: col-resize;
+}
+
+.pdf-panel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 7px;
+  overflow-y: auto;
+  background: var(--pdf-desk);
+  scrollbar-gutter: stable;
+}
+
+.pdf-page {
+  flex: none;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.pdf-page .doc { color: #000000; pointer-events: none; }
+
+/* ----- placeholder document (12 pt article, 1 in margins) ----- */
+
+.doc {
+  height: 100%;
+  padding: 96px 96px 0;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--latex-serif);
+  font-size: 16px;
+  /* 12 pt with LaTeX's 14.5 pt baselineskip. */
+  line-height: 19.3px;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.doc-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.doc-subtitle {
+  margin: 9px 0 0;
+  font-size: 20px;
+  line-height: 24px;
+  font-style: italic;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.doc-section {
+  display: flex;
+  gap: 24px;
+  margin: 29px 0 17px;
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 700;
+}
+
+.doc-p { margin: 0; text-indent: 24px; }
+.doc-first { text-indent: 0; }
+
+.doc-table {
+  margin: 14px auto;
+  border-collapse: collapse;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.doc-table caption { margin-bottom: 6px; font-size: 15px; }
+.doc-table th, .doc-table td { padding: 2px 14px; text-align: center; }
+.doc-table thead { border-top: 2px solid currentColor; border-bottom: 1px solid currentColor; }
+.doc-table tbody { border-bottom: 2px solid currentColor; }
+
+.doc-equation {
+  position: relative;
+  margin: 12px 0;
+  text-align: center;
+  cursor: pointer;
+}
+
+.doc-eqno { position: absolute; right: 0; }
+
+.doc-theorem { text-indent: 0; cursor: pointer; }
+
+.doc-figure { margin: 16px 0 0; text-align: center; cursor: pointer; }
+
+.doc-figure-box {
+  width: 60%;
+  height: 120px;
+  margin: 0 auto 6px;
+  border: 1px dashed #9a9a9a;
+  background: repeating-linear-gradient(45deg, #f3f5f8 0 8px, #ffffff 8px 16px);
+}
+
+.doc-figure figcaption { font-size: 15px; }
+
+.doc-table:hover, .doc-equation:hover, .doc-theorem:hover, .doc-figure:hover {
+  outline: 1px dotted var(--accent);
+  outline-offset: 2px;
+}
+
+/* ----- status bar ----- */
+
+.statusbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 33px;
+  padding: 0 54px 0 5px;
+  border-top: 1px solid var(--border);
+  background: var(--chrome);
+  color: var(--status-text);
+  font-size: 13px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sb-path {
+  flex: 1 1 0;
+  min-width: 200px;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.sb-faint { color: #888888; }
+
+.sb-switch {
+  display: flex;
+  width: 40px;
+  height: 20px;
+  margin-right: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sb-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 0 7px 0 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.sb-tool:hover { background: var(--hover-blue); }
+.sb-tool.on { background: var(--menu-sel); border-color: var(--border); }
+
+.sb-pct {
+  min-width: 42px;
+  padding-right: 6px;
+  text-align: right;
+}
+
+.sb-pdf-sep {
+  margin-right: 12px;
+  padding: 0 2px 0 11px;
+  color: var(--text-muted);
+  white-space: pre;
+}
+
+.sb-compiler { padding-left: 6px; }
+
+.sb-slider {
+  position: relative;
+  flex: none;
+  height: 28px;
+  margin: 0 7px 0 1px;
+  touch-action: none;
+}
+
+.sb-slider:focus-visible { outline: 1px dotted var(--accent); }
+
+.sb-groove,
+.sb-fill {
+  position: absolute;
+  top: 8px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.sb-groove {
+  left: 0;
+  right: 0;
+  border: 1px solid #c8c8c8;
+  background: linear-gradient(#e0e0e0, #ececec);
+}
+
+.sb-fill {
+  left: 0;
+  border: 1px solid #3a6fb8;
+  background: linear-gradient(#2769c0, #2b80ee 45%, #3b8cf4);
+}
+
+.sb-handle {
+  position: absolute;
+  top: 3px;
+  width: 16px;
+  height: 18px;
+  border: 1px solid #c9c9c9;
+  border-bottom-color: #b9b9b9;
+  border-radius: 4px;
+  background: linear-gradient(#ffffff, #f8f8f8);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+.sb-tick {
+  position: absolute;
+  top: 23px;
+  width: 1px;
+  height: 5px;
+  background: #9a9a9a;
+}

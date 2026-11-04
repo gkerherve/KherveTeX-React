@@ -1,0 +1,357 @@
+/* The ribbon's Qt stylesheet (khervedoc/ribbon.py) and layout constants:
+   _ROW_H = 24, _BODY_H = 3 * 24 + 2 * 2 = 76, height _BODY_H + 52. */
+
+.ribbon {
+  position: relative;
+  flex: none;
+  height: 130px;
+  box-sizing: border-box;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.rb-bar {
+  display: flex;
+  align-items: stretch;
+  height: 29px;
+}
+
+.rb-bar-fill { flex: 1 1 0; }
+
+/* Word: flat text tabs, no boxes; the open tab is bold with a short
+   coloured bar under it. */
+.rb-tabs {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rb-tab {
+  flex: none;
+  margin: 0 1px;
+  padding: 7px 11px 5px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 16px;
+  cursor: default;
+}
+
+.rb-tab:hover { background: var(--hover-blue); }
+
+.rb-tab.on {
+  font-weight: 600;
+  border-bottom: 3px solid var(--word-blue);
+  border-radius: 4px 4px 0 0;
+  padding-bottom: 2px;
+}
+
+.rb-tab.on:hover { background: transparent; }
+
+.rb-tab.ctx { color: var(--word-blue); }
+
+/* A bold twin reserves the width, so opening a tab does not shift the
+   others along. */
+.rb-tab-text { display: inline-flex; flex-direction: column; align-items: center; }
+
+.rb-tab-text::after {
+  content: attr(data-text);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+}
+
+.rb-tab-scroll {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.rb-tab-scroll button {
+  width: 14px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.rb-tab-scroll button:hover { color: var(--text); }
+
+.rb-corner {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 0 4px;
+}
+
+.rb-corner-sep {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--hairline);
+}
+
+.rb-body {
+  display: flex;
+  height: 100px;
+  box-sizing: border-box;
+  padding: 3px 4px 0;
+}
+
+.rb-group {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  padding: 0 5px 1px;
+}
+
+.rb-group-body {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 76px;
+}
+
+.rb-caption {
+  margin-top: auto;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--placeholder);
+}
+
+.rb-sep {
+  flex: none;
+  width: 1px;
+  margin: 3px 0 6px;
+  background: var(--hairline);
+}
+
+/* ----- buttons: only a soft fill on hover or when on ----- */
+
+.rb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 1px 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: default;
+}
+
+.rb-btn:hover { background: var(--hover-blue); }
+
+.rb-btn:active,
+.rb-btn.on { background: var(--pressed-blue); }
+
+.rb-btn:focus-visible { outline: 1px solid var(--word-blue); outline-offset: -1px; }
+
+.rb-btn .kicon { flex: none; display: block; }
+
+.rb-big {
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 52px;
+  height: 76px;
+  /* Qt's TextUnderIcon size hint: the label plus ~9 px a side. */
+  padding: 2px 9px 1px;
+}
+
+.rb-icon32 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 32px;
+}
+
+.rb-label {
+  margin-top: 6px;
+  line-height: 13px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rb-chevron { display: block; color: var(--chevron); }
+
+.rb-chevron-under {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+}
+
+/* Qt's MenuButtonPopup: the command, with a drop-down strip at its right
+   edge; Qt centres the icon and label over the whole button. */
+.rb-split {
+  position: relative;
+  display: inline-flex;
+  border-radius: 4px;
+}
+
+.rb-split:hover { background: var(--hover-blue); }
+.rb-split.open { background: var(--pressed-blue); }
+
+.rb-split > .rb-big {
+  min-width: 54px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.rb-split > .rb-big:hover { background: transparent; }
+.rb-split > .rb-big:active { background: var(--pressed-blue); }
+
+.rb-split-arrow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  justify-content: center;
+  width: 14px;
+  height: 76px;
+  padding: 0;
+}
+
+.rb-split-arrow:hover { background: var(--hover-blue); }
+
+.rb-small {
+  height: 24px;
+  gap: 3px;
+}
+
+.rb-small:not(.rb-text) {
+  justify-content: center;
+  width: 26px;
+  padding: 0;
+}
+
+/* Qt's TextBesideIcon size hint leaves room after the label. */
+.rb-text { padding-right: 16px; white-space: nowrap; }
+
+.rb-icon-rows {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.rb-icon-row {
+  display: flex;
+  align-items: center;
+}
+
+.rb-text-rows {
+  display: grid;
+  grid-auto-columns: max-content;
+  align-content: stretch;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+}
+
+/* ----- Font size: Qt's editable QComboBox ----- */
+
+.rb-combo {
+  display: inline-flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 40px;
+  height: 20px;
+  margin-right: 2px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--base);
+}
+
+.rb-combo:hover,
+.rb-combo:focus-within { border-color: var(--accent); }
+
+.rb-combo input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0 0 4px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.rb-combo-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 14px;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--midlight);
+  background: transparent;
+  color: var(--chevron);
+}
+
+/* ----- Styles gallery ----- */
+
+.rb-gallery {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  padding: 2px 0 2px 2px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--base);
+}
+
+.rb-tile { padding: 1px 4px 1px 3px; }
+
+.rb-tile-solo { margin-left: 3px; }
+
+.rb-gallery-more {
+  justify-content: center;
+  width: 26px;
+  padding: 0;
+}
+
+/* ----- Document type: a grid of page previews ----- */
+
+.rb-classgrid {
+  display: grid;
+  grid-template-columns: repeat(6, 92px);
+  grid-auto-rows: 96px;
+  width: calc(6 * 92px + 24px);
+  height: calc(4 * 96px + 8px);
+  box-sizing: border-box;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.rb-classcell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.rb-classcell:hover { background: var(--menu-sel); }
+.rb-classcell.on { background: var(--pressed-blue); }

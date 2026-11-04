@@ -1,0 +1,120 @@
+/* Colour tokens: khervedoc/themes.py THEMES["Light"] / ["Dark"], the
+   ribbon's translucent Word blues and the icon palette of icons.py. The
+   light theme is the default on purpose. */
+:root {
+  --base: #ffffff;
+  --surface: #f7f7f7;
+  --chrome: #f7f7f7;
+  --text: #1c1c1c;
+  --text-muted: #666666;
+  --accent: #1a6dd8;
+  --placeholder: #888888;
+  --alt-base: #eef1f5;
+  --menu-sel: #eef1f5;
+  --midlight: #e6e6e6;
+  --border: #b8bcc1;
+  --hairline: rgba(128, 128, 128, 0.35);
+  --desk: #d0d4d8;
+  --page: #ffffff;
+  --page-border: #b8bcc1;
+  --pdf-desk: #787878;
+  --status-text: #444444;
+  --chevron: #555555;
+  --word-blue: #2b579a;
+  /* Word's light blue over white: rgba(43, 120, 215, 46 / 255) and 80 / 255. */
+  --hover-blue: rgba(43, 120, 215, 0.18);
+  --pressed-blue: rgba(43, 120, 215, 0.314);
+
+  --icon-ink: #424242;
+  --icon-blue: #2b579a;
+  --icon-paper: #ffffff;
+  --icon-tint: #dce8f7;
+  --icon-fg: #222222;
+  --icon-accent: #1a6dd8;
+  --icon-accent2: #d96b00;
+  --icon-muted: #666666;
+  --icon-soft: rgba(26, 109, 216, 0.235);
+  --icon-folder: #f6c85f;
+  --icon-folder-front: #ffdd80;
+  --icon-clipboard: #c8a76a;
+  --thumb-ink: #8a8a8a;
+  --thumb-paper: #ffffff;
+
+  --ui-font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --latex-serif: 'Latin Modern Roman', 'CMU Serif', 'Computer Modern Serif', 'Times New Roman', Times, serif;
+
+  color-scheme: light;
+  font-family: var(--ui-font);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme='dark'] {
+  --base: #1e1e1e;
+  --surface: #2d2d2d;
+  --chrome: #2d2d2d;
+  --text: #d4d4d4;
+  --text-muted: #858585;
+  --accent: #4da6ff;
+  --placeholder: #777777;
+  --alt-base: #3a3a3a;
+  --menu-sel: #3a3a3a;
+  --midlight: #3c3c3c;
+  --border: #555555;
+  --desk: #1a1a1a;
+  --page: #2d2d2d;
+  --page-border: #555555;
+  --pdf-desk: #3a3a3a;
+  --status-text: #aaaaaa;
+  --chevron: #bbbbbb;
+  --hover-blue: rgba(43, 120, 215, 0.35);
+  --pressed-blue: rgba(43, 120, 215, 0.5);
+
+  --icon-ink: #d6d6d6;
+  --icon-blue: #7aa7e8;
+  --icon-paper: #3a3a3a;
+  --icon-tint: #2f4a70;
+  --icon-fg: #dddddd;
+  --icon-accent: #6cb4ff;
+  --icon-accent2: #f0a050;
+  --icon-muted: #999999;
+  --icon-soft: rgba(108, 180, 255, 0.235);
+  --icon-folder: #a8862e;
+  --icon-folder-front: #c9a040;
+  --icon-clipboard: #8a7040;
+  --thumb-ink: #9a9a9a;
+  --thumb-paper: #2b2b2b;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--surface);
+}
+
+button { font-family: inherit; }
+
+/* Fusion scroll bars, as styled by themes.chrome_stylesheet. */
+::-webkit-scrollbar { width: 12px; height: 12px; background: var(--surface); }
+::-webkit-scrollbar-thumb {
+  min-height: 24px;
+  border: 2px solid var(--surface);
+  border-radius: 6px;
+  background: var(--border);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar-corner { background: var(--surface); }
+
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-color: var(--border) var(--surface); }
+}
