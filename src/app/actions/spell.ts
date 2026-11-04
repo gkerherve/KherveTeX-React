@@ -1,4 +1,4 @@
-import { spellHighlighter } from '../../spell/spellcheck'
+import { spellHighlighter } from '../../spell/shared'
 import { registerActions } from '../actions'
 
 registerActions({

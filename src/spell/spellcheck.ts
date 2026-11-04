@@ -2,8 +2,8 @@
 // SpellHighlighter without the Qt highlighter. The editor asks
 // misspelledRanges() for each prose block and underlines what comes back
 // with a red wavy line (#d8000c, Qt's SpellCheckUnderline colour).
-import { capitalize } from '../core/py'
-import { SpellChecker } from './spellchecker'
+import { capitalize } from '../core/py.ts'
+import { SpellChecker } from './spellchecker.ts'
 
 // Words to skip: pure digits, single letters, anything with a digit,
 // or anything containing a backslash (stray LaTeX text). Bracketing
@@ -142,19 +142,4 @@ export class SpellHighlighter {
     }
     return out
   }
-}
-
-// The app's one highlighter; the dictionary loads on first use.
-let shared: SpellHighlighter | null = null
-
-export function spellHighlighter(): SpellHighlighter {
-  if (!shared) {
-    shared = new SpellHighlighter(null)
-    const h = shared
-    void fetch(`${import.meta.env.BASE_URL}dict/en.json.gz`)
-      .then(r => r.arrayBuffer())
-      .then(b => h.setChecker(SpellChecker.fromGzipJson(new Uint8Array(b))))
-      .catch(e => console.warn('spell check dictionary unavailable', e))
-  }
-  return shared
 }
