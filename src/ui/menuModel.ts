@@ -15,7 +15,7 @@ const MATH_ENVIRONMENTS = [
 
 const newFromTemplate: MenuEntry[] = [
   ...GALLERY.map(([cat, , items]): MenuItem => ({
-    text: cat.replace('&', '&&'), items: items.map(label => ({ text: label })),
+    text: cat.replace('&', '&&'), items: items.map(label => ({ text: label, command: `example:${label}` })),
   })),
   '-',
   { text: '&My templates', items: [{ text: '(no saved templates)', disabled: true }] },

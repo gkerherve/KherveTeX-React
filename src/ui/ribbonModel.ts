@@ -405,7 +405,8 @@ const cmds: Command[] = [
   ...GALLERY.filter(([cat]) => cat !== 'Start').map(([cat, cls, items]): Command => ({
     id: `gallery_${slug(cat)}`, text: cat.replace('&', '&&'), icon: 'class_thumbnail', iconArg: cls,
     popup: 'instant', iconW: 26, iconH: 33, tooltip: `${cat}: ${items.length} examples`,
-    menu: items.map((label): MenuItem => ({ text: label, icon: 'class_thumbnail', iconArg: cls })),
+    menu: items.map((label): MenuItem => ({
+      text: label, icon: 'class_thumbnail', iconArg: cls, command: `example:${label}` })),
   })),
   { id: 'gallery_mine', text: 'My templates', icon: 'class_thumbnail', iconArg: 'article',
     popup: 'instant', iconW: 26, iconH: 33, tooltip: 'My templates',
