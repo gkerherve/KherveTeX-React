@@ -2,8 +2,8 @@
 // ranges against the Python SpellHighlighter (tests/golden/spell.json).
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { SpellChecker } from '../src/spell/spellchecker'
-import { isCheckable, SpellHighlighter } from '../src/spell/spellcheck'
+import { SpellChecker } from '../src/spell/spellchecker.ts'
+import { isCheckable, SpellHighlighter } from '../src/spell/spellcheck.ts'
 
 const sc = SpellChecker.fromGzipJson(new Uint8Array(readFileSync('public/dict/en.json.gz')))
 const golden = JSON.parse(readFileSync('tests/golden/spell.json', 'utf8')) as {
