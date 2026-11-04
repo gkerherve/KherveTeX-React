@@ -1,0 +1,70 @@
+/* The drawing and flowchart dialogs: Qt Fusion widgets in KherveTeX's
+   light palette (themes.py "Light"). */
+.kd-veil {
+  position: fixed; inset: 0; z-index: 990; display: flex; align-items: center;
+  justify-content: center; background: rgba(0, 0, 0, 0.18);
+}
+.kd-dialog {
+  background: #f6f6f6; color: #1a1a1a; border: 1px solid #a0a0a0;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column;
+  font: 13px -apple-system, "Segoe UI", system-ui, sans-serif; max-width: 98vw; max-height: 96vh;
+  user-select: none;
+}
+.kd-titlebar { padding: 5px 10px; font-weight: 600; border-bottom: 1px solid #d0d0d0; background: #ececec; }
+.kd-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 9px 11px 11px; }
+.kd-row { display: flex; align-items: center; gap: 6px; }
+.kd-stretch { flex: 1; }
+.kd-dialog button, .kd-dialog select, .kd-dialog input {
+  font: inherit; color: inherit;
+}
+.kd-dialog select, .kd-dialog input[type=text], .kd-dialog input[type=number] {
+  height: 22px; border: 1px solid #b4b4b4; border-radius: 2px; background: #fff; padding: 0 4px;
+  box-sizing: border-box;
+}
+.kd-dialog select { padding-right: 2px; min-width: 60px; }
+.kd-dialog input[type=text]:read-only { background: #f0f0f0; }
+.kd-btn {
+  height: 23px; padding: 0 10px; border: 1px solid #b4b4b4; border-radius: 3px;
+  background: linear-gradient(#fdfdfd, #ececec); min-width: 64px;
+}
+.kd-btn:hover:not(:disabled) { border-color: #2b79d7; }
+.kd-btn:active:not(:disabled), .kd-btn.checked { background: #dcdcdc; }
+.kd-btn.default { border-color: #2b79d7; }
+.kd-btn:disabled { color: #a0a0a0; }
+.kd-tb {
+  border: 1px solid transparent; border-radius: 3px; background: transparent; padding: 2px;
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.kd-tb:hover:not(:disabled) { border-color: #b4b4b4; background: #ffffff; }
+.kd-tb.checked { border-color: #8aa9d6; background: #dbe6f5; }
+.kd-tb:disabled { opacity: 0.4; }
+.kd-tb .kd-tb-label { font-size: 12px; white-space: nowrap; }
+.kd-muted { color: #666666; }
+.kd-hint { color: #777777; }
+.kd-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+.kd-form > label { white-space: nowrap; }
+.kd-code {
+  font: 12px Menlo, Consolas, monospace; background: #fff; border: 1px solid #b4b4b4;
+  height: 180px; margin: 0; padding: 4px; overflow: auto; white-space: pre; user-select: text;
+}
+.kd-split { flex: 1; min-height: 0; display: flex; }
+.kd-gutter { width: 5px; cursor: col-resize; }
+.kd-view { position: relative; overflow: auto; border: 1px solid #b4b4b4; background: #fafaf8; outline: none; }
+.kd-view svg { display: block; }
+.kd-preview { flex: 1; min-height: 260px; min-width: 360px; background: #ffffff; border: 1px solid #d0d0d0;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.kd-preview img { max-width: 100%; max-height: 100%; }
+.kd-swatch { width: 16px; height: 16px; border: 1px solid #888; display: inline-block; box-sizing: border-box; }
+/* QMenu */
+.kd-menu {
+  position: fixed; z-index: 1001; background: #fff; border: 1px solid #a0a0a0; padding: 3px 0;
+  box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.25); font: 13px -apple-system, "Segoe UI", system-ui, sans-serif;
+  min-width: 140px; color: #1a1a1a;
+}
+.kd-menu-item { display: flex; align-items: center; gap: 6px; padding: 3px 22px 3px 8px; white-space: nowrap; position: relative; }
+.kd-menu-item:hover { background: #2b79d7; color: #fff; }
+.kd-menu-item .kd-check { width: 14px; display: inline-block; text-align: center; }
+.kd-menu-item .kd-icon { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
+.kd-menu-item .kd-sub { position: absolute; right: 6px; }
+.kd-menu-sep { height: 1px; background: #d0d0d0; margin: 3px 0; }
+.kd-menu-section { padding: 3px 8px; color: #777; font-size: 12px; }

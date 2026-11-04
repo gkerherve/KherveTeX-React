@@ -10,6 +10,7 @@ import {
   abstract, affiliation, author, docMeta, document, keywords, list, listItem,
   mathBlock, mathInline, paragraph, section, table, text, title,
 } from './model.ts'
+import { standaloneDoc, templateAlgorithm } from './flowchart.ts'
 import type { Document } from './model.ts'
 import { basename, isAbsolute, join, normalize, suffix } from './paths.ts'
 import { strip } from './py.ts'
@@ -270,8 +271,8 @@ export function bundleDocuments(templateChoices: readonly string[]): [string, st
     ['standalone', cls('standalone') + '\\usepackage{tikz}\\begin{document}'
       + '\\begin{tikzpicture}\\draw(0,0)--(1,1);\\end{tikzpicture}\\end{document}\n'],
   ]
-  // TODO(flowchart port): the flowchart builder's TikZ shape libraries and
-  // fonts — Python appends flowchart.standalone_doc(template_algorithm()).
+  // The flowchart builder's TikZ shape libraries and fonts.
+  docs.push(['flowchart', standaloneDoc(templateAlgorithm())])
   for (const pt of ['10pt', '11pt', '12pt']) {
     docs.push([`fonts ${pt}`, `\\documentclass[${pt}]{article}\n`
       + '\\usepackage{amsmath,amssymb,xurl,hyperref}\n' + FONT_BODY])
