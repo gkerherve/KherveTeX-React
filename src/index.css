@@ -20,6 +20,8 @@
   --pdf-desk: #787878;
   --status-text: #444444;
   --chevron: #555555;
+  /* QDialog's window colour (dialogs.css .dlg). */
+  --panel-bg: #f0f0f0;
   --word-blue: #2b579a;
   /* Word's light blue over white: rgba(43, 120, 215, 46 / 255) and 80 / 255. */
   --hover-blue: rgba(43, 120, 215, 0.18);
@@ -69,6 +71,7 @@
   --pdf-desk: #3a3a3a;
   --status-text: #aaaaaa;
   --chevron: #bbbbbb;
+  --panel-bg: #2d2d2d;
   --hover-blue: rgba(43, 120, 215, 0.35);
   --pressed-blue: rgba(43, 120, 215, 0.5);
 

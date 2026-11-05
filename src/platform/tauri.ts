@@ -42,6 +42,10 @@ export const tauriPlatform: Platform = {
   },
   saveFileDialog: ({ title, defaultName, filters }) =>
     save({ title, defaultPath: defaultName, filters: dialogFilters(filters) }),
+  openFolderDialog: async (title) => {
+    const r = await open({ title, directory: true, multiple: false })
+    return typeof r === 'string' ? r : null
+  },
 
   run: async (program, args, opts) => {
     const r = await invoke<RawRun>('run_process', {

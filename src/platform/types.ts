@@ -71,6 +71,8 @@ export interface Platform {
   // null when cancelled.
   openFileDialog(opts: { title: string; filters: FileFilter[]; multiple?: boolean }): Promise<string[] | null>
   saveFileDialog(opts: { title: string; defaultName: string; filters: FileFilter[] }): Promise<string | null>
+  // QFileDialog.getExistingDirectory; absent where there is no folder picker.
+  openFolderDialog?(title: string): Promise<string | null>
 
   run(program: string, args: string[], opts: RunOptions): Promise<RunResult>
   cancelRunning(): Promise<void>

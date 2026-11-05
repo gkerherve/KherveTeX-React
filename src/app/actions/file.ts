@@ -26,6 +26,7 @@ import { appStore, replaceDoc, type LayoutMode } from '../store'
 import { setCommandChecked } from '../../ui/commands'
 import { GALLERY } from '../../ui/ribbonModel'
 import { showWelcomeDialog } from '../../ui/WelcomeDialog'
+import { getBundledBib, refreshKherverefBib, setBundledBib } from './refs'
 
 const VERSION = 'v' + pkg.version.split('.').slice(0, 2).join('.')
 const RECENT_FILES_MAX = 8
@@ -56,14 +57,41 @@ export function fileAccess(): FileAccess {
 // The branch suffix is kept by actions/git.ts for the open document's folder.
 let branchSuffix = { path: '', suffix: '' }
 export function windowTitle(): string {
+  const projectTitle = projectHooks?.title() ?? null
+  if (projectTitle !== null) return `KherveTeX ${VERSION} — ${projectTitle}`
   const path = appStore().get().path
   if (path === null && importedStem !== null) return `KherveTeX ${VERSION} — ${importedStem} (imported)`
   const branch = path !== null && branchSuffix.path === path ? branchSuffix.suffix : ''
   return `KherveTeX ${VERSION} — ${path ? basename(path) + branch : 'Untitled'}`
 }
 
-function updateTitle(): void {
+export function updateTitle(): void {
+  if (!projectHooks?.isOpen()) projectHooks?.onSingleTitle()
   void platform().setTitle(windowTitle()).catch(() => {})
+}
+
+// ---- projects (src/app/actions/project.ts) ----
+
+// The project code hooks into the file actions where MainWindow's do:
+// _open_path opens a project file as a project, _new and _open_path leave
+// the project first, _save saves the project, _update_title names it.
+export interface ProjectHooks {
+  isOpen(): boolean
+  openFromPath(path: string): Promise<void>
+  leave(): Promise<void>
+  save(): Promise<void>
+  // "<project> — <document>" while a project is open, else null.
+  title(): string | null
+  // _update_title's single-document branch (the Documents list shows it).
+  onSingleTitle(): void
+  // apply_layout_mode: "page" hides the Documents list.
+  onLayoutMode(mode: LayoutMode): void
+  // A file drop at a window position: true when the Documents list took it.
+  dropAt(x: number, y: number, paths: string[]): boolean
+}
+let projectHooks: ProjectHooks | null = null
+export function setProjectHooks(h: ProjectHooks | null): void {
+  projectHooks = h
 }
 
 // " [dev]" for the document at `path`.
@@ -71,6 +99,19 @@ export function setBranchSuffix(path: string, suffix: string): void {
   if (path === branchSuffix.path && suffix === branchSuffix.suffix) return
   branchSuffix = { path, suffix }
   updateTitle()
+  for (const l of branchListeners) l()
+}
+
+// The branch of the open document ("" when none): the status bar's path
+// label shows it as a tag.
+export function currentBranch(): string {
+  const path = appStore().get().path
+  return path !== null && branchSuffix.path === path ? branchSuffix.suffix.trim().replace(/^\[|\]$/g, '') : ''
+}
+const branchListeners = new Set<() => void>()
+export function subscribeBranch(l: () => void): () => void {
+  branchListeners.add(l)
+  return () => { branchListeners.delete(l) }
 }
 
 // Run after every successful save with (folder, file name, document stem):
@@ -135,6 +176,7 @@ function saveUserDefaults(): void {
 // A document that came from an example or template, not a file.
 export function openUnsaved(doc: KDocument): void {
   bundledBib = ''
+  setBundledBib('')
   importedStem = null
   setImportSourceDir(null)
   replaceDoc({ ...doc, meta: applyUserDefaults(doc.meta) }, { path: null, dirty: false })
@@ -143,8 +185,14 @@ export function openUnsaved(doc: KDocument): void {
 
 export async function newDocumentAction(reason = 'starting a new document'): Promise<void> {
   if (!(await offerSaveBefore(reason))) return
-  // TODO(projects phase): self._leave_project()
+  await newBlank()
+}
+
+// MainWindow._new, without asking to save (Close project calls it so).
+export async function newBlank(): Promise<void> {
+  await projectHooks?.leave()
   bundledBib = ''
+  setBundledBib('')
   importedStem = null
   setImportSourceDir(null)
   replaceDoc(blankDocument(), { path: null, dirty: false })
@@ -222,15 +270,20 @@ export async function importTexFile(path: string): Promise<KDocument> {
     readText: (f) => known.get(normalize(f)) ?? null, resolve: normalize })
 }
 
-function finishImport(doc: KDocument, path: string): void {
+// An imported document replaces this one, untitled ("<stem> (imported)"
+// in the title until it is saved). `sourceDir` is where relative paths
+// resolve (null for .docx / .pdf imports from their menu: their images
+// live in the build dir).
+export function finishImport(doc: KDocument, path: string,
+  opts: { sourceDir?: string | null; message?: string } = {}): void {
   importedStem = docStem(path)
   // Remember where the file came from so relative \includegraphics paths
   // (e.g. Images/foo.png next to main.tex) resolve when the preview
   // compiles in a temp build dir.
-  setImportSourceDir(dirname(path))
+  setImportSourceDir(opts.sourceDir === undefined ? dirname(path) : opts.sourceDir)
   replaceDoc(doc, { path: null, dirty: false })
   updateTitle()
-  showMessage(`Imported ${basename(path)} — Save As to keep it`, 6000)
+  showMessage(opts.message ?? `Imported ${basename(path)} — Save As to keep it`, opts.message ? 8000 : 6000)
 }
 
 function isProjectPathName(path: string): boolean {
@@ -242,10 +295,11 @@ export async function openPath(path: string): Promise<void> {
   const fs = fileAccess()
   // Intercept project files before the normal document path.
   if (isProjectPathName(path) || (isKdoczPath(path) && (await readProjectJson(path, fs)) !== null)) {
-    // TODO(projects phase): _open_project_from_path.
-    await warning('Projects', 'Opening a project (thesis, book) is not in this version yet.')
+    if (projectHooks) await projectHooks.openFromPath(path)
+    else await warning('Projects', 'Opening a project (thesis, book) is not in this version yet.')
     return
   }
+  await projectHooks?.leave()
   const sfx = suffix(path).toLowerCase()
   const isImport = ['.tex', '.md', '.markdown', '.docx', '.pdf'].includes(sfx)
   appStore().set({ status: isImport ? 'Importing…' : 'Opening…' })
@@ -261,11 +315,8 @@ export async function openPath(path: string): Promise<void> {
     } else if (sfx === '.md' || sfx === '.markdown') {
       doc = importMd(await p.readText(path))
     } else if (sfx === '.docx' || sfx === '.pdf') {
-      // TODO(import phase): importers.import_docx / import_pdf.
-      appStore().set({ status: '' })
-      await warning(sfx === '.docx' ? 'Word import' : 'PDF import',
-        `Importing ${sfx} files is not in this version yet.`)
-      return
+      const wp = await import('./wordPdf')
+      ;[doc] = sfx === '.docx' ? await wp.importDocxFile(path) : await wp.importPdfFile(path)
     } else {
       doc = fromJson(await p.readText(path))
       const bundled = join(join(dirname(path), WORK_DIR), BIB_FILE)
@@ -277,9 +328,11 @@ export async function openPath(path: string): Promise<void> {
     return
   }
   bundledBib = bib
+  setBundledBib(bib)
   appStore().set({ status: '' })
   if (isImport) {
     finishImport(doc, path)
+    void refreshKherverefBib(doc).catch(() => {})
     return
   }
   importedStem = null
@@ -289,22 +342,25 @@ export async function openPath(path: string): Promise<void> {
   replaceDoc(doc, { path, dirty: false })
   updateTitle()
   rememberRecent(path)
-  // TODO(KherveRef): _refresh_kherveref_bib(doc) feeds the editor the
-  // bibliography so citations display as they will compile.
+  // _refresh_kherveref_bib(doc) feeds the editor the bibliography so
+  // citations display as they will compile.
+  void refreshKherverefBib(doc).catch(() => {})
 }
 
 // open_dropped: the first document replaces this one (after offering to
-// save it). TODO(visual editor): pictures go into the document as figures
-// (editor.drop_image_file); TODO(windows): further documents open in
-// windows of their own.
+// save it); further documents open in windows of their own.
+// TODO(visual editor): pictures go into the document as figures
+// (editor.drop_image_file).
 export async function openDropped(paths: string[]): Promise<void> {
   const docs = paths.filter(f => {
     const s = suffix(f).toLowerCase()
     return OPENABLE_SUFFIXES.has(s) && !IMAGE_SUFFIXES.has(s)
   })
   if (!docs.length) return
-  const first = docs[0]
+  const [first, ...rest] = docs
   if (await offerSaveBefore(`opening ${basename(first)}`)) await openPath(first)
+  const { openWindow } = await import('./window')
+  for (const path of rest) await openWindow({ kind: 'open', path })
 }
 
 async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 'md'): Promise<void> {
@@ -323,6 +379,7 @@ async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 
   }
   appStore().set({ status: '' })
   bundledBib = ''
+  setBundledBib('')
   finishImport(doc, path)
 }
 
@@ -335,7 +392,10 @@ function hasNativeSuffix(path: string): boolean {
 }
 
 export async function save(): Promise<void> {
-  // TODO(projects phase): with a project open, _save_project().
+  if (projectHooks?.isOpen()) {
+    await projectHooks.save()
+    return
+  }
   const path = appStore().get().path
   if (path === null) await saveAs()
   else await writeTo(path)
@@ -379,9 +439,13 @@ async function writeTo(target: string): Promise<void> {
   // The .tex export sits alongside in both formats so users can inspect
   // the source without unzipping.
   const texBasename = docStem(path)
-  // TODO(KherveRef): _refresh_kherveref_bib(doc) re-reads the library; the
-  // copy the document carries is kept until then.
-  const bibText = doc.meta.ref_library ? bundledBib : ''
+  // _refresh_kherveref_bib(doc): the cited entries of its library, or the
+  // copy the document carries when the library is not on this machine.
+  let bibText = doc.meta.ref_library ? bundledBib : ''
+  try {
+    bibText = await refreshKherverefBib(doc)
+    bundledBib = getBundledBib()
+  } catch { /* keep the copy it carries */ }
   try {
     if (isKdoczPath(path)) await saveKdocz(doc, path, fs, bibText)
     else await p.writeText(path, toJson(doc))
@@ -485,6 +549,7 @@ async function openRecent(arg: unknown): Promise<void> {
 // "visual" and "page" hide it and stop background compiles.
 export function applyLayoutMode(mode: LayoutMode): void {
   const visual = mode === 'visual' || mode === 'page'
+  projectHooks?.onLayoutMode(mode)
   appStore().set({ layout: mode, autoCompile: !visual })
   setCommandChecked(visual ? 'visual_only' : mode === 'window' ? 'pdf_window' : 'side_by_side', true)
   setCommandChecked('auto_compile', !visual)
@@ -551,7 +616,12 @@ export async function startFileService(): Promise<boolean> {
       await shutdownCompiles()
     })
     await getCurrentWebview().onDragDropEvent(ev => {
-      if (ev.payload.type === 'drop') void openDropped(ev.payload.paths)
+      if (ev.payload.type !== 'drop') return
+      // The Documents list adds dropped files to the project; opening them
+      // here would replace the project instead.
+      const r = window.devicePixelRatio || 1
+      if (projectHooks?.dropAt(ev.payload.position.x / r, ev.payload.position.y / r, ev.payload.paths)) return
+      void openDropped(ev.payload.paths)
     })
   } else {
     window.addEventListener('beforeunload', (e) => {
@@ -560,7 +630,15 @@ export async function startFileService(): Promise<boolean> {
     })
   }
 
-  // A file passed on the command line (a double-clicked .ktex).
+  // A window opened by File ▸ Open in new window (actions/window.ts) opens
+  // its document; a template window loads in actions/templates.ts. Only
+  // the first window takes a file passed on the command line (a
+  // double-clicked .ktex).
+  const { windowRequest, isMainWindow } = await import('./window')
+  const req = windowRequest()
+  if (req?.kind === 'open' && req.path) { await openPath(req.path); return true }
+  if (req?.kind === 'template') return true
+  if (!(await isMainWindow())) return false
   const args = await p.launchArgs().catch(() => [])
   for (const a of args) {
     if (await p.exists(a)) { await openPath(a); return true }

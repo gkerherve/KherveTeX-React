@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { CommandState } from './commands'
 import { Icon } from './icons'
+import type { LiveItem } from './liveMenus'
 import { COMMANDS, type MenuEntry } from './ribbonModel'
 
 interface Resolved {
@@ -15,6 +16,7 @@ interface Resolved {
   checked?: boolean
   disabled?: boolean
   items?: MenuEntry[]
+  onTrigger?: () => void
 }
 
 function resolve(e: MenuEntry, cmd: CommandState): Resolved | null {
@@ -26,7 +28,7 @@ function resolve(e: MenuEntry, cmd: CommandState): Resolved | null {
       command: c.id, checkable: c.checkable, checked: cmd.isChecked(c.id) }
   }
   const c = e.command ? COMMANDS[e.command] : undefined
-  return { ...e, checked: c?.checkable ? cmd.isChecked(c.id) : e.checked,
+  return { ...(e as LiveItem), checked: c?.checkable ? cmd.isChecked(c.id) : e.checked,
     checkable: e.checkable ?? c?.checkable }
 }
 
@@ -114,7 +116,8 @@ export function Popup({ entries, anchor, placement = 'below', cmd, onClose,
               ? { index: i, rect: ev.currentTarget.getBoundingClientRect() } : null)}
             onClick={() => {
               if (it.items || it.disabled) return
-              if (it.command) cmd.trigger(it.command)
+              if (it.onTrigger) it.onTrigger()
+              else if (it.command) cmd.trigger(it.command)
               else console.log(`menu:${it.text.replace(/&/g, '')}`)
               onClose()
             }}>

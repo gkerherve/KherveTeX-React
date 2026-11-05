@@ -93,6 +93,11 @@ function ToolIcon({ name, tip, on, onClick }: {
 
 export interface StatusBarProps {
   fileName: string | null
+  // The saved document's folder and git branch (_update_title's label).
+  dir?: string | null
+  branch?: string
+  // _compile_label / _compile_progress while a compile runs.
+  compiling?: boolean
   dark: boolean
   onToggleTheme: () => void
   zoom: number
@@ -109,9 +114,13 @@ export interface StatusBarProps {
 export function StatusBar(p: StatusBarProps) {
   return (
     <div className='statusbar'>
-      <div className='sb-path'>
+      <div className='sb-path' title={p.fileName && p.dir ? `${p.dir}/${p.fileName}` : undefined}>
         {p.fileName
-          ? <b>{p.fileName}</b>
+          ? <>
+            <b>{p.fileName}</b>
+            {p.branch && <>{'  '}<span className='sb-branch'>{p.branch}</span></>}
+            {p.dir && <>{'  —  '}<span className='sb-dir'>{p.dir}</span></>}
+          </>
           : <><b>Untitled</b>{'  —  '}<span className='sb-faint'>not saved yet</span></>}
         {p.message && <span className='sb-faint'>{'  —  '}{p.message}</span>}
       </div>
@@ -135,6 +144,10 @@ export function StatusBar(p: StatusBarProps) {
         </>
       )}
       <span className='sb-compiler'>{p.compiler}</span>
+      {p.compiling && <>
+        <span className='sb-compile-label'>Compiling…</span>
+        <span className='sb-progress' role='progressbar' aria-label='Compiling'><span /></span>
+      </>}
     </div>
   )
 }

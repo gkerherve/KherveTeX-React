@@ -324,6 +324,17 @@
 }
 
 .sb-compiler { padding-left: 6px; }
+/* _update_title's branch tag and folder, and the indeterminate
+   QProgressBar (120 x 14) beside "Compiling…". */
+.sb-branch { padding: 1px 5px; border-radius: 3px; background: #d0e8ff; color: #0a5090; font-weight: bold; }
+.sb-dir { color: #666666; }
+:root[data-theme='dark'] .sb-dir { color: var(--text-muted); }
+.sb-compile-label { padding: 0 4px; }
+.sb-progress { position: relative; flex: none; width: 120px; height: 14px; margin-right: 4px; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 3px; background: var(--base); }
+.sb-progress span { position: absolute; top: 0; bottom: 0; width: 30%; background: var(--accent);
+  animation: sb-busy 1.2s linear infinite; }
+@keyframes sb-busy { from { left: -30%; } to { left: 100%; } }
 
 .sb-slider {
   position: relative;

@@ -3,21 +3,17 @@
 // khervedoc/mainwindow.py, over core/kherveref.ts.
 //
 // Files go through the platform layer unless setRefsFileAccess installed
-// another. Two hooks still need the desktop shell:
-//   - TODO(platform): KherveRef's own QSettings("kherve", "KherveRef")
-//     (recent_libraries / last_library) — install a reader with
-//     core/kherveref.setKherverefSettings. Until then the picker lists only
-//     the document's library, the copy it carries and "Other library
-//     folder…".
-//   - TODO(platform): a folder chooser (QFileDialog.getExistingDirectory)
-//     for "Other library folder…" — install it with setRefsFolderChooser.
-//     Until then choosing it behaves as a cancelled dialog.
+// another. KherveRef's own QSettings("kherve", "KherveRef") (recent_libraries
+// / last_library) come from platform/kherverefSettings, re-read before each
+// lookup as QSettings would; "Other library folder…" uses the platform's
+// folder chooser.
 import * as kr from '../../core/kherveref'
 import type { RefFileAccess, RefreshedBib } from '../../core/kherveref'
 import { citation } from '../../core/model'
 import type { Citation, Document } from '../../core/model'
 import { dirname } from '../../core/paths'
 import { platform } from '../../platform'
+import { readKherverefSettings, type SettingsValues } from '../../platform/kherverefSettings'
 import { information, warning } from '../../platform/MessageBox'
 import { askCitation } from '../../ui/dialogs/CitationPicker'
 import { registerActions } from '../actions'
@@ -26,7 +22,24 @@ import { editorApi } from '../editorApi'
 import { appStore, editDoc } from '../store'
 
 let fsOverride: RefFileAccess | null = null
-let chooseFolder: () => Promise<string | null> = async () => null
+let chooseFolder: () => Promise<string | null> = async () =>
+  (await platform().openFolderDialog?.('KherveRef library folder')) ?? null
+
+// The last read of KherveRef's settings; core/kherveref reads value()
+// synchronously, so it is refreshed before each use (reloadKherverefSettings).
+let refSettings: SettingsValues = {}
+let settingsInstalled = false
+
+export async function reloadKherverefSettings(): Promise<void> {
+  if (fsOverride) return
+  refSettings = await readKherverefSettings()
+  if (!settingsInstalled) {
+    settingsInstalled = true
+    kr.setKherverefSettings(() => ({
+      value: (key, fallback) => (key in refSettings ? refSettings[key] : fallback),
+    }))
+  }
+}
 
 export function setRefsFileAccess(fs: RefFileAccess | null): void {
   fsOverride = fs
@@ -86,6 +99,7 @@ function apply(r: RefreshedBib): void {
 // _refresh_kherveref_bib: kherveref.bib for *doc* (to bundle on save and
 // stage on compile), '' for a document without a KherveRef library.
 export async function refreshKherverefBib(doc: Document): Promise<string> {
+  await reloadKherverefSettings()
   const r = await kr.refreshKherverefBib(doc, bundledBib, refsFs())
   apply(r)
   return r.bib
@@ -105,6 +119,7 @@ function sourceDir(): string | null {
 }
 
 async function insertCitation(): Promise<void> {
+  await reloadKherverefSettings()
   const doc = appStore().get().doc
   const meta = doc.meta
   const dlg = await askCitation(meta.ref_library, bundledBib, { fs: refsFs(), chooseFolder })
@@ -121,6 +136,7 @@ async function insertCitation(): Promise<void> {
 }
 
 async function checkCitations(): Promise<void> {
+  await reloadKherverefSettings()
   const r = await kr.checkCitations(appStore().get().doc, bundledBib, sourceDir(), refsFs())
   if (r.kind === 'warning') await warning(r.title, r.text)
   else await information(r.title, r.text)

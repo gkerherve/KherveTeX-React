@@ -2,7 +2,6 @@
 // _import_pdf and _export_docx. The importers write embedded images into
 // "<stem>_images" in the window's temp build dir until the document is
 // saved somewhere.
-import pkg from '../../../package.json'
 import { exportDocx } from '../../core/docxExport'
 import { importDocx } from '../../core/docxImport'
 import type { Document as KDocument } from '../../core/model'
@@ -11,11 +10,9 @@ import { importPdf } from '../../core/pdfImport'
 import { platform } from '../../platform'
 import { critical } from '../../platform/MessageBox'
 import { registerActions } from '../actions'
-import { buildDir, docStem, resolvedSourceDir, setImportSourceDir } from '../compile'
-import { appStore, replaceDoc } from '../store'
-import { fileAccess, offerSaveBefore } from './file'
-
-const VERSION = 'v' + pkg.version.split('.').slice(0, 2).join('.')
+import { buildDir, docStem, resolvedSourceDir } from '../compile'
+import { appStore } from '../store'
+import { fileAccess, finishImport, offerSaveBefore } from './file'
 
 let statusTimer: ReturnType<typeof setTimeout> | null = null
 function showMessage(msg: string, ms: number): void {
@@ -55,12 +52,10 @@ export async function importPdfFile(path: string,
 }
 
 // The imported document replaces this one, untitled, with the title
-// "<stem> (imported)"; docx and pdf images live in the build dir, so the
-// import source dir is cleared.
-function showImported(doc: KDocument, path: string): void {
-  setImportSourceDir(null)
-  replaceDoc(doc, { path: null, dirty: false })
-  void platform().setTitle(`KherveTeX ${VERSION} — ${docStem(path)} (imported)`).catch(() => {})
+// "<stem> (imported)" (file.finishImport); docx and pdf images live in the
+// build dir, so the import source dir is cleared.
+function showImported(doc: KDocument, path: string, message: string): void {
+  finishImport(doc, path, { sourceDir: null, message })
 }
 
 async function importDocxAction(): Promise<void> {
@@ -79,8 +74,8 @@ async function importDocxAction(): Promise<void> {
     await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
     return
   }
-  showImported(doc, path)
-  showMessage(`Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted to ${imageDir})`, 8000)
+  showImported(doc, path,
+    `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted to ${imageDir})`)
 }
 
 async function importPdfAction(): Promise<void> {
@@ -101,8 +96,7 @@ async function importPdfAction(): Promise<void> {
     await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
     return
   }
-  showImported(doc, path)
-  showMessage(`Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`, 8000)
+  showImported(doc, path, `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`)
 }
 
 async function exportDocxAction(): Promise<void> {

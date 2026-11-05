@@ -1,0 +1,13 @@
+/* printing.PdfPrintPreview: a QPrintPreviewDialog opened at 80 % x 90 %
+   of the window (at least 900 x 700), pages on Qt's grey desk. */
+.dlg-print-preview { width: max(min(900px, 98vw), 80vw); height: max(min(700px, 96vh), 90vh); max-width: 98vw; max-height: 96vh; }
+.pp-toolbar { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.pp-toolbar button { padding: 2px 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--base); color: var(--text); font: inherit; }
+.pp-toolbar button.on { background: var(--pressed-blue); }
+.pp-pct { min-width: 44px; text-align: center; }
+.pp-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+.pp-grow { flex: 1; }
+.pp-area { flex: 1; min-height: 0; overflow: auto; background: #787878; }
+.pp-pages { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px; }
+.pp-pages.facing { display: grid; grid-template-columns: repeat(2, max-content); justify-content: center; }
+.pp-page { background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }

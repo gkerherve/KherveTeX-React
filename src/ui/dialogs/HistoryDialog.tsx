@@ -9,7 +9,7 @@
 //   - Top:   the branch bar (current branch, switch, create, delete), so
 //            branches are managed without leaving the dialog.
 import {
-  useCallback, useEffect, useLayoutEffect, useRef, useState,
+  useCallback, useEffect, useRef, useState,
   type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode,
 } from 'react'
 import { basename } from '../../core/paths'
@@ -174,13 +174,6 @@ function HistoryDialog({ repoDir, fileStem, onReload, close }: {
   const [row, setRow] = useState(-1)
   const [diff, setDiff] = useState('')
   const [leftW, setLeftW] = useState(480)
-
-  // Message boxes mount once, before this dialog's backdrop: put the
-  // dialog just under them so they open on top, as Qt's do.
-  useLayoutEffect(() => {
-    const backdrop = rootRef.current?.parentElement
-    if (backdrop) backdrop.style.zIndex = '999'
-  }, [])
 
   // _refresh_branch_bar
   const refreshBranchBar = useCallback(async () => {

@@ -174,8 +174,11 @@ function showMessage(msg: string): void {
 
 export async function kickCompile(): Promise<void> {
   if (closed) return
-  // TODO(projects phase): with a project open, compile the whole project
-  // (MainWindow._compile_project).
+  // When a project is open, always compile the full project
+  if (projectCompiler !== null && appStore().get().project !== null) {
+    await projectCompiler()
+    return
+  }
   if (!(await engineAvailable(ui.engine))) {
     if (platform().kind === 'browser') showMessage(COMPILE_UNAVAILABLE)
     else if (ui.engine === 'typst') showMessage('typst not installed — install it from https://typst.app/')
@@ -254,6 +257,65 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     pendingRecompile = false
     void kickCompile()
   }
+}
+
+// ---- projects (MainWindow._compile_project / _on_project_compile_done) ----
+
+// Installed by src/app/actions/project.ts: writes the chapters and the
+// master, then calls compileProjectMaster.
+let projectCompiler: (() => Promise<void>) | null = null
+
+export function setProjectCompiler(fn: (() => Promise<void>) | null): void {
+  projectCompiler = fn
+}
+
+// Run the project's master .tex in the build dir (the chapter files are
+// already copied there) and show the result. null when tectonic is missing
+// or a compile is running (that one queues a recompile, as the single
+// document's does).
+export async function compileProjectMaster(source: string, sourceDir: string): Promise<CompileResult | null> {
+  if (!(await engineAvailable('latex'))) {
+    showMessage(platform().kind === 'browser' ? COMPILE_UNAVAILABLE : 'tectonic not installed \u2014 install it to compile.')
+    return null
+  }
+  if (running) {
+    pendingRecompile = true
+    return null
+  }
+  running = true
+  appStore().set(s => ({ status: 'Compiling project\u2026', compile: { ...s.compile, running: true } }))
+  let result: CompileResult
+  try {
+    const opts = { sourceDir, skipImages: ui.skipImages, useCompileRange: false }
+    result = await compileTex(source, await buildDir(), opts, compilerHost())
+  } catch (e) {
+    result = { ok: false, pdfPath: null, log: '', error: e instanceof Error ? e.message : String(e) }
+  }
+  running = false
+  let pdf: Uint8Array | null = null
+  if (result.ok && result.pdfPath !== null) {
+    try {
+      pdf = await platform().readFile(result.pdfPath)
+    } catch (e) {
+      result = { ...result, ok: false, error: `could not read the PDF: ${e instanceof Error ? e.message : e}` }
+    }
+  }
+  if (pdf !== null) {
+    setUi({ message: null, pdfPath: result.pdfPath, consoleError: false })
+  } else {
+    const tail = result.log ? result.log.split(/\r?\n/).filter((_, i, a) => i >= a.length - 10).join('\n') : ''
+    setUi({ message: `${result.error}\n\n${tail}`, consoleError: true })
+  }
+  const log = consoleText(result, 'latex')
+  appStore().set(s => ({
+    status: s.status === 'Compiling project\u2026' ? '' : s.status,
+    compile: {
+      running: false, ok: result.ok, log,
+      pdf: pdf ?? (result.ok ? s.compile.pdf : null),
+      serial: s.compile.serial + 1,
+    },
+  }))
+  return result
 }
 
 function hhmmss(d: Date): string {

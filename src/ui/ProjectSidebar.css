@@ -1,0 +1,114 @@
+/* The Documents dock (QDockWidget + _ProjectSidebar). */
+
+.documents-dock {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  user-select: none;
+}
+
+.documents-dock .dock-title {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  padding: 0 4px 0 8px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.documents-dock .dock-close {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 18px;
+}
+
+.documents-dock .dock-close:hover { background: var(--hover-blue); }
+
+.ps-body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 6px;
+}
+
+.ps-title { text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ps-summary { color: #888; font-size: 11px; text-align: center; }
+
+.ps-auto { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+
+.ps-list {
+  flex: 1 1 0;
+  min-height: 40px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: var(--base);
+}
+
+.ps-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.ps-row input { flex: none; margin: 0; }
+.ps-row .ps-text { overflow: hidden; text-overflow: ellipsis; }
+.ps-row.bold { font-weight: bold; }
+.ps-row.grey { color: #999; }
+.ps-row.current { background: var(--pressed-blue); }
+.ps-row.drop-above { box-shadow: inset 0 2px 0 var(--accent); }
+.ps-row.drop-below { box-shadow: inset 0 -2px 0 var(--accent); }
+
+.ps-buttons { display: flex; flex: none; gap: 4px; }
+
+.ps-buttons button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--base);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ps-buttons button:hover { background: var(--hover-blue); }
+.ps-buttons button:active { background: var(--pressed-blue); }
+.ps-caret { font-size: 10px; }
+
+.ps-splitter {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.documents-dock .qmenu { position: fixed; }
+.documents-dock .qmenu-icon { width: 16px; justify-content: center; }
+.documents-dock .qmenu-arrow { padding-left: 12px; font-size: 10px; }

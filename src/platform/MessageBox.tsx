@@ -26,6 +26,8 @@ export interface BoxOptions {
 
 interface OpenBox extends BoxOptions {
   id: number
+  // Its place in the stack of open modals (nextModalLayer).
+  z?: number
   resolve: (label: string | null) => void
   // Progress boxes: the label is live and the box closes from code.
   progress?: { label: string }
@@ -60,6 +62,14 @@ const CSS = `
 @keyframes kmb-busy { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 `
 
+// Every modal (message boxes, dialogHost dialogs) takes the next z-index
+// when it opens, so the newest one is on top, as Qt stacks a box opened
+// from inside a dialog above that dialog.
+let layer = 1000
+export function nextModalLayer(): number {
+  return ++layer
+}
+
 let push: ((b: OpenBox) => void) | null = null
 let update: ((id: number, label: string) => void) | null = null
 let drop: ((id: number) => void) | null = null
@@ -88,7 +98,7 @@ function Box({ box, close }: { box: OpenBox; close: (label: string | null) => vo
     el?.focus()
   }, [])
   return (
-    <div className='kmb-veil' onKeyDown={e => {
+    <div className='kmb-veil' style={box.z ? { zIndex: box.z } : undefined} onKeyDown={e => {
       if (e.key === 'Escape') { e.stopPropagation(); close(null) }
     }}>
       <div ref={ref} className='kmb' role='dialog' aria-modal='true' aria-label={box.title}
@@ -124,6 +134,7 @@ function mount(): void {
 }
 
 function open(box: OpenBox): void {
+  box.z = nextModalLayer()
   mount()
   if (push) push(box)
   else pending.push(box)

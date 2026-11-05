@@ -1,7 +1,7 @@
 // The main window: menu bar, ribbon, the grey desk with the A4 page card,
 // the PDF side panel and the status bar, laid out as KherveTeX's
 // MainWindow in its default "PDF side panel" mode.
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { useCommandState } from './ui/commands'
 import { MenuBar } from './ui/MenuBar'
 import { useCompileUi } from './app/compile'
@@ -13,7 +13,12 @@ import { PdfPanel } from './preview/PdfPanel'
 import { Ribbon } from './ui/Ribbon'
 import type { ContextKind } from './ui/ribbonModel'
 import { StatusBar } from './ui/StatusBar'
+import { ProjectSidebar } from './ui/ProjectSidebar'
+import { session } from './app/actions/project'
 import { TooltipProvider } from './ui/Tooltip'
+import { useGlobalShortcuts } from './ui/globalShortcuts'
+import { applyNamedTheme, useThemeName } from './app/actions/theme'
+import { currentBranch, subscribeBranch } from './app/actions/file'
 import './App.css'
 
 // A4 at 96 dpi: the PDF panel's page.
@@ -40,7 +45,9 @@ function useWidth<T extends HTMLElement>() {
 export default function App() {
   const cmd = useCommandState()
   const [context, setContext] = useState<ContextKind | null>(null)
-  const [dark, setDark] = useState(false)
+  const dark = useThemeName() === 'Dark'
+  useGlobalShortcuts(cmd)
+  const branch = useSyncExternalStore(subscribeBranch, currentBranch)
   const [manualZoom, setManualZoom] = useState<number | null>(null)
   const [pdfManualZoom, setPdfManualZoom] = useState<number | null>(null)
   const [pdfWidth, setPdfWidth] = useState(269)
@@ -52,16 +59,16 @@ export default function App() {
   const log = useApp(s => s.compile.log)
   const status = useApp(s => s.status)
   const compiling = useApp(s => s.compile.running)
-  const compilerText = useCompileUi(u => u.statusText) + (compiling ? '   Compiling\u2026' : '')
-  const fileName = path ? path.split(/[\\/]/).pop()! : null
+  const compilerText = useCompileUi(u => u.statusText)
+  // A project names itself and the open document (_update_title).
+  useApp(s => s.project)
+  useApp(s => s.projectPath)
+  useApp(s => s.chapterIndex)
+  const fileName = session.titleText() ?? (path ? path.split(/[\\/]/).pop()! : null)
   const showPdf = layout === 'side'
   // The visual page is as wide as the document's paper (or its class's).
   const pageW = pagePx(useApp(s => s.doc.meta)).width
 
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-  }, [dark])
 
   const fitWidth = cmd.isChecked('fit_page_width')
   const fitZoom = deskWidth > 0
@@ -92,6 +99,7 @@ export default function App() {
         <MenuBar cmd={cmd} />
         <Ribbon cmd={cmd} context={context} />
         <div className='workspace'>
+          <ProjectSidebar />
           <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}>
             <div className='desk-inner' style={{ padding: DESK_PAD }}>
               <div className='page-card' style={{ zoom: zoom / 100 }}>
@@ -108,7 +116,9 @@ export default function App() {
             </div>
           </>}
         </div>
-        <StatusBar fileName={fileName} dark={dark} onToggleTheme={() => setDark(!dark)}
+        <StatusBar fileName={fileName} dark={dark} onToggleTheme={() => applyNamedTheme(dark ? 'Light' : 'Dark')}
+          dir={session.titleText() === null && path ? path.replace(/[\\/][^\\/]*$/, '') : null}
+          branch={session.titleText() === null ? branch : ''} compiling={compiling}
           zoom={Math.round(zoom)} onZoom={setManualZoom}
           // Qt's PDF slider keeps its own value while the page fits the width.
           pdfZoom={pdfManualZoom ?? 100} onPdfZoom={setPdfManualZoom}

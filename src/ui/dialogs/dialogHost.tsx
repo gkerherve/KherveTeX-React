@@ -4,6 +4,7 @@
 // knowing about each dialog.
 import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { nextModalLayer } from '../../platform/MessageBox'
 import './dialogs.css'
 
 export type Close<T> = (value: T | null) => void
@@ -12,6 +13,7 @@ export function openDialog<T>(render: (close: Close<T>) => ReactNode): Promise<T
   return new Promise(resolve => {
     const el = document.createElement('div')
     el.className = 'dlg-backdrop'
+    el.style.zIndex = String(nextModalLayer())
     document.body.appendChild(el)
     const root = createRoot(el)
     const close: Close<T> = (value) => {

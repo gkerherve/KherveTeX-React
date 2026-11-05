@@ -1,0 +1,20 @@
+/* The User guide (680 x 560 QTabWidget of QTextBrowsers) and About
+   (680 x 760) dialogs of mainwindow.py. */
+.dlg-help { width: min(680px, 96vw); height: min(560px, 92vh); }
+.dlg-about { width: min(680px, 96vw); height: min(760px, 94vh); }
+.help-titlebar { display: flex; align-items: center; justify-content: space-between; }
+.help-x { border: none; background: transparent; color: inherit; font-size: 13px; line-height: 1; padding: 0 4px; }
+.help-x:hover { color: #c42b1c; }
+.help-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--border); }
+.help-tab { padding: 4px 10px; border: 1px solid var(--border); border-bottom: none;
+  border-radius: 4px 4px 0 0; background: var(--midlight); color: var(--text); font: inherit; }
+.help-tab.on { background: var(--base); position: relative; top: 1px; }
+.help-browser { flex: 1; min-height: 0; overflow: auto; margin: 0 10px 10px; padding: 4px 10px;
+  border: 1px solid var(--border); border-top: none; background: var(--base); color: var(--text);
+  font-size: 13px; line-height: 1.35; user-select: text; }
+.dlg-about .help-browser { margin-top: 6px; border-top: 1px solid var(--border); }
+.help-browser a, .about-header a { color: var(--accent); }
+.help-browser code { font-family: Consolas, Menlo, monospace; }
+.about-header { display: flex; gap: 16px; padding: 12px 12px 0; user-select: text; font-size: 13px; }
+.about-logo { flex: none; width: 96px; height: 96px; }
+.about-heading { flex: 1; }

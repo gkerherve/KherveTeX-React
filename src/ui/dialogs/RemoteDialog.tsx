@@ -4,7 +4,7 @@
 // The dialog walks the user through the setup in plain words instead of
 // git jargon; several remotes and SSH URLs still work, just not
 // front-and-centre.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { platform } from '../../platform'
 import { git } from '../../platform/git'
 import { critical, information, question, warning } from '../../platform/MessageBox'
@@ -36,12 +36,6 @@ function RemoteDialog({ repoDir, connected, close }: { repoDir: string; connecte
   const rootRef = useRef<HTMLDivElement>(null)
   const [remotes, setRemotes] = useState<[string, string][]>([])
   const [row, setRow] = useState(-1)
-
-  // Message boxes mount before this dialog: keep it just under them.
-  useLayoutEffect(() => {
-    const backdrop = rootRef.current?.parentElement
-    if (backdrop) backdrop.style.zIndex = '999'
-  }, [])
 
   // _refresh
   const refresh = useCallback(async () => {
