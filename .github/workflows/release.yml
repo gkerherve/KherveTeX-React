@@ -1,0 +1,282 @@
+name: Release
+
+# Builds the Windows NSIS installer and the macOS .app/.dmg (Apple Silicon
+# and Intel), each with the official tectonic binary and a warmed TeX cache
+# bundled, smoke-tests every build offline on an empty TeX cache, and
+# publishes them with their updater signatures and latest.json — the
+# manifest the in-app updater reads at
+# releases/latest/download/latest.json. Trigger: push a tag on dev,
+#
+#   git tag v<major>.<minor> && git push origin v<major>.<minor>
+#
+# (the tag must match package.json's version), or run it by hand.
+#
+# Needs the repository secret TAURI_SIGNING_PRIVATE_KEY: the private half of
+# the updater key whose public half is plugins.updater.pubkey in
+# src-tauri/tauri.conf.json (no password).
+#
+# The TeX cache is the Python app's (gkerherve/kherveTeX, checked out next
+# to this one as ../KherveTeX): `python packaging/fetch_tectonic.py --warm`
+# builds it, src-tauri/fetch_tectonic.mjs copies it into the bundle and
+# stops the build when it has fewer than 500 files.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      python_ref:
+        description: "Branch or tag of gkerherve/kherveTeX whose TeX cache and styles ship"
+        default: dev
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_REF: ${{ inputs.python_ref || 'dev' }}
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version and tag
+        id: version
+        run: |
+          set -euo pipefail
+          FULL=$(node -p "require('./package.json').version")
+          SHORT=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            TAG="$GITHUB_REF_NAME"
+            case "$TAG" in "v$SHORT"|"v$FULL") ;; *)
+              echo "::error::tag $TAG does not match package.json version $FULL"; exit 1 ;;
+            esac
+          else
+            TAG="v$SHORT"
+          fi
+          echo "version=$FULL" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Release notes (the commit subjects since the last release)
+        run: |
+          set -euo pipefail
+          PREV=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)
+          if [ -n "$PREV" ]; then RANGE="$PREV..HEAD"; else RANGE="-n 30 HEAD"; fi
+          git log --format=%s --no-merges $RANGE > notes.txt
+          cat notes.txt
+
+      - name: Create the draft release (or reuse it on a re-run)
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+                 --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
+          if [ -z "$ID" ]; then
+            gh release create "$TAG" --draft --title "KherveTeX $TAG" \
+              --notes-file notes.txt --target "$GITHUB_SHA"
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+                   --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
+          fi
+          test -n "$ID"
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - name: macOS-arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+          - name: macOS-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+        working-directory: KherveTeX-React
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: KherveTeX-React
+
+      - name: Check out the Python app (TeX cache and styles)
+        uses: actions/checkout@v4
+        with:
+          repository: gkerherve/kherveTeX
+          ref: ${{ env.PYTHON_REF }}
+          path: KherveTeX
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: KherveTeX/requirements.txt
+
+      - name: Restore the warmed TeX cache
+        id: texcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            KherveTeX/khervedoc/tectonic_cache
+            KherveTeX/khervedoc/tectonic_cache.stamp
+          key: tectonic-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('KherveTeX/khervedoc/**/*.py', 'KherveTeX/packaging/fetch_tectonic.py') }}
+
+      - name: Fetch tectonic and warm the offline TeX cache
+        if: steps.texcache.outputs.cache-hit != 'true'
+        working-directory: KherveTeX
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python packaging/fetch_tectonic.py --warm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: KherveTeX-React/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: KherveTeX-React/src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - run: npm ci --legacy-peer-deps
+
+      # ci.yml runs them on every push; here they guard the release too (the
+      # Windows leg skips them: the suites have not been run on Windows yet).
+      - name: Run the test suite
+        if: runner.os != 'Windows'
+        run: npm test
+
+      - name: Build, sign and upload to the draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          projectPath: KherveTeX-React
+          tauriScript: npx tauri
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          # The publish job writes latest.json once, from every job's assets.
+          uploadUpdaterJson: false
+          retryAttempts: 2
+
+      - name: Check the macOS bundle
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          B=src-tauri/target/${{ matrix.target }}/release/bundle
+          APP="$B/macos/KherveTeX.app"
+          plutil -p "$APP/Contents/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleShortVersionString|LSMinimumSystemVersion|ktex'
+          codesign --verify --deep --strict "$APP"
+          ARCH=$([ "${{ matrix.target }}" = aarch64-apple-darwin ] && echo arm64 || echo x86_64)
+          for f in "$APP"/Contents/MacOS/*; do lipo -archs "$f" | grep -qw "$ARCH"; done
+          test -x "$APP/Contents/MacOS/tectonic"
+          test -d "$APP/Contents/Resources/resources/tectonic_cache"
+          test -f "$B"/macos/KherveTeX.app.tar.gz.sig
+          ls -la "$B"/dmg "$B"/macos
+
+      - name: Smoke-test the macOS app
+        if: runner.os == 'macOS'
+        run: node scripts/smoke_test.mjs src-tauri/target/${{ matrix.target }}/release/bundle/macos/KherveTeX.app
+
+      - name: Check the Windows installer
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          N=src-tauri/target/${{ matrix.target }}/release/bundle/nsis
+          ls -la "$N"
+          ls "$N"/*-setup.exe "$N"/*-setup.exe.sig
+
+      - name: Install silently, smoke-test the installed app, uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem "src-tauri\target\${{ matrix.target }}\release\bundle\nsis\*-setup.exe" | Select-Object -First 1
+          $dir = Join-Path $env:RUNNER_TEMP "KherveTeX-installed"
+          # NSIS: /S silent; /D= must come last and unquoted.
+          $p = Start-Process -FilePath $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the installer exited with $($p.ExitCode)" }
+          Get-ChildItem $dir | Format-Table Name, Length
+          if (-not (Test-Path (Join-Path $dir "tectonic.exe"))) { throw "no tectonic.exe in $dir" }
+          if (-not (Test-Path (Join-Path $dir "resources\tectonic_cache"))) { throw "no tectonic_cache in $dir" }
+          $exe = Get-ChildItem $dir -Filter *.exe | Where-Object { $_.Name -notmatch '^(tectonic|uninstall)' } | Select-Object -First 1
+          node scripts/smoke_test.mjs $exe.FullName
+          if ($LASTEXITCODE -ne 0) { throw "the smoke test failed" }
+          $u = Join-Path $dir "uninstall.exe"
+          if (Test-Path $u) { Start-Process -FilePath $u -ArgumentList "/S" -Wait }
+
+  publish:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Write latest.json from the signed assets, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .body > notes.txt
+          mkdir sigs
+          # A draft has no tag yet, so its assets are fetched by id.
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.name | endswith(".sig")) | "\(.id) \(.name)"' |
+          while read -r id name; do
+            gh api -H "Accept: application/octet-stream" \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$id" > "sigs/$name"
+          done
+          ls -la sigs
+          node scripts/latest_json.mjs "$GITHUB_REPOSITORY" "$TAG" "$VERSION" notes.txt sigs > latest.json
+          cat latest.json
+          # By release id throughout: `gh release ... <tag>` does not find a draft.
+          OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
+                  --jq '.[] | select(.name == "latest.json") | .id')
+          for id in $OLD; do gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"; done
+          gh api --method POST -H "Content-Type: application/json" --input latest.json \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=latest.json" > /dev/null
+          # Published and marked latest: releases/latest/download/ serves only that one.
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -F draft=false -f make_latest=true --jq '.html_url'

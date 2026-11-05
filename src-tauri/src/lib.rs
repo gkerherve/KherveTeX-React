@@ -3,15 +3,26 @@
 
 mod fsops;
 mod git;
+mod mcp;
+mod mcp_json;
+pub mod mcp_server;
 mod process;
+mod smoke;
 mod system;
 mod tectonic;
+mod updater;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let context = tauri::generate_context!();
+    // `--smoke-test <outdir>`: compile headless and exit, before any window.
+    if let Some(code) = smoke::run_from_args(context.package_info()) {
+        std::process::exit(code);
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Seeding copies up to a few thousand files on first launch;
             // off the main thread so the window opens at once.
@@ -25,6 +36,8 @@ pub fn run() {
             if let tauri::WindowEvent::Destroyed = event {
                 if window.label() == "main" {
                     process::cancel_running();
+                    // Closing the window closes the Claude bridge and its endpoint file.
+                    mcp::stop();
                 }
             }
         })
@@ -78,7 +91,15 @@ pub fn run() {
             git::git_history_graph,
             git::git_diff_for_commit,
             git::git_default_signature,
+            mcp::mcp_start,
+            mcp::mcp_stop,
+            mcp::mcp_status,
+            mcp::mcp_respond,
+            mcp::mcp_launch_command,
+            mcp::mcp_host_context,
+            mcp::mcp_write_atomic,
+            updater::updates_disabled,
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running KherveTeX");
 }

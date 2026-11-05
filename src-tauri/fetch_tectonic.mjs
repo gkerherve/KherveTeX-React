@@ -35,7 +35,7 @@ const BIN = join(HERE, 'binaries')
 const RES = join(HERE, 'resources')
 const dev = process.argv.includes('--dev')
 
-function targetTriple() {
+function hostTriple() {
   try {
     const out = execFileSync('rustc', ['-vV'], { encoding: 'utf8' })
     const m = /^host: (\S+)/m.exec(out)
@@ -46,7 +46,10 @@ function targetTriple() {
   return 'x86_64-unknown-linux-gnu'
 }
 
-// The official release archive for this machine (tectonic publishes musl
+// `tauri build --target <triple>` tells its beforeBuildCommand which one.
+const targetTriple = () => process.env.TAURI_ENV_TARGET_TRIPLE || hostTriple()
+
+// The official release archive for a target (tectonic publishes musl
 // builds for Linux).
 function releaseTarget(triple) {
   if (triple.includes('windows')) return ['x86_64-pc-windows-msvc', 'zip']
@@ -62,36 +65,60 @@ function version(exe) {
   }
 }
 
-async function fetchBinary() {
-  const triple = targetTriple()
-  const exeName = process.platform === 'win32' ? 'tectonic.exe' : 'tectonic'
-  const out = join(BIN, `tectonic-${triple}${process.platform === 'win32' ? '.exe' : ''}`)
-  if (existsSync(out) && version(out).includes(TECTONIC_VERSION)) return out
-  mkdirSync(BIN, { recursive: true })
-  const local = join(PY_APP, 'packaging', 'bin', exeName)
-  if (existsSync(local) && version(local).includes(TECTONIC_VERSION)) {
-    copyFileSync(local, out)
-  } else {
-    const [rel, ext] = releaseTarget(triple)
-    const name = `tectonic-${TECTONIC_VERSION}-${rel}.${ext}`
-    const url = 'https://github.com/tectonic-typesetting/tectonic/releases/download/'
-      + `tectonic%40${TECTONIC_VERSION}/${name}`
-    console.log(`Downloading ${url}`)
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`)
-    const tmp = mkdtempSync(join(tmpdir(), 'khervetex-tectonic-'))
+async function download(triple, exeName, dest) {
+  const [rel, ext] = releaseTarget(triple)
+  const name = `tectonic-${TECTONIC_VERSION}-${rel}.${ext}`
+  const url = 'https://github.com/tectonic-typesetting/tectonic/releases/download/'
+    + `tectonic%40${TECTONIC_VERSION}/${name}`
+  console.log(`Downloading ${url}`)
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`)
+  const tmp = mkdtempSync(join(tmpdir(), 'khervetex-tectonic-'))
+  try {
     const archive = join(tmp, name)
     writeFileSync(archive, new Uint8Array(await res.arrayBuffer()))
-    // bsdtar reads .zip too (Windows 10+ ships it as tar.exe).
-    execFileSync('tar', ['-xf', archive, '-C', tmp])
+    execFileSync(tarProgram(), ['-xf', archive, '-C', tmp])
     const found = findFile(tmp, exeName)
     if (!found) throw new Error(`${name} has no ${exeName}`)
-    copyFileSync(found, out)
+    copyFileSync(found, dest)
+  } finally {
     rmSync(tmp, { recursive: true, force: true })
+  }
+}
+
+async function fetchBinary() {
+  const triple = targetTriple()
+  const exe = triple.includes('windows') ? '.exe' : ''
+  const exeName = `tectonic${exe}`
+  const out = join(BIN, `tectonic-${triple}${exe}`)
+  if (existsSync(out) && version(out).includes(TECTONIC_VERSION)) return out
+  mkdirSync(BIN, { recursive: true })
+  // The Python app's copy is for its own machine: only when building for it.
+  const local = join(PY_APP, 'packaging', 'bin', exeName)
+  if (triple === hostTriple() && existsSync(local) && version(local).includes(TECTONIC_VERSION)) {
+    copyFileSync(local, out)
+  } else if (triple === 'universal-apple-darwin') {
+    // A universal app needs a universal sidecar: both slices, lipo'd.
+    const parts = ['aarch64-apple-darwin', 'x86_64-apple-darwin'].map(t => join(BIN, `tectonic-${t}`))
+    for (const [i, t] of ['aarch64-apple-darwin', 'x86_64-apple-darwin'].entries()) {
+      if (!existsSync(parts[i])) await download(t, exeName, parts[i])
+    }
+    execFileSync('lipo', ['-create', '-output', out, ...parts])
+  } else {
+    await download(triple, exeName, out)
   }
   chmodSync(out, 0o755)
   console.log(`tectonic ${TECTONIC_VERSION} -> ${out} (${(statSync(out).size / 1e6).toFixed(1)} MB)`)
   return out
+}
+
+// bsdtar reads .zip too; Windows 10+ ships it as System32\tar.exe. Name it
+// outright: under Git Bash the PATH's first tar is GNU tar, which cannot
+// read a zip and takes the C: of a C:\ path for a remote host.
+function tarProgram() {
+  if (process.platform !== 'win32') return 'tar'
+  const sys = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe')
+  return existsSync(sys) ? sys : 'tar'
 }
 
 function findFile(dir, name) {

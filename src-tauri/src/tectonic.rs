@@ -187,11 +187,31 @@ pub fn bundled_cache(app: &AppHandle) -> Option<PathBuf> {
 /// mismatch silently leaves the user with an empty cache.
 pub fn seed_cache(app: &AppHandle) {
     let Some(bundled) = bundled_cache(app) else { return };
-    let dest = find_tectonic_path()
-        .and_then(|t| query_cache_dir(&t.path))
-        .unwrap_or_else(default_cache_dir);
+    seed_cache_from(&bundled);
+}
+
+/// The same from a bundled cache folder; returns the user's cache it filled.
+pub fn seed_cache_from(bundled: &Path) -> PathBuf {
+    let dest = cache_root(
+        find_tectonic_path()
+            .and_then(|t| query_cache_dir(&t.path))
+            .unwrap_or_else(default_cache_dir),
+    );
     let _ = std::fs::create_dir_all(&dest);
-    seed_tree(&bundled, &dest);
+    seed_tree(bundled, &dest);
+    dest
+}
+
+/// `-X show user-cache-dir` names the `bundles` folder *inside* tectonic's
+/// cache, but the bundled copy is the whole cache (`bundles/` and
+/// `formats/`, as warm() copies TECTONIC_CACHE_DIR), so it is seeded one
+/// level up. Seeded into `bundles` itself it lands in `bundles/bundles`,
+/// where tectonic never looks, and a new PC compiles nothing offline.
+pub fn cache_root(user_cache_dir: PathBuf) -> PathBuf {
+    match user_cache_dir.parent() {
+        Some(parent) if user_cache_dir.file_name().is_some_and(|n| n == "bundles") => parent.to_path_buf(),
+        _ => user_cache_dir,
+    }
 }
 
 fn seed_tree(src: &Path, dest: &Path) {
@@ -205,5 +225,34 @@ fn seed_tree(src: &Path, dest: &Path) {
         } else if !d.exists() && e.file_name() != "README.txt" {
             let _ = copy_file(&s, &d);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn seeds_the_cache_root_not_its_bundles_folder() {
+        assert_eq!(cache_root(PathBuf::from("/c/TectonicProject.Tectonic/bundles")), PathBuf::from("/c/TectonicProject.Tectonic"));
+        assert_eq!(cache_root(PathBuf::from("/tmp/cache")), PathBuf::from("/tmp/cache"));
+    }
+
+    #[test]
+    fn seed_copies_missing_files_only() {
+        let tmp = std::env::temp_dir().join(format!("ktex-seed-{}", std::process::id()));
+        let (src, dest) = (tmp.join("src"), tmp.join("dest"));
+        std::fs::create_dir_all(src.join("bundles").join("data")).unwrap();
+        std::fs::write(src.join("bundles").join("data").join("a"), "new").unwrap();
+        std::fs::write(src.join("README.txt"), "x").unwrap();
+        std::fs::create_dir_all(dest.join("bundles").join("data")).unwrap();
+        std::fs::write(dest.join("bundles").join("data").join("a"), "mine").unwrap();
+        std::fs::create_dir_all(src.join("formats")).unwrap();
+        std::fs::write(src.join("formats").join("f.fmt"), "fmt").unwrap();
+        seed_tree(&src, &dest);
+        assert_eq!(std::fs::read_to_string(dest.join("bundles").join("data").join("a")).unwrap(), "mine");
+        assert!(dest.join("formats").join("f.fmt").is_file());
+        assert!(!dest.join("README.txt").exists());
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

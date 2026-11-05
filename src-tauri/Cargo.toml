@@ -21,10 +21,13 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "2.12.0", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
+tauri-plugin-updater = "2.14"
 # git_backend.py's pygit2: libgit2 built in, with HTTPS (SecureTransport /
 # WinHTTP) and SSH (libssh2 over a vendored OpenSSL) so no system library is needed.
 git2 = { version = "0.21", features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 chrono = "0.4"
+# The MCP bridge token (secrets.token_urlsafe); already in the tree via tauri.
+getrandom = "0.3"
 
 # Small binary
 [profile.release]

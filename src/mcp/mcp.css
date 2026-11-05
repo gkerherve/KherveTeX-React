@@ -1,0 +1,26 @@
+/* Connect to Claude (mcp_dialog.py): a modeless 620 px dialog over the
+   window; only the dialog itself takes the mouse. Message boxes stack above. */
+.mcp-layer {
+  position: fixed; inset: 0; z-index: 990; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.dlg-mcp { pointer-events: auto; min-width: 620px; width: 620px; max-height: 92vh; }
+.dlg-mcp .mcp-body { flex: 1; min-height: 0; }
+.mcp-check { display: flex; align-items: center; gap: 6px; }
+.mcp-status, .mcp-select { user-select: text; }
+.mcp-row { display: flex; align-items: center; gap: 8px; }
+.mcp-row select { flex: 1; }
+.mcp-hint { color: #444; }
+.mcp-group { border: 1px solid #c8c8c8; border-radius: 3px; padding: 6px 8px 8px; margin: 0;
+  display: flex; flex-direction: column; gap: 6px; }
+.mcp-group legend { padding: 0 4px; }
+.mcp-list { background: #fff; border: 1px solid #a0a0a0; overflow: auto; user-select: none; }
+.mcp-list > div { padding: 1px 6px; white-space: nowrap; }
+.mcp-hosts { max-height: 120px; }
+.mcp-hosts > div.mcp-ok { color: #006400; }
+.mcp-hosts > div.mcp-gray { color: #808080; }
+.mcp-hosts > div.selected { background: #0078d7; color: #fff; }
+.mcp-activity { height: 110px; }
+.mcp-buttons { display: flex; gap: 6px; }
+.mcp-snippet { min-height: 150px; resize: vertical; font: 9pt Consolas, Menlo, Monaco, monospace;
+  white-space: pre; background: #fff; border: 1px solid #a0a0a0; }

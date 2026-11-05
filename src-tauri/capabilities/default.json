@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window and the detached PDF window.",
-  "windows": ["main", "pdf"],
+  "description": "The main window, the detached PDF window and the windows of File > New window (doc-*).",
+  "windows": ["main", "pdf", "doc-*"],
   "permissions": [
     "core:default",
     "core:window:allow-set-title",
@@ -12,6 +12,7 @@
     "core:window:allow-show",
     "core:webview:allow-create-webview-window",
     "dialog:default",
+    "updater:default",
     "process:allow-restart",
     "process:allow-exit"
   ]

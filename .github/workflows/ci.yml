@@ -1,0 +1,32 @@
+name: CI
+
+# Type-check, lint and the Vitest suites (the parity corpus and the ported
+# Python unit tests) on every push to dev. The tests that need the Python
+# app next to this one (../KherveTeX) skip themselves here.
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Type-check
+        run: npx tsc -b
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test

@@ -6,18 +6,20 @@ exact copy: it opens and saves the same `.ktex` files, and generates the same
 LaTeX and Typst, byte for byte. Each phase is checked against the Python app's
 own output.
 
-## Status: Phase 0 — the core, and the ribbon
+## Status
 
-- `src/core/model.ts`: the document model, with `document.json` identical to Python's.
-- `src/core/serializer.ts`: model → LaTeX, covering single documents, chapter bodies and project masters.
-- `src/core/typstSerializer.ts`: model → Typst.
-- `src/core/importers.ts`: `.tex` and Markdown → model.
-- `src/core/kdocz.ts`: the `.ktex` container, which the Python app opens too.
-- `src/ui/`: KherveTeX's Word-style ribbon, with icons drawn in code. Its commands are not wired up yet.
+Every phase of the port is in: the core (model, LaTeX/Typst serializers,
+.tex/.md/.docx/.pdf importers, .ktex container), the Tauri desktop app with
+its bundled tectonic and offline TeX cache, the pdf.js preview and two-way
+Code tab, the paged visual editor, equations and chemistry, drawings and
+flowcharts, spell check, git history and branches, KherveRef citations,
+Overleaf, projects, the MCP server for Claude, the updater and the release
+workflows. Each part is checked against the Python app's own output
+(`npm run golden` regenerates the corpora).
 
-Next phases: the Tauri shell, tectonic compile and PDF preview (1); the
-visual editor (2); equations (3); git, Overleaf, KherveRef, and Word/PDF
-import (4); drawing, MCP, spell check, updater and installers (5).
+Not yet run: the release workflows (Windows and Intel macOS builds). The
+updater needs a public release feed, and the repo secret
+`TAURI_SIGNING_PRIVATE_KEY`.
 
 ## Develop
 
@@ -26,4 +28,6 @@ npm install --legacy-peer-deps
 npm run dev        # http://localhost:5174
 npm test           # parity corpus + ported Python unit tests
 npm run golden     # regenerate tests/golden from ../KherveTeX
+npx tauri build --bundles app --no-sign   # the desktop app
+node scripts/smoke_test.mjs src-tauri/target/release/bundle/macos/KherveTeX.app  # offline compile check
 ```
