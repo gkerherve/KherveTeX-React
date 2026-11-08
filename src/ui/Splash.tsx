@@ -10,6 +10,8 @@ import { AppIcon } from './icons'
 
 export const SPLASH_HASH = '#splash'
 export const SPLASH_STEP_EVENT = 'splash-step'
+// The least time the splash stays up, from the start of the main page.
+const MIN_SHOW_MS = 1800
 
 const WIDTH = 640
 const HEIGHT = 380
@@ -121,6 +123,10 @@ export async function splashStep(step: typeof STEPS[number]): Promise<void> {
   const { WebviewWindow, getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow')
   const me = getCurrentWebviewWindow()
   if (me.label !== 'main') return
+  // The web app starts in well under a second, where Qt took several: hold
+  // the picture long enough to be seen.
+  const shown = performance.now()
+  if (shown < MIN_SHOW_MS) await new Promise(r => setTimeout(r, MIN_SHOW_MS - shown))
   await me.show().catch(() => {})
   await me.setFocus().catch(() => {})
   await (await WebviewWindow.getByLabel('splash'))?.close().catch(() => {})
