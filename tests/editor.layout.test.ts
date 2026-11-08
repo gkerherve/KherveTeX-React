@@ -216,6 +216,8 @@ describe('the compiled PDF and projects (paged_edit.py)', () => {
     expect(anchorOffset('\\tableofcontents', normalizeForMatch('Inhaltsverzeichnis'))).toBe(0)
     expect(anchorOffset('\\listoffigures', 'list of figures')).toBe(0)
     expect(anchorOffset('\\tableofcontents', 'introduction')).toBe(-1)
+    expect(anchorOffset('\\begin{thebibliography}{9}\n\\bibitem{a} A.', 'bibliography')).toBe(0)
+    expect(anchorOffset('\\printbibliography', 'references')).toBe(0)
   })
 
   it('heading counters continue from the earlier documents of a project', () => {

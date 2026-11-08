@@ -34,6 +34,7 @@ interface Ctl {
   flowEl: HTMLElement
   overlayEl: HTMLElement
   setPageAnchors(anchors: [number, string][], furniture?: unknown): void
+  heldAnchors(): [number, string][]
 }
 
 export interface PageReport {
@@ -198,7 +199,9 @@ export async function checkOne(e: IndexEntry): Promise<PageReport> {
   // Where each PDF page's first and last lines are in the page view.
   // Page starts as the app resolves them (every candidate line), last
   // lines probed after each.
-  const starts = new Map(anchorTargets(c.view.state.doc, anchors).map(t => [t.page, t]))
+  // As the page view holds them (running heads dropped).
+  const held = c.heldAnchors()
+  const starts = new Map(anchorTargets(c.view.state.doc, held).map(t => [t.page, t]))
   const probes: [number, string][] = []
   pages.forEach((p, i) => {
     const a = anchors.find(([n]) => n === i + 1)
@@ -214,7 +217,7 @@ export async function checkOne(e: IndexEntry): Promise<PageReport> {
   pages.forEach((p, i) => {
     const f = found.get((i + 1) * 2)
     const l = found.get((i + 1) * 2 + 1)
-    if (i > 0 && anchors.some(([n]) => n === i + 1) && !starts.has(i + 1)) unresolved.push(i + 1)
+    if (i > 0 && held.some(([n, t]) => n === i + 1 && t) && !starts.has(i + 1)) unresolved.push(i + 1)
     const s0 = f ? sheetOfPos(c, f.pos + 1 + f.offset) : sheetForPage[i - 1] !== undefined ? sheetForPage[i - 1] + 1 : i
     sheetForPage.push(s0)
     if (l && p.last !== p.first) {

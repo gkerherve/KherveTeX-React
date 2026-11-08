@@ -325,6 +325,11 @@ export class EditorController implements ViewHost {
       .setMeta('addToHistory', false).setMeta(NO_EXPORT, true))
   }
 
+  // The page anchors as the layout holds them (the page check reads them).
+  heldAnchors(): readonly PageAnchor[] {
+    return layoutKey.getState(this.view.state)!.anchors
+  }
+
   // Each compiled PDF page's printed header and footer (pageAnchors); its
   // sheet paints them in place of the class's own.
   private pdfFurniture: readonly PageFurniture[] | null = null

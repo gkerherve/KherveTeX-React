@@ -37,6 +37,37 @@ export function firstTextSnippet(page: PdfTextDict, maxChars = 24): string {
 // paints rather than stores ("Chapter 1" above the title, "Abstract", a
 // running header), and the next one is the text it has. A "Label: text"
 // line also offers its text alone ("Keywords: one, two" -> "one, two").
+// The page's lines with a running head moved last: a first row near the top
+// edge, in type no bigger than the body's, with a header's gap below it.
+// A running head repeats a chapter or section title ("1 Describing Your
+// Data") that would otherwise match that heading again.
+function demoteRunningHead(page: PdfTextDict, all: string[]): string[] {
+  const rows: { top: number; bottom: number; size: number; texts: string[] }[] = []
+  const sizes: number[] = []
+  for (const b of page.blocks) {
+    if (b.type !== 0) continue
+    for (const l of b.lines) {
+      const text = l.spans.map(s => s.text).join('')
+      if (!text.trim()) continue
+      const size = Math.max(...l.spans.map(s => s.size))
+      sizes.push(size)
+      const row = rows.find(r => Math.abs(r.top - l.bbox[1]) < 2)
+      if (row) { row.bottom = Math.max(row.bottom, l.bbox[3]); row.size = Math.max(row.size, size); row.texts.push(text) }
+      else rows.push({ top: l.bbox[1], bottom: l.bbox[3], size, texts: [text] })
+    }
+  }
+  if (rows.length < 3) return all
+  rows.sort((a, b) => a.top - b.top)
+  sizes.sort((a, b) => a - b)
+  const body = sizes[Math.floor(sizes.length / 2)]
+  const [head, next] = rows
+  const gap = next.top - head.bottom
+  const isHead = head.top < page.height * 0.12 && head.size <= body * 1.05
+    && gap > Math.max(10, (head.bottom - head.top) * 1.2)
+  if (!isHead) return all
+  return [...all.filter(l => !head.texts.includes(l)), ...all.filter(l => head.texts.includes(l))]
+}
+
 const TOC_ENTRY_RE = /(?:\.\s?){3,}\s*\S*$|\D\s*\d+$/
 
 export function pageStartSnippets(page: PdfTextDict, maxLines = 10, maxChars = 24): string[] {
@@ -54,7 +85,7 @@ export function pageStartSnippets(page: PdfTextDict, maxLines = 10, maxChars = 2
   const entry = (l: string) => TOC_ENTRY_RE.test(l.trim())
   const words = all.filter(l => !NUMBER_RE.test(l.trim()))
   const isList = words.length >= 4 && words.filter(entry).length >= words.length * 0.4
-  const lines = isList ? all.slice(0, 1).filter(l => !entry(l)) : all
+  const lines = isList ? all.slice(0, 1).filter(l => !entry(l)) : demoteRunningHead(page, all)
   for (const raw of lines) {
     const s = one(raw)
     if (!s) continue

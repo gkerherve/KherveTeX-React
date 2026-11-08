@@ -743,6 +743,7 @@ export function normalizeForMatch(s: string): string {
 export function anchorOffset(blockText: string, keyNorm: string): number {
   const list = LIST_PAGE_RE.exec(blockText)
   if (list) return LIST_TITLES[list[1]].includes(keyNorm) ? 0 : -1
+  if (BIB_BLOCK_RE.test(blockText) && LIST_TITLES.bibliography.includes(keyNorm)) return 0
   if (blockText.includes(OBJ)) return wildAnchorOffset(blockText, keyNorm)
   const norm = normalizeForMatch(blockText)
   if (!norm) return -1
@@ -769,9 +770,16 @@ const LIST_TITLES: Record<string, string[]> = {
   listoffigures: ['list of figures', 'elenco delle figure', 'abbildungsverzeichnis', 'table des figures',
     'liste des figures', 'список иллюстрации', 'список рисунков', 'indice de figuras', 'lijst van figuren',
     'spis rysunkow', 'figurer'],
+  // The reference list of a raw thebibliography / \bibliography /
+  // \printbibliography block, whose title the PDF prints above it.
+  bibliography: ['bibliography', 'references', 'bibliografia', 'literaturverzeichnis', 'literatur',
+    'bibliographie', 'references bibliographiques', 'список литературы', 'литература',
+    'riferimenti bibliografici', 'referencias', 'bibliografie', 'referenties', 'litteratur', 'kirjallisuus'],
   listoftables: ['list of tables', 'elenco delle tabelle', 'tabellenverzeichnis', 'liste des tableaux',
     'список таблиц', 'indice de tablas', 'indice de cuadros', 'lijst van tabellen', 'spis tabel', 'tabeller'],
 }
+
+const BIB_BLOCK_RE = /^\s*\\(?:begin\{thebibliography\}|bibliography\{|printbibliography\b)/
 
 const OBJ = '\ufffc'
 // How many printed characters one inline object may stand for.
