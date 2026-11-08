@@ -732,7 +732,15 @@ export function normalizeForMatch(s: string): string {
 // -1. A match at the block's start always counts; one inside the block
 // (a page starting mid-paragraph) only when the key is long enough to be
 // unambiguous (anchor_offset).
+//
+// An inline object (equation, citation, cross-reference, footnote mark) is
+// U+FFFC in the editor's text but printed text in the PDF ("With $k_m$
+// fixed" reads "With km fixed"): each one matches any short run of the
+// PDF's characters, so a page starting on such a line is still found.
 export function anchorOffset(blockText: string, keyNorm: string): number {
+  const list = LIST_PAGE_RE.exec(blockText)
+  if (list) return LIST_TITLES[list[1]].includes(keyNorm) ? 0 : -1
+  if (blockText.includes(OBJ)) return wildAnchorOffset(blockText, keyNorm)
   const norm = normalizeForMatch(blockText)
   if (!norm) return -1
   if (keyNorm.length < 16) {
@@ -747,6 +755,66 @@ export function anchorOffset(blockText: string, keyNorm: string): number {
   return -1
 }
 
+// A raw \tableofcontents (\listoffigures, \listoftables) is one line in
+// the editor and a page or more in the PDF, which starts with its title in
+// the document's language.
+const LIST_PAGE_RE = /^\s*\\(tableofcontents|listoffigures|listoftables)\s*$/
+const LIST_TITLES: Record<string, string[]> = {
+  tableofcontents: ['contents', 'table of contents', 'inhaltsverzeichnis', 'indice', 'sommario',
+    'table des matieres', 'sommaire', 'содержание', 'оглавление', 'indice general', 'inhoudsopgave',
+    'spis tresci', 'innehall', 'indholdsfortegnelse', 'sisallys', 'obsah'],
+  listoffigures: ['list of figures', 'elenco delle figure', 'abbildungsverzeichnis', 'table des figures',
+    'liste des figures', 'список иллюстрации', 'список рисунков', 'indice de figuras', 'lijst van figuren',
+    'spis rysunkow', 'figurer'],
+  listoftables: ['list of tables', 'elenco delle tabelle', 'tabellenverzeichnis', 'liste des tableaux',
+    'список таблиц', 'indice de tablas', 'indice de cuadros', 'lijst van tabellen', 'spis tabel', 'tabeller'],
+}
+
+const OBJ = '\ufffc'
+// How many printed characters one inline object may stand for.
+const OBJ_SPAN = 40
+
+// Where `key` matches `norm` from i, an object matching 0..OBJ_SPAN of the
+// key's characters: the index in `norm` after the match, or -1. The key
+// may end inside an object's text. At least half the key (and 6
+// characters) must match literally, so an object cannot stand for it all.
+function wildMatch(norm: string, i: number, key: string): number {
+  const need = Math.min(key.length, Math.max(6, Math.ceil(key.length / 2)))
+  const go = (i: number, j: number, lit: number): number => {
+    for (;;) {
+      if (j >= key.length) return lit >= need ? i : -1
+      if (i >= norm.length) return -1
+      if (norm[i] === OBJ) {
+        for (let n = Math.min(OBJ_SPAN, key.length - j); n >= 0; n--) {
+          const end = go(i + 1, j + n, lit)
+          if (end >= 0) return end
+        }
+        return -1
+      }
+      if (norm[i] !== key[j]) return -1
+      i++
+      j++
+      lit++
+    }
+  }
+  return go(i, 0, 0)
+}
+
+function wildAnchorOffset(blockText: string, keyNorm: string): number {
+  const norm = normalizeForMatch(blockText)
+  if (!norm.replace(new RegExp(OBJ, 'g'), '').trim()) return -1
+  const end = wildMatch(norm, 0, keyNorm)
+  // A short key must be the whole line; a long one may be the line's start.
+  if (end >= 0 && (keyNorm.length >= 16 || end === norm.length)) return 0
+  if (keyNorm.length >= 12) {
+    for (let i = 1; i < norm.length; i++) {
+      if (norm[i - 1] !== ' ' && norm[i - 1] !== OBJ) continue
+      if (wildMatch(norm, i, keyNorm) >= 0) return Math.min(blockText.length, i)
+    }
+  }
+  return -1
+}
+
 export type PageAnchor = [number, string]
 
 // The text blocks (by position) the last compiled PDF starts a page with
@@ -757,13 +825,16 @@ export function pdfPageStartBlocks(doc: PMNode, anchors: readonly PageAnchor[]):
   const blocks = collect(doc)
   let at = 0
   for (const [, snippet] of anchors) {
-    const key = normalizeForMatch(snippet).slice(0, 16)
-    if (key.length < 3) continue
-    for (let i = at; i < blocks.length; i++) {
-      if (blocks[i].isTable) continue
-      const off = anchorOffset(blocks[i].text.replace(/\ufffc/g, ''), key)
-      if (off === 0) { out.add(blocks[i].pos); at = i + 1; break }
-      if (off > 0) { at = i; break }
+    // The page's candidate first lines (pageStartSnippets), in order: the
+    // first one found is where the page starts.
+    const keys = snippet.split('\n').map(s => normalizeForMatch(s).slice(0, 16)).filter(k => k.length >= 3)
+    search: for (const key of keys) {
+      for (let i = at; i < blocks.length; i++) {
+        if (blocks[i].isTable) continue
+        const off = anchorOffset(blocks[i].text, key)
+        if (off === 0) { out.add(blocks[i].pos); at = i + 1; break search }
+        if (off > 0) { at = i; break search }
+      }
     }
   }
   return out
@@ -776,12 +847,13 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
   const blocks = collect(doc)
   let at = 0
   for (const [page, snippet] of anchors) {
-    const keyNorm = normalizeForMatch((snippet || '').trim().slice(0, 24))
-    if (keyNorm.length < 3) continue
-    for (let i = at; i < blocks.length; i++) {
-      if (blocks[i].isTable) continue
-      const idx = anchorOffset(blocks[i].text.replace(/\ufffc/g, ''), keyNorm)
-      if (idx >= 0) { out.push({ page, pos: blocks[i].pos, offset: idx }); at = i; break }
+    const keys = (snippet || '').split('\n').map(s => normalizeForMatch(s.trim().slice(0, 24))).filter(k => k.length >= 3)
+    search: for (const keyNorm of keys) {
+      for (let i = at; i < blocks.length; i++) {
+        if (blocks[i].isTable) continue
+        const idx = anchorOffset(blocks[i].text, keyNorm)
+        if (idx >= 0) { out.push({ page, pos: blocks[i].pos, offset: idx }); at = i; break search }
+      }
     }
   }
   return out

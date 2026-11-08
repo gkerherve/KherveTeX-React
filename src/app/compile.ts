@@ -236,9 +236,9 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // rather than at a uniform spacing (which falls apart when page 1 has
     // a title block).
     const bytes = pdf
-    void pageAnchors(bytes).then(([count, anchors]) => {
+    void pageAnchors(bytes).then(([count, anchors, furniture]) => {
       const ed = editorApi() as (EditorApi & Partial<PageEditing>) | null
-      ed?.setPageAnchors?.(count, anchors)
+      ed?.setPageAnchors?.(count, anchors, furniture)
     }).catch(() => {})
   } else {
     const tail = result.log ? result.log.split(/\r?\n/).filter((_, i, a) => i >= a.length - 10).join('\n') : ''

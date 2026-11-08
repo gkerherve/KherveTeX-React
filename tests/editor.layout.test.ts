@@ -201,6 +201,23 @@ describe('the compiled PDF and projects (paged_edit.py)', () => {
     expect(anchorOffset('Some words before; the second page starts here and on', key)).toBe(19)
   })
 
+  // Inline maths, citations and cross-references print as text in the PDF
+  // but are one object character in the editor.
+  it('a page starting on a line with an inline object is found', () => {
+    expect(anchorOffset('With \ufffc fixed at the measured value', normalizeForMatch('With km fixed at the mea'))).toBe(0)
+    expect(anchorOffset('As shown in \ufffc, the gain is small', normalizeForMatch('As shown in [1, 2], the'))).toBe(0)
+    // An object cannot stand in for the whole line.
+    expect(anchorOffset('Heat removal is shown \ufffc here', normalizeForMatch('Materials and methods'))).toBe(-1)
+    expect(anchorOffset('\ufffc', normalizeForMatch('Anything at all here'))).toBe(-1)
+  })
+
+  it('a \\tableofcontents block is the page its title starts', () => {
+    expect(anchorOffset('\\tableofcontents', 'contents')).toBe(0)
+    expect(anchorOffset('\\tableofcontents', normalizeForMatch('Inhaltsverzeichnis'))).toBe(0)
+    expect(anchorOffset('\\listoffigures', 'list of figures')).toBe(0)
+    expect(anchorOffset('\\tableofcontents', 'introduction')).toBe(-1)
+  })
+
   it('heading counters continue from the earlier documents of a project', () => {
     const L = layoutDocument(docToPM(M.document([M.section(1, [M.text('A')]), M.section(2, [M.text('B')])])),
       M.docMeta(), [0, 3, 0, 0, 0, 0])

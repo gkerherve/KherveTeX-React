@@ -1,6 +1,6 @@
 // MainWindow._first_text_snippet: where each PDF page starts.
 import { describe, expect, it } from 'vitest'
-import { firstTextSnippet } from '../src/app/pageAnchors.ts'
+import { firstTextSnippet, pageStartSnippets } from '../src/app/pageAnchors.ts'
 import type { PdfTextDict } from '../src/core/pdfText.ts'
 
 const page = (...lines: string[]): PdfTextDict => ({
@@ -21,5 +21,25 @@ describe('first text snippet', () => {
   })
   it('is empty for a page with no text', () => {
     expect(firstTextSnippet(page())).toBe('')
+  })
+})
+
+describe('page start candidates', () => {
+  it('offers the next lines too: the editor paints "Chapter 1" and "Abstract" itself', () => {
+    expect(pageStartSnippets(page('Chapter 1', 'Introduction', 'Body text'))).toEqual(['Chapter 1', 'Introduction', 'Body text'])
+    expect(pageStartSnippets(page('Abstract', 'This is the abstract.'))).toEqual(['Abstract', 'This is the abstract.'])
+  })
+  it('takes only the title of a contents page: its entries name later headings', () => {
+    expect(pageStartSnippets(page('Contents', '1 Introduction 1', '1.1 Background . . . . . 1', '2 Methods 4', 'Interpretation . . . . . 12')))
+      .toEqual(['Contents'])
+    expect(pageStartSnippets(page('Interpretation . . . . . 12', 'Limitations . . . . . 12', '6 Conclusion 13', 'Bibliography 15'))).toEqual([])
+    // Page numbers and entry numbers as lines of their own, as pdf.js reads them.
+    expect(pageStartSnippets(page('Contents', '1', 'Introduction', '4', '1.1', 'Background . . . . . . .', '4',
+      '1.2', 'Research questions . . . . .', '4', '2', 'Methods', '7', '2.1', 'Model . . . . . .', '7'))).toEqual(['Contents'])
+    expect(pageStartSnippets(page('Interpretation . . . . .', '12', 'Limitations . . . . .', '12', '6', 'Conclusion',
+      '13', '6.1', 'Summary . . . . .', '13'))).toEqual([])
+  })
+  it('offers a "Label: text" line without its label', () => {
+    expect(pageStartSnippets(page('Keywords: one, two'))).toEqual(['Keywords: one, two', 'one, two'])
   })
 })

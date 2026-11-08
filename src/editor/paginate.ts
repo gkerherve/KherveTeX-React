@@ -140,7 +140,17 @@ function collectUnits(view: EditorView, y: (clientY: number) => number): { units
 }
 
 // Measure the flow and work out where the sheets break.
-export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement): { spacers: Spacer[]; measure: PageMeasure } {
+// `pageStarts`: doc positions inside paragraphs where the compiled PDF
+// starts a page; the line holding each one starts a sheet, as a block the
+// PDF starts a page with does.
+//
+// `pdfPaged`: the forced breaks are where the compiled PDF starts its
+// pages. Text that overruns a sheet by a little before the next of them
+// then stays on it, into the bottom margin, rather than spilling a line or
+// two onto a sheet of its own: the sheet ends where the PDF page does
+// (the editor's type sets a few per cent taller or shorter than TeX's).
+export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement,
+  pageStarts: readonly number[] = [], pdfPaged = false): { spacers: Spacer[]; measure: PageMeasure } {
   const root = view.dom as HTMLElement
   const z = zoomOf(page) || 1
   // y from the top of the first sheet.
@@ -161,24 +171,45 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     return v - s
   }
   const { units } = collectUnits(view, c => natural(yOf(c)))
+  // The line a mid-paragraph page start falls on: the last line unit at or
+  // before it.
+  for (const p of pageStarts) {
+    let hit = -1
+    for (let i = 0; i < units.length && units[i].pos <= p; i++) hit = i
+    if (hit > 0 && units[hit].kind === 'inline') Object.assign(units[hit], { forced: true, gap: 0 })
+  }
 
   const H = geo.heightPx
   const contentTop = (k: number) => k * H + geo.topPx
   const contentBottom = (k: number) => (k + 1) * H - geo.bottomPx
+  const slack = pdfPaged ? geo.bottomPx * 0.6 : 0
+  // Where the next forced break is, from each unit.
+  const nextForced: number[] = new Array(units.length)
+  for (let i = units.length - 1, n = units.length; i >= 0; i--) {
+    nextForced[i] = n
+    if (units[i].forced) n = i
+  }
   const spacers: Spacer[] = []
   let shift = 0
   let k = 0
   let first = true
-  for (const u of units) {
+  units.forEach((u, i) => {
     const t = u.top + shift
     const b = u.bottom + shift
     k = Math.max(k, Math.floor(t / H))
     let move = false
     let want = 0
+    // The rest of this PDF page fits in the margin's slack.
+    const fitsSlack = () => {
+      if (!slack) return false
+      let end = b
+      for (let j = i + 1; j < nextForced[i]; j++) end = Math.max(end, units[j].bottom + shift)
+      return end <= contentBottom(k) + slack
+    }
     if (u.forced && !first) {
       move = true
       want = contentTop(k + 1) + u.gap
-    } else if (b > contentBottom(k) + 0.5 && t > contentTop(k) + 1) {
+    } else if (b > contentBottom(k) + 0.5 && t > contentTop(k) + 1 && !fitsSlack()) {
       // Does not fit: the next sheet, with the gap above it dropped.
       move = true
       want = contentTop(k + 1)
@@ -191,7 +222,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       k += 1
     }
     first = false
-  }
+  })
   let last = 0
   for (const u of units) last = Math.max(last, u.bottom)
   const sheets = Math.max(1, Math.ceil(Math.max(1, last + shift) / H))

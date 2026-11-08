@@ -11,6 +11,7 @@ import { EditorView } from 'prosemirror-view'
 import { runAction } from '../app/actions.ts'
 import type { EquationEditing } from '../app/actions/math.ts'
 import type { PageEditing } from '../app/actions/page.ts'
+import type { PageFurniture } from '../app/pageAnchors.ts'
 import { setEditorApi, type EditorApi } from '../app/editorApi.ts'
 import { appStore, editDoc } from '../app/store.ts'
 import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
@@ -100,6 +101,8 @@ export class EditorController implements ViewHost {
     this.root = mount
     this.onContext = onContext
     mount.classList.add('kt-pages')
+    // The page check (src/dev/pageCheck.ts) reads the layout through this.
+    if (import.meta.env.DEV) (mount as HTMLElement & { __ktCtl?: unknown }).__ktCtl = this
     this.sheetsEl = document.createElement('div')
     this.sheetsEl.className = 'kt-sheets'
     // The page's padding and font sit on a wrapper: ProseMirror reads any
@@ -253,6 +256,7 @@ export class EditorController implements ViewHost {
   // set_document: the document replaced wholesale (open, new, Code tab).
   reload(doc: M.Document): void {
     this.exportQueued = false
+    this.pdfFurniture = null
     this.view.updateState(this.makeState(doc))
     this.refreshResolverNow()
     this.applyGeometry()
@@ -307,10 +311,15 @@ export class EditorController implements ViewHost {
 
   // set_page_anchors + sync_pages_to_pdf: the compiled PDF's page count
   // and the first text of each page after the first.
-  setPageAnchors(anchors: readonly PageAnchor[]): void {
+  setPageAnchors(anchors: readonly PageAnchor[], furniture?: readonly PageFurniture[]): void {
+    this.pdfFurniture = furniture ?? null
     this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { anchors: [...anchors] })
       .setMeta('addToHistory', false).setMeta(NO_EXPORT, true))
   }
+
+  // Each compiled PDF page's printed header and footer (pageAnchors); its
+  // sheet paints them in place of the class's own.
+  private pdfFurniture: readonly PageFurniture[] | null = null
 
   // set_heading_offset: numbered headings used by the project's earlier
   // documents, per level (index 0 = chapter).
@@ -443,13 +452,23 @@ export class EditorController implements ViewHost {
     this.pageTimer = window.setTimeout(() => this.paginate(), delay)
   }
 
+  // Where the compiled PDF starts a page inside a paragraph (a page that
+  // starts at a block's start is forced by the layout already).
+  private midParagraphPageStarts(): number[] {
+    const anchors = layoutKey.getState(this.view.state)!.anchors
+    if (!anchors.length) return []
+    return anchorTargets(this.view.state.doc, anchors).filter(t => t.offset > 0)
+      .map(t => t.pos + 1 + t.offset)
+  }
+
   private paginate(): void {
     if (this.destroyed || !this.view.dom.isConnected) return
     const geo = this.layout.geometry
     const old = pagesKey.getState(this.view.state)!.spacers
     const { spacers, measure } = geo.cols > 1
       ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink)
-      : computeSpacers(this.view, geo, this.flowEl)
+      : computeSpacers(this.view, geo, this.flowEl, this.midParagraphPageStarts(),
+        layoutKey.getState(this.view.state)!.anchors.length > 0)
     if (!sameSpacers(old, spacers) && this.pageIter < 6) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))
@@ -581,6 +600,30 @@ export class EditorController implements ViewHost {
         : pageNo % 2 === 0 ? 'even' : 'odd'
       shown.page = number
       const top = k * H
+      // Compiled: the PDF page's own header and footer, at its positions,
+      // with the class's rules.
+      const pdfPage = this.pdfFurniture && this.firstPage === 1 && /^\d+$/.test(label)
+        ? this.pdfFurniture[Number(label) - 1] : undefined
+      if (pdfPage) {
+        for (const item of furniture[kind] ?? []) {
+          if (!item.rule) continue
+          out.push(`<div class="kt-fur-rule" style="left:${geo.leftPx}px;right:${geo.rightPx}px;top:${top + item.y * pt}px;`
+            + `border-top-width:${Math.max(0.5, (item.width ?? 0.4) * pt)}px"></div>`)
+        }
+        const s = geo.widthPx / pdfPage.width
+        const headBottom = geo.topPx / s
+        const footTop = (H - geo.bottomPx) / s
+        for (const sp of pdfPage.spans) {
+          if (sp.bottom > headBottom + 1 && sp.top < footTop - 1) continue
+          const f = resolvePdfFont(sp.font, this.meta) ?? { family: L.bodyChar.family, bold: false, italic: false }
+          const size = sp.size * s
+          const lh = size * 1.2
+          out.push(`<div class="kt-fur" style="left:${sp.x * s}px;top:${top + sp.baseline * s - 0.79 * lh}px;`
+            + `line-height:${lh}px;white-space:pre;font-family:${f.family};font-weight:${f.bold ? 700 : 400};`
+            + `font-style:${f.italic ? 'italic' : 'normal'};font-size:${size}px">${esc(sp.text)}</div>`)
+        }
+        continue
+      }
       for (const item of furniture[kind] ?? []) {
         const y = top + item.y * pt
         if (item.rule) {
@@ -683,7 +726,7 @@ export class EditorController implements ViewHost {
       // Projects and the compiled PDF (src/app/actions/page.ts).
       setPageNumberStart: n => this.setPageNumberStart(n),
       setHeadingOffset: c => this.setHeadingOffset(c ?? []),
-      setPageAnchors: (_pages, anchors) => this.setPageAnchors(anchors),
+      setPageAnchors: (_pages, anchors, furniture) => this.setPageAnchors(anchors, furniture),
       // The contextual Equation tab (src/app/actions/math.ts).
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },

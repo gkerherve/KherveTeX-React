@@ -32,17 +32,85 @@ export function firstTextSnippet(page: PdfTextDict, maxChars = 24): string {
   return ''
 }
 
+// The first few printed lines of a page, each as firstTextSnippet makes
+// it, for the editor to try in turn: the first line is often one the editor
+// paints rather than stores ("Chapter 1" above the title, "Abstract", a
+// running header), and the next one is the text it has. A "Label: text"
+// line also offers its text alone ("Keywords: one, two" -> "one, two").
+const TOC_ENTRY_RE = /(?:\.\s?){3,}\s*\S*$|\D\s*\d+$/
+
+export function pageStartSnippets(page: PdfTextDict, maxLines = 10, maxChars = 24): string[] {
+  const out: string[] = []
+  const add = (s: string) => { if (s && !out.includes(s)) out.push(s) }
+  const one = (text: string) => firstTextSnippet({ width: page.width, height: page.height,
+    blocks: [{ type: 0, bbox: [0, 0, 0, 0], lines: [{ bbox: [0, 0, 0, 0], spans: [{ text, size: 0, flags: 0, font: '', bbox: [0, 0, 0, 0] }] }] }] },
+  maxChars)
+  let count = 0
+  const all = textLines(page).filter(l => l.trim())
+  // A contents page (or a list of figures): many lines are entries with
+  // leader dots or a page number (which may print as a line of its own).
+  // Its entries name headings further on, so only its first line, the
+  // title, may say where it is (none on a page that continues the list).
+  const entry = (l: string) => TOC_ENTRY_RE.test(l.trim())
+  const words = all.filter(l => !NUMBER_RE.test(l.trim()))
+  const isList = words.length >= 4 && words.filter(entry).length >= words.length * 0.4
+  const lines = isList ? all.slice(0, 1).filter(l => !entry(l)) : all
+  for (const raw of lines) {
+    const s = one(raw)
+    if (!s) continue
+    add(s)
+    const label = /^[^\s:]{2,20}:\s*(.+)$/.exec(raw.trim())
+    if (label) add(one(label[1]))
+    if (++count >= maxLines) break
+  }
+  return out
+}
+
+// One run of text near a page's top or bottom edge (where running heads,
+// folios and footers print), in PDF points from the page's top left; the
+// page view paints the PDF's own once it has one, so its headers and
+// footers read exactly as printed (a page number that restarts after the
+// front matter, a title page with none).
+export interface FurnitureSpan { text: string; x: number; baseline: number; size: number; font: string; top: number; bottom: number }
+export interface PageFurniture { width: number; height: number; spans: FurnitureSpan[] }
+
+// The edge bands searched: the page view keeps what lies in its margins.
+const EDGE_BAND = 0.2
+
+export function pageFurniture(page: PdfTextDict): PageFurniture {
+  const spans: FurnitureSpan[] = []
+  for (const b of page.blocks) {
+    if (b.type !== 0) continue
+    for (const l of b.lines) {
+      const [, top, , bottom] = l.bbox
+      if (top > page.height * EDGE_BAND && bottom < page.height * (1 - EDGE_BAND)) continue
+      for (const s of l.spans) {
+        if (!s.text.trim()) continue
+        spans.push({ text: s.text, x: s.bbox[0], baseline: s.origin ? s.origin[1] : s.bbox[3] - s.size * 0.22,
+          size: s.size, font: s.font, top, bottom })
+      }
+    }
+  }
+  return { width: page.width, height: page.height, spans }
+}
+
 // The page count and [(page_no, first text)] of every page after the
-// first (page 1 has no break above it).
-export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, string][]]> {
+// first (page 1 has no break above it). The text is the page's candidate
+// first lines (pageStartSnippets), one per line of the string. Third, each
+// page's header and footer text (pageFurniture).
+export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, string][], PageFurniture[]]> {
   const src = await openPdfSource(pdf)
   try {
     const anchors: [number, string][] = []
-    for (let i = 1; i < src.pageCount; i++) {
-      const snippet = firstTextSnippet(await src.textDict(i))
-      if (snippet) anchors.push([i + 1, snippet])
+    const furniture: PageFurniture[] = []
+    for (let i = 0; i < src.pageCount; i++) {
+      const dict = await src.textDict(i)
+      furniture.push(pageFurniture(dict))
+      if (i === 0) continue
+      const snippets = pageStartSnippets(dict)
+      if (snippets.length) anchors.push([i + 1, snippets.join('\n')])
     }
-    return [src.pageCount, anchors]
+    return [src.pageCount, anchors, furniture]
   } finally {
     await src.close()
   }
