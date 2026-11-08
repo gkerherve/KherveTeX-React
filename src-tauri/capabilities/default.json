@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window, the detached PDF window and the windows of File > New window (doc-*).",
-  "windows": ["main", "pdf", "doc-*"],
+  "description": "The main window, the start-up splash, the detached PDF window and the windows of File > New window (doc-*).",
+  "windows": ["main", "splash", "pdf", "doc-*"],
   "permissions": [
     "core:default",
     "core:window:allow-set-title",

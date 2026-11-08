@@ -3,6 +3,7 @@
 // because it depends on the task: side by side with the live PDF when the
 // LaTeX output matters, or the visual editor alone — like Word — with the
 // PDF, console and background compiles off.
+import { AppIcon } from './icons'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import pkg from '../../package.json'
@@ -66,9 +67,12 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
         gap: 14, boxSizing: 'border-box', padding: '18px 22px 16px', border: '1px solid var(--border)', borderRadius: 6,
         background: 'var(--chrome)', color: 'var(--text)', boxShadow: '0 8px 28px rgba(0,0,0,0.3)',
       }}>
-        <div className='kwin-title'>
-          <div style={{ fontSize: 22 * 4 / 3, fontWeight: 700 }}>KherveTeX</div>
-          <div>Write like in Word, publish in LaTeX — version {VERSION}</div>
+        <div className='kwin-title' style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AppIcon size={64} />
+          <div>
+            <div style={{ fontSize: 22 * 4 / 3, fontWeight: 700 }}>KherveTeX</div>
+            <div>Write like in Word, publish in LaTeX — version {VERSION}</div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
           <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 6 }}>
