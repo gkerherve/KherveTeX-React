@@ -8,7 +8,7 @@ import { platform } from '../../platform/index.ts'
 import { docSettingsDialog, styleDialog, type StyleFile } from '../../ui/dialogs/EditorDialogs.tsx'
 import { registerActions, type Handler } from '../actions.ts'
 import { appStore, editDoc } from '../store.ts'
-import type { PageFurniture } from '../pageAnchors.ts'
+import type { PageFurniture, PdfTypography } from '../pageAnchors.ts'
 
 // What projects and the compile loop tell the visual editor beyond
 // EditorApi (DocumentEditor.set_first_page_number, set_heading_offset,
@@ -23,7 +23,8 @@ export interface PageEditing {
   // The compiled PDF's page count and [(page_no, first text), ...] of
   // every page after the first (MainWindow._on_compile_done), and each
   // page's printed header and footer, painted on its sheet.
-  setPageAnchors(pageCount: number, anchors: [number, string][], furniture?: PageFurniture[]): void
+  setPageAnchors(pageCount: number, anchors: [number, string][], furniture?: PageFurniture[],
+    typography?: PdfTypography): void
 }
 
 // The document's meta as it stands (the store's: chemistry may have added

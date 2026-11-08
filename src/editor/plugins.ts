@@ -1,6 +1,7 @@
 // Two decoration layers over the document: the page layout (layout.ts —
 // each block's font, margins, numbers and labels, recomputed on every
 // change as _apply_page_layout is) and the page breaks (paginate.ts).
+import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, type EditorState } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
@@ -12,6 +13,8 @@ export interface LayoutPluginState {
   meta: DocMeta
   headingOffset: number[]
   anchors: readonly PageAnchor[]
+  // The compiled PDF's body size and columns (pdfTypography), or null.
+  typography: PdfTypography | null
   layout: DocLayout
   decos: DecorationSet
 }
@@ -24,6 +27,7 @@ export interface LayoutMeta {
   headingOffset?: number[]
   // (page, first text) of each compiled PDF page after the first.
   anchors?: readonly PageAnchor[]
+  typography?: PdfTypography | null
 }
 
 export function charCss(c: CharStyle): string {
@@ -137,20 +141,21 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
 }
 
 export function layoutPlugin(meta: DocMeta): Plugin<LayoutPluginState> {
-  const compute = (doc: PMNode, m: DocMeta, off: number[], anchors: readonly PageAnchor[]): LayoutPluginState => {
+  const compute = (doc: PMNode, m: DocMeta, off: number[], anchors: readonly PageAnchor[],
+    typography: PdfTypography | null): LayoutPluginState => {
     const layout = layoutDocument(doc, m, off, anchors.length ? pdfPageStartBlocks(doc, anchors) : new Set(),
-      anchors.length > 0)
-    return { meta: m, headingOffset: off, anchors, layout, decos: buildDecorations(doc, layout) }
+      anchors.length > 0, anchors.length ? typography : null)
+    return { meta: m, headingOffset: off, anchors, typography, layout, decos: buildDecorations(doc, layout) }
   }
   return new Plugin<LayoutPluginState>({
     key: layoutKey,
     state: {
-      init: (_c, state) => compute(state.doc, meta, [0, 0, 0, 0, 0, 0], []),
+      init: (_c, state) => compute(state.doc, meta, [0, 0, 0, 0, 0, 0], [], null),
       apply(tr, prev) {
         const m = tr.getMeta(layoutKey) as LayoutMeta | undefined
         if (!tr.docChanged && !m) return prev
         return compute(tr.doc, m?.meta ?? prev.meta, m?.headingOffset ?? prev.headingOffset,
-          m?.anchors ?? prev.anchors)
+          m?.anchors ?? prev.anchors, m?.typography !== undefined ? m.typography : prev.typography)
       },
     },
     props: {

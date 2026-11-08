@@ -11,7 +11,7 @@ import { EditorView } from 'prosemirror-view'
 import { runAction } from '../app/actions.ts'
 import type { EquationEditing } from '../app/actions/math.ts'
 import type { PageEditing } from '../app/actions/page.ts'
-import type { PageFurniture } from '../app/pageAnchors.ts'
+import type { PageFurniture, PdfTypography } from '../app/pageAnchors.ts'
 import { setEditorApi, type EditorApi } from '../app/editorApi.ts'
 import { appStore, editDoc } from '../app/store.ts'
 import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
@@ -319,9 +319,9 @@ export class EditorController implements ViewHost {
 
   // set_page_anchors + sync_pages_to_pdf: the compiled PDF's page count
   // and the first text of each page after the first.
-  setPageAnchors(anchors: readonly PageAnchor[], furniture?: readonly PageFurniture[]): void {
+  setPageAnchors(anchors: readonly PageAnchor[], furniture?: readonly PageFurniture[], typography?: PdfTypography): void {
     this.pdfFurniture = furniture ?? null
-    this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { anchors: [...anchors] })
+    this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { anchors: [...anchors], typography: typography ?? null })
       .setMeta('addToHistory', false).setMeta(NO_EXPORT, true))
   }
 
@@ -746,7 +746,7 @@ export class EditorController implements ViewHost {
       // Projects and the compiled PDF (src/app/actions/page.ts).
       setPageNumberStart: n => this.setPageNumberStart(n),
       setHeadingOffset: c => this.setHeadingOffset(c ?? []),
-      setPageAnchors: (_pages, anchors, furniture) => this.setPageAnchors(anchors, furniture),
+      setPageAnchors: (_pages, anchors, furniture, typography) => this.setPageAnchors(anchors, furniture, typography),
       // The contextual Equation tab (src/app/actions/math.ts).
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },

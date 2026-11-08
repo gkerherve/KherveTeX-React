@@ -33,7 +33,7 @@ interface Ctl {
   sheets: number
   flowEl: HTMLElement
   overlayEl: HTMLElement
-  setPageAnchors(anchors: [number, string][], furniture?: unknown): void
+  setPageAnchors(anchors: [number, string][], furniture?: unknown, typography?: unknown): void
   heldAnchors(): [number, string][]
 }
 
@@ -158,8 +158,8 @@ export async function checkOne(e: IndexEntry): Promise<PageReport> {
   const c0 = ctl()
   const sheetsNatural = c0.sheets
   const bytes = new Uint8Array(await (await fetch(`/.pagecheck/${e.pdf}`)).arrayBuffer())
-  const [count, anchors, furn] = await pageAnchors(bytes)
-  ctl().setPageAnchors(anchors, furn)
+  const [count, anchors, furn, typo] = await pageAnchors(bytes)
+  ctl().setPageAnchors(anchors, furn, typo)
   await settle()
   const c = ctl()
   const g = c.layout.geometry

@@ -4,6 +4,7 @@
 // its helpers (editor.py), computed from the ProseMirror document instead
 // of QTextBlock formats. Pixel values are at 100 % zoom; App scales the
 // whole page.
+import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import { classSupportsChapter, THEOREM_KINDS, type DocMeta } from '../core/model.ts'
 import { byCode, DPI } from '../core/pageSizes.ts'
@@ -249,9 +250,16 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 // `pdfBreaks`: the blocks the compiled PDF starts a page with; with
 // `pdfPaged` those are the title-page breaks too, in place of the ones the
 // class look predicts (a short abstract shares its page with the keywords).
+//
+// `pdf`: the compiled PDF's body size and columns. When the PDF's body
+// size differs from the class look's (the look measured the class at its
+// default size; [11pt]amsart prints at 10.95 pt), every size and space of
+// the look is scaled to it; its columns replace the look's.
 export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0],
-  pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false): DocLayout {
-  const look = lookFor(meta.documentclass, meta.body_font_pt)
+  pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false, pdf: PdfTypography | null = null): DocLayout {
+  const measured = lookFor(meta.documentclass, meta.body_font_pt)
+  const k = pdf ? pdf.bodyPt / measured.body.size : 1
+  const look = pdf && Math.abs(k - 1) > 0.04 && k > 0.6 && k < 1.6 ? scaleLook(measured, k) : measured
   const g = look.geometry
   const pt = PT_PX
   const page = byCode(meta.page_size)
@@ -270,6 +278,10 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     leftPx: side('left', meta.margin_left_cm), rightPx: side('right', meta.margin_right_cm),
     cols: g.follows_margins !== false ? Math.max(1, Math.trunc(meta.column_count || 1)) : Math.max(1, Math.trunc(g.cols || 1)),
     colGapPx: (g.colsep || 10) * pt,
+  }
+  if (pdf && pdf.cols !== geometry.cols) {
+    geometry.cols = pdf.cols
+    if (pdf.colGapPt) geometry.colGapPx = pdf.colGapPt * pt
   }
 
   const visual = screenFontFor(meta)
@@ -721,6 +733,22 @@ export function pagePx(meta: DocMeta): { width: number; height: number } {
     return { width: Math.round(p.width_in * DPI), height: Math.round(p.height_in * DPI) }
   }
   return { width: Math.round(g.page_w * PT_PX), height: Math.round(g.page_h * PT_PX) }
+}
+
+// A class look with every type size and vertical or indent space scaled by
+// k (positions on the page and the paper stay).
+const SCALED_KEYS = new Set(['size', 'leading', 'above', 'below', 'parindent', 'first_indent', 'indent',
+  'num_gap', 'gap', 'gap_prev'])
+function scaleLook(look: Look, k: number): Look {
+  const scale = (v: unknown, key: string): unknown => {
+    if (typeof v === 'number') return SCALED_KEYS.has(key) ? v * k : v
+    if (Array.isArray(v)) return v.map(x => scale(x, key))
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(Object.entries(v).map(([kk, x]) => [kk, kk === 'geometry' || kk === 'furniture' ? x : scale(x, kk)]))
+    }
+    return v
+  }
+  return scale(look, '') as Look
 }
 
 // ---------- the compiled PDF's page starts (paged_edit.py) ----------

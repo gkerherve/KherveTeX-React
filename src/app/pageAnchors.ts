@@ -125,23 +125,71 @@ export function pageFurniture(page: PdfTextDict): PageFurniture {
   return { width: page.width, height: page.height, spans }
 }
 
+// What the PDF's type looks like: the body size (the size most characters
+// are set in) and the number of columns (lines starting in each part of
+// the page), so the page view can set its text as the PDF did when the
+// class or its options print otherwise than the class look measured
+// ([11pt]amsart, [sigconf]acmart).
+export interface PdfTypography { bodyPt: number; cols: number; colGapPt: number }
+
+export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
+  const chars = new Map<number, number>()
+  const votes = [0, 0, 0, 0]
+  const gaps: number[] = []
+  for (const page of pages) {
+    const lines: { x0: number; x1: number }[] = []
+    for (const b of page.blocks) {
+      if (b.type !== 0) continue
+      for (const l of b.lines) {
+        const text = l.spans.map(s => s.text).join('')
+        if (text.trim().length < 12) continue
+        lines.push({ x0: l.bbox[0], x1: l.bbox[2] })
+        for (const s of l.spans) {
+          const k = Math.round(s.size * 10) / 10
+          chars.set(k, (chars.get(k) ?? 0) + s.text.length)
+        }
+      }
+    }
+    if (lines.length < 12) continue
+    const w = page.width
+    const narrow = lines.filter(l => l.x1 - l.x0 < w * 0.5)
+    const left = narrow.filter(l => l.x0 < w * 0.3)
+    const mid = narrow.filter(l => l.x0 >= w * 0.3 && l.x0 < w * 0.6 && l.x1 - l.x0 < w * 0.36)
+    const right = narrow.filter(l => l.x0 >= w * 0.48)
+    const share = (a: unknown[]) => a.length / lines.length
+    let cols = 1
+    if (share(left) >= 0.2 && share(right.filter(l => l.x0 >= w * 0.6)) >= 0.2 && share(mid) >= 0.2) cols = 3
+    else if (share(left) >= 0.25 && share(right) >= 0.25) cols = 2
+    votes[cols]++
+    if (cols === 2) gaps.push(Math.min(...right.map(l => l.x0)) - Math.max(...left.map(l => l.x1)))
+  }
+  let bodyPt = 10
+  let most = -1
+  for (const [size, n] of chars) if (n > most) { most = n; bodyPt = size }
+  const cols = votes[3] > votes[2] && votes[3] > votes[1] ? 3 : votes[2] > votes[1] ? 2 : 1
+  gaps.sort((a, b) => a - b)
+  return { bodyPt, cols, colGapPt: gaps.length ? Math.max(6, gaps[Math.floor(gaps.length / 2)]) : 0 }
+}
+
 // The page count and [(page_no, first text)] of every page after the
 // first (page 1 has no break above it). The text is the page's candidate
 // first lines (pageStartSnippets), one per line of the string. Third, each
 // page's header and footer text (pageFurniture).
-export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, string][], PageFurniture[]]> {
+export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, string][], PageFurniture[], PdfTypography]> {
   const src = await openPdfSource(pdf)
   try {
     const anchors: [number, string][] = []
     const furniture: PageFurniture[] = []
+    const dicts: PdfTextDict[] = []
     for (let i = 0; i < src.pageCount; i++) {
       const dict = await src.textDict(i)
+      dicts.push(dict)
       furniture.push(pageFurniture(dict))
       if (i === 0) continue
       const snippets = pageStartSnippets(dict)
       if (snippets.length) anchors.push([i + 1, snippets.join('\n')])
     }
-    return [src.pageCount, anchors, furniture]
+    return [src.pageCount, anchors, furniture, pdfTypography(dicts)]
   } finally {
     await src.close()
   }
