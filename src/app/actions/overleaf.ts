@@ -143,13 +143,32 @@ function overleafLinkKey(): string {
   return overleaf.linkKey(s.path, s.projectPath)
 }
 
+// The Git token is one per Overleaf account: remembered in the system
+// keychain, so it is typed once (the Python app kept it in memory only).
+const TOKEN_KEY = 'overleaf-git-token'
+
+async function savedToken(): Promise<string> {
+  if (overleafToken) return overleafToken
+  try {
+    overleafToken = (await platform().secretGet(TOKEN_KEY)) ?? ''
+  } catch { /* no keychain: ask each session */ }
+  return overleafToken
+}
+
 async function askOverleafLink(action: string): Promise<[string, string] | null> {
   const h = host()
   await loadSettings()
-  const answer = await askOverleaf(action, h.settingValue(overleafLinkKey()) ?? '', overleafToken)
+  const answer = await askOverleaf(action, h.settingValue(overleafLinkKey()) ?? '', await savedToken())
   if (answer === null) return null
   h.setSettingValue(overleafLinkKey(), answer.link)
-  overleafToken = answer.token
+  if (answer.token !== overleafToken) {
+    overleafToken = answer.token
+    try {
+      await platform().secretSet(TOKEN_KEY, answer.token)
+    } catch (exc) {
+      await warning('Overleaf', `The token could not be saved in the keychain, so it is kept until you quit:\n${exc instanceof Error ? exc.message : String(exc)}`)
+    }
+  }
   return [answer.link, answer.token]
 }
 

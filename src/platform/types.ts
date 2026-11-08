@@ -91,6 +91,10 @@ export interface Platform {
   setTitle(title: string): Promise<void>
   // Files given on the command line (a double-clicked .ktex).
   launchArgs(): Promise<string[]>
+  // A secret remembered between sessions (the Overleaf token): the system
+  // keychain in the desktop app. An empty value forgets it.
+  secretGet(key: string): Promise<string | null>
+  secretSet(key: string, value: string): Promise<void>
 
   // The settings file as one JSON object (see settings.ts).
   readSettings(): Promise<string>

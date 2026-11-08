@@ -9,6 +9,8 @@ const files = new Map<string, MemFile>()
 const dirs = new Set<string>(['/'])
 let tempCounter = 0
 
+const browserSecrets = new Map<string, string>()
+
 export const DOWNLOADS = '/downloads'
 export const COMPILE_UNAVAILABLE =
   'Compiling needs the KherveTeX desktop app — the browser version cannot run tectonic.'
@@ -141,6 +143,9 @@ export const browserPlatform: Platform = {
   openUrl: async (url) => { window.open(url, '_blank', 'noopener') },
   setTitle: async (title) => { document.title = title },
   launchArgs: async () => [],
+  // The browser build keeps secrets for the session only.
+  secretGet: async (key) => browserSecrets.get(key) ?? null,
+  secretSet: async (key, value) => { if (value) browserSecrets.set(key, value); else browserSecrets.delete(key) },
 
   readSettings: async () => {
     try {

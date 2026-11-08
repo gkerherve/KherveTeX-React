@@ -37,7 +37,8 @@ function OverleafDialog({ action, link: link0, token: token0, close }: {
           <input id="overleaf-token" type="password" value={token} onChange={e => setToken(e.target.value)}
             placeholder="olp_…" autoComplete="off" />
         </div>
-        <div className="dlg-muted">The token stays in memory until you quit; it is never written to disk.</div>
+        <div className="dlg-muted">The token is saved in your system's keychain, so you only enter it once.
+          Clear the field to forget it.</div>
       </div>
       <div className="dlg-buttons">
         <button type="submit">{action}</button>

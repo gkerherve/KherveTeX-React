@@ -69,6 +69,8 @@ export const tauriPlatform: Platform = {
     await getCurrentWindow().setTitle(title)
   },
   launchArgs: () => invoke<string[]>('launch_args'),
+  secretGet: (key) => invoke<string | null>('secret_get', { key }),
+  secretSet: (key, value) => invoke<void>('secret_set', { key, value }),
 
   readSettings: () => invoke<string>('settings_read'),
   writeSettings: (text) => invoke('settings_write', { text }),

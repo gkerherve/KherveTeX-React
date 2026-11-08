@@ -7,6 +7,7 @@ mod mcp;
 mod mcp_json;
 pub mod mcp_server;
 mod process;
+mod secrets;
 mod smoke;
 mod system;
 mod tectonic;
@@ -43,6 +44,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             fsops::read_file,
+            secrets::secret_get,
+            secrets::secret_set,
             fsops::write_file,
             fsops::read_text,
             fsops::write_text,
