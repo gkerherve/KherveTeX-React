@@ -13,7 +13,11 @@ import { startWindowService, windowRequest } from './app/actions/window'
 import { document as newDocument, paragraph } from './core/model'
 import { PDF_WINDOW_HASH, startPdfWindowService } from './preview/pdfLink'
 import { PdfWindow } from './preview/PdfWindow'
+import { installWindowFrames } from './ui/windowFrame'
 import './index.css'
+
+// Every dialog moves by its title bar and resizes by its edges (QDialog).
+installWindowFrames()
 
 if (location.hash === PDF_WINDOW_HASH) {
   // The detached PDF window (layout "window") is this page on its own.

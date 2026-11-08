@@ -1,7 +1,8 @@
 .dlg-backdrop {
   position: fixed; inset: 0; z-index: 1000;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.18);
+  /* Transparent: a Qt modal dialog blocks its parent without dimming it. */
+  background: transparent;
 }
 .dlg {
   background: var(--panel-bg, #f0f0f0); color: var(--text, #000);

@@ -59,14 +59,14 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
 
   return (
     <div className='kmb-veil' style={{ position: 'fixed', inset: 0, zIndex: 900, display: 'flex',
-      alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.18)' }}
+      alignItems: 'center', justifyContent: 'center', background: 'transparent' }}
       onKeyDown={e => { if (e.key === 'Escape') finish({ kind: 'continue' }) }}>
-      <div role='dialog' aria-label='Welcome to KherveTeX' style={{
+      <div className='kwin' role='dialog' aria-label='Welcome to KherveTeX' style={{
         width: 'min(960px, 94vw)', height: 'min(640px, 90vh)', minWidth: 600, display: 'flex', flexDirection: 'column',
         gap: 14, boxSizing: 'border-box', padding: '18px 22px 16px', border: '1px solid var(--border)', borderRadius: 6,
         background: 'var(--chrome)', color: 'var(--text)', boxShadow: '0 8px 28px rgba(0,0,0,0.3)',
       }}>
-        <div>
+        <div className='kwin-title'>
           <div style={{ fontSize: 22 * 4 / 3, fontWeight: 700 }}>KherveTeX</div>
           <div>Write like in Word, publish in LaTeX — version {VERSION}</div>
         </div>

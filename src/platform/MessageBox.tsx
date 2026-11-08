@@ -35,7 +35,7 @@ interface OpenBox extends BoxOptions {
 
 const CSS = `
 .kmb-veil { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center;
-  justify-content: center; background: rgba(0,0,0,0.18); }
+  justify-content: center; background: transparent; }
 .kmb { min-width: 340px; max-width: min(720px, 92vw); max-height: 86vh; display: flex;
   flex-direction: column; border: 1px solid var(--border); border-radius: 6px;
   background: var(--chrome); color: var(--text); box-shadow: 0 8px 28px rgba(0,0,0,0.3);
