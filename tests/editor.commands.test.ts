@@ -169,6 +169,23 @@ describe('test_object_tools.py', () => {
     expect(ed.blocks().some(b => b.type === 'Table')).toBe(false)
   })
 
+  // _table_columns_changed: a stale "{lcc}" on a 4- or 2-column table
+  // would not compile, so inserting or deleting a column drops the spec.
+  it('column insert and delete drop the stored column spec', () => {
+    const ed = new Ed([M.table({ rows: [['a', 'b', 'c'], ['1', '2', '3']], alignment: 'lcc' })])
+    ed.cells(0, 1)
+    ed.run(C.setTableStyle('booktabs'))
+    expect(ed.table().alignment).toBe('lcc')
+    ed.run(C.tableInsertColumn(true))
+    expect(ed.table().rows[0].length).toBe(4)
+    expect(ed.table().alignment).toBe('')
+    const ed2 = new Ed([M.table({ rows: [['a', 'b', 'c']], alignment: 'lcc' })])
+    ed2.cells(0, 2)
+    ed2.run(C.tableDeleteColumn)
+    expect(ed2.table().rows[0]).toEqual(['a', 'b'])
+    expect(ed2.table().alignment).toBe('')
+  })
+
   it('test_picture_align_buttons_and_width', () => {
     const ed = new Ed([M.paragraph([M.text('x')]), M.figure({ path: 'p.png' })])
     ed.selectBlock('figure')

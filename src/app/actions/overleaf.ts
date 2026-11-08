@@ -17,6 +17,9 @@ import { loadSettings, setSetting, setting } from '../../platform/settings'
 import { askOverleaf } from '../../ui/dialogs/OverleafDialog'
 import { registerActions } from '../actions'
 import { appStore, replaceDoc } from '../store'
+import { toJson } from '../../core/model'
+import { refreshKherverefBib } from './refs'
+import { openWindow } from './window'
 
 // The Overleaf git token, for this run only: never written to disk.
 let overleafToken = ''
@@ -49,6 +52,14 @@ function platformHost(): OverleafHost {
     setSettingValue: (key, value) => setSetting(key, value),
     saveFileDialog: (title, defaultName, filter) => p.saveFileDialog({ title, defaultName, filters: [filter] }),
     cwd: () => '.',
+    kherverefBib: (doc) => refreshKherverefBib(doc),
+    // _overleaf_get: hand the version to a new window through a temp file
+    // (windows share no memory); that window loads and deletes it.
+    openInNewWindow: async (doc, folder) => {
+      const tmp = join(await p.makeTempDir('khervetex-overleaf-'), 'overleaf.ktex.json')
+      await p.writeText(tmp, toJson(doc))
+      await openWindow({ kind: 'overleaf', path: tmp, dir: folder })
+    },
   }
 }
 
@@ -193,13 +204,15 @@ async function overleafGet(): Promise<void> {
     return
   }
   const untitledKey = overleaf.linkKey(null, null)
+  h.setSettingValue(untitledKey, link)
   if (h.openInNewWindow) {
+    // The new window says "The Overleaf version: save it to keep it."
+    appStore().set({ status: '' })
     await h.openInNewWindow(doc, folder, untitledKey)
   } else {
     replaceDoc(doc, { path: null, dirty: false, project: null, projectPath: null, chapterIndex: 0 })
+    appStore().set({ status: 'The Overleaf version: save it to keep it.' })
   }
-  h.setSettingValue(untitledKey, link)
-  appStore().set({ status: 'The Overleaf version: save it to keep it.' })
 }
 
 // MainWindow._doc_stem

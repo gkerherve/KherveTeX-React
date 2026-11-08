@@ -31,8 +31,10 @@ const OPEN_IN_NEW_WINDOW_FILTERS: FileFilter[] = [
 ]
 
 export interface NewWindowRequest {
-  kind: 'new' | 'open' | 'template'
+  kind: 'new' | 'open' | 'template' | 'overleaf'
   path?: string
+  // 'overleaf': the folder the received version's figures resolve against.
+  dir?: string
 }
 
 // Where this window was asked to start, from its URL.
@@ -40,6 +42,7 @@ export function windowRequest(search = typeof location !== 'undefined' ? locatio
   const q = new URLSearchParams(search)
   if (q.has('open')) return { kind: 'open', path: q.get('open')! }
   if (q.has('template')) return { kind: 'template', path: q.get('template')! }
+  if (q.has('overleaf')) return { kind: 'overleaf', path: q.get('overleaf')!, dir: q.get('dir') ?? '' }
   if (q.get('win') === 'new') return { kind: 'new' }
   return null
 }
@@ -48,6 +51,7 @@ export function windowQuery(req: NewWindowRequest): string {
   const q = new URLSearchParams()
   if (req.kind === 'new') q.set('win', 'new')
   else q.set(req.kind, req.path ?? '')
+  if (req.dir !== undefined) q.set('dir', req.dir)
   return '?' + q.toString()
 }
 

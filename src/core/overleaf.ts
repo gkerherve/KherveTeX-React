@@ -51,7 +51,9 @@ export function gitUrl(link: string | null | undefined): string {
     'on overleaf.com and copy the address from the browser.')
 }
 
-const AUTH_RE = pyRe('401|403|auth|credential', 'i')
+// The git command line (which stands in for pygit2 here) reports a refused
+// token as "could not read Username ... terminal prompts disabled".
+const AUTH_RE = pyRe('401|403|auth|credential|could not read (Username|Password)', 'i')
 const NOT_FOUND_RE = pyRe('404|not found|does not appear', 'i')
 
 function errorText(exc: unknown): string {

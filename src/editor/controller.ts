@@ -15,7 +15,7 @@ import { setEditorApi, type EditorApi } from '../app/editorApi.ts'
 import { appStore, editDoc } from '../app/store.ts'
 import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
 import * as M from '../core/model.ts'
-import { dirname, isAbsolute, join } from '../core/paths.ts'
+import { isAbsolute, join } from '../core/paths.ts'
 import { ReferenceResolver } from '../core/references.ts'
 import type { ContextKind } from '../ui/ribbonModel.ts'
 import { setCommandChecked } from '../ui/commands.ts'
@@ -760,15 +760,17 @@ function resolvePdfFont(name: string, meta: M.DocMeta) {
 }
 
 // editor._resolve_image_path: an absolute path that exists, else relative
-// to the document's folder, else to the figures folder.
+// to the document's folder (set_document_dir: the saved file's folder, an
+// imported .tex's folder or an Overleaf clone), else to the figures folder.
 async function resolveFigurePath(p: string): Promise<string | null> {
   try {
     const { platform } = await import('../platform/index.ts')
     const pf = platform()
     if (isAbsolute(p) && await pf.exists(p)) return p
-    const docPath = appStore().get().path
-    if (docPath) {
-      const c = join(dirname(docPath), p)
+    const { resolvedSourceDir } = await import('../app/compile.ts')
+    const docDir = resolvedSourceDir()
+    if (docDir) {
+      const c = join(docDir, p)
       if (await pf.exists(c)) return c
     }
     const { imagesDir } = await import('../drawing/host.ts')

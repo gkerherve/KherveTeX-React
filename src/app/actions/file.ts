@@ -286,6 +286,22 @@ export function finishImport(doc: KDocument, path: string,
   showMessage(opts.message ?? `Imported ${basename(path)} — Save As to keep it`, opts.message ? 8000 : 6000)
 }
 
+// The new window of _overleaf_get: the received version, untitled, with
+// the clone folder as its document folder so its figures resolve.
+async function loadOverleafVersion(tmp: string, folder: string): Promise<void> {
+  const p = platform()
+  let doc: KDocument
+  try {
+    doc = fromJson(await p.readText(tmp))
+  } finally {
+    await p.remove(dirname(tmp)).catch(() => {})
+  }
+  setImportSourceDir(folder || null)
+  replaceDoc(doc, { path: null, dirty: false })
+  updateTitle()
+  showMessage('The Overleaf version: save it to keep it.', 8000)
+}
+
 function isProjectPathName(path: string): boolean {
   return path.toLowerCase().endsWith('.kdocproj.json')
 }
@@ -638,6 +654,7 @@ export async function startFileService(): Promise<boolean> {
   const req = windowRequest()
   if (req?.kind === 'open' && req.path) { await openPath(req.path); return true }
   if (req?.kind === 'template') return true
+  if (req?.kind === 'overleaf' && req.path) { await loadOverleafVersion(req.path, req.dir ?? ''); return true }
   if (!(await isMainWindow())) return false
   const args = await p.launchArgs().catch(() => [])
   for (const a of args) {

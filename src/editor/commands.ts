@@ -626,7 +626,25 @@ function cellCoords(state: EditorState): { table: PMNode; tablePos: number; map:
 }
 
 export const tableInsertRow = (below: boolean): Command => below ? addRowAfter : addRowBefore
-export const tableInsertColumn = (right: boolean): Command => right ? addColumnAfter : addColumnBefore
+export const tableInsertColumn = (right: boolean): Command =>
+  columnsChanged(right ? addColumnAfter : addColumnBefore)
+
+// _table_columns_changed: the stored column spec no longer matches the
+// column count; drop it so the serializer derives a fresh one.
+function columnsChanged(cmd: Command): Command {
+  return (state, dispatch) => {
+    const c = cellCoords(state)
+    if (!c) return false
+    if (!dispatch) return cmd(state)
+    return cmd(state, tr => {
+      const pos = tr.mapping.map(c.tablePos)
+      const node = tr.doc.nodeAt(pos)
+      if (node?.type === N.table && node.attrs.alignment)
+        tr.setNodeMarkup(pos, null, { ...node.attrs, alignment: '' })
+      dispatch(tr)
+    })
+  }
+}
 
 // table_delete_row: the last row deletes the table.
 export const tableDeleteRow: Command = (state, dispatch) => {
@@ -640,7 +658,7 @@ export const tableDeleteColumn: Command = (state, dispatch) => {
   const c = cellCoords(state)
   if (!c) return false
   if (c.map.width <= 1) return deleteTable(state, dispatch)
-  return deleteColumn(state, dispatch)
+  return columnsChanged(deleteColumn)(state, dispatch)
 }
 
 export const tableDelete: Command = (state, dispatch) => currentTable(state) ? deleteTable(state, dispatch) : false

@@ -185,6 +185,9 @@ describe('overleaf', () => {
     expect(overleaf.explain(new Error('unexpected http status code: 401')).message).toMatch(/did not accept the token/)
     expect(overleaf.explain(new Error('Repository NOT FOUND')).message).toMatch(/could not find that project/)
     expect(overleaf.explain('boom').message).toBe('Overleaf: boom')
+    // What the git command line says when Overleaf refuses the token.
+    expect(overleaf.explain(new Error("fatal: could not read Username for 'https://git.overleaf.com': " +
+      'terminal prompts disabled')).message).toMatch(/did not accept the token/)
   })
 
   it('a git failure while cloning reaches the user as an OverleafError', async () => {
