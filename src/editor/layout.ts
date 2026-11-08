@@ -246,8 +246,11 @@ const TODAY = () => new Date()
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December']
 
+// `pdfBreaks`: the blocks the compiled PDF starts a page with; with
+// `pdfPaged` those are the title-page breaks too, in place of the ones the
+// class look predicts (a short abstract shares its page with the keywords).
 export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0],
-  pdfBreaks: ReadonlySet<number> = new Set()): DocLayout {
+  pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false): DocLayout {
   const look = lookFor(meta.documentclass, meta.body_font_pt)
   const g = look.geometry
   const pt = PT_PX
@@ -325,7 +328,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
 
   // ---- _title_page_breaks ----
   const titleBreaks = new Set<number>()
-  if (!(meta.class_options || '').includes('notitlepage')) {
+  if (!pdfPaged && !(meta.class_options || '').includes('notitlepage')) {
     let pg: number | null = null
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i]

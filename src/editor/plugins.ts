@@ -138,7 +138,8 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
 
 export function layoutPlugin(meta: DocMeta): Plugin<LayoutPluginState> {
   const compute = (doc: PMNode, m: DocMeta, off: number[], anchors: readonly PageAnchor[]): LayoutPluginState => {
-    const layout = layoutDocument(doc, m, off, anchors.length ? pdfPageStartBlocks(doc, anchors) : new Set())
+    const layout = layoutDocument(doc, m, off, anchors.length ? pdfPageStartBlocks(doc, anchors) : new Set(),
+      anchors.length > 0)
     return { meta: m, headingOffset: off, anchors, layout, decos: buildDecorations(doc, layout) }
   }
   return new Plugin<LayoutPluginState>({

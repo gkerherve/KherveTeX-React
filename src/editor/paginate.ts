@@ -139,10 +139,33 @@ function collectUnits(view: EditorView, y: (clientY: number) => number): { units
   return { units, spanEnd }
 }
 
+// Where the compiled PDF starts a page: a block's position, or (`inline`)
+// a position inside a paragraph, whose line then starts the sheet as a
+// block the PDF starts a page with does. `blanks`: empty PDF pages just
+// before it (a chapter kept to a right-hand page), drawn as blank sheets.
+export interface PageStart { pos: number; inline: boolean; blanks: number }
+
+// Mark the units the compiled PDF starts its pages with as forced (a block
+// by its position, a line inside a paragraph by the position it holds);
+// the blank pages before each, by unit index.
+function forcePageStarts(units: Unit[], pageStarts: readonly PageStart[]): Map<number, number> {
+  const blanks = new Map<number, number>()
+  for (const s of pageStarts) {
+    let hit = -1
+    if (s.inline) {
+      for (let i = 0; i < units.length && units[i].pos <= s.pos; i++) hit = i
+      if (hit > 0 && units[hit].kind === 'inline') Object.assign(units[hit], { forced: true, gap: 0 })
+      else if (hit > 0 && !units[hit].forced) hit = -1
+    } else {
+      hit = units.findIndex(u => u.kind === 'block' && u.pos === s.pos)
+      if (hit > 0) units[hit].forced = true
+    }
+    if (hit > 0 && s.blanks > 0) blanks.set(hit, s.blanks)
+  }
+  return blanks
+}
+
 // Measure the flow and work out where the sheets break.
-// `pageStarts`: doc positions inside paragraphs where the compiled PDF
-// starts a page; the line holding each one starts a sheet, as a block the
-// PDF starts a page with does.
 //
 // `pdfPaged`: the forced breaks are where the compiled PDF starts its
 // pages. Text that overruns a sheet by a little before the next of them
@@ -150,7 +173,7 @@ function collectUnits(view: EditorView, y: (clientY: number) => number): { units
 // two onto a sheet of its own: the sheet ends where the PDF page does
 // (the editor's type sets a few per cent taller or shorter than TeX's).
 export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement,
-  pageStarts: readonly number[] = [], pdfPaged = false): { spacers: Spacer[]; measure: PageMeasure } {
+  pageStarts: readonly PageStart[] = [], pdfPaged = false): { spacers: Spacer[]; measure: PageMeasure } {
   const root = view.dom as HTMLElement
   const z = zoomOf(page) || 1
   // y from the top of the first sheet.
@@ -173,11 +196,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   const { units } = collectUnits(view, c => natural(yOf(c)))
   // The line a mid-paragraph page start falls on: the last line unit at or
   // before it.
-  for (const p of pageStarts) {
-    let hit = -1
-    for (let i = 0; i < units.length && units[i].pos <= p; i++) hit = i
-    if (hit > 0 && units[hit].kind === 'inline') Object.assign(units[hit], { forced: true, gap: 0 })
-  }
+  const blanks = forcePageStarts(units, pageStarts)
 
   const H = geo.heightPx
   const contentTop = (k: number) => k * H + geo.topPx
@@ -206,9 +225,11 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       for (let j = i + 1; j < nextForced[i]; j++) end = Math.max(end, units[j].bottom + shift)
       return end <= contentBottom(k) + slack
     }
+    let skip = 0
     if (u.forced && !first) {
       move = true
-      want = contentTop(k + 1) + u.gap
+      skip = blanks.get(i) ?? 0
+      want = contentTop(k + 1 + skip) + u.gap
     } else if (b > contentBottom(k) + 0.5 && t > contentTop(k) + 1 && !fitsSlack()) {
       // Does not fit: the next sheet, with the gap above it dropped.
       move = true
@@ -219,7 +240,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       const h = want - t
       spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols })
       shift += h
-      k += 1
+      k += 1 + skip
     }
     first = false
   })
@@ -235,8 +256,13 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
 // `shrink[k]` takes px off sheet k's columns: a row of CSS columns
 // balances a little differently from Qt's fill, and a sheet whose row ran
 // past its bottom margin gives up its last lines on the next round.
+//
+// `pageStarts` / `pdfPaged` as for computeSpacers: each compiled PDF page
+// starts a sheet, and a sheet overrunning a little before the next one
+// keeps its text rather than moving it on.
 export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement,
-  old: readonly Spacer[], shrink: number[]): { spacers: Spacer[]; measure: PageMeasure } {
+  old: readonly Spacer[], shrink: number[], pageStarts: readonly PageStart[] = [],
+  pdfPaged = false): { spacers: Spacer[]; measure: PageMeasure } {
   const z = zoomOf(page) || 1
   const yOf = (clientY: number) => (clientY - page.getBoundingClientRect().top) / z
   const H = geo.heightPx
@@ -252,6 +278,8 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     page.classList.remove('kt-col-measure')
   }
   const { units, spanEnd } = measured
+  forcePageStarts(units, pageStarts)
+  const slack = pdfPaged ? geo.bottomPx * 0.6 : 0
   // How far each rendered row runs past its sheet's bottom margin.
   if (old.length && old.every(s => s.kind === 'span')) {
     const els = [...(view.dom as HTMLElement).querySelectorAll<HTMLElement>('.kt-page-gap-span')]
@@ -269,7 +297,9 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
   let col = 0
   let atStart = true
   for (const u of units) {
-    const over = vy + (u.bottom - usedFrom) > limit - (shrink[sheet] ?? 0)
+    // The last column of a PDF-paged sheet may run into the margin's slack.
+    const room = limit - (shrink[sheet] ?? 0) + (col === geo.cols - 1 ? slack : 0)
+    const over = vy + (u.bottom - usedFrom) > room
     if (atStart || !(over || u.forced)) { atStart = false; continue }
     const start = u.top
     if (u.forced || col === geo.cols - 1) {

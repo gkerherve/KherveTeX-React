@@ -25,7 +25,7 @@ import { docFromPM, docToPM } from './convert.ts'
 import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
-import { computeColumnSpacers, computeSpacers, sameSpacers } from './paginate.ts'
+import { computeColumnSpacers, computeSpacers, sameSpacers, type PageStart } from './paginate.ts'
 import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { showContextMenu } from './contextMenu.ts'
 import { setRibbonWidgets } from './ribbonState.ts'
@@ -276,7 +276,7 @@ export class EditorController implements ViewHost {
   private sheetLabels(sheets: number): string[] {
     const H = this.layout.geometry.heightPx
     const anchors = layoutKey.getState(this.view.state)!.anchors
-    if (!anchors.length || this.layout.geometry.cols > 1) {
+    if (!anchors.length) {
       return Array.from({ length: sheets }, (_, k) => String(k + this.firstPage))
     }
     const starts = new Map<number, number>([[0, this.firstPage]])
@@ -290,10 +290,18 @@ export class EditorController implements ViewHost {
       const k = Math.floor(y / H)
       if (!starts.has(k)) starts.set(k, t.page)
     }
+    // A sheet with no page start is the run-on of the page before it,
+    // unless the next start leaves room for exactly the sheets between:
+    // then those are the PDF's blank pages (pdfPageStarts), numbered on.
+    const keys = [...starts.keys()].sort((a, b) => a - b)
     const out: string[] = []
     let cur = 1
+    let curSheet = 0
     for (let k = 0; k < sheets; k++) {
-      if (starts.has(k)) { cur = starts.get(k)!; out.push(String(cur)) } else out.push(`${cur} (cont.)`)
+      if (starts.has(k)) { cur = starts.get(k)!; curSheet = k; out.push(String(cur)); continue }
+      const next = keys.find(x => x > k)
+      const blank = next !== undefined && starts.get(next)! - cur === next - curSheet
+      out.push(blank ? String(cur + k - curSheet) : `${cur} (cont.)`)
     }
     return out
   }
@@ -452,13 +460,19 @@ export class EditorController implements ViewHost {
     this.pageTimer = window.setTimeout(() => this.paginate(), delay)
   }
 
-  // Where the compiled PDF starts a page inside a paragraph (a page that
-  // starts at a block's start is forced by the layout already).
-  private midParagraphPageStarts(): number[] {
+  // Where the compiled PDF starts its pages (a page that starts at a
+  // block's start is forced by the layout already; one inside a paragraph
+  // is forced here), and the empty PDF pages before each: pageAnchors
+  // lists every page with text, so a page number it skips is blank.
+  private pdfPageStarts(): PageStart[] {
     const anchors = layoutKey.getState(this.view.state)!.anchors
     if (!anchors.length) return []
-    return anchorTargets(this.view.state.doc, anchors).filter(t => t.offset > 0)
-      .map(t => t.pos + 1 + t.offset)
+    const listed = new Set(anchors.map(([n]) => n))
+    return anchorTargets(this.view.state.doc, anchors).map(t => {
+      let blanks = 0
+      for (let p = t.page - 1; p >= 2 && !listed.has(p); p--) blanks++
+      return t.offset > 0 ? { pos: t.pos + 1 + t.offset, inline: true, blanks } : { pos: t.pos, inline: false, blanks }
+    })
   }
 
   private paginate(): void {
@@ -466,8 +480,9 @@ export class EditorController implements ViewHost {
     const geo = this.layout.geometry
     const old = pagesKey.getState(this.view.state)!.spacers
     const { spacers, measure } = geo.cols > 1
-      ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink)
-      : computeSpacers(this.view, geo, this.flowEl, this.midParagraphPageStarts(),
+      ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, this.pdfPageStarts(),
+        layoutKey.getState(this.view.state)!.anchors.length > 0)
+      : computeSpacers(this.view, geo, this.flowEl, this.pdfPageStarts(),
         layoutKey.getState(this.view.state)!.anchors.length > 0)
     if (!sameSpacers(old, spacers) && this.pageIter < 6) {
       this.pageIter += 1
