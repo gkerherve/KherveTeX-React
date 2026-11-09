@@ -65,7 +65,7 @@ export const MENU_BAR: MenuBarMenu[] = [
     ] },
     { text: 'C&hemistry', items: ['chemistry', 'chemfig'] },
     '-',
-    'link', 'footnote', 'citation', 'crossref', 'comment', '-',
+    'link', 'footnote', 'citation', 'bibliography', 'crossref', 'comment', '-',
     'abstract', 'keywords', '-',
     { text: '&LaTeX', items: ['code_block', 'raw', '-', 'compile_start', 'compile_end',
       'not_compile_start', 'not_compile_end'] },

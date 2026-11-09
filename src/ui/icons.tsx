@@ -478,6 +478,19 @@ export function Citation(p: IconProps) {
   </Svg>
 }
 
+// References ▸ Bibliography: a page of numbered entries.
+export function Bibliography(p: IconProps) {
+  return <Svg {...p}>
+    {R(4, 2.5, 16, 19, { fill: PAPER, r: 1 })}
+    {T([5, 4, 5, 5], '[1]', { size: 4.5, bold: true, color: BLUE })}
+    {L(10.5, 6.5, 18, 6.5, INK, 1)}
+    {L(10.5, 8.8, 16, 8.8, INK, 1)}
+    {T([5, 11, 5, 5], '[2]', { size: 4.5, bold: true, color: BLUE })}
+    {L(10.5, 13.5, 18, 13.5, INK, 1)}
+    {L(10.5, 15.8, 15, 15.8, INK, 1)}
+  </Svg>
+}
+
 export function CrossRef(p: IconProps) {
   return <Svg {...p}>
     {P([[6, 3], [18, 3], [18, 21], [12, 16.5], [6, 21]],
@@ -1319,7 +1332,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,

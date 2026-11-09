@@ -27,6 +27,10 @@ export interface EditorApi {
   // Scroll to the block holding this plain-text snippet (PDF → Visual sync).
   revealText(snippet: string): boolean
   focus(): void
+  // The document's thebibliography block (the first), or null.
+  bibliography(): { pos: number; text: string } | null
+  // Replace that block's LaTeX, or (pos null) add one at the end.
+  setBibliography(pos: number | null, text: string): void
 }
 
 let current: EditorApi | null = null

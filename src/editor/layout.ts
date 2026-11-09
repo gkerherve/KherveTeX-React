@@ -155,6 +155,9 @@ export interface BlockLayout {
   // A first line grown tall to set its baseline low: Qt puts the baseline
   // at BASELINE_AT of that height; CSS gets there with padding.
   tall?: { lead: number; padTop: number; padBottom: number }
+  // A thebibliography block, drawn as the reference list LaTeX prints:
+  // its unnumbered title (\refname / \bibname) and the entries.
+  bib?: { title: string; titleChar: CharStyle; bodyChar: CharStyle }
 }
 
 export interface RunningHead {
@@ -430,6 +433,11 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     // a forced break would only start a new column, so paging is left to
     // the layout there.
     let startsSheet = titleBreaks.has(i) || (geometry.cols <= 1 && pdfBreaks.has(b.pos))
+    if (state === S.RAW && BIB_ENV_RE.test(text)) {
+      L.bib = { title: classChapters ? 'Bibliography' : 'References', titleChar: styleChar('h1'), bodyChar }
+      // \bibname is a \chapter*: a new page, unless the PDF says otherwise.
+      if (classChapters && i !== 0 && !pdfPaged) startsSheet = true
+    }
     L.breakBefore = startsSheet
     let number = ''
     let level: number | null = state === S.CHAPTER ? 0 : (state >= 1 && state <= 5 ? state : null)
@@ -807,6 +815,7 @@ const LIST_TITLES: Record<string, string[]> = {
     'список таблиц', 'indice de tablas', 'indice de cuadros', 'lijst van tabellen', 'spis tabel', 'tabeller'],
 }
 
+const BIB_ENV_RE = /\\begin\{thebibliography\}/
 const BIB_BLOCK_RE = /^\s*\\(?:begin\{thebibliography\}|bibliography\{|printbibliography\b)/
 
 const OBJ = '\ufffc'

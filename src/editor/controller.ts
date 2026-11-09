@@ -27,6 +27,7 @@ import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
 import { computeColumnSpacers, computeSpacers, sameSpacers, type PageStart } from './paginate.ts'
 import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
+import { bibliographyPlugin } from './bibView.ts'
 import { showContextMenu } from './contextMenu.ts'
 import { setRibbonWidgets } from './ribbonState.ts'
 import { SPELL_REFRESH, spellPlugin } from './spell.ts'
@@ -129,6 +130,8 @@ export class EditorController implements ViewHost {
         contextmenu: (_v, e) => { e.preventDefault(); return showContextMenu(this, e) },
       },
     })
+    // A double-click on a reference list's title (bibView.ts).
+    pmEl.addEventListener('kt-bibliography', () => { void runAction('bibliography') })
     this.applyGeometry()
     setCurrent(this)
     setEditorApi(this.api())
@@ -162,7 +165,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), pagesPlugin(), spellPlugin(),
+      layoutPlugin(meta), bibliographyPlugin(), pagesPlugin(), spellPlugin(),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(),
     ]
@@ -776,6 +779,24 @@ export class EditorController implements ViewHost {
       replaceAll: (find, repl, opts) => C.replaceAll(find, repl, opts, this.view.state, tr => this.view.dispatch(tr)),
       revealText: snippet => this.revealText(snippet),
       focus: () => this.view.focus(),
+      bibliography: () => {
+        let hit: { pos: number; text: string } | null = null
+        this.view.state.doc.forEach((node, pos) => {
+          if (!hit && node.type.name === 'raw_latex' && node.textContent.includes('\\begin{thebibliography}')) {
+            hit = { pos, text: node.textContent }
+          }
+        })
+        return hit
+      },
+      setBibliography: (pos, text) => {
+        const s = this.view.state
+        const raw = s.schema.nodes.raw_latex
+        const old = pos === null ? null : s.doc.nodeAt(pos)
+        const node = raw.create(old?.type === raw ? old.attrs : null, text ? s.schema.text(text) : null)
+        const tr = old?.type === raw ? s.tr.replaceWith(pos!, pos! + old.nodeSize, node)
+          : s.tr.insert(s.doc.content.size, node)
+        this.view.dispatch(tr.scrollIntoView())
+      },
     }
   }
 

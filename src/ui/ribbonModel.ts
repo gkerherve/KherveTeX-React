@@ -219,6 +219,8 @@ const cmds: Command[] = [
   { id: 'link', text: '&Hyperlink...', icon: 'link', shortcut: 'Ctrl+K' },
   { id: 'footnote', text: '&Footnote...', icon: 'footnote' },
   { id: 'citation', text: '&Citation...', icon: 'citation' },
+  { id: 'bibliography', text: '&Bibliography…', icon: 'bibliography',
+    tooltip: 'Add and edit the \\bibitem references of the document\'s reference list' },
   { id: 'check_citations', text: 'Check c&itations',
     tooltip: 'List cited keys that no KherveRef library or bibliography file defines' },
   { id: 'crossref', text: 'Cross-&reference...', icon: 'cross_ref' },
@@ -486,7 +488,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
   ] },
   { name: 'References', groups: [
-    { label: 'Citations', large: ['citation'] },
+    { label: 'Citations', large: ['citation', 'bibliography'] },
     { label: 'Footnotes', large: ['footnote'] },
     { label: 'Captions', large: ['caption', 'crossref'] },
   ] },

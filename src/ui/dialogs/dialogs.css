@@ -35,3 +35,21 @@
 .dlg-cite .dlg-cite-empty { white-space: normal; }
 .dlg-cite .dlg-cite-buttons { align-items: center; }
 .dlg-cite .dlg-cite-hint { flex: 1; color: gray; }
+
+/* References ▸ Bibliography */
+.dlg-bib { width: 860px; height: 520px; }
+.dlg-bib-body { flex-direction: row; flex: 1; min-height: 0; }
+.dlg-bib-list { flex: 1 1 50%; overflow: auto; border: 1px solid #c8c8c8; background: #fff; }
+.dlg-bib-row { display: grid; grid-template-columns: 3em 7em 1fr; gap: 6px; padding: 3px 6px; cursor: default;
+  border-bottom: 1px solid #eee; font-size: 12px; }
+.dlg-bib-row.on { background: var(--menu-sel, #cce4f7); }
+.dlg-bib-num { color: #666; }
+.dlg-bib-key { font-family: Consolas, 'Courier New', monospace; overflow: hidden; text-overflow: ellipsis; }
+.dlg-bib-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dlg-bib-side { flex: 1 1 50%; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dlg-bib-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+.dlg-bib-edit { display: flex; flex-direction: column; gap: 6px; }
+.dlg-bib-edit textarea { font-family: Consolas, 'Courier New', monospace; font-size: 12px; resize: vertical; }
+.dlg-warn { color: #b71c1c; }
+.dlg-bib .dlg-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+.dlg-bib .dlg-muted { color: #7f7f7f; font-size: 12px; }

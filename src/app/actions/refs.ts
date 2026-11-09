@@ -16,6 +16,8 @@ import { platform } from '../../platform'
 import { readKherverefSettings, type SettingsValues } from '../../platform/kherverefSettings'
 import { information, warning } from '../../platform/MessageBox'
 import { askCitation } from '../../ui/dialogs/CitationPicker'
+import { askBibliography } from '../../ui/dialogs/BibliographyDialog'
+import { parseTheBibliography, writeTheBibliography } from '../../core/bibliography'
 import { registerActions } from '../actions'
 import { setBibStager } from '../compile'
 import { editorApi } from '../editorApi'
@@ -145,7 +147,23 @@ async function checkCitations(): Promise<void> {
 // Every LaTeX compile stages kherveref.bib first (compile.ts calls it).
 setBibStager((doc, workdirs) => stageKherverefBib(doc, ...workdirs))
 
+// References ▸ Bibliography: edit the document's thebibliography (made at
+// the end of the document when there is none).
+async function editBibliography(): Promise<void> {
+  const api = editorApi()
+  if (!api) return
+  const found = api.bibliography()
+  const parsed = found ? parseTheBibliography(found.text) : null
+  const initial = parsed ?? { widest: '99', before: '', items: [] }
+  const r = await askBibliography(initial)
+  if (!r) return
+  const text = writeTheBibliography(r)
+  if (found && text === found.text) return
+  api.setBibliography(found ? found.pos : null, text)
+}
+
 registerActions({
   citation: insertCitation,
+  bibliography: editBibliography,
   check_citations: checkCitations,
 })
