@@ -22,8 +22,8 @@
   ],
   [
    "https://www.overleaf.com/read/abcdef",
-   "https://www.overleaf.com/read/abcdef",
-   null
+   null,
+   "That is a sharing link, not the project link. Open the project on overleaf.com and copy the address from the browser bar (https://www.overleaf.com/project/…)."
   ],
   [
    "https://example.com/0123456789abcdef01234567",
@@ -90,15 +90,15 @@
   ],
   [
    "unexpected http status code: 404",
-   "Overleaf could not find that project. Check the link, and that your account can open the project."
+   "Overleaf could not find that project. Check the link, and that the token belongs to the project's owner or an invited collaborator (people who only have the sharing link cannot use git).\n\nGit said: unexpected http status code: 404"
   ],
   [
    "repository Not Found",
-   "Overleaf could not find that project. Check the link, and that your account can open the project."
+   "Overleaf could not find that project. Check the link, and that the token belongs to the project's owner or an invited collaborator (people who only have the sharing link cannot use git).\n\nGit said: repository Not Found"
   ],
   [
    "fatal: '/x' does not appear to be a git repository",
-   "Overleaf could not find that project. Check the link, and that your account can open the project."
+   "Overleaf could not find that project. Check the link, and that the token belongs to the project's owner or an invited collaborator (people who only have the sharing link cannot use git).\n\nGit said: fatal: '/x' does not appear to be a git repository"
   ],
   [
    "failed to resolve address for git.overleaf.com",
