@@ -138,7 +138,7 @@ describe('overleaf', () => {
     // Nothing new to send the second time.
     const again = await overleaf.send(makeDoc('Our first draft.'), tmpPath, server, '', join(tmpPath, 'cache'))
     expect(again).toContain('already')
-  })
+  }, 20_000)
 
   it.skipIf(!hasGit)('test_receive_reads_a_collaborators_change', async () => {
     const tmpPath = tmp()

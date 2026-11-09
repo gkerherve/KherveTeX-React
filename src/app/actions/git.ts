@@ -334,6 +334,9 @@ export async function refreshBranch(): Promise<void> {
   const g = git()
   let br: string | null = null
   if (g.isAvailable()) br = await g.currentBranch(dirname(path)).catch(() => null)
+  // A document's own history repo (KherveTeX makes it on dev, with no
+  // remote): its branch tells the user nothing, so no tag.
+  if (br === 'dev' && !(await g.getRemotes(dirname(path)).catch(() => [])).length) br = null
   setBranchSuffix(path, br ? ` [${br}]` : '')
 }
 

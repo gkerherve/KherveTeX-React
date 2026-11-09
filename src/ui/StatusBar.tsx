@@ -1,6 +1,7 @@
 // The window's status bar, right side in Qt's order: the Light / Dark
 // switch, editor zoom (−, slider, +, percent), the PDF zoom, fit width and
 // the compiler indicator.
+import { friendlyDir } from '../core/friendlyDir.ts'
 import { useRef, type PointerEvent } from 'react'
 import { Icon } from './icons'
 import { useTipProps } from './Tooltip'
@@ -119,7 +120,7 @@ export function StatusBar(p: StatusBarProps) {
           ? <>
             <b>{p.fileName}</b>
             {p.branch && <>{'  '}<span className='sb-branch'>{p.branch}</span></>}
-            {p.dir && <>{'  —  '}<span className='sb-dir'>{p.dir}</span></>}
+            {p.dir && <>{'  —  '}<span className='sb-dir'>{friendlyDir(p.dir)}</span></>}
           </>
           : <><b>Untitled</b>{'  —  '}<span className='sb-faint'>not saved yet</span></>}
         {p.message && <span className='sb-faint'>{'  —  '}{p.message}</span>}
