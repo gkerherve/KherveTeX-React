@@ -219,6 +219,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
       textEmu = tw > 0 ? tw * 635 : null
     }
   }
+  const pageSetup = _pageSetup(sect)
 
   // Track consecutive list paragraphs so we can merge them.
   let pendingListItems: ListItem[] = []
@@ -239,9 +240,10 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   // space around and indent of a paragraph that sets none of its own.
   let stylesForDefaults: XElement | null = null
   try { stylesForDefaults = src.stylesEl() } catch { stylesForDefaults = null }
-  const [bodyHp, defBefore, defAfter, defFirst] = _styleDefaults(stylesForDefaults)
-  // (no space around it, first line indented) for each body paragraph.
-  const paraStats: [boolean, boolean][] = []
+  const [bodyHp, defBefore, defAfter, defFirst, defLine] = _styleDefaults(stylesForDefaults)
+  // (no space around it, first line indented, text size, line spacing) for
+  // each body paragraph.
+  const paraStats: [boolean, boolean, number, number | null][] = []
 
   const walk = async (elems: Iterable<XElement>): Promise<void> => {
   for (const childElem of elems) {
@@ -362,8 +364,8 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
         }), false))
       } else if (textRuns.some((r) => r.type !== 'Text' || strip(r.text))) {
         children.push(paragraph(textRuns, alignment))
-        const [before, after, first] = _paraSpacing(childElem, defBefore, defAfter, defFirst)
-        paraStats.push([before === 0 && after === 0, first > 0])
+        const [before, after, first, line] = _paraSpacing(childElem, defBefore, defAfter, defFirst, defLine)
+        paraStats.push([before === 0 && after === 0, first > 0, _firstRunSize(childElem, bodyHp), line])
       } else {
         // A blank line: Word's way of spacing paragraphs. A no-break space
         // keeps it a line in the PDF and on the page.
@@ -379,16 +381,36 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   // Word ends a document with blank lines as often as not: they are not
   // space anyone meant to print.
   while (children.length && _isBlankLine(children[children.length - 1])) children.pop()
+  children.splice(0, children.length, ..._attachCaptions(children))
 
   const meta = docMeta({ title, author })
   // Word indents no first line unless told to, and a document whose
   // paragraphs have no space between them (its gaps are blank lines) keeps
   // none: LaTeX's \parindent and KherveTeX's 0.8em made it look unlike the
   // Word page.
-  meta.paragraph_indent = paraStats.length > 0 && 2 * paraStats.filter(([, ind]) => ind).length > paraStats.length
-  if (!meta.paragraph_indent && paraStats.length && 2 * paraStats.filter(([tight]) => tight).length > paraStats.length) {
+  meta.paragraph_indent = paraStats.length > 0 && 2 * paraStats.filter((st) => st[1]).length > paraStats.length
+  if (!meta.paragraph_indent && paraStats.length && 2 * paraStats.filter((st) => st[0]).length > paraStats.length) {
     meta.preamble_extras = '\\setlength{\\parskip}{0pt}'
   }
+  // The page as Word sets it: paper, margins, text size and line spacing
+  // (single, one and a half, double), so pages break near where Word's do.
+  if (pageSetup) {
+    meta.page_size = pageSetup[0]
+    ;[meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm] = pageSetup[1]
+  }
+  if (paraStats.length) {
+    const pt = _mostCommon(paraStats.map((st) => st[2])) / 2
+    meta.body_font_pt = pt <= 10.5 ? 10 : pt <= 11.5 ? 11 : 12
+    const lines = paraStats.map((st) => st[3]).filter((l): l is number => l !== null)
+    if (lines.length) {
+      const ls = _mostCommon(lines) / 240
+      meta.line_spacing = ls < 1.25 ? 1.0 : ls < 1.75 ? 1.5 : 2.0
+    }
+  }
+  // Figures float, as in a journal: one too tall for the rest of a page goes
+  // to the top of the next and the text fills the gap (KherveTeX's own
+  // documents keep the float package and pin theirs with [H]).
+  meta.packages = meta.packages.filter((p) => p !== 'float')
   // Word and PDF carry no date to print: without \date{} \maketitle
   // would put the day of the import under the title.
   if (children.some((c) => c.type === 'Title')) meta.frontmatter_extras = '\\date{}'
@@ -741,11 +763,13 @@ function _importTable(tbl: XElement): Table | null {
 }
 
 // (text size in half-points, space before, space after, first-line indent in
-// twips) of a paragraph that sets none of its own: Word's built-ins, the
-// document defaults, then the default paragraph style.
-function _styleDefaults(stylesEl: XElement | null): [number, number, number, number] {
+// twips, line spacing in 240ths or null) of a paragraph that sets none of its
+// own: Word's built-ins, the document defaults, then the default paragraph
+// style.
+function _styleDefaults(stylesEl: XElement | null): [number, number, number, number, number | null] {
   let size = 20, before = 0, after = 0, first = 0
-  if (stylesEl === null) return [size, before, after, first]
+  let line: number | null = 240
+  if (stylesEl === null) return [size, before, after, first, line]
   const sources: [XElement | null, XElement | null][] = []
   const dd = find(stylesEl, NS.w, 'docDefaults')
   if (dd !== null) {
@@ -763,33 +787,144 @@ function _styleDefaults(stylesEl: XElement | null): [number, number, number, num
     const sz = rpr !== null ? find(rpr, NS.w, 'sz') : null
     const v = sz !== null ? _twips(get(sz, NS.w, 'val')) : null
     if (v) size = v
-    if (ppr !== null) [before, after, first] = _spacingOf(ppr, before, after, first)
+    if (ppr !== null) [before, after, first, line] = _spacingOf(ppr, before, after, first, line)
   }
-  return [size, before, after, first]
+  return [size, before, after, first, line]
 }
 
-// The space before / after and first-line indent a w:pPr sets, over the
-// given ones.
-function _spacingOf(ppr: XElement, before: number, after: number, first: number): [number, number, number] {
+// The space before / after, first-line indent and line spacing (in 240ths of
+// a line, null when exact or at-least) a w:pPr sets, over the given ones.
+function _spacingOf(ppr: XElement, before: number, after: number, first: number,
+  line: number | null): [number, number, number, number | null] {
   const sp = find(ppr, NS.w, 'spacing')
   if (sp !== null) {
     const b = _twips(get(sp, NS.w, 'before'))
     const a = _twips(get(sp, NS.w, 'after'))
     before = b !== null ? b : before
     after = a !== null ? a : after
+    const ln = _twips(get(sp, NS.w, 'line'))
+    if (ln !== null) line = (get(sp, NS.w, 'lineRule') || 'auto') === 'auto' ? ln : null
   }
   const ind = find(ppr, NS.w, 'ind')
   if (ind !== null) {
     const f = _twips(get(ind, NS.w, 'firstLine'))
     first = f !== null ? f : first
   }
-  return [before, after, first]
+  return [before, after, first, line]
 }
 
-// A paragraph's own space before / after and first-line indent.
-function _paraSpacing(p: XElement, before: number, after: number, first: number): [number, number, number] {
+// A paragraph's own space before / after, first-line indent and line
+// spacing.
+function _paraSpacing(p: XElement, before: number, after: number, first: number,
+  line: number | null): [number, number, number, number | null] {
   const ppr = find(p, NS.w, 'pPr')
-  return ppr !== null ? _spacingOf(ppr, before, after, first) : [before, after, first]
+  return ppr !== null ? _spacingOf(ppr, before, after, first, line) : [before, after, first, line]
+}
+
+// (page size code, [top, bottom, left, right] margins in cm) of a w:sectPr,
+// or null when it does not give them all.
+function _pageSetup(sect: XElement | null): [string, [number, number, number, number]] | null {
+  if (sect === null) return null
+  const pgSz = find(sect, NS.w, 'pgSz'), pgMar = find(sect, NS.w, 'pgMar')
+  if (pgSz === null || pgMar === null) return null
+  let w = _twips(get(pgSz, NS.w, 'w')), h = _twips(get(pgSz, NS.w, 'h'))
+  const margins = ['top', 'bottom', 'left', 'right'].map((k) => _twips(get(pgMar, NS.w, k)))
+  if (w === null || h === null || margins.some((m) => m === null)) return null
+  ;[w, h] = [Math.min(w, h), Math.max(w, h)]
+  let code = 'A4'
+  if (Math.abs(w - 12240) <= 120 && Math.abs(h - 15840) <= 120) code = 'Letter'
+  else if (Math.abs(w - 12240) <= 120 && Math.abs(h - 20160) <= 120) code = 'Legal'
+  const cm = margins.map((m) => parseFloat(pyFixed(m! * 2.54 / 1440, 2))) as [number, number, number, number]
+  return [code, cm]
+}
+
+// The text size (half-points) of a paragraph's first run with text.
+function _firstRunSize(p: XElement, bodyHp: number): number {
+  for (const r of findall(p, NS.w, 'r')) {
+    const t = find(r, NS.w, 't')
+    if (t === null || !strip(lxmlText(t) ?? '')) continue
+    const rpr = find(r, NS.w, 'rPr')
+    const sz = rpr !== null ? find(rpr, NS.w, 'sz') : null
+    const v = sz !== null ? _twips(get(sz, NS.w, 'val')) : null
+    return v ? v : bodyHp
+  }
+  return bodyHp
+}
+
+// The most frequent value, the first seen winning a tie.
+function _mostCommon<T>(values: T[]): T {
+  const counts = new Map<T, number>()
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1)
+  let best: T | undefined
+  for (const [v, n] of counts) if (best === undefined || n > counts.get(best)!) best = v
+  return best!
+}
+
+// "Figure 3 | ...", "Fig. 2. ...", "Table 1: ..." starting a caption
+// paragraph: the label LaTeX numbers itself. The separator is required, so a
+// paragraph "Figure 2 shows..." after a figure stays text.
+const _FIG_CAPTION_RE = pyRe('^\\s*(?:Figure|Fig\\.?)\\s*\\d+[A-Za-z]?\\s*(?:[.:|\u2502\u2503\u2014\u2013-]|\\s[I|]\\s)\\s*')
+const _TABLE_CAPTION_RE = pyRe('^\\s*Table\\s*\\d+[A-Za-z]?\\s*(?:[.:|\u2502\u2503\u2014\u2013-]|\\s[I|]\\s)\\s*')
+
+// The LaTeX caption of a caption paragraph ("Figure 1 | Schematic..."), its
+// label dropped, or null when the block is not one. The label may run over
+// several runs ("Figure " + "1 I"): it is matched in the text of the leading
+// text runs and that many characters are taken off them.
+function _captionFrom(block: Block, pattern: RegExp): string | null {
+  if (block.type !== 'Paragraph') return null
+  const lead: string[] = []
+  for (const r of block.children) {
+    if (r.type !== 'Text') break
+    lead.push(r.text)
+  }
+  pattern.lastIndex = 0
+  const m = pattern.exec(lead.join(''))
+  if (m === null || m.index !== 0 || m[0].length === 0) return null
+  let n = [...m[0]].length
+  const runs: Inline[] = []
+  for (let r of block.children) {
+    if (n > 0 && r.type === 'Text') {
+      const cps = [...r.text]
+      if (cps.length <= n) { n -= cps.length; continue }
+      r = text(cps.slice(n).join(''), [...r.marks])
+      n = 0
+    }
+    runs.push(r)
+  }
+  const cap = strip(serializeInlines(runs))
+  return cap || null
+}
+
+// Word's caption paragraphs to the figure above them (a blank line between
+// them allowed) and the table below them, so a figure that floats takes its
+// caption along.
+function _attachCaptions(children: Block[]): Block[] {
+  const out: Block[] = []
+  let i = 0
+  while (i < children.length) {
+    const b = children[i]
+    if (b.type === 'Figure' && !b.caption) {
+      let j = i + 1
+      if (j < children.length && _isBlankLine(children[j])) j += 1
+      const cap = j < children.length ? _captionFrom(children[j], _FIG_CAPTION_RE) : null
+      if (cap) {
+        b.caption = cap
+        out.push(b)
+        i = j + 1
+        continue
+      }
+    }
+    if (b.type === 'Table' && !b.caption && out.length) {
+      const cap = _captionFrom(out[out.length - 1], _TABLE_CAPTION_RE)
+      if (cap) {
+        out.pop()
+        b.caption = cap
+      }
+    }
+    out.push(b)
+    i += 1
+  }
+  return out
 }
 
 // 1 or 2 for a paragraph formatted as a heading by hand: all bold, short, not

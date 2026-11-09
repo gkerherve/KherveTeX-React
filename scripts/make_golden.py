@@ -203,6 +203,15 @@ def typst_edge_cases(cases: dict) -> None:
         M.Figure(path="a.png", caption="σ map", label=None),
     ]), importer=False)
     case(cases, "no-greek", doc([M.Paragraph(children=[M.Text(text="Plain ° ± × µ text", marks=[])])]), importer=False)
+    case(cases, "floating-figures", doc([
+        M.Paragraph(children=[M.Text(text="Text", marks=[])]),
+        M.Figure(path="images/a.png", caption="A", label=None),
+        M.Table(rows=[["a", "b"]], caption="T"),
+    ], packages=["amsmath", "graphicx"]), importer=False)
+    case(cases, "pinned-by-extras", doc([M.Figure(path="images/a.png", caption="A", label=None)],
+                                        packages=["graphicx"], preamble_extras="\\usepackage{float}"), importer=False)
+    case(cases, "floating-no-figures", doc([M.Paragraph(children=[M.Text(text="x", marks=[])])],
+                                           packages=["amsmath"]), importer=False)
     case(cases, "picture-tables", doc([
         M.Table(rows=[["\\includegraphics[width=\\linewidth]{images/a.png}", "Step one \\par \\begin{itemize} \\item x \\end{itemize}"],
                       ["", "Step 100% two"]],

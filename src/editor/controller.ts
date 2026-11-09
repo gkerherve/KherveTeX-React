@@ -555,7 +555,7 @@ export class EditorController implements ViewHost {
       ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, this.pdfPageStarts(),
         layoutKey.getState(this.view.state)!.anchors.length > 0)
       : computeSpacers(this.view, geo, this.flowEl, this.pdfPageStarts(),
-        layoutKey.getState(this.view.state)!.anchors.length > 0)
+        layoutKey.getState(this.view.state)!.anchors.length > 0, figuresFloat(this.meta))
     if (!sameSpacers(old, spacers) && this.pageIter < 6) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))

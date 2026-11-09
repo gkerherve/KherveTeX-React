@@ -27,6 +27,8 @@ interface Unit {
   gap: number
   // Columns of the table a row spacer sits in.
   cols?: number
+  // A figure that floats (the document's figures float in its PDF).
+  float?: boolean
 }
 
 export interface PageMeasure {
@@ -93,8 +95,14 @@ function cssGap(el: HTMLElement): number {
 
 // The flow, unit by unit (_column_units): lines of text, table rows, and
 // whole figures and equations, in document order, at y = f(client y).
-function collectUnits(view: EditorView, y: (clientY: number) => number): { units: Unit[]; spanEnd: number | null } {
+function collectUnits(view: EditorView, y0: (clientY: number) => number, floats = false,
+  z = 1): { units: Unit[]; spanEnd: number | null } {
   const units: Unit[] = []
+  // A floating figure lifted out of the flow last time moved what follows
+  // it up by its lift, and is drawn shifted: both are undone here, so the
+  // units are measured where they sit with every figure in its place.
+  let lifted = 0
+  const y = (clientY: number) => y0(clientY) + lifted
   let spanEnd: number | null = null
   let spanning = true
   const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number) => {
@@ -150,6 +158,17 @@ function collectUnits(view: EditorView, y: (clientY: number) => number): { units
       })
       return
     }
+    if (floats && node.type.name === 'figure') {
+      const dy = parseFloat(dom.dataset.ktDy || '0') || 0
+      const lift = parseFloat(dom.dataset.ktLift || '0') || 0
+      // Its height from its own box: lifted, it overlaps what follows it,
+      // whose spacers would otherwise count inside it.
+      const top = y(r.top - dy * z)
+      units.push({ top, bottom: top + r.height / z, pos: offset, kind: 'block', forced: false,
+        gap: cssGap(dom), float: true })
+      lifted += lift
+      return
+    }
     units.push({ top: y(r.top), bottom: y(r.bottom), pos: offset, kind: 'block', forced: false, gap: cssGap(dom) })
   })
   return { units, spanEnd }
@@ -188,8 +207,14 @@ function forcePageStarts(units: Unit[], pageStarts: readonly PageStart[]): Map<n
 // then stays on it, into the bottom margin, rather than spilling a line or
 // two onto a sheet of its own: the sheet ends where the PDF page does
 // (the editor's type sets a few per cent taller or shorter than TeX's).
+//
+// `floats`: the document's figures float (LaTeX [htbp]). One that does not
+// fit in what is left of a sheet is taken out of the flow there, the text
+// after it filling the sheet, and drawn at the top of the next sheet, the
+// text there starting under it: where LaTeX puts it.
 export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement,
-  pageStarts: readonly PageStart[] = [], pdfPaged = false): { spacers: Spacer[]; measure: PageMeasure } {
+  pageStarts: readonly PageStart[] = [], pdfPaged = false,
+  floats = false): { spacers: Spacer[]; measure: PageMeasure } {
   const root = view.dom as HTMLElement
   const z = zoomOf(page) || 1
   // y from the top of the first sheet.
@@ -209,7 +234,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     for (const g of gaps) if (g.at < v - 0.01) s += g.height
     return v - s
   }
-  const { units } = collectUnits(view, c => natural(yOf(c)))
+  const { units } = collectUnits(view, c => natural(yOf(c)), floats, z)
   // The line a mid-paragraph page start falls on: the last line unit at or
   // before it.
   const blanks = forcePageStarts(units, pageStarts)
@@ -228,10 +253,40 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   let shift = 0
   let k = 0
   let first = true
+  // Floating figures waiting for the top of the next sheet: where each is
+  // drawn now (its top), its height and the space it gave up.
+  let pending: { pos: number; top: number; box: number; lift: number }[] = []
+  const capacity = contentBottom(0) - contentTop(0)
+  // LaTeX's \textfloatsep: between the figures at a page's top and the text.
+  const floatSep = 26
+  // The pending figures at the top of sheet `sheet`: their spacers, and
+  // the height they take there.
+  const placePending = (sheet: number): number => {
+    if (!pending.length) return 0
+    let at = contentTop(sheet)
+    for (const p of pending) {
+      spacers.push({ pos: p.pos, height: p.lift, kind: 'float', dy: at - p.top })
+      at += p.box + 10
+    }
+    pending = []
+    return at - 10 - contentTop(sheet) + floatSep
+  }
   units.forEach((u, i) => {
     const t = u.top + shift
     const b = u.bottom + shift
     k = Math.max(k, Math.floor(t / H))
+    if (u.float) {
+      const box = u.bottom - u.top
+      const fits = b <= contentBottom(k) + 0.5 || t <= contentTop(k) + 1
+      // Here when it fits and no figure before it waits (floats keep their
+      // order); too tall for any sheet's top, it is not moved.
+      if (box <= capacity * 0.95 && (!fits || pending.length || (u.forced && !first))) {
+        pending.push({ pos: u.pos, top: t, box, lift: box + u.gap })
+        shift -= box + u.gap
+        first = false
+        return
+      }
+    }
     let move = false
     let want = 0
     // The rest of this PDF page fits in the margin's slack.
@@ -252,6 +307,9 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       want = contentTop(k + 1)
     }
     if (move) {
+      // The figures waiting go to the top of the new sheet, this unit
+      // under them.
+      want += placePending(k + 1 + skip)
       // A spacer before a block sits above its margin.
       const h = want - t
       spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols })
@@ -262,7 +320,10 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   })
   let last = 0
   for (const u of units) last = Math.max(last, u.bottom)
-  const sheets = Math.max(1, Math.ceil(Math.max(1, last + shift) / H))
+  last += shift
+  // Figures still waiting at the end: a sheet of their own after the text.
+  if (pending.length) last = Math.max(last, contentTop(k + 1) + placePending(k + 1))
+  const sheets = Math.max(1, Math.ceil(Math.max(1, last) / H))
   return { spacers, measure: { sheets } }
 }
 
@@ -350,5 +411,6 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
 
 export function sameSpacers(a: readonly Spacer[], b: readonly Spacer[]): boolean {
   return a.length === b.length && a.every((s, i) =>
-    s.pos === b[i].pos && s.kind === b[i].kind && Math.abs(s.height - b[i].height) < 0.75)
+    s.pos === b[i].pos && s.kind === b[i].kind && Math.abs(s.height - b[i].height) < 0.75
+    && Math.abs((s.dy ?? 0) - (b[i].dy ?? 0)) < 0.75)
 }

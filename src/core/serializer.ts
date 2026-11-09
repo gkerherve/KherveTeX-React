@@ -591,6 +591,39 @@ export const TEXT_FALLBACKS: Record<string, string> = {
   '✗': '\\ensuremath{\\times}',
 }
 
+// Figures and tables stay where they are written ([H]) when the document
+// loads the float package, as KherveTeX's own documents do; a journal class,
+// or a document without it (one imported from Word), lets them float
+// ([htbp]).
+export function pinsFloats(m: DocMeta, isJournal: boolean): boolean {
+  if (isJournal) return false
+  return (m.packages || []).includes('float') || (m.preamble_extras || '').includes('{float}')
+}
+
+// The document's figures float in its PDF (the page view places them so).
+export function figuresFloat(m: DocMeta): boolean {
+  return !pinsFloats(m, !STANDARD_SERIALIZER_CLASSES.has((m.documentclass || '').toLowerCase()))
+}
+
+// Floating figures placed as the editor's page shows them: where they are
+// written when they fit, else at the top of the next page, the text filling
+// the rest of this one (a figure between paragraphs that does not fit here
+// does not fit at the top of this page either). The fractions let a tall
+// figure go to a page's top with text under it rather than onto a page of
+// its own.
+function withFloatPlacement(packages: string, m: DocMeta, isJournal: boolean, doc: Document): string {
+  if (isJournal || pinsFloats(m, isJournal)) return packages
+  if (!doc.children.some((b) => b.type === 'Figure' || b.type === 'Table')) return packages
+  return packages + '\n' + [
+    '\\renewcommand{\\topfraction}{0.95}',
+    '\\renewcommand{\\bottomfraction}{0.8}',
+    '\\renewcommand{\\textfraction}{0.05}',
+    '\\renewcommand{\\floatpagefraction}{0.9}',
+    '\\setcounter{topnumber}{3}',
+    '\\setcounter{totalnumber}{5}',
+  ].join('\n')
+}
+
 // Define each character of TEXT_FALLBACKS the document uses (and the math
 // alphanumerics, 𝛿, whose letter is one) as an active character: plain TeX,
 // as newunicodechar does, which tectonic's offline cache lacks. Added after
@@ -1022,7 +1055,7 @@ export function serializeDocument(doc: Document): string {
 
     const bodyParts: string[] = []
     bodyBlocks.forEach((b, i) => {
-      bodyParts.push(serializeBlock(b, { hasChapters, floatH: !isJournal }))
+      bodyParts.push(serializeBlock(b, { hasChapters, floatH: pinsFloats(m, isJournal) }))
       if (i < bodyBlocks.length - 1) bodyParts.push('\n')
     })
     let body = bodyParts.join('')
@@ -1033,6 +1066,7 @@ export function serializeDocument(doc: Document): string {
     if (natbib) packages = withNatbib(packages, m)
     packages = withUrlBreaking(packages, packages, frontmatter, body)
     packages = withUnicodeFallbacks(packages, packages, frontmatter, body)
+    packages = withFloatPlacement(packages, m, isJournal, doc)
     return `${documentclassLine(m)}\n${packages}\n\\begin{document}\n${frontmatter}${body}\\end{document}\n`
   }
 
@@ -1154,7 +1188,7 @@ export function serializeDocument(doc: Document): string {
         if (i < n) parts.push('\n')
         continue
       }
-      const rendered = serializeBlock(block, { hasChapters, floatH: !isJournal })
+      const rendered = serializeBlock(block, { hasChapters, floatH: pinsFloats(m, isJournal) })
       if (block.type === 'Title') {
         emittedMaketitle = true
       } else if (block.type === 'RawLatex' && block.text.includes('\\maketitle')) {
@@ -1193,6 +1227,7 @@ export function serializeDocument(doc: Document): string {
   if (natbib) packages = withNatbib(packages, m)
   packages = withUrlBreaking(packages, packages, preambleMeta, body)
   packages = withUnicodeFallbacks(packages, packages, preambleMeta, body)
+  packages = withFloatPlacement(packages, m, isJournal, doc)
   return `${documentclassLine(m)}\n${packages}\n${preambleMeta}\\begin{document}\n${body}\\end{document}\n`
 }
 
@@ -1233,7 +1268,7 @@ export function serializeChapterBody(doc: Document): string {
       if (i < n) parts.push('\n')
       continue
     }
-    parts.push(serializeBlock(block, { hasChapters, floatH: !isJournal }))
+    parts.push(serializeBlock(block, { hasChapters, floatH: pinsFloats(m, isJournal) }))
     i += 1
     if (i < n) parts.push('\n')
   }

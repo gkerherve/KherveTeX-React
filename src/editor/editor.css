@@ -56,6 +56,10 @@
   word-wrap: break-word;
   font-variant-ligatures: common-ligatures;
   font-kerning: normal;
+  /* LaTeX hyphenates at line ends: without it the page set a line or two
+     more per page than the PDF, which then ran onto a near-empty sheet. */
+  -webkit-hyphens: auto;
+  hyphens: auto;
   -webkit-font-smoothing: antialiased;
   caret-color: currentColor;
 }
@@ -147,6 +151,10 @@
   text-transform: none;
 }
 .kt-footnote-mark { font-size: 0.6em; vertical-align: super; line-height: 0; }
+/* A superscript or subscript (a citation, cm², CO₂) keeps the line's
+   spacing, as TeX's fixed \baselineskip does; a taller line box pushed text
+   down and pages ran long. */
+.kt-flow sup, .kt-flow sub { line-height: 0; }
 .kt-citation { color: #5b2d83; background: #f1e5ff; }
 .kt-crossref { color: #00aa66; background: #e3f5ea; }
 .kt-inline-raw {

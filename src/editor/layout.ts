@@ -911,16 +911,43 @@ export function pdfPageStartBlocks(doc: PMNode, anchors: readonly PageAnchor[]):
 
 // Each anchor's block and the offset of its text in it, for finding the
 // line a PDF page starts on (page_anchor_positions).
+// A caption's LaTeX as the words it prints.
+function captionText(latex: string): string {
+  return latex.replace(/\\[A-Za-z]+\*?/g, ' ').replace(/\\(.)/g, '$1').replace(/[{}$]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { page: number; pos: number; offset: number }[] {
   const out: { page: number; pos: number; offset: number }[] = []
   const blocks = collect(doc)
+  const texts = blocks.map(b => b.node.type.name === 'figure' ? captionText(b.node.attrs.caption || '') : b.text)
   let at = 0
   for (const [page, snippet] of anchors) {
     const keys = (snippet || '').split('\n').map(s => normalizeForMatch(s.trim().slice(0, 24))).filter(k => k.length >= 3)
-    search: for (const keyNorm of keys) {
+    // The words the page goes on with, to confirm a match inside a
+    // paragraph: a phrase such as "secondary electron cut-o" can recur,
+    // and an earlier paragraph holding it made a page start far too soon.
+    const confirms = (i: number, offset: number, k: number): boolean => {
+      const next = keys.slice(k + 1).find(x => x.length >= 8)
+      if (!next) return true
+      const ahead = normalizeForMatch(texts[i].slice(offset) + ' ' + texts.slice(i + 1, i + 4).join(' ')).slice(0, 1500)
+      return ahead.includes(next.slice(0, 12))
+    }
+    search: for (const [k, keyNorm] of keys.entries()) {
+      // A figure's caption prints after its label ("Figure 1: ...").
+      const capKey = keyNorm.replace(/^(?:figure|fig\.?|table)\s*\d+[a-z]?\s*[.:|]?\s*/, '')
       for (let i = at; i < blocks.length; i++) {
+        // A figure by its caption: a page the PDF starts with a figure
+        // (one that floated to its top) starts with the caption's text.
+        if (blocks[i].node.type.name === 'figure') {
+          const cap = normalizeForMatch(texts[i])
+          if (cap && capKey.length >= 8 && (cap.startsWith(capKey) || capKey.startsWith(cap))) {
+            out.push({ page, pos: blocks[i].pos, offset: 0 }); at = i; break search
+          }
+          continue
+        }
         if (blocks[i].isTable) continue
         const idx = anchorOffset(blocks[i].text, keyNorm)
+        if (idx > 0 && !confirms(i, idx, k)) continue
         if (idx >= 0) { out.push({ page, pos: blocks[i].pos, offset: idx }); at = i; break search }
       }
     }

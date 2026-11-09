@@ -173,7 +173,12 @@ export interface Spacer {
   height: number
   // Before a block, at a line start, before a table row, or (columns)
   // across the columns where the next sheet starts.
-  kind: 'block' | 'inline' | 'row' | 'span'
+  // 'float': not a gap but a floating figure (at `pos`) taken out of the
+  // flow (`height`, the space it gave up) and drawn `dy` lower, at the top
+  // of the next sheet, as LaTeX places a figure that does not fit.
+  kind: 'block' | 'inline' | 'row' | 'span' | 'float'
+  // How far a floating figure is drawn below its place in the flow.
+  dy?: number
   // A row spacer's table width in cells.
   cols?: number
   // A span spacer inside a paragraph.
@@ -207,8 +212,21 @@ function spacerEl(s: Spacer): HTMLElement {
 }
 
 function spacerDecos(doc: PMNode, spacers: Spacer[]): DecorationSet {
-  return DecorationSet.create(doc, spacers.map(s => Decoration.widget(s.pos, () => spacerEl(s),
-    { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}` })))
+  const decos: Decoration[] = []
+  for (const s of spacers) {
+    if (s.kind === 'float') {
+      const node = doc.nodeAt(s.pos)
+      if (!node) continue
+      decos.push(Decoration.node(s.pos, s.pos + node.nodeSize, {
+        style: `margin-bottom:${-s.height}px;transform:translateY(${s.dy ?? 0}px);position:relative;z-index:2;`,
+        'data-kt-lift': String(s.height), 'data-kt-dy': String(s.dy ?? 0),
+      }))
+      continue
+    }
+    decos.push(Decoration.widget(s.pos, () => spacerEl(s),
+      { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}` }))
+  }
+  return DecorationSet.create(doc, decos)
 }
 
 export function pagesPlugin(): Plugin<PagesState> {

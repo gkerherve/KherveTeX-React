@@ -800,6 +800,40 @@ def fx_direct_headings():
     return saved(d)
 
 
+def fx_page_setup_captions():
+    # A paper: Letter paper, its own margins, double spacing, captions as
+    # paragraphs next to their figures and tables.
+    d = docx.Document()
+    tmp = Path(tempfile.mkdtemp())
+    for k in range(3):
+        (tmp / f"f{k}.png").write_bytes(png_bytes(3, 2, color=(30 * k, 80, 90)))
+    sect = d.sections[0]._sectPr
+    for c in list(sect):
+        if c.tag in (qn("w:pgSz"), qn("w:pgMar")):
+            sect.remove(c)
+    sect.append(parse_xml(f'<w:pgSz {nsdecls("w")} w:w="12240" w:h="15840"/>'))
+    sect.append(parse_xml(f'<w:pgMar {nsdecls("w")} w:top="1080" w:bottom="1080" w:left="1800" w:right="1800"/>'))
+    def para(t, ppr='<w:spacing w:line="480" w:lineRule="auto"/>', rpr='<w:sz w:val="20"/>'):
+        body_append(d, W(f'<w:pPr>{ppr}</w:pPr><w:r><w:rPr>{rpr}</w:rPr><w:t xml:space="preserve">{t}</w:t></w:r>'))
+    para("First paragraph of text.")
+    d.add_paragraph().add_run().add_picture(str(tmp / "f0.png"))
+    body_append(d, W('<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Figure </w:t></w:r>'
+                     '<w:r><w:rPr><w:b/></w:rPr><w:t>1 I</w:t></w:r><w:r><w:t xml:space="preserve"> A schematic &amp; 50% more.</w:t></w:r>'))
+    para("Second paragraph.")
+    d.add_paragraph().add_run().add_picture(str(tmp / "f1.png"))
+    body_append(d, W(''))
+    para("Fig. 2: after a blank line")
+    d.add_paragraph().add_run().add_picture(str(tmp / "f2.png"))
+    para("Figure 3 shows that this stays text.")
+    para("Table 1. Results", '<w:spacing w:line="360" w:lineRule="auto"/>')
+    t = d.add_table(rows=1, cols=2)
+    t.cell(0, 0).text = "a"
+    t.cell(0, 1).text = "b"
+    para("Exact spacing", '<w:spacing w:line="300" w:lineRule="exact"/>')
+    para("Last paragraph.")
+    return saved(d)
+
+
 def fx_old_doc():
     return b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 504
 
@@ -833,6 +867,7 @@ IMPORT_FIXTURES = {
     "missing_part": fx_missing_part,
     "not_a_zip": fx_not_a_zip,
     "old_doc": fx_old_doc,
+    "page_setup_captions": fx_page_setup_captions,
     "direct_headings": fx_direct_headings,
     "tiff_images": fx_tiff_images,
 }
