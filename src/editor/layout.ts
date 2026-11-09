@@ -261,6 +261,19 @@ const TODAY = () => new Date()
 // size differs from the class look's (the look measured the class at its
 // default size; [11pt]amsart prints at 10.95 pt), every size and space of
 // the look is scaled to it; its columns replace the look's.
+// A \setlength{\parskip}{...} among the document's own preamble lines (an
+// imported Word document with no space between its paragraphs sets 0pt):
+// it comes after KherveTeX's 0.8em in the LaTeX, so it is what the PDF uses.
+export function parskipFromExtras(extras: string, emPx: number, pt: number): number | null {
+  const ms = [...(extras || '').matchAll(/\\setlength\s*\{\s*\\parskip\s*\}\s*\{\s*(-?[\d.]+)\s*(pt|bp|em|ex|mm|cm|in)?\s*(?:plus[^}]*)?\}/g)]
+  if (!ms.length) return null
+  const m = ms[ms.length - 1]
+  const v = parseFloat(m[1])
+  if (!Number.isFinite(v)) return null
+  const per: Record<string, number> = { pt, bp: pt * 72.27 / 72, em: emPx, ex: emPx * 0.43, mm: pt * 2.845, cm: pt * 28.45, in: pt * 72.27 }
+  return Math.max(0, v * (per[m[2] ?? 'pt'] ?? pt))
+}
+
 export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0],
   pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false, pdf: PdfTypography | null = null): DocLayout {
   const measured = lookFor(meta.documentclass, meta.body_font_pt)
@@ -342,6 +355,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
 
   const body = look.body
   const emPx = body.size * pt
+  const extrasParskip = meta.paragraph_indent ? null : parskipFromExtras(meta.preamble_extras, emPx, pt)
   const spacing = Math.max(0.5, Number(meta.line_spacing || 1.0))
   const stretch = baselineskipPt(meta.body_font_pt, spacing) / baselineskipPt(meta.body_font_pt, 1.0)
   const bodyLinePx = body.leading * stretch * pt
@@ -559,7 +573,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
         L.top = i === afterDate && look.date ? (out[dateLine]?.spans ? 0 : look.date.gap * pt) : followsPara ? (body.parskip || 0) * pt : 0
       } else {
         L.indent = 0
-        L.bottom = 0.8 * emPx
+        L.bottom = extrasParskip ?? 0.8 * emPx
       }
       const prevB = blocks[i - 1]
       const prevL = out[i - 1]

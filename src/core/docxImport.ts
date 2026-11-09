@@ -231,6 +231,14 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   let stylesEl: XElement | null | undefined
   const styles = () => (stylesEl === undefined ? (stylesEl = src.stylesEl()) : stylesEl)
 
+  // The Normal style over the document defaults: body text size and the
+  // space around and indent of a paragraph that sets none of its own.
+  let stylesForDefaults: XElement | null = null
+  try { stylesForDefaults = src.stylesEl() } catch { stylesForDefaults = null }
+  const [bodyHp, defBefore, defAfter, defFirst] = _styleDefaults(stylesForDefaults)
+  // (no space around it, first line indented) for each body paragraph.
+  const paraStats: [boolean, boolean][] = []
+
   const walk = async (elems: Iterable<XElement>): Promise<void> => {
   for (const childElem of elems) {
     const tag = localName(childElem)
@@ -339,8 +347,24 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
         if (r.type === 'Text' && !r.marks.includes('italic')) r.marks.push('italic')
       }
       children.push(paragraph(textRuns, 'center'))
-    } else if (textRuns.length) {
-      children.push(paragraph(textRuns, alignment))
+    } else {
+      // A heading set by hand (bold, larger than the text, no Heading
+      // style): an unnumbered section, as Word shows it.
+      const hlevel = _directHeadingLevel(childElem, textRuns, bodyHp)
+      if (hlevel) {
+        children.push(section(hlevel, textRuns.map((r) => {
+          const t = r as Text
+          return text(t.text, t.marks.filter((m) => m !== 'bold'))
+        }), false))
+      } else if (textRuns.some((r) => r.type !== 'Text' || strip(r.text))) {
+        children.push(paragraph(textRuns, alignment))
+        const [before, after, first] = _paraSpacing(childElem, defBefore, defAfter, defFirst)
+        paraStats.push([before === 0 && after === 0, first > 0])
+      } else {
+        // A blank line: Word's way of spacing paragraphs. A no-break space
+        // keeps it a line in the PDF and on the page.
+        children.push(paragraph([text('\u00a0', [])], alignment))
+      }
     }
   }
   }
@@ -348,7 +372,19 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
 
   flushList()
 
+  // Word ends a document with blank lines as often as not: they are not
+  // space anyone meant to print.
+  while (children.length && _isBlankLine(children[children.length - 1])) children.pop()
+
   const meta = docMeta({ title, author })
+  // Word indents no first line unless told to, and a document whose
+  // paragraphs have no space between them (its gaps are blank lines) keeps
+  // none: LaTeX's \parindent and KherveTeX's 0.8em made it look unlike the
+  // Word page.
+  meta.paragraph_indent = paraStats.length > 0 && 2 * paraStats.filter(([, ind]) => ind).length > paraStats.length
+  if (!meta.paragraph_indent && paraStats.length && 2 * paraStats.filter(([tight]) => tight).length > paraStats.length) {
+    meta.preamble_extras = '\\setlength{\\parskip}{0pt}'
+  }
   // Word and PDF carry no date to print: without \date{} \maketitle
   // would put the day of the import under the title.
   if (children.some((c) => c.type === 'Title')) meta.frontmatter_extras = '\\date{}'
@@ -698,6 +734,89 @@ function _importTable(tbl: XElement): Table | null {
   }
   if (!rows.length) return null
   return table({ rows, caption: '', label: null })
+}
+
+// (text size in half-points, space before, space after, first-line indent in
+// twips) of a paragraph that sets none of its own: Word's built-ins, the
+// document defaults, then the default paragraph style.
+function _styleDefaults(stylesEl: XElement | null): [number, number, number, number] {
+  let size = 20, before = 0, after = 0, first = 0
+  if (stylesEl === null) return [size, before, after, first]
+  const sources: [XElement | null, XElement | null][] = []
+  const dd = find(stylesEl, NS.w, 'docDefaults')
+  if (dd !== null) {
+    const r = find(dd, NS.w, 'rPrDefault')
+    const p = find(dd, NS.w, 'pPrDefault')
+    sources.push([r !== null ? find(r, NS.w, 'rPr') : null, p !== null ? find(p, NS.w, 'pPr') : null])
+  }
+  for (const st of findall(stylesEl, NS.w, 'style')) {
+    if (get(st, NS.w, 'type') === 'paragraph' && ['1', 'true', 'on'].includes(get(st, NS.w, 'default') ?? '')) {
+      sources.push([find(st, NS.w, 'rPr'), find(st, NS.w, 'pPr')])
+      break
+    }
+  }
+  for (const [rpr, ppr] of sources) {
+    const sz = rpr !== null ? find(rpr, NS.w, 'sz') : null
+    const v = sz !== null ? _twips(get(sz, NS.w, 'val')) : null
+    if (v) size = v
+    if (ppr !== null) [before, after, first] = _spacingOf(ppr, before, after, first)
+  }
+  return [size, before, after, first]
+}
+
+// The space before / after and first-line indent a w:pPr sets, over the
+// given ones.
+function _spacingOf(ppr: XElement, before: number, after: number, first: number): [number, number, number] {
+  const sp = find(ppr, NS.w, 'spacing')
+  if (sp !== null) {
+    const b = _twips(get(sp, NS.w, 'before'))
+    const a = _twips(get(sp, NS.w, 'after'))
+    before = b !== null ? b : before
+    after = a !== null ? a : after
+  }
+  const ind = find(ppr, NS.w, 'ind')
+  if (ind !== null) {
+    const f = _twips(get(ind, NS.w, 'firstLine'))
+    first = f !== null ? f : first
+  }
+  return [before, after, first]
+}
+
+// A paragraph's own space before / after and first-line indent.
+function _paraSpacing(p: XElement, before: number, after: number, first: number): [number, number, number] {
+  const ppr = find(p, NS.w, 'pPr')
+  return ppr !== null ? _spacingOf(ppr, before, after, first) : [before, after, first]
+}
+
+// 1 or 2 for a paragraph formatted as a heading by hand: all bold, short, not
+// ending in "." or ":", every run at least a point larger than the body text
+// (three points or more: level 1). 0 otherwise.
+function _directHeadingLevel(p: XElement, runs: Inline[], bodyHp: number): number {
+  if (!runs.length || runs.some((r) => r.type !== 'Text')) return 0
+  const texts = (runs as Text[]).filter((r) => strip(r.text))
+  if (!texts.length || !texts.every((r) => r.marks.includes('bold'))) return 0
+  const plain = strip((runs as Text[]).map((r) => r.text).join(''))
+  if ([...plain].length > 150 || plain.endsWith('.') || plain.endsWith(':')) return 0
+  const sizes: number[] = []
+  for (const r of findall(p, NS.w, 'r')) {
+    const t = find(r, NS.w, 't')
+    if (t === null || !strip(lxmlText(t) ?? '')) continue
+    const rpr = find(r, NS.w, 'rPr')
+    const sz = rpr !== null ? find(rpr, NS.w, 'sz') : null
+    const v = sz !== null ? _twips(get(sz, NS.w, 'val')) : null
+    sizes.push(v ? v : bodyHp)
+  }
+  if (!sizes.length) return 0
+  const smallest = Math.min(...sizes)
+  if (smallest >= bodyHp + 6) return 1
+  if (smallest >= bodyHp + 2) return 2
+  return 0
+}
+
+// A blank-line paragraph the importer made (a lone no-break space).
+function _isBlankLine(b: Block): boolean {
+  return b.type === 'Paragraph' && b.children.length === 1 && b.children[0].type === 'Text'
+    && (b.children[0] as Text).text === '\u00a0'
 }
 
 // A w:w / w:val width in twips, or null when it is not a whole number.

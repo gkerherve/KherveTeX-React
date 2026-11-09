@@ -773,6 +773,32 @@ def fx_tiff_images():
     return docx_with_media(media)
 
 
+def fx_direct_headings():
+    # A procedure written without styles: bold, larger headings, blank
+    # lines for spacing, no space between paragraphs.
+    d = docx.Document()
+    def para(inner, ppr='<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>'):
+        body_append(d, W(f'<w:pPr>{ppr}</w:pPr>{inner}'))
+    def run(t, b=False, sz=None):
+        rpr = ("<w:b/>" if b else "") + (f'<w:sz w:val="{sz}"/>' if sz else "")
+        return f'<w:r><w:rPr>{rpr}</w:rPr><w:t xml:space="preserve">{t}</w:t></w:r>'
+    para(run("Shutdown in Case of Emergency", True, 29))
+    para(run("Do as many things as possible."))
+    para("")
+    para(run("Restarting ", True, 25) + run("the System", True, 26))
+    para(run("X-rays:", True))
+    para(run("Leave the chiller on."))
+    para(run("   "))
+    para(run("Heading ending.", True, 32))
+    para(run("Mixed ", True, 32) + run("weight", False, 32))
+    para(run("Small bold", True, 23))
+    para(run("Indented line", sz=22), '<w:spacing w:after="0"/><w:ind w:firstLine="720"/>')
+    para(run("Spaced", sz=22), '<w:spacing w:before="120" w:after="0"/>')
+    para("")
+    para("")
+    return saved(d)
+
+
 def fx_old_doc():
     return b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 504
 
@@ -806,6 +832,7 @@ IMPORT_FIXTURES = {
     "missing_part": fx_missing_part,
     "not_a_zip": fx_not_a_zip,
     "old_doc": fx_old_doc,
+    "direct_headings": fx_direct_headings,
     "tiff_images": fx_tiff_images,
 }
 
