@@ -18,6 +18,7 @@ import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
 import * as M from '../core/model.ts'
 import { isAbsolute, join } from '../core/paths.ts'
 import { ReferenceResolver } from '../core/references.ts'
+import { figuresFloat } from '../core/serializer.ts'
 import type { ContextKind } from '../ui/ribbonModel.ts'
 import { setCommandChecked } from '../ui/commands.ts'
 import * as C from './commands.ts'
@@ -94,7 +95,7 @@ export class EditorController implements ViewHost {
   private pageIter = 0
   private columnShrink: number[] = []
   private sheets = 1
-  private images = new Map<string, { abs: string; url: string } | null>()
+  private images = new Map<string, { abs: string; url: string; sig: string | null } | null>()
   private exportQueued = false
   private lastContext: ContextKind | null = null
   private destroyed = false
@@ -181,6 +182,7 @@ export class EditorController implements ViewHost {
     })
     document.fonts?.addEventListener?.('loadingdone', this.onFonts)
     window.addEventListener(FIGURE_UPDATED_EVENT, this.onFigureUpdated)
+    window.addEventListener('focus', this.onWindowFocus)
     void loadFonts(this.families()).then(() => this.relayout())
     this.schedulePages(0)
     this.syncToolbar()
@@ -194,6 +196,7 @@ export class EditorController implements ViewHost {
     bibListeners.delete(this.refreshResolverNow)
     document.fonts?.removeEventListener?.('loadingdone', this.onFonts)
     window.removeEventListener(FIGURE_UPDATED_EVENT, this.onFigureUpdated)
+    window.removeEventListener('focus', this.onWindowFocus)
     clearTimeout(this.pageTimer)
     clearTimeout(this.resolverTimer)
     if (current === this) { setCurrent(null); setEditorApi(null) }
@@ -416,13 +419,35 @@ export class EditorController implements ViewHost {
     void (async () => {
       const abs = await resolveFigurePath(path)
       if (abs === null || this.destroyed) return
-      const url = await (imageLoader ?? defaultImageLoader)(abs)
+      const [url, sig] = await Promise.all([(imageLoader ?? defaultImageLoader)(abs), imageSignature(abs)])
       if (!url || this.destroyed) return
-      this.images.set(path, { abs, url })
+      this.images.set(path, { abs, url, sig })
       for (const a of this.atoms) a.render()
       this.schedulePages(0)
     })()
     return null
+  }
+
+  // An image file changed on disk while the window was in the background
+  // (re-cropped, re-exported, written by another tool): reload just those
+  // figures, as the PDF already does on its next compile.
+  private onWindowFocus = (): void => {
+    void (async () => {
+      let any = false
+      for (const [path, entry] of [...this.images]) {
+        if (!entry) continue
+        const sig = await imageSignature(entry.abs)
+        if (this.destroyed) return
+        if (sig === entry.sig) continue
+        const url = sig === null ? null : await (imageLoader ?? defaultImageLoader)(entry.abs)
+        if (this.destroyed) return
+        URL.revokeObjectURL(entry.url)
+        if (url) this.images.set(path, { abs: entry.abs, url, sig })
+        else this.images.delete(path)
+        any = true
+      }
+      if (any) { for (const a of this.atoms) a.render(); this.schedulePages(0) }
+    })()
   }
 
   // refresh_figure_image: a drawing or flowchart was saved again.
@@ -908,6 +933,20 @@ async function resolveFigurePath(p: string): Promise<string | null> {
     const { imagesDir } = await import('../drawing/host.ts')
     const c = join(await imagesDir(), p)
     return (await pf.exists(c)) ? c : null
+  } catch {
+    return null
+  }
+}
+
+// A cheap fingerprint of an image file (length + FNV-1a of its bytes), so a
+// window focus reloads only the figures whose file really changed.
+async function imageSignature(path: string): Promise<string | null> {
+  try {
+    const { platform } = await import('../platform/index.ts')
+    const data = await platform().readFile(path)
+    let h = 0x811c9dc5
+    for (let i = 0; i < data.length; i++) h = Math.imul(h ^ data[i], 0x01000193)
+    return `${data.length}:${(h >>> 0).toString(16)}`
   } catch {
     return null
   }
