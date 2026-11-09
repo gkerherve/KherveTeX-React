@@ -1122,7 +1122,7 @@ export function ColorSwatch({ arg = '#ffeb3b', size = 16 }: IconProps) {
   )
 }
 
-// ----- app icon: "KTeX" above a page bearing the LaTeX logo -----
+// ----- app icon: "kTeX" above a page bearing the LaTeX logo -----
 
 export function AppIcon({ size = 24 }: IconProps) {
   const sz = 100
@@ -1142,7 +1142,7 @@ export function AppIcon({ size = 24 }: IconProps) {
         stroke='#155bb5' strokeWidth={2} />
       <text x={50} y={m + h * 0.05 + h * 0.165} textAnchor='middle'
         dominantBaseline='central' fontFamily={SANS} fontWeight={700}
-        fontSize={27} fill='#ffffff'>KTeX</text>
+        fontSize={27} fill='#ffffff'>kTeX</text>
       <path d={`M${px},${py} L${px + pw - fold},${py} L${px + pw},${py + fold}
         L${px + pw},${py + ph} L${px},${py + ph} Z`} fill='#ffffff'
         stroke='#cfd6e0' strokeWidth={1.2} />
