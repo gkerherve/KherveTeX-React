@@ -124,7 +124,9 @@ export class EditorController implements ViewHost {
       state: this.makeState(s.doc),
       nodeViews: nodeViews(this, this.atoms),
       dispatchTransaction: tr => this.dispatch(tr),
-      attributes: { spellcheck: 'false', class: 'kt-flow' },
+      // writingsuggestions: no macOS inline predictions, which WebKit paints as
+      // grey text after the caret that looks as if it were in the document.
+      attributes: { spellcheck: 'false', writingsuggestions: 'false', autocorrect: 'off', class: 'kt-flow' },
       handleDOMEvents: {
         focus: () => { this.syncToolbar(); return false },
         contextmenu: (_v, e) => { e.preventDefault(); return showContextMenu(this, e) },
