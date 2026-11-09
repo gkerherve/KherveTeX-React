@@ -158,22 +158,6 @@ function openDocx(bytes: Uint8Array): Src {
   }
 }
 
-// core_properties.author
-function coreAuthor(pkg: Package): string {
-  let cp: Part
-  try {
-    cp = partWithReltype(pkg.rels, RT.CORE_PROPERTIES)
-  } catch (e) {
-    if (e instanceof PyError && e.type === 'KeyError') return ''  // CorePropertiesPart.default()
-    throw e
-  }
-  const root = cp.contentType === CT.OPC_CORE_PROPERTIES ? cp.xml?.documentElement : null
-  if (!root || !is(root, NS.cp, 'coreProperties')) throw new PyError('AttributeError', "no attribute 'core_properties'")
-  const el = find(root, NS.dc, 'creator')
-  if (el === null) return ''
-  return lxmlText(el) ?? ''
-}
-
 // --- Main importer ---------------------------------------------------------
 
 // Import a .docx file. Embedded images are saved to imageDir and referenced
@@ -203,7 +187,10 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   }
   const children: Block[] = []
   let title = ''
-  const author = coreAuthor(src.pkg) || ''
+  // Not the core properties' author: that is whoever created the file (a
+  // template's "David", an admin account), not the document's author, and
+  // \maketitle printed it under the title.
+  const author = ''
 
   let imageCounter = 0
 

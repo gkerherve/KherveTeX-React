@@ -41,7 +41,7 @@ const loadPdfJs = async () => {
 // importers.import_docx(path, image_dir)
 export async function importDocxFile(path: string): Promise<[KDocument, string]> {
   const imageDir = await imageDirFor(path)
-  return [await importDocx(await platform().readFile(path), imageDir, fileAccess()), imageDir]
+  return [dateOff(await importDocx(await platform().readFile(path), imageDir, fileAccess())), imageDir]
 }
 
 // importers.import_pdf(path, image_dir, progress)
@@ -49,21 +49,26 @@ export async function importPdfFile(path: string,
   progress: ((page: number, total: number) => void) | null = null): Promise<[KDocument, string]> {
   const imageDir = await imageDirFor(path)
   const doc = await importPdf(await platform().readFile(path), imageDir, fileAccess(), progress, { loadPdfJs })
-  return [doc, imageDir]
+  return [dateOff(doc), imageDir]
 }
 
 // The imported document replaces this one, untitled, with the title
 // "<stem> (imported)" (file.finishImport); docx and pdf images live in the
 // build dir, so the import source dir is cleared.
 function showImported(doc: KDocument, path: string, message: string): void {
-  // The importers write \date{} under an imported title (as the Python
-  // app does); here that is the date switched off (Insert ▸ Date), so the
-  // page shows no date either and the switch can bring it back.
+  finishImport(doc, path, { sourceDir: null, message })
+}
+
+// The importers write \date{} under an imported title (as the Python app
+// does); here that is the date switched off (Insert ▸ Date), so the page
+// shows no date either and the switch can bring it back. Every way in
+// (File ▸ Import, File ▸ Open of a .docx / .pdf, a drop) comes through here.
+function dateOff(doc: KDocument): KDocument {
   if (strip(doc.meta.frontmatter_extras) === '\\date{}') {
     doc.meta.frontmatter_extras = ''
     doc.meta.show_date = false
   }
-  finishImport(doc, path, { sourceDir: null, message })
+  return doc
 }
 
 async function importDocxAction(): Promise<void> {
