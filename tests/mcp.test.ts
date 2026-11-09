@@ -177,6 +177,21 @@ describe('document tools', () => {
     expect((await run(w, 'set_metadata', {})).error).toBe('No recognised fields to change.')
   })
 
+  it('puts the title and author on the page as blocks', async () => {
+    const w = new FakeWindow('')
+    await run(w, 'set_metadata', { title: 'My talk', author: 'Dr A\\\\ Some Lab' })
+    let outline = (await run(w, 'get_outline')).blocks as { type: string }[]
+    expect(outline.map(b => b.type).slice(0, 3)).toEqual(['Title', 'Author', 'Author'])
+    expect((await run(w, 'get_latex')).latex).toContain('\\maketitle')
+    await run(w, 'set_metadata', { title: 'New title' })
+    expect((await run(w, 'read_blocks', { start: 0 })).blocks[0].latex).toBe('\\maketitle\n')
+    expect((await run(w, 'get_latex')).latex).toContain('\\title{New title}')
+    // \maketitle alone is accepted and does not duplicate the blocks.
+    expect((await run(w, 'insert_latex', { latex: '\\maketitle' })).error).toBeUndefined()
+    outline = (await run(w, 'get_outline')).blocks as { type: string }[]
+    expect(outline.filter(b => b.type === 'Title').length).toBe(1)
+  })
+
   it('test_unsaved_work_is_not_discarded', async () => {
     const w = new FakeWindow('Keep me.')
     await run(w, 'insert_latex', { latex: 'More.' })

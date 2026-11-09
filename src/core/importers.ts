@@ -236,7 +236,7 @@ function extractBraced(src: string, command: string): string | null {
 // "Name\thanks{...} \\ \small Affiliation" becomes two display lines.
 // Breaks inside brace groups (a `\\` within \thanks{...}) don't split,
 // and escaped braces don't disturb the depth count.
-function splitAuthorLines(author: string): string[] {
+export function splitAuthorLines(author: string): string[] {
   const parts: string[] = []
   let buf: string[] = []
   let depth = 0
@@ -367,7 +367,7 @@ const sortedMarks = (marks: Mark[]) => [...marks].sort().join('\u0000')
 // Tokenise inline LaTeX into Text/MathInline/Link/Footnote/Citation/CrossRef.
 // Walks the string left-to-right consuming one of: a recognised macro, an
 // inline math span, or a plain text run up to the next macro or math span.
-function parseInlines(s: string): Inline[] {
+export function parseInlines(s: string): Inline[] {
   let out: Inline[] = []
   let i = 0
   const n = s.length

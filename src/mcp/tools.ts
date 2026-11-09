@@ -13,9 +13,9 @@
 // Content goes in as LaTeX body source and is parsed into real, editable
 // blocks — never pasted in as a raw string.
 import { nextDrawingPath } from '../core/drawingFiles.ts'
-import { importBodyFragment } from '../core/importers.ts'
+import { importBodyFragment, parseInlines, splitAuthorLines } from '../core/importers.ts'
 import {
-  figure, mathBlock, mathInline, paragraph, type Block, type DocMeta, type Document as KDocument,
+  author, figure, mathBlock, mathInline, paragraph, title, type Block, type DocMeta, type Document as KDocument,
 } from '../core/model.ts'
 import type { Scene } from '../core/paintModel.ts'
 import { itemToDict, loadSvg } from '../core/paintSvg.ts'
@@ -394,10 +394,41 @@ export class ToolExecutor {
     return [start, end]
   }
 
-  private static parse(latex: unknown): Block[] {
-    const blocks = importBodyFragment(typeof latex === 'string' ? latex : '')
-    if (!blocks.length) throw new ToolError('That LaTeX produced no content.')
-    return blocks
+  // \maketitle in a fragment means "show the title here": it becomes the
+  // document's Title / Author blocks (built from the metadata), not a
+  // block of its own, so it is taken out before parsing.
+  private static parse(latex: unknown): [Block[], boolean] {
+    let src = typeof latex === 'string' ? latex : ''
+    const maketitle = /\\maketitle\b/.test(src)
+    if (maketitle) src = src.replace(/\\maketitle\b\s*/g, '')
+    const blocks = importBodyFragment(src)
+    if (!blocks.length && !maketitle) throw new ToolError('That LaTeX produced no content.')
+    return [blocks, maketitle]
+  }
+
+  // Put the title and author on the page as Title / Author blocks at the
+  // top, so the Visual view shows them and not only the PDF. `force`
+  // rebuilds them from the metadata even when blocks already exist (the
+  // blocks win over the metadata in the LaTeX, so a stale block would
+  // otherwise hide a new title).
+  private syncTitleBlocks(force: { title: boolean, author: boolean }): void {
+    const kids = this.doc().children
+    const meta = this.doc().meta
+    const oldT = kids.filter(b => b.type === 'Title')
+    const oldA = kids.filter(b => b.type === 'Author')
+    const newT = meta.title ? [title(parseInlines(meta.title))] : []
+    const newA = meta.author
+      ? splitAuthorLines(meta.author).map(l => author(parseInlines(l))).filter(b => b.children.length)
+      : []
+    const T = force.title || !oldT.length ? newT : oldT
+    const A = force.author || !oldA.length ? newA : oldA
+    let others = kids.filter(b => b.type !== 'Title' && b.type !== 'Author')
+    // A blank document starts with one empty paragraph; drop it when the
+    // title goes above real content.
+    const blank = (b: Block | undefined) => b !== undefined && b.type === 'Paragraph'
+      && !b.children.some(c => (('text' in c ? (c as { text: string }).text : 'x').trim()))
+    if ((T.length || A.length) && blank(others[0]) && others.length > 1) others = others.slice(1)
+    this.host.setChildren([...T, ...A, ...others])
   }
 
   // Replace the body in one undo step, keeping Title / Author.
@@ -542,19 +573,21 @@ export class ToolExecutor {
   // editing -------------------------------------------------------
 
   t_insert_latex(args: Args): ToolResult {
-    const add = ToolExecutor.parse(args.latex ?? '')
+    const [add, maketitle] = ToolExecutor.parse(args.latex ?? '')
     const blocks = this.blocks()
     const at = isSet(args.after) ? pyInt(args.after) + 1 : blocks.length
     if (!(at >= 0 && at <= blocks.length)) throw new ToolError(`\`after\` must be -1..${blocks.length - 1}.`)
     this.setBody([...blocks.slice(0, at), ...add, ...blocks.slice(at)])
+    if (maketitle) this.syncTitleBlocks({ title: false, author: false })
     return { inserted_blocks: add.length, at_index: at, total_blocks: this.blocks().length }
   }
 
   t_replace_blocks(args: Args): ToolResult {
     const blocks = this.blocks()
     const [start, end] = this.range(args, blocks.length)
-    const add = ToolExecutor.parse(args.latex ?? '')
+    const [add, maketitle] = ToolExecutor.parse(args.latex ?? '')
     this.setBody([...blocks.slice(0, start), ...add, ...blocks.slice(end + 1)])
+    if (maketitle) this.syncTitleBlocks({ title: false, author: false })
     return { replaced: end - start + 1, with_blocks: add.length, total_blocks: this.blocks().length }
   }
 
@@ -600,6 +633,9 @@ export class ToolExecutor {
     }
     if (!changed.length) throw new ToolError('No recognised fields to change.')
     this.host.setMeta(meta)
+    if ('title' in args || 'author' in args) {
+      this.syncTitleBlocks({ title: 'title' in args, author: 'author' in args })
+    }
     return { changed }
   }
 
