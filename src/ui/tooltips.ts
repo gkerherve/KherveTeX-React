@@ -14,6 +14,7 @@ export const TIPS: Record<string, Tip> = {
   act_new: { title: 'New document', what: 'Opens a blank document in this window. Choose a document type (article, report, thesis…) from the page-preview button later.', latex: 'Starts a fresh .ktex file with its own version history.' },
   act_open: { title: 'Open', what: 'Opens a KherveTeX document (.ktex / .ktexz), a LaTeX file (.tex) or a Word file (.docx) for editing.', latex: 'Word and LaTeX files are converted into editable paragraphs, headings, equations, figures and tables.' },
   act_save: { title: 'Save', what: 'Saves the document. Every save is also recorded in the version history, so you can go back to any earlier state.', latex: 'Writes the .ktex file and the LaTeX source next to it.' },
+  act_export_docx: { title: 'Export to Word', what: 'Saves the document as a Word file (.docx) that colleagues can open and edit in Microsoft Word.', latex: '' },
   act_export_pdf: { title: 'Export PDF', what: 'Compiles the document and saves the finished PDF where you choose, ready to send or submit.', latex: 'Typeset by LaTeX, exactly as shown in the preview panel.' },
   act_print: { title: 'Print', what: 'Prints the compiled PDF, with a preview of the pages first.', latex: 'Prints the typeset pages, not the editing view.' },
   act_open_project: { title: 'Open project', what: 'Opens a multi-chapter project: a folder of chapter documents compiled together into one book or thesis.', latex: 'Each chapter becomes an \\include{} in one master document.' },

@@ -167,6 +167,14 @@ export function ExportPdf(p: IconProps) {
   </Svg>
 }
 
+// A page with Word's blue "W" tab: export to .docx.
+export function ExportDocx(p: IconProps) {
+  return <Svg {...p}>{Page(4, 2.5, 14, 19)}
+    {R(9, 11, 13, 8, { color: '#2b579a', fill: '#2b579a', r: 1.2, lw: 1 })}
+    {T([9, 11, 13, 8], 'W', { size: 7, bold: true, color: 'white' })}
+  </Svg>
+}
+
 function printerParts() {
   return <g>
     {R(6.5, 3, 11, 6, { fill: PAPER })}
@@ -1322,7 +1330,7 @@ export function PaintTool({ arg = 'pointer', ...p }: IconProps) {
 // exactly as mainwindow.py does.
 export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   file_new: FileNew, file_open: FileOpen, file_save: FileSave,
-  export_pdf: ExportPdf, printer: Printer, print_preview: PrintPreview,
+  export_pdf: ExportPdf, export_docx_icon: ExportDocx, printer: Printer, print_preview: PrintPreview,
   project_open: ProjectOpen, undo: Undo, redo: Redo,
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,

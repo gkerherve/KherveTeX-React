@@ -156,7 +156,7 @@ const cmds: Command[] = [
   { id: 'import_pdf', text: 'Import .&pdf...' },
   { id: 'import_md', text: 'Import .&md...' },
   { id: 'export_tex', text: 'Export .&tex...' },
-  { id: 'export_docx', text: 'Export .&docx...' },
+  { id: 'export_docx', text: 'Export .&docx...', icon: 'export_docx_icon' },
   { id: 'export_latex_zip', text: 'Export &LaTeX package (.zip)...' },
   { id: 'export_pdf', text: 'Export .&pdf...', icon: 'export_pdf' },
   { id: 'print', text: '&Print…', icon: 'printer', shortcut: 'Ctrl+P' },
@@ -463,6 +463,7 @@ const thmKinds = THEOREM_KINDS.map(([k]) => `thm_kind_${k}`)
 
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
+    { label: 'Export', large: ['export_docx', 'export_pdf'] },
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
     { label: 'Font', rows: [
       [{ widget: 'fontsize' }, 'smallcaps', 'code'],
