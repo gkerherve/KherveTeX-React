@@ -74,7 +74,7 @@ function host(): OverleafHost {
 
 // pygit2 over the git command line: the token travels in an HTTP header
 // for that one command, never in .git/config.
-function platformGitIo(): OverleafIo {
+export function platformGitIo(): OverleafIo {
   const p = platform()
   const git = async (cwd: string | null, args: string[], token = ''): Promise<string> => {
     const auth = token ? ['-c', `http.extraHeader=Authorization: Basic ${btoa(`git:${token}`)}`] : []
@@ -112,7 +112,12 @@ function platformGitIo(): OverleafIo {
       try {
         await git(dir, ['rev-parse', '--verify', '--quiet', `origin/${remote}`])
       } catch {
-        remote = await remoteBranch(dir, branch)
+        // No such branch on Overleaf: take the one its HEAD names, as the
+        // fetch just recorded it (no network, so no token needed here).
+        const head = await git(dir, ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD']).catch(() => '')
+        const refs = (await git(dir, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin/'])).split('\n')
+        const any = head || (refs.find(r => r.startsWith('origin/') && r !== 'origin/HEAD') ?? '')
+        remote = any.replace(/^origin\//, '') || branch
       }
       await git(dir, ['checkout', '--force', '--detach', `origin/${remote}`])
       // Overleaf is the truth: a commit it rejected earlier (a push to the
