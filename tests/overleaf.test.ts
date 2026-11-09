@@ -245,3 +245,12 @@ describe('overleaf', () => {
     expect(overleafIo()).toBe(cliIo)
   })
 })
+
+describe('sharing links', () => {
+  it('refuses an Overleaf sharing link', async () => {
+    const { gitUrl } = await import('../src/core/overleaf.ts')
+    expect(() => gitUrl('https://www.overleaf.com/1234567890abcdefgh')).toThrow(/sharing link/)
+    expect(gitUrl('https://www.overleaf.com/project/6af0ef740e2efc1538978a42'))
+      .toBe('https://git.overleaf.com/6af0ef740e2efc1538978a42')
+  })
+})

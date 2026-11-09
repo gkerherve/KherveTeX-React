@@ -103,7 +103,14 @@ function platformGitIo(): OverleafIo {
     checkoutRemoteBranch: async (dir, branch) => { await git(dir, ['checkout', '--force', '--detach', `origin/${branch}`]) },
     clone: async (url, dir, token, branch) => {
       await p.mkdir(dirname(dir))
-      await git(null, ['clone', '--branch', branch, url, dir], token)
+      try {
+        await git(null, ['clone', '--branch', branch, url, dir], token)
+      } catch (e) {
+        // A project whose git branch is not master: take its default one.
+        if (!/remote branch .* not found/i.test(String(e))) throw e
+        await p.remove(dir).catch(() => {})
+        await git(null, ['clone', url, dir], token)
+      }
     },
     stageAll: async (dir) => { await git(dir, ['add', '--all']); return git(dir, ['write-tree']) },
     headTree: async (dir) => {

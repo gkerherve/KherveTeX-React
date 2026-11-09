@@ -45,6 +45,14 @@ export function gitUrl(link: string | null | undefined): string {
   if (!link) throw new OverleafError('Paste the link of your Overleaf project.')
   const m = reSearch(ID_RE, link)
   if (m && (link.includes('overleaf.com') || link === m[1])) return GIT_HOST + m[1]
+  // Share > Copy sharing link (overleaf.com/<token>, /read/<token>) only
+  // invites people; git needs the project's own id.
+  if (link.includes('overleaf.com')) {
+    throw new OverleafError(
+      'That is a sharing link, not the project link. Open the project on ' +
+      'overleaf.com and copy the address from the browser bar ' +
+      '(https://www.overleaf.com/project/…).')
+  }
   if (link.includes('://') || link.startsWith('/')) return link
   throw new OverleafError(
     'That does not look like an Overleaf project link. Open the project ' +
@@ -72,7 +80,9 @@ export function explain(exc: unknown): OverleafError {
   if (reSearch(NOT_FOUND_RE, text)) {
     return new OverleafError(
       'Overleaf could not find that project. Check the link, and that ' +
-      'your account can open the project.')
+      'the token belongs to the project\'s owner or an invited ' +
+      'collaborator (people who only have the sharing link cannot use ' +
+      'git).\n\nGit said: ' + text.trim().split('\n').pop())
   }
   return new OverleafError(`Overleaf: ${text}`)
 }
