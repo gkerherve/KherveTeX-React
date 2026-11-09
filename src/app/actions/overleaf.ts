@@ -108,12 +108,17 @@ function platformGitIo(): OverleafIo {
     remoteUrl: (dir) => git(dir, ['remote', 'get-url', 'origin']),
     fetch: async (dir, token) => { await git(dir, ['fetch', 'origin'], token) },
     checkoutRemoteBranch: async (dir, branch) => {
+      let remote = branch
       try {
-        await git(dir, ['rev-parse', '--verify', '--quiet', `origin/${branch}`])
+        await git(dir, ['rev-parse', '--verify', '--quiet', `origin/${remote}`])
       } catch {
-        branch = await remoteBranch(dir, branch)
+        remote = await remoteBranch(dir, branch)
       }
-      await git(dir, ['checkout', '--force', '--detach', `origin/${branch}`])
+      await git(dir, ['checkout', '--force', '--detach', `origin/${remote}`])
+      // Overleaf is the truth: a commit it rejected earlier (a push to the
+      // wrong branch, a lost connection) must not stay on the local branch,
+      // or the next send fails "current tip is not the first parent".
+      await git(dir, ['update-ref', `refs/heads/${branch}`, `origin/${remote}`])
     },
     clone: async (url, dir, token, branch) => {
       await p.mkdir(dirname(dir))
