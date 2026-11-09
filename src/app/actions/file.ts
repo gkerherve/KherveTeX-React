@@ -401,6 +401,20 @@ async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 
 
 // ---- saving ----
 
+// Where a save or export dialog opens: the document's own folder and name
+// with `ext` ("talk.docx" next to talk.ktex), so it saves where you are.
+export function defaultTarget(ext: string): string {
+  const cur = appStore().get().path
+  return cur ? join(dirname(cur), docStem(cur) + ext) : `document${ext}`
+}
+
+// What Save As writes for a name the user typed with another format's
+// ending: that format, at exactly that path.
+const SAVE_AS_EXPORTS: Record<string, (path: string) => Promise<void>> = {}
+export function registerSaveAsExport(ext: string, run: (path: string) => Promise<void>): void {
+  SAVE_AS_EXPORTS[ext] = run
+}
+
 function hasNativeSuffix(path: string): boolean {
   const name = basename(path).toLowerCase()
   return name.endsWith('.ktex') || name.endsWith('.ktexz') || name.endsWith('.ktex.json')
@@ -419,10 +433,21 @@ export async function save(): Promise<void> {
 
 export async function saveAs(): Promise<void> {
   const picked = await platform().saveFileDialog({
-    title: 'Save document', defaultName: 'document.ktex',
-    filters: [{ name: 'KherveTeX document', extensions: ['ktex'] }, { name: 'JSON KherveTeX', extensions: ['json'] }],
+    title: 'Save document', defaultName: defaultTarget(NATIVE_SUFFIX),
+    // Every format Save As can write: macOS would otherwise add .ktex to
+    // a name typed as talk.docx (talk.docx.ktex).
+    filters: [{ name: 'KherveTeX document', extensions: ['ktex'] }, { name: 'Word', extensions: ['docx'] },
+      { name: 'PDF', extensions: ['pdf'] }, { name: 'LaTeX', extensions: ['tex'] },
+      { name: 'JSON KherveTeX', extensions: ['json'] }],
   })
   if (!picked) return
+  // "talk.docx", "talk.pdf", "talk.tex": that format, where it was asked
+  // for (the document keeps its own file).
+  const asked = SAVE_AS_EXPORTS[suffix(picked).toLowerCase()]
+  if (asked) {
+    await asked(picked)
+    return
+  }
   let path = picked
   // No extension typed: the bundled format, self-contained for documents
   // with images.
@@ -486,20 +511,26 @@ async function writeTo(target: string): Promise<void> {
 async function exportTex(): Promise<void> {
   const doc = appStore().get().doc
   if (compileUi().engine === 'typst') {
-    const path = await platform().saveFileDialog({ title: 'Export Typst', defaultName: 'document.typ',
+    const path = await platform().saveFileDialog({ title: 'Export Typst', defaultName: defaultTarget('.typ'),
       filters: [{ name: 'Typst', extensions: ['typ'] }] })
     if (path) await platform().writeText(path, serializeTypst(doc))
   } else {
-    const path = await platform().saveFileDialog({ title: 'Export LaTeX', defaultName: 'document.tex',
+    const path = await platform().saveFileDialog({ title: 'Export LaTeX', defaultName: defaultTarget('.tex'),
       filters: [{ name: 'LaTeX', extensions: ['tex'] }] })
-    if (path) await platform().writeText(path, serializeDocument(doc))
+    if (path) await writeTexTo(path)
   }
 }
+
+async function writeTexTo(path: string): Promise<void> {
+  await platform().writeText(path, serializeDocument(appStore().get().doc))
+  showMessage(`Exported ${path}`, 4000)
+}
+registerSaveAsExport('.tex', writeTexTo)
 
 async function exportLatexPackage(): Promise<void> {
   const cur = appStore().get().path
   const stem = cur ? docStem(cur) : 'document'
-  const picked = await platform().saveFileDialog({ title: 'Export LaTeX package', defaultName: `${stem}.zip`,
+  const picked = await platform().saveFileDialog({ title: 'Export LaTeX package', defaultName: defaultTarget('.zip'),
     filters: [{ name: 'Zip archive', extensions: ['zip'] }] })
   if (!picked) return
   const path = suffix(picked).toLowerCase() === '.zip' ? picked : withSuffix(picked, '.zip')
@@ -508,10 +539,10 @@ async function exportLatexPackage(): Promise<void> {
   showMessage(`Exported ${path}`, 4000)
 }
 
-async function exportPdf(): Promise<void> {
-  let target: string | null = null
+async function exportPdf(to: string | null = null): Promise<void> {
+  let target: string | null = to
   const result = await fullCompile('export PDF', async () => {
-    target = await platform().saveFileDialog({ title: 'Export PDF', defaultName: 'document.pdf',
+    target ??= await platform().saveFileDialog({ title: 'Export PDF', defaultName: defaultTarget('.pdf'),
       filters: [{ name: 'PDF', extensions: ['pdf'] }] })
     return target !== null
   })
@@ -523,6 +554,8 @@ async function exportPdf(): Promise<void> {
     await critical('Compile failed', result.error || 'Unknown error')
   }
 }
+
+registerSaveAsExport('.pdf', path => exportPdf(path))
 
 async function showInExplorer(): Promise<void> {
   const path = appStore().get().path
@@ -675,7 +708,7 @@ registerActions({
   import_md: () => importAction('Import Markdown', [{ name: 'Markdown', extensions: ['md', 'markdown'] }, { name: 'All files', extensions: [] }], 'md'),
   export_tex: () => exportTex(),
   export_latex_zip: () => exportLatexPackage(),
-  export_pdf: () => exportPdf(),
+  export_pdf: () => exportPdf(null),
   show_in_explorer: () => showInExplorer(),
   welcome: () => showWelcome(),
 })

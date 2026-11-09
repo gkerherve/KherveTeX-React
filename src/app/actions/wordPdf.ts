@@ -12,7 +12,7 @@ import { critical } from '../../platform/MessageBox'
 import { registerActions } from '../actions'
 import { buildDir, docStem, resolvedSourceDir } from '../compile'
 import { appStore } from '../store'
-import { fileAccess, finishImport, offerSaveBefore } from './file'
+import { defaultTarget, fileAccess, finishImport, offerSaveBefore, registerSaveAsExport } from './file'
 
 let statusTimer: ReturnType<typeof setTimeout> | null = null
 function showMessage(msg: string, ms: number): void {
@@ -100,9 +100,13 @@ async function importPdfAction(): Promise<void> {
 }
 
 async function exportDocxAction(): Promise<void> {
-  const path = await platform().saveFileDialog({ title: 'Export Word', defaultName: 'document.docx',
+  const path = await platform().saveFileDialog({ title: 'Export Word', defaultName: defaultTarget('.docx'),
     filters: [{ name: 'Word', extensions: ['docx'] }] })
-  if (!path) return
+  if (path) await writeDocxTo(path)
+}
+registerSaveAsExport('.docx', writeDocxTo)
+
+async function writeDocxTo(path: string): Promise<void> {
   const doc = appStore().get().doc
   appStore().set({ status: 'Exporting…' })
   // Relative figure paths resolve where the document's files are.
