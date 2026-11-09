@@ -5,6 +5,9 @@ export interface Tip {
   title: string
   what: string
   latex: string
+  // Where a thing comes from (a document type's authors): shown in place
+  // of the "In the PDF" line.
+  from?: string
 }
 
 export const TIPS: Record<string, Tip> = {

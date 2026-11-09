@@ -9,6 +9,7 @@ import { useRibbonWidgets } from '../editor/ribbonState'
 import { Icon } from './icons'
 import { isBetaClass } from './pageBeta'
 import { Popup } from './Menu'
+import { classTip } from './classInfo'
 import {
   bigLabel, COMMANDS, CORNER_LABELLED, CORNER_LEFT, CORNER_RIGHT, FONT_SIZES,
   GALLERY_INLINE, PARAGRAPH_STYLES, RIBBON_TABS, shortText, TEMPLATE_CHOICES,
@@ -204,14 +205,7 @@ function ClassGallery({ ctx }: { ctx: Ctx }) {
   const moreTip = useTipProps({ plain: 'All document types' })
   return (
     <div className='rb-gallery' ref={ref}>
-      {shownClasses(cur, extra).map(cls => (
-        <button type='button' key={cls} className={'rb-btn rb-classtile' + (cls === cur ? ' on' : '')}
-          aria-pressed={cls === cur} title={isBetaClass(cls) ? `${cls}: the page view is in beta` : cls}
-          onClick={() => { void runAction('doc_class', cls) }}>
-          <Icon name='class_thumbnail' arg={cls} width={34} height={43} />
-          <span className='rb-classtile-name'>{cls}</span>
-        </button>
-      ))}
+      {shownClasses(cur, extra).map(cls => <ClassTile key={cls} cls={cls} on={cls === cur} />)}
       <button type='button' data-menu-owner {...moreTip}
         className={'rb-btn rb-gallery-more' + (isOpen ? ' on' : '')} aria-label='All document types'
         onClick={e => ctx.openMenu(isOpen ? null : {
@@ -220,6 +214,29 @@ function ClassGallery({ ctx }: { ctx: Ctx }) {
         <Icon name='gallery_more' size={14} />
       </button>
     </div>
+  )
+}
+
+// One document type; hover says what it is for and where it comes from.
+function ClassTile({ cls, on }: { cls: string, on: boolean }) {
+  const tip = useTipProps({ rich: classTip(cls, isBetaClass(cls)) })
+  return (
+    <button type='button' {...tip} className={'rb-btn rb-classtile' + (on ? ' on' : '')}
+      aria-pressed={on} onClick={() => { void runAction('doc_class', cls) }}>
+      <Icon name='class_thumbnail' arg={cls} width={34} height={43} />
+      <span className='rb-classtile-name'>{cls}</span>
+    </button>
+  )
+}
+
+function ClassCell({ cls, on, onPick }: { cls: string, on: boolean, onPick: (cls: string) => void }) {
+  const tip = useTipProps({ rich: classTip(cls, isBetaClass(cls)) })
+  return (
+    <button type='button' {...tip} className={'rb-classcell' + (on ? ' on' : '')} onClick={() => onPick(cls)}>
+      <Icon name='class_thumbnail' arg={cls} width={52} height={66} />
+      <span>{cls}</span>
+      {isBetaClass(cls) && <span className='beta-tag rb-classbeta'>beta</span>}
+    </button>
   )
 }
 
@@ -360,14 +377,7 @@ function ClassGrid({ rect, current, onPick, onClose }: {
   }, [onClose])
   return (
     <div ref={ref} className='qmenu rb-classgrid' style={{ left, top: rect.bottom }}>
-      {TEMPLATE_CHOICES.map(cls => (
-        <button type='button' key={cls} className={'rb-classcell' + (cls === current ? ' on' : '')}
-          onClick={() => onPick(cls)} title={isBetaClass(cls) ? `${cls}: the page view is in beta` : undefined}>
-          <Icon name='class_thumbnail' arg={cls} width={52} height={66} />
-          <span>{cls}</span>
-          {isBetaClass(cls) && <span className='beta-tag rb-classbeta'>beta</span>}
-        </button>
-      ))}
+      {TEMPLATE_CHOICES.map(cls => <ClassCell key={cls} cls={cls} on={cls === current} onPick={onPick} />)}
     </div>
   )
 }

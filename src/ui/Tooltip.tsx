@@ -69,6 +69,7 @@ function RichTip({ rich, shortcut }: { rich: Tip, shortcut?: string }) {
         {shortcut && <span className='qtip-muted'>&nbsp;&nbsp;({shortcut})</span>}</p>
       <p>{rich.what}</p>
       {rich.latex && <p className='qtip-muted'>In the PDF: {rich.latex}</p>}
+      {rich.from && <p className='qtip-muted'>Comes from: {rich.from}</p>}
     </div>
   )
 }
