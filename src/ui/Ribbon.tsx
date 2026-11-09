@@ -337,6 +337,14 @@ function Corner({ ids, ctx, side }: { ids: (string | null)[], ctx: Ctx, side: st
 function ClassGrid({ rect, current, onPick, onClose }: {
   rect: DOMRect, current: string, onPick: (cls: string) => void, onClose: () => void
 }) {
+  // Opened from ▾ at the right of the ribbon, the grid would run off the
+  // window: keep it on screen (right-aligned to the button when needed).
+  const ref = useRef<HTMLDivElement>(null)
+  const [left, setLeft] = useState(rect.left)
+  useLayoutEffect(() => {
+    const w = ref.current?.getBoundingClientRect().width ?? 0
+    setLeft(Math.max(4, Math.min(rect.left, innerWidth - w - 4)))
+  }, [rect.left])
   useEffect(() => {
     const down = (e: MouseEvent) => {
       if ((e.target as Element | null)?.closest('.qmenu, [data-menu-owner]')) return
@@ -351,7 +359,7 @@ function ClassGrid({ rect, current, onPick, onClose }: {
     }
   }, [onClose])
   return (
-    <div className='qmenu rb-classgrid' style={{ left: rect.left, top: rect.bottom }}>
+    <div ref={ref} className='qmenu rb-classgrid' style={{ left, top: rect.bottom }}>
       {TEMPLATE_CHOICES.map(cls => (
         <button type='button' key={cls} className={'rb-classcell' + (cls === current ? ' on' : '')}
           onClick={() => onPick(cls)} title={isBetaClass(cls) ? `${cls}: the page view is in beta` : undefined}>
