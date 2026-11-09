@@ -183,7 +183,14 @@ function coreAuthor(pkg: Package): string {
 // by name heuristics and outline level. Imports Word tables, bullet /
 // numbered lists, hyperlinks, footnotes, subscript/superscript, and
 // paragraph alignment.
+const OLE_SIGNATURE = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
+export const DOC_NOT_SUPPORTED = 'This is an older Word file (.doc), which KherveTeX cannot read. '
+  + 'Open it in Word, choose File > Save As > Word Document (.docx), and import the .docx.'
+
 export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAccess): Promise<Document> {
+  // A Word 97-2003 .doc (an OLE compound file, not a zip) picked as a Word
+  // file: say so, rather than the cloud-placeholder message.
+  if (OLE_SIGNATURE.every((b, i) => bytes[i] === b)) throw new PyError('OSError', DOC_NOT_SUPPORTED)
   let src: Src
   try {
     src = openDocx(bytes)
@@ -695,6 +702,14 @@ async function _imagesInParagraph(para: XElement, src: Src, imageDir: string, st
       blob = ext.toLowerCase() === '.emf' ? _emfBitmapPng(blob) : null
       if (blob === null) continue
       ext = '.png'
+    } else if (['.tif', '.tiff'].includes(ext.toLowerCase())) {
+      // Nor TIFF (XeTeX reads it as EPS and stops); a microscope image is
+      // often one. Decoded to a PNG, which also drops the TIFF's
+      // resolution: one at 1 dpi made a picture metres wide, past TeX's
+      // largest dimension, before width= scaled it.
+      blob = _tiffPng(blob)
+      if (blob === null) continue
+      ext = '.png'
     }
     const outPath = join(imageDir, `image_${zpad(startIdx + paths.length, 3)}${ext}`)
     await fs.write(outPath, blob)
@@ -788,6 +803,155 @@ function adler32(d: Uint8Array): number {
     a %= 65521; b %= 65521
   }
   return ((b << 16) | a) >>> 0
+}
+
+// The first image of a TIFF as a PNG, for the baseline kinds Word documents
+// carry: 8-bit RGB(A), grey, palette or 1-bit, in strips, uncompressed, LZW
+// (with or without the horizontal predictor) or PackBits. null for anything
+// else (tiles, 16-bit, JPEG-in-TIFF...).
+export function _tiffPng(tif: Uint8Array): Uint8Array | null {
+  if (tif.length < 8) return null
+  const le = tif[0] === 0x49 && tif[1] === 0x49
+  if (!le && !(tif[0] === 0x4D && tif[1] === 0x4D)) return null
+  const dv = new DataView(tif.buffer, tif.byteOffset, tif.byteLength)
+  const u16 = (o: number) => dv.getUint16(o, le)
+  const u32 = (o: number) => dv.getUint32(o, le)
+  if (u16(2) !== 42) return null
+  const ifd = u32(4)
+  if (ifd + 2 > tif.length) return null
+  const sizes: Record<number, number> = { 1: 1, 3: 2, 4: 4 }
+  const tags = new Map<number, number[]>()
+  const n = u16(ifd)
+  for (let k = 0; k < n; k++) {
+    const at = ifd + 2 + 12 * k
+    if (at + 12 > tif.length) return null
+    const tag = u16(at), typ = u16(at + 2), count = u32(at + 4)
+    if (!(typ in sizes)) continue
+    const size = sizes[typ] * count
+    const off = size <= 4 ? at + 8 : u32(at + 8)
+    if (off + size > tif.length) return null
+    const vals: number[] = []
+    for (let j = 0; j < count; j++) {
+      vals.push(typ === 1 ? tif[off + j] : typ === 3 ? u16(off + 2 * j) : u32(off + 4 * j))
+    }
+    tags.set(tag, vals)
+  }
+  const one = (tag: number, def: number) => { const v = tags.get(tag); return v && v.length ? v[0] : def }
+  const width = one(256, 0), height = one(257, 0)
+  const bits = tags.get(258) ?? [1]
+  const spp = one(277, 1)
+  const comp = one(259, 1)
+  const photo = one(262, -1)
+  const predictor = one(317, 1)
+  const offsets = tags.get(273), counts = tags.get(279)
+  if (width <= 0 || height <= 0 || !offsets?.length || !counts?.length || offsets.length !== counts.length
+    || one(284, 1) !== 1 || tags.has(322) || ![1, 5, 32773].includes(comp)
+    || ![1, 2].includes(predictor) || bits.some((b) => b !== bits[0])) return null
+  const bps = bits[0]
+  if (!((bps === 8 && ((photo === 2 && spp >= 3) || ([0, 1, 3].includes(photo) && spp >= 1)))
+    || (bps === 1 && [0, 1].includes(photo) && spp === 1))) return null
+  if (predictor === 2 && bps !== 8) return null
+  const rowBytes = Math.floor((width * spp * bps + 7) / 8)
+  const chunks: Uint8Array[] = []
+  let total = 0
+  offsets.forEach((off, k) => {
+    let chunk = tif.subarray(off, Math.min(tif.length, off + counts[k]))
+    if (comp === 5) chunk = _tiffLzw(chunk)
+    else if (comp === 32773) chunk = _packbits(chunk)
+    chunks.push(chunk)
+    total += chunk.length
+  })
+  if (total < rowBytes * height) return null
+  const data = new Uint8Array(total)
+  let o = 0
+  for (const c of chunks) { data.set(c, o); o += c.length }
+  const pal = tags.get(320)
+  if (photo === 3 && (!pal || pal.length < 3 * 256)) return null
+  const raw = new Uint8Array(height * (1 + width * 3))
+  let w = 0
+  const row = new Uint8Array(rowBytes)
+  for (let y = 0; y < height; y++) {
+    row.set(data.subarray(y * rowBytes, (y + 1) * rowBytes))
+    if (predictor === 2) for (let x = spp; x < rowBytes; x++) row[x] = (row[x] + row[x - spp]) & 0xFF
+    raw[w++] = 0
+    for (let x = 0; x < width; x++) {
+      if (bps === 1) {
+        let v = (row[x >> 3] >> (7 - (x & 7))) & 1 ? 255 : 0
+        if (photo === 0) v = 255 - v
+        raw[w++] = v; raw[w++] = v; raw[w++] = v
+      } else if (photo === 2) {
+        raw[w++] = row[x * spp]; raw[w++] = row[x * spp + 1]; raw[w++] = row[x * spp + 2]
+      } else if (photo === 3) {
+        const i = row[x * spp]
+        raw[w++] = pal![i] >> 8; raw[w++] = pal![256 + i] >> 8; raw[w++] = pal![512 + i] >> 8
+      } else {
+        let v = row[x * spp]
+        if (photo === 0) v = 255 - v
+        raw[w++] = v; raw[w++] = v; raw[w++] = v
+      }
+    }
+  }
+  return _pngRgb(width, height, raw)
+}
+
+// TIFF LZW: MSB-first 9-12 bit codes, 256 = clear, 257 = end, the code
+// width growing one code early.
+export function _tiffLzw(data: Uint8Array): Uint8Array {
+  const out: number[] = []
+  let table: Uint8Array[] = []
+  const reset = () => {
+    table = []
+    for (let i = 0; i < 256; i++) table.push(new Uint8Array([i]))
+    table.push(new Uint8Array(0), new Uint8Array(0))
+  }
+  reset()
+  let width = 9
+  let pos = 0
+  const totalBits = data.length * 8
+  let prev: Uint8Array | null = null
+  const join = (a: Uint8Array, b: number) => { const r = new Uint8Array(a.length + 1); r.set(a); r[a.length] = b; return r }
+  while (pos + width <= totalBits) {
+    const byte = pos >> 3
+    const chunk = ((data[byte] ?? 0) << 16) | ((data[byte + 1] ?? 0) << 8) | (data[byte + 2] ?? 0)
+    const code = (chunk >> (24 - (pos & 7) - width)) & ((1 << width) - 1)
+    pos += width
+    if (code === 256) { reset(); width = 9; prev = null; continue }
+    if (code === 257) break
+    let entry: Uint8Array
+    if (prev === null) {
+      if (code >= 256) break
+      entry = table[code]
+    } else if (code < table.length) {
+      entry = table[code]
+      table.push(join(prev, entry[0]))
+    } else if (code === table.length) {
+      entry = join(prev, prev[0])
+      table.push(entry)
+    } else {
+      break
+    }
+    for (let j = 0; j < entry.length; j++) out.push(entry[j])
+    prev = entry
+    if (table.length >= (1 << width) - 1 && width < 12) width++
+  }
+  return new Uint8Array(out)
+}
+
+// TIFF PackBits run-length decoding.
+export function _packbits(data: Uint8Array): Uint8Array {
+  const out: number[] = []
+  let i = 0
+  while (i < data.length) {
+    const n = data[i++]
+    if (n < 128) {
+      for (let j = 0; j < n + 1 && i + j < data.length; j++) out.push(data[i + j])
+      i += n + 1
+    } else if (n > 128) {
+      if (i < data.length) for (let j = 0; j < 257 - n; j++) out.push(data[i])
+      i += 1
+    }
+  }
+  return new Uint8Array(out)
 }
 
 // A PNG of filtered RGB rows, its zlib stream in stored (uncompressed)

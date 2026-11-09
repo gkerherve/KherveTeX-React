@@ -30,6 +30,7 @@ import base64
 import io
 import json
 import os
+import re
 import struct
 import sys
 import tempfile
@@ -660,6 +661,77 @@ def fx_missing_part():
     return rezip(saved(d), delete={"word/fontTable.xml"})
 
 
+def docx_with_media(media):
+    """A docx with one picture per (extension, bytes) in `media`, each
+    stored under its own extension (placeholders replaced after saving)."""
+    import zipfile
+    d = docx.Document()
+    tmp = Path(tempfile.mkdtemp())
+    for k in range(len(media)):
+        (tmp / f"p{k}.png").write_bytes(png_bytes(2, 2, color=(5 * k, 40, 60)))
+        d.add_paragraph().add_run().add_picture(str(tmp / f"p{k}.png"))
+    d.add_paragraph("After")
+    data = saved(d)
+    zin = zipfile.ZipFile(io.BytesIO(data))
+    names = sorted((n for n in zin.namelist() if n.startswith("word/media/")),
+                   key=lambda n: int(re.sub(r"\D", "", n.split("/")[-1]) or 0))
+    out = io.BytesIO()
+    exts = sorted({e for e, _ in media})
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            body = zin.read(item.filename)
+            if item.filename.startswith("word/media/"):
+                continue
+            if item.filename == "word/_rels/document.xml.rels":
+                txt = body.decode()
+                for k, n in enumerate(names):
+                    txt = txt.replace(f'Target="media/{n.split("/")[-1]}"',
+                                      f'Target="media/m{k}.{media[k][0]}"')
+                body = txt.encode()
+            if item.filename == "[Content_Types].xml":
+                body = body.replace(b"</Types>", b"".join(
+                    f'<Default Extension="{e}" ContentType="image/{e}"/>'.encode() for e in exts) + b"</Types>")
+            zout.writestr(item, body)
+        for k, (ext, blob) in enumerate(media):
+            zout.writestr(f"word/media/m{k}.{ext}", blob)
+    return out.getvalue()
+
+
+def fx_tiff_images():
+    import random
+    rnd = random.Random(7)
+    small = Image.new("RGB", (9, 5))
+    small.putdata([(rnd.randrange(256), rnd.randrange(256), rnd.randrange(256)) for _ in range(45)])
+    grad = Image.new("RGB", (40, 30))
+    grad.putdata([(x * 6 % 256, y * 8 % 256, (x + y) * 3 % 256) for y in range(30) for x in range(40)])
+
+    def tif(img, mode, **kw):
+        b = io.BytesIO()
+        img.convert(mode).save(b, "TIFF", **kw)
+        return b.getvalue()
+
+    big_endian = bytearray(tif(small, "RGB"))
+    media = [
+        ("tif", tif(small, "RGB")),
+        ("tiff", tif(grad, "RGB", compression="tiff_lzw")),
+        ("tif", tif(small, "RGB", compression="packbits")),
+        ("tif", tif(grad, "L", compression="tiff_lzw")),
+        ("tif", tif(grad, "P", compression="tiff_lzw")),
+        ("tif", tif(grad, "1")),
+        ("tif", tif(grad, "RGBA", compression="tiff_lzw")),
+        ("tif", tif(grad, "RGB", dpi=(1, 1))),
+        ("tif", tif(grad, "I;16")),                          # 16-bit: left out
+        ("tif", tif(grad, "RGB", compression="jpeg")),       # JPEG-in-TIFF: left out
+        ("tif", b"MM\x00\x2a" + b"\x00" * 20),               # broken: left out
+        ("tif", bytes(big_endian[:40])),                      # truncated: left out
+    ]
+    return docx_with_media(media)
+
+
+def fx_old_doc():
+    return b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 504
+
+
 def fx_not_a_zip():
     return b"PK\x03\x04 definitely not a docx"
 
@@ -688,6 +760,8 @@ IMPORT_FIXTURES = {
     "wrong_main_content_type": fx_wrong_main_content_type,
     "missing_part": fx_missing_part,
     "not_a_zip": fx_not_a_zip,
+    "old_doc": fx_old_doc,
+    "tiff_images": fx_tiff_images,
 }
 
 
