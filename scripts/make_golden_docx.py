@@ -240,7 +240,8 @@ def fx_custom_styles():
     names = ["ThesisTitle", "1.1 Heading3", "Heading2", "heading 12", "MySubtitle",
              "Author Name", "Abstract Text", "Figure Caption", "Bullet List",
              "  Title  ", "HEADING 4", "Sub Title", "Sub-Title", "My Body Text",
-             "Kapitel Überschrift", "Heading ٣", "chapter"]
+             "Kapitel Überschrift", "Heading ٣", "chapter",
+             "RSC F02 Footnotes to Title/Authors", "Endnote Abstract", "Foot Note Heading 1"]
     for n in names:
         s = st.add_style(n, WD_STYLE_TYPE.PARAGRAPH)
         d.add_paragraph(f"text in {n.strip()}", style=s)

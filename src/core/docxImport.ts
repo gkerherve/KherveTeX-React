@@ -47,6 +47,7 @@ const _HEADING_RE = pyRe('heading\\s*(\\d)', 'i')
 const _TITLE_RE = pyRe('title', 'i')
 const _SUBTITLE_RE = pyRe('sub\\s*title', 'i')
 const _AUTHOR_RE = pyRe('author', 'i')
+const _NOTE_RE = pyRe('foot\\s*note|end\\s*note', 'i')
 const _ABSTRACT_RE = pyRe('abstract', 'i')
 const _CAPTION_RE = pyRe('caption', 'i')
 
@@ -96,7 +97,10 @@ export function _classifyStyle(styleName: string | null, _styleObj?: unknown): [
   //    python-docx 1.2 does not have: the AttributeError is swallowed, so
   //    this step never decides anything.
 
-  // 3. Regex-based heuristics for custom style names.
+  // 3. Regex-based heuristics for custom style names. A journal template's
+  // note styles ("RSC F02 Footnotes to Title/Authors") name the title and
+  // authors they annotate: they are plain text, not them.
+  if (reSearch(_NOTE_RE, name)) return ['paragraph', 0]
   const m = reSearch(_HEADING_RE, name)
   if (m) {
     const lvl = Math.min(digitValue(m[1]), 5)
