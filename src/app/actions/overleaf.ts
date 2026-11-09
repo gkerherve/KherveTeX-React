@@ -7,6 +7,7 @@
 // through the platform, so Overleaf works wherever git is installed.
 import { exportLatexZip } from '../../core/kdocz'
 import type { FileAccess } from '../../core/kdocz'
+import { gitUrl } from '../../core/overleaf'
 import * as overleaf from '../../core/overleaf'
 import { overleafHost, overleafIo, setOverleafHost, setOverleafIo } from '../../core/overleafIo'
 import type { OverleafHost, OverleafIo } from '../../core/overleafIo'
@@ -217,6 +218,44 @@ function sourceDir(): string {
   return path ? dirname(path) : host().cwd()
 }
 
+// What each git step is doing, in words, shown in the status bar with a
+// seconds count so a slow connection still shows the app is at work.
+const STEP_TEXT: Partial<Record<keyof OverleafIo, string>> = {
+  clone: 'Downloading the project from Overleaf',
+  fetch: 'Connecting to Overleaf and checking for changes',
+  checkoutRemoteBranch: 'Updating the local copy to Overleaf\'s version',
+  stageAll: 'Preparing your files',
+  commit: 'Saving this version',
+  push: 'Uploading to Overleaf',
+}
+
+// "project 6af0ef74…": which Overleaf project, in the status bar.
+function projectLabel(link: string): string {
+  const id = /project\/([0-9a-f]+)/i.exec(link)?.[1] ?? gitUrl(link).split('/').pop() ?? ''
+  return id ? `project ${id.slice(0, 8)}…` : 'project'
+}
+
+function reporting(gitIo: OverleafIo, title: string): [OverleafIo, () => void] {
+  let step = title, started = Date.now()
+  const show = () => {
+    const secs = Math.round((Date.now() - started) / 1000)
+    appStore().set({ status: `${title}: ${step}…${secs >= 2 ? ` (${secs} s)` : ''}` })
+  }
+  const timer = setInterval(show, 1000)
+  const wrapped = { ...gitIo } as OverleafIo
+  for (const [k, text] of Object.entries(STEP_TEXT) as [keyof OverleafIo, string][]) {
+    const fn = gitIo[k] as unknown as (...a: unknown[]) => Promise<unknown>
+    ;(wrapped as unknown as Record<string, unknown>)[k] = (...a: unknown[]) => {
+      step = text
+      started = Date.now()
+      show()
+      return fn.apply(gitIo, a)
+    }
+  }
+  show()
+  return [wrapped, () => clearInterval(timer)]
+}
+
 async function overleafSend(): Promise<void> {
   const ask = await askOverleafLink('Send to')
   if (ask === null) return
@@ -224,19 +263,20 @@ async function overleafSend(): Promise<void> {
   const h = host()
   const doc = appStore().get().doc
   const bib = h.kherverefBib ? await h.kherverefBib(doc) : ''
-  appStore().set({ status: 'Sending to Overleaf…' })
+  const [gitIo, stop] = reporting(io(), `Send to Overleaf ${projectLabel(link)}`)
   let msg: string
   try {
-    const gitIo = io()
     msg = await overleaf.send(doc, sourceDir(), link, token, await overleafCache(link),
       bib ? { 'kherveref.bib': bib } : null, undefined, gitIo, gitIo.fs)
   } catch (exc) {
+    stop()
     if (!(exc instanceof overleaf.OverleafError)) throw exc
     appStore().set({ status: '' })
     await warning('Send to Overleaf', exc.message)
     return
   }
-  appStore().set({ status: msg })
+  stop()
+  appStore().set({ status: `${msg} — ${link}` })
 }
 
 // Collaborators' version opens in a new window: nothing here is
@@ -246,16 +286,18 @@ async function overleafGet(): Promise<void> {
   if (ask === null) return
   const [link, token] = ask
   const h = host()
-  appStore().set({ status: 'Getting from Overleaf…' })
+  const [gitIo, stop] = reporting(io(), `Get from Overleaf ${projectLabel(link)}`)
   let doc, folder
   try {
-    [doc, folder] = await overleaf.receive(link, token, await overleafCache(link), io())
+    [doc, folder] = await overleaf.receive(link, token, await overleafCache(link), gitIo)
   } catch (exc) {
+    stop()
     if (!(exc instanceof overleaf.OverleafError)) throw exc
     appStore().set({ status: '' })
     await warning('Get from Overleaf', exc.message)
     return
   }
+  stop()
   const untitledKey = overleaf.linkKey(null, null)
   h.setSettingValue(untitledKey, link)
   if (h.openInNewWindow) {
