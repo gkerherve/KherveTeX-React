@@ -115,6 +115,8 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
   }
 
   entries.push(
+    { text: 'Insert reference…', run: () => { void runAction('insert_reference') } },
+    { text: 'Cross-reference…', run: () => { void runAction('crossref') } }, '-',
     { text: 'Undo', run: () => { void runAction('undo') } },
     { text: 'Redo', run: () => { void runAction('redo') } }, '-',
     { text: 'Cut', run: () => { void runAction('cut') }, disabled: state.selection.empty },

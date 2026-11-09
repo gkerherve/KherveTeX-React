@@ -16,7 +16,7 @@ import { platform } from '../../platform'
 import { readKherverefSettings, type SettingsValues } from '../../platform/kherverefSettings'
 import { information, warning } from '../../platform/MessageBox'
 import { askCitation } from '../../ui/dialogs/CitationPicker'
-import { askBibliography } from '../../ui/dialogs/BibliographyDialog'
+import { askBibliography, askInsertReference } from '../../ui/dialogs/BibliographyDialog'
 import { parseTheBibliography, writeTheBibliography } from '../../core/bibliography'
 import { registerActions } from '../actions'
 import { setBibStager } from '../compile'
@@ -162,8 +162,28 @@ async function editBibliography(): Promise<void> {
   api.setBibliography(found ? found.pos : null, text)
 }
 
+// References ▸ Insert reference: cite the document's own \bibitem
+// entries, adding a new one to the reference list (made at the end of the
+// document when there is none) first if asked.
+async function insertReference(): Promise<void> {
+  const api = editorApi()
+  if (!api) return
+  const found = api.bibliography()
+  const parsed = (found ? parseTheBibliography(found.text) : null) ?? { widest: '99', before: '', items: [] }
+  const r = await askInsertReference(parsed.items)
+  if (!r) return
+  if (r.library) { await insertCitation(); return }
+  // Cite first: setBibliography may append at the end and move the caret.
+  api.insertInline(citation(r.keys, 'cite'))
+  if (r.items.length !== parsed.items.length) {
+    const again = api.bibliography()
+    api.setBibliography(again ? again.pos : null, writeTheBibliography({ ...parsed, items: r.items }))
+  }
+}
+
 registerActions({
   citation: insertCitation,
+  insert_reference: insertReference,
   bibliography: editBibliography,
   check_citations: checkCitations,
 })

@@ -131,3 +131,90 @@ function BibliographyDialog({ initial, close }: { initial: TheBibliography; clos
 export function askBibliography(initial: TheBibliography): Promise<TheBibliography | null> {
   return openDialog<TheBibliography>(close => <BibliographyDialog initial={initial} close={close} />)
 }
+
+// References ▸ Insert reference (and the page's right-click): cite entries
+// of the document's own reference list, or add a new one there and cite it.
+export interface ReferenceChoice {
+  keys: string[]
+  // The reference list after any additions.
+  items: BibItem[]
+  // Open the KherveRef library picker instead.
+  library?: boolean
+}
+
+function InsertReferenceDialog({ initial, close }: { initial: BibItem[]; close: Close<ReferenceChoice> }) {
+  const [items, setItems] = useState<BibItem[]>(initial)
+  const [picked, setPicked] = useState<string[]>([])
+  const [adding, setAdding] = useState(initial.length === 0)
+  const [form, setForm] = useState<RefFields>(EMPTY)
+  const keys = items.map(i => i.key)
+  const preview = formatReference(form)
+  const toggle = (k: string) => setPicked(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k]))
+  const addFromForm = () => {
+    if (!preview) return
+    const key = suggestKey(form, keys)
+    setItems([...items, { key, label: '', text: preview }])
+    setPicked(p => [...p, key])
+    setForm(EMPTY)
+    setAdding(false)
+  }
+  return (
+    <form className="dlg dlg-bib" role="dialog" aria-label="Insert reference"
+      onSubmit={e => { e.preventDefault(); if (picked.length) close({ keys: picked, items }) }}>
+      <div className="dlg-title">Insert reference</div>
+      <div className="dlg-body dlg-bib-body">
+        <div className="dlg-bib-list" role="listbox" aria-label="References" aria-multiselectable>
+          {items.length === 0 && <div className="dlg-muted">The document has no references yet — add one.</div>}
+          {items.map((it, i) => (
+            <div key={it.key + i} role="option" aria-selected={picked.includes(it.key)}
+              className={'dlg-bib-row' + (picked.includes(it.key) ? ' on' : '')}
+              onClick={() => toggle(it.key)}
+              onDoubleClick={() => close({ keys: picked.includes(it.key) ? picked : [...picked, it.key], items })}>
+              <span className="dlg-bib-num">{picked.includes(it.key) ? '✓' : (it.label || `[${i + 1}]`)}</span>
+              <span className="dlg-bib-key">{it.key}</span>
+              <span className="dlg-bib-text">{it.text}</span>
+            </div>
+          ))}
+        </div>
+        <div className="dlg-bib-side">
+          <div className="dlg-bib-tools">
+            <button type="button" onClick={() => setAdding(true)}>New reference…</button>
+            <button type="button" onClick={() => close({ keys: [], items: initial, library: true })}>
+              From a KherveRef library…</button>
+          </div>
+          {adding ? (
+            <div className="dlg-bib-edit">
+              <div className="dlg-form">
+                {FIELDS.map(([k, label, hint]) => (
+                  <label key={k} style={{ display: 'contents' }}>
+                    <span>{label}:</span>
+                    <input value={form[k]} placeholder={hint} autoFocus={k === 'authors'}
+                      onChange={e => setForm({ ...form, [k]: e.target.value })} />
+                  </label>
+                ))}
+              </div>
+              <div className="dlg-muted">\bibitem{'{'}{suggestKey(form, keys)}{'}'} {preview || '…'}</div>
+              <div className="dlg-bib-tools">
+                <button type="button" disabled={!preview} onClick={addFromForm}>Add and select</button>
+                <button type="button" onClick={() => setAdding(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="dlg-muted">
+              Click the references to cite (several make one \cite{'{'}a,b{'}'}), then Insert.
+              A new reference is added to the document's reference list.
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="dlg-buttons">
+        <button type="submit" disabled={!picked.length}>Insert</button>
+        <button type="button" onClick={() => close(null)}>Cancel</button>
+      </div>
+    </form>
+  )
+}
+
+export function askInsertReference(items: BibItem[]): Promise<ReferenceChoice | null> {
+  return openDialog<ReferenceChoice>(close => <InsertReferenceDialog initial={items} close={close} />)
+}
