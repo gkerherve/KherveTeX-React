@@ -221,12 +221,24 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   let stylesEl: XElement | null | undefined
   const styles = () => (stylesEl === undefined ? (stylesEl = src.stylesEl()) : stylesEl)
 
-  for (const childElem of iterChildren(body)) {
+  const walk = async (elems: Iterable<XElement>): Promise<void> => {
+  for (const childElem of elems) {
     const tag = localName(childElem)
 
     // --- Table ---
     if (tag === 'tbl') {
       flushList()
+      // A table holding pictures is page layout (instructions beside
+      // screenshots, as manuals are written): LaTeX table cells hold text
+      // only, so its rows are unpacked in reading order — each cell's
+      // paragraphs, pictures and tables.
+      if (is(childElem, NS.w, 'tbl') && descendants(childElem, NS.a, 'blip').length) {
+        for (const tr of findall(childElem, NS.w, 'tr')) {
+          for (const tc of findall(tr, NS.w, 'tc')) await walk(iterChildren(tc))
+        }
+        flushList()
+        continue
+      }
       if (is(childElem, NS.w, 'tbl')) {
         const tblNode = _importTable(childElem)
         if (tblNode !== null) children.push(tblNode)
@@ -241,7 +253,8 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     const styleId = pStyleId(para)
     const style = paragraphStyle(styles(), styleId)
     const styleName = style ? (style.name || '') : ''
-    const [kind, level] = _classifyStyle(styleName, style)
+    const [kind, styleLevel] = _classifyStyle(styleName, style)
+    let level = styleLevel
 
     const textRuns = _runsToInlines(para, src)
 
@@ -257,9 +270,14 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
       if (!textRuns.some((r) => r.type === 'Text' && strip(r.text))) continue
     }
 
+    // A numbered heading ("1.2 Mounting") is a heading, not a list item:
+    // LaTeX numbers sections itself. Its numbering level is its depth
+    // when that is deeper than the style's.
+    if (kind === 'heading') level = Math.min(Math.max(level, _paraListLevel(para) + 1), 5)
+
     // Detect list paragraphs via numId in the XML (catches styled lists
     // like "List Paragraph" and also paragraphs with ad-hoc numbering).
-    const isList = kind === 'list' || _paraIsList(para)
+    const isList = kind === 'list' || (kind !== 'heading' && kind !== 'title' && _paraIsList(para))
     if (isList) {
       const ordered = _paraIsOrdered(para, src)
       if (pendingListItems.length && ordered !== pendingListOrdered) flushList()
@@ -292,6 +310,8 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
       children.push(paragraph(textRuns, alignment))
     }
   }
+  }
+  await walk(iterChildren(body))
 
   flushList()
 
@@ -385,6 +405,16 @@ function _paraIsList(para: XElement): boolean {
   if (numPr === undefined) return false
   const numId = find(numPr, NS.w, 'numId')
   return numId !== null && (get(numId, NS.w, 'val') ?? '0') !== '0'
+}
+
+// The paragraph's own numbering level (w:numPr/w:ilvl), or -1.
+function _paraListLevel(para: XElement): number {
+  const numPr = descendants(para, NS.w, 'numPr')[0]
+  if (numPr === undefined) return -1
+  const ilvl = find(numPr, NS.w, 'ilvl')
+  if (ilvl === null) return 0
+  const v = (get(ilvl, NS.w, 'val') ?? '').trim()
+  return /^[+-]?\d+$/.test(v) ? parseInt(v, 10) : 0
 }
 
 // Best-effort check whether the list paragraph is numbered vs. bulleted.

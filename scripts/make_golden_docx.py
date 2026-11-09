@@ -447,6 +447,34 @@ def fx_images():
     return saved(d)
 
 
+def fx_numbered_headings():
+    # Headings numbered by a Word list (manuals: "1.2 Mounting"), and a
+    # table laying out instructions beside a screenshot.
+    d = docx.Document()
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "plot.png").write_bytes(FILES["figs/plot.png"])
+    for text, lvl in (("Intro", 0), ("Holder", 1), ("Clips", 2), ("No level", None), ("Deep", 7)):
+        lv = f'<w:ilvl w:val="{lvl}"/>' if lvl is not None else ""
+        body_append(d, W(f'<w:pPr><w:pStyle w:val="Heading1"/><w:numPr>{lv}<w:numId w:val="1"/></w:numPr>'
+                         f'</w:pPr><w:r><w:t>{text}</w:t></w:r>'))
+    body_append(d, W('<w:pPr><w:pStyle w:val="Heading2"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/>'
+                     '</w:numPr></w:pPr><w:r><w:t>Style deeper</w:t></w:r>'))
+    body_append(d, W('<w:pPr><w:pStyle w:val="Title"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/>'
+                     '</w:numPr></w:pPr><w:r><w:t>Numbered title</w:t></w:r>'))
+    t = d.add_table(rows=2, cols=2)
+    t.cell(0, 0).text = "Open the software"
+    t.cell(0, 0).add_paragraph("Click Start", style="List Number")
+    t.cell(0, 1).paragraphs[0].add_run().add_picture(str(tmp / "plot.png"))
+    t.cell(1, 0).text = "Then wait"
+    inner = t.cell(1, 1).add_table(rows=1, cols=1)
+    inner.cell(0, 0).text = "nested"
+    d.add_paragraph("After")
+    plain = d.add_table(rows=1, cols=2)
+    plain.cell(0, 0).text = "a"
+    plain.cell(0, 1).text = "b"
+    return saved(d)
+
+
 def omath(inner: str) -> str:
     return f"<m:oMath>{inner}</m:oMath>"
 
@@ -578,6 +606,7 @@ IMPORT_FIXTURES = {
     "tables": fx_tables,
     "table_bad_vmerge": fx_table_bad_vmerge,
     "images": fx_images,
+    "numbered_headings": fx_numbered_headings,
     "equations": fx_equations,
     "plain": fx_plain,
     "no_styles_part": fx_no_styles_part,
