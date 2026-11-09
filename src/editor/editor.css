@@ -90,6 +90,8 @@
   pointer-events: none;
   user-select: none;
 }
+/* The date takes a right-click (remove it, change its format). */
+.kt-label.kt-date { pointer-events: auto; cursor: default; }
 
 .kt-list { padding-left: 40px; }  /* QTextListFormat's indent: 40 px a level */
 .kt-list li { margin: 0; }

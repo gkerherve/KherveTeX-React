@@ -2,6 +2,7 @@
 // pure functions, one serializer per node type, no I/O. The output must stay
 // byte-identical to the Python app's (tests/serializer.parity.test.ts).
 
+import { dateCommand } from './dateFormat.ts'
 import {
   HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
 } from './model.ts'
@@ -887,7 +888,7 @@ export function serializeDocument(doc: Document): string {
     const extras = strip(m.frontmatter_extras || '')
     const extrasHasAuthor = /\\author\b/.test(extras)
     if (authorText && !extrasHasAuthor) frontParts.push(`\\author{${authorText}}`)
-    if (m.show_date === false && !/\\date\b/.test(extras)) frontParts.push('\\date{}')
+    if (dateCommand(m) && !/\\date\b/.test(extras)) frontParts.push(dateCommand(m))
     for (const part of affiliationParts) frontParts.push(`\\address{${part}}`)
     if (correspondenceParts.length && authorParts.length) {
       frontParts.push(`\\cortext[cor1]{${correspondenceParts.join(' ')}}`)
@@ -939,7 +940,7 @@ export function serializeDocument(doc: Document): string {
   if (hasMetadata) {
     if (!/\\title\b/.test(allExtras)) preambleMeta += `\\title{${titleText || '~'}}\n`
     if (authorText && !/\\author\b/.test(allExtras)) preambleMeta += `\\author{${authorText}}\n`
-    if (m.show_date === false && !/\\date\b/.test(allExtras)) preambleMeta += '\\date{}\n'
+    if (dateCommand(m) && !/\\date\b/.test(allExtras)) preambleMeta += dateCommand(m) + '\n'
   }
 
   const parts: string[] = []

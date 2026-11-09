@@ -55,6 +55,15 @@ const actions: Record<string, Handler> = {
     else editDoc({ ...appStore().get().doc, meta: next })
     setCommandChecked('show_date', on)
   },
+  // Right-click the date > a format ('' = the class's own).
+  date_format: (fmt) => {
+    const { date_format: _, ...rest } = meta()
+    void _
+    const next: DocMeta = fmt ? { ...rest, date_format: String(fmt) } : rest
+    const e = editor()
+    if (e) e.setMeta(next)
+    else editDoc({ ...appStore().get().doc, meta: next })
+  },
   cols_1: () => { if (meta().column_count !== 1) setMeta({ column_count: 1 }) },
   cols_2: () => { if (meta().column_count !== 2) setMeta({ column_count: 2 }) },
   cols_3: () => { if (meta().column_count !== 3) setMeta({ column_count: 3 }) },

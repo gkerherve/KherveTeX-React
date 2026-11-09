@@ -4,6 +4,7 @@
 // its helpers (editor.py), computed from the ProseMirror document instead
 // of QTextBlock formats. Pixel values are at 100 % zoom; App scales the
 // whole page.
+import { formatDate } from '../core/dateFormat.ts'
 import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import { classSupportsChapter, THEOREM_KINDS, type DocMeta } from '../core/model.ts'
@@ -121,6 +122,8 @@ export interface PaintedLabel {
   // Baseline above the block's first baseline, px (negative: below).
   up: number
   centred: boolean
+  // The \\maketitle date (right-click: remove it or change its format).
+  date?: boolean
   // Run-in labels: x from the line start.
   left?: number
 }
@@ -250,9 +253,6 @@ export function textWidth(text: string, c: { family: string; sizePx: number; bol
 }
 
 const TODAY = () => new Date()
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-  'September', 'October', 'November', 'December']
-
 // `pdfBreaks`: the blocks the compiled PDF starts a page with; with
 // `pdfPaged` those are the title-page breaks too, in place of the ones the
 // class look predicts (a short abstract shares its page with the keywords).
@@ -502,9 +502,8 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     if (i === dateLine && look.date) {
       const d = look.date
       const now = TODAY()
-      const t = d.day_first ? `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`
-        : `${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`
-      labels.push(labelEntry(d as unknown as LabelSpec, t, -d.gap * pt, d.centred ?? true))
+      const t = formatDate(meta.date_format ?? '', now, !!d.day_first)
+      labels.push({ ...labelEntry(d as unknown as LabelSpec, t, -d.gap * pt, d.centred ?? true), date: true })
       // Across the columns the date must sit inside the title block: the
       // gap before the first body block would push down only its column.
       if (L.spans) L.padBottom = d.gap * pt

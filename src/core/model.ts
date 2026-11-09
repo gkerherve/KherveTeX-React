@@ -205,6 +205,8 @@ export interface DocMeta {
   // \\maketitle prints the date (\\today); off writes \\date{}.
   // Stored only when off, so files stay the Python app's byte for byte.
   show_date?: boolean
+  // dateFormat.ts key; absent = the class's \\today.
+  date_format?: string
 }
 
 // Python stores these as floats: JSON and f-strings print "2.0", not "2".
@@ -234,6 +236,7 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   ref_library: o.ref_library ?? '',
   bib_style: o.bib_style ?? 'plainnat',
   ...(o.show_date === false ? { show_date: false } : {}),
+  ...(o.date_format ? { date_format: o.date_format } : {}),
 })
 
 export interface Document { children: Block[]; meta: DocMeta; type: 'Document' }
@@ -348,6 +351,7 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     frontmatter_extras: pyStr(get(m, 'frontmatter_extras', '')),
     preamble_extras: pyStr(get(m, 'preamble_extras', '')),
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
+    ...(get(m, 'date_format', '') ? { date_format: pyStr(get(m, 'date_format', '')) } : {}),
     ...(withRefs ? {
       ref_library: pyStr(get(m, 'ref_library', '')),
       bib_style: pyStr(get(m, 'bib_style', 'plainnat')),

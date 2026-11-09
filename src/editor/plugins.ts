@@ -57,7 +57,7 @@ function labelWidget(L: BlockLayout, firstBaseline: number): HTMLElement | null 
   const put = (item: PaintedLabel, x: number | null, baseline: number) => {
     const lh = item.sizePx * 1.2
     const el = document.createElement('span')
-    el.className = 'kt-label'
+    el.className = item.date ? 'kt-label kt-date' : 'kt-label'
     el.style.cssText = charCss({ ...item, upper: false }) + `line-height:${lh}px;`
       + `top:${baseline - BASELINE_AT * lh}px;` + (item.centred ? 'left:0;right:0;text-align:center;'
       : `left:${x ?? 0}px;`)

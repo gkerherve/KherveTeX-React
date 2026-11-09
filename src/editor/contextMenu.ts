@@ -3,6 +3,7 @@
 // table's row and column tools, then the standard edit actions.
 import { TextSelection } from 'prosemirror-state'
 import { runAction } from '../app/actions.ts'
+import { DATE_FORMATS } from '../core/dateFormat.ts'
 import { spellHighlighter } from '../spell/shared.ts'
 import * as C from './commands.ts'
 import type { EditorController } from './controller.ts'
@@ -68,6 +69,17 @@ function show(entries: Entry[], x: number, y: number): void {
 }
 
 export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
+  // The date under the title: remove it, or pick its format.
+  if ((e.target as Element | null)?.closest?.('.kt-date')) {
+    const cur = ed.meta.date_format ?? ''
+    show([
+      { text: 'Remove date', run: () => { void runAction('show_date') } }, '-',
+      { text: 'Class default', checked: cur === '', run: () => { void runAction('date_format', '') } },
+      ...DATE_FORMATS.map(([k, example]): Item => ({ text: example, checked: cur === k,
+        run: () => { void runAction('date_format', k) } })),
+    ], e.clientX, e.clientY)
+    return true
+  }
   const view = ed.view
   const at = view.posAtCoords({ left: e.clientX, top: e.clientY })
   // A right-click outside the selection moves the caret there first.
