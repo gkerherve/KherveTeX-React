@@ -568,6 +568,38 @@ EQUATIONS = [
     f"<m:limLow><m:e>{mr('lim')}</m:e><m:lim>{mr('n→∞')}</m:lim></m:limLow>",
     f"<m:bar><m:e>{mr('z')}</m:e></m:bar>",
     f"<m:eqArr><m:e>{mr('a=1')}</m:e><m:e>{mr('b=2')}</m:e></m:eqArr>",
+    # what papers carry: reactions, defects, plain-styled chemistry
+    '<m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>SrO</m:t></m:r><m:box><m:boxPr><m:opEmu m:val="1"/></m:boxPr><m:e>'
+    f'<m:groupChr><m:groupChrPr><m:chr m:val="→"/><m:vertJc m:val="bot"/></m:groupChrPr><m:e>{mr("La")}</m:e></m:groupChr>'
+    f'</m:e></m:box><m:sSubSup><m:e>{mr("V")}</m:e><m:sub>{mr("O")}</m:sub><m:sup>{mr("∙∙")}</m:sup></m:sSubSup>',
+    f'<m:groupChr><m:groupChrPr><m:chr m:val="←"/><m:pos m:val="top"/></m:groupChrPr><m:e>{mr("k")}</m:e></m:groupChr>'
+    f'<m:groupChr><m:groupChrPr><m:chr m:val="⇌"/></m:groupChrPr><m:e>{mr("K")}</m:e></m:groupChr>'
+    f'<m:groupChr><m:e>{mr("a+b")}</m:e></m:groupChr>'
+    f'<m:groupChr><m:groupChrPr><m:chr m:val="⏞"/></m:groupChrPr><m:e>{mr("c")}</m:e></m:groupChr>',
+    f'<m:sPre><m:sub>{mr("8")}</m:sub><m:sup>{mr("18")}</m:sup><m:e>{mr("O")}</m:e></m:sPre>'
+    f'<m:borderBox><m:e>{mr("E")}</m:e></m:borderBox><m:phant><m:e>{mr("p")}</m:e></m:phant>',
+    f'<m:f><m:fPr><m:type m:val="lin"/></m:fPr><m:num>{mr("a+b")}</m:num><m:den>{mr("2")}</m:den></m:f>'
+    f'<m:f><m:fPr><m:type m:val="noBar"/></m:fPr><m:num>{mr("n")}</m:num><m:den>{mr("k")}</m:den></m:f>'
+    f'<m:f><m:fPr><m:type m:val="skw"/></m:fPr><m:num>{mr("x")}</m:num><m:den>{mr("y")}</m:den></m:f>',
+    '<m:r><m:rPr><m:nor/></m:rPr><m:t>rate &amp; 50%</m:t></m:r><m:r><m:rPr><m:sty m:val="b"/></m:rPr><m:t> F </m:t></m:r>'
+    '<m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t> + </m:t></m:r><w:r><w:t>w</w:t></w:r>'
+    f'{mr("𝑥𝛿 αβΓ ≤≥≠≈±×∂∇∞° µm %#_{{}}~^\\")}{mr("\u2061\u00a0q")}',
+    f'<m:d><m:dPr><m:begChr m:val=""/><m:endChr m:val="|"/><m:sepChr m:val=","/></m:dPr><m:e>{mr("a")}</m:e><m:e>{mr("b")}</m:e></m:d>'
+    f'<m:d><m:dPr><m:begChr m:val="{{"/><m:endChr m:val="〉"/><m:sepChr m:val=""/></m:dPr><m:e>{mr("x")}</m:e><m:e>{mr("y")}</m:e></m:d>'
+    f'<m:d><m:dPr><m:begChr m:val="⟦"/><m:endChr m:val="⟧"/></m:dPr><m:e>{mr("z")}</m:e></m:d>',
+    f'<m:nary><m:naryPr><m:subHide m:val="1"/><m:supHide/></m:naryPr><m:sub>{mr("0")}</m:sub><m:sup>{mr("1")}</m:sup><m:e>{mr("g")}</m:e></m:nary>'
+    f'<m:nary><m:naryPr><m:chr m:val="⋃"/><m:supHide m:val="0"/></m:naryPr><m:sub/><m:sup>{mr("n")}</m:sup><m:e>{mr("A")}</m:e></m:nary>'
+    f'<m:nary><m:naryPr><m:chr m:val="⊕"/></m:naryPr><m:e>{mr("B")}</m:e></m:nary>',
+    f'<m:func><m:fName><m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>erfc</m:t></m:r></m:fName><m:e>{mr("x")}</m:e></m:func>'
+    f'<m:func><m:fName><m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>ln</m:t></m:r></m:fName><m:e>{mr("y")}</m:e></m:func>'
+    f'<m:func><m:fName><m:limLow><m:e>{mr("max")}</m:e><m:lim>{mr("i")}</m:lim></m:limLow></m:fName><m:e>{mr("a")}</m:e></m:func>',
+    f'<m:acc><m:accPr><m:chr m:val="̃"/></m:accPr><m:e>{mr("a")}</m:e></m:acc><m:acc><m:accPr><m:chr m:val="⃗"/></m:accPr><m:e>{mr("v")}</m:e></m:acc>'
+    f'<m:acc><m:accPr><m:chr m:val="‼"/></m:accPr><m:e>{mr("q")}</m:e></m:acc><m:acc><m:e>{mr("h")}</m:e></m:acc>'
+    f'<m:bar><m:barPr><m:pos m:val="top"/></m:barPr><m:e>{mr("w")}</m:e></m:bar>'
+    f'<m:limUpp><m:e>{mr("x")}</m:e><m:lim>{mr("def")}</m:lim></m:limUpp><m:limLow><m:e>{mr("y")}</m:e><m:lim>{mr("0")}</m:lim></m:limLow>',
+    f'<m:eqArr><m:e>{mr("a&amp;=1")}</m:e><m:e>{mr("bb&amp;=2")}</m:e></m:eqArr><!-- note -->{mr("  (2)")}',
+    f'<m:sSup><m:e>{mr("(x+1)")}</m:e><m:sup>{mr("2")}</m:sup></m:sSup><m:sSup><m:e>{mr("\u03b1")}</m:e><m:sup><m:r><m:t></m:t></m:r></m:sup></m:sSup>'
+    '<m:unknown><m:r><m:t>kept</m:t></m:r></m:unknown><m:sSub/><m:r/>',
 ]
 
 
@@ -581,6 +613,12 @@ def fx_equations():
     body_append(d, W(f'<w:pPr><w:pStyle w:val="ListBullet"/></w:pPr>{omath(EQUATIONS[1])}'))
     body_append(d, W(f'<w:pPr><w:jc w:val="center"/></w:pPr><m:oMathPara>{omath(EQUATIONS[2])}</m:oMathPara>'
                      '<w:r><w:tab/><w:t>(1)</w:t></w:r>'))
+    # numbered by a typed "(3)", two equations in one display, an empty one
+    body_append(d, W(f'<m:oMathPara>{omath(mr("y=2x") + mr("  (3)"))}{omath(mr("z"))}<!-- c -->{omath("")}</m:oMathPara>'))
+    body_append(d, W(f'<m:oMathPara>{omath(mr("(4)"))}</m:oMathPara>'))
+    # tracked changes: the insertion is kept, the deletion is not
+    body_append(d, W('<w:r><w:t xml:space="preserve">Kept </w:t></w:r><w:ins w:id="1" w:author="a"><w:r><w:t>inserted</w:t></w:r></w:ins>'
+                     '<w:del w:id="2" w:author="a"><w:r><w:delText>deleted</w:delText></w:r></w:del><w:r><w:t xml:space="preserve"> text.</w:t></w:r>'))
     return saved(d)
 
 

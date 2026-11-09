@@ -12,15 +12,16 @@
 //   or w:fldSimple are not direct w:r / w:hyperlink children of the
 //   paragraph, so their text is not imported.
 
-import { figure, link, listItem, list as listNode, paragraph, section, table, text, title as titleNode,
+import { figure, link, listItem, list as listNode, mathBlock, mathInline, paragraph, section, table, text, title as titleNode,
   author as authorNode, abstract as abstractNode, document, docMeta } from './model.ts'
 import type { Alignment, Block, Document, Inline, ListItem, Mark, Table, Text } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
 import { join, suffix } from './paths.ts'
+import { M_NS, TAG_RE, ommlToLatex, splitNumber } from './omml.ts'
 import { serializeInlines } from './serializer.ts'
 import { pyFixed, pyRe, reSearch, strip, zpad } from './py.ts'
 import {
-  CT, NS, PyError, RT, descendants, find, findall, get, is, iterChildren, localName, lxmlText,
+  CT, NS, PyError, RT, descendants, find, findall, get, is, isElement, iterChildren, localName, lxmlText,
   openPackage, paragraphStyle, partWithReltype, pStyleId, relTargetRef, rowCells,
 } from './docxPackage.ts'
 import type { Package, Part, XElement } from './docxPackage.ts'
@@ -258,6 +259,28 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     if (!is(childElem, NS.w, 'p')) continue
     const para = childElem
 
+    // Display equations (m:oMathPara): each its own equation block,
+    // numbered when "(1)" was typed after it; any text beside them stays a
+    // paragraph before them.
+    const elementKids = (e: XElement) => [...e.childNodes].filter(isElement) as XElement[]
+    const mathParas = elementKids(childElem).filter((c) => c.namespaceURI === M_NS && localName(c) === 'oMathPara')
+    if (mathParas.length) {
+      flushList()
+      const runs = _runsToInlines(para, src)
+      // "(1)" typed as text beside the equation: its number.
+      const tagged = runs.length > 0 && runs.every((r) => r.type === 'Text')
+        && TAG_RE.test(runs.map((r) => (r as Text).text).join(''))
+      if (!tagged && runs.some((r) => r.type !== 'Text' || strip(r.text))) children.push(paragraph(runs, _paraAlignment(para)))
+      for (const mp of mathParas) {
+        for (const om of elementKids(mp)) {
+          if (!(om.namespaceURI === M_NS && localName(om) === 'oMath')) continue
+          const [latex, numbered] = splitNumber(ommlToLatex(om))
+          if (latex) children.push(mathBlock(latex, numbered || tagged, null))
+        }
+      }
+      continue
+    }
+
     const styleId = pStyleId(para)
     const style = paragraphStyle(styles(), styleId)
     const styleName = style ? (style.name || '') : ''
@@ -346,6 +369,17 @@ function _runsToInlines(para: XElement, src: Src): Inline[] {
     if (tag === 'r') {
       const inline = _runElementToInline(elem)
       if (inline !== null) out.push(inline)
+    } else if (tag === 'oMath' && elem.namespaceURI === M_NS) {
+      // A Word equation in the line of text.
+      const latex = ommlToLatex(elem)
+      if (latex) out.push(mathInline(latex))
+    } else if (tag === 'ins') {
+      // Text typed with Track Changes on: the document as it now reads, its
+      // insertions accepted (deletions, w:del, stay out).
+      for (const sub of findall(elem, NS.w, 'r')) {
+        const inline = _runElementToInline(sub)
+        if (inline !== null) out.push(inline)
+      }
     } else if (tag === 'hyperlink') {
       const linkRuns: Inline[] = []
       let url: string | null = ''
