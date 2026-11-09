@@ -16,6 +16,7 @@ export const NS = {
   w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
   r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
   a: 'http://schemas.openxmlformats.org/drawingml/2006/main',
+  wp: 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
   m: 'http://schemas.openxmlformats.org/officeDocument/2006/math',
   ct: 'http://schemas.openxmlformats.org/package/2006/content-types',
   pr: 'http://schemas.openxmlformats.org/package/2006/relationships',

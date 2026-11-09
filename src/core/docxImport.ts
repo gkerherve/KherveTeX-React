@@ -17,7 +17,7 @@ import { figure, link, listItem, list as listNode, paragraph, section, table, te
 import type { Alignment, Block, Document, Inline, ListItem, Mark, Table, Text } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
 import { join, suffix } from './paths.ts'
-import { pyRe, reSearch, strip, zpad } from './py.ts'
+import { pyFixed, pyRe, reSearch, strip, zpad } from './py.ts'
 import {
   CT, NS, PyError, RT, descendants, find, findall, get, is, iterChildren, localName, lxmlText,
   openPackage, paragraphStyle, partWithReltype, pStyleId, relTargetRef, rowCells,
@@ -206,6 +206,20 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   const body = find(root, NS.w, 'body')
   if (body === null) throw new PyError('TypeError', "'NoneType' object is not iterable")
 
+  // The text width of the (last) section, in EMU, to size pictures as Word
+  // shows them: page width less the left and right margins (twips).
+  let textEmu: number | null = null
+  const sect = find(body, NS.w, 'sectPr')
+  if (sect !== null) {
+    const pgSz = find(sect, NS.w, 'pgSz'), pgMar = find(sect, NS.w, 'pgMar')
+    const vals = [pgSz && get(pgSz, NS.w, 'w'), pgMar && get(pgMar, NS.w, 'left'), pgMar && get(pgMar, NS.w, 'right')]
+    if (vals.every(v => v != null && /^\s*[+-]?\d+\s*$/.test(v))) {
+      const [w, l, r] = vals.map(v => parseInt(v!.trim(), 10))
+      const tw = w - l - r
+      textEmu = tw > 0 ? tw * 635 : null
+    }
+  }
+
   // Track consecutive list paragraphs so we can merge them.
   let pendingListItems: ListItem[] = []
   let pendingListOrdered = false
@@ -259,13 +273,15 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     const textRuns = _runsToInlines(para, src)
 
     // Detect embedded images.
-    const paraImages = await _imagesInParagraph(para, src, imageDir, imageCounter, fs)
+    const paraImages = await _imagesInParagraph(para, src, imageDir, imageCounter, fs, textEmu)
     imageCounter += paraImages.length
 
     if (paraImages.length) {
       flushList()
-      for (const path of paraImages) {
-        children.push(figure({ path: path.replaceAll('\\', '/'), caption: '', label: null }))
+      for (const [path, width] of paraImages) {
+        const fig = figure({ path: path.replaceAll('\\', '/'), caption: '', label: null })
+        if (width) fig.width = width
+        children.push(fig)
       }
       if (!textRuns.some((r) => r.type === 'Text' && strip(r.text))) continue
     }
@@ -408,6 +424,12 @@ function _paraIsList(para: XElement): boolean {
 }
 
 // The paragraph's own numbering level (w:numPr/w:ilvl), or -1.
+// int(s) or 0 (int() raising, or no value).
+function pyInt(v: string | null): number {
+  const t = (v ?? '').trim()
+  return /^[+-]?\d+$/.test(t) ? parseInt(t, 10) : 0
+}
+
 function _paraListLevel(para: XElement): number {
   const numPr = descendants(para, NS.w, 'numPr')[0]
   if (numPr === undefined) return -1
@@ -526,19 +548,165 @@ function _importTable(tbl: XElement): Table | null {
 
 // Save any inline images referenced from this paragraph into imageDir.
 // Returns the list of saved file paths in document order.
+// Saves the paragraph's pictures; each comes with the width it has on the
+// Word page as a share of the text width ('' when unknown).
 async function _imagesInParagraph(para: XElement, src: Src, imageDir: string, startIdx: number,
-  fs: FileAccess): Promise<string[]> {
-  const paths: string[] = []
+  fs: FileAccess, textEmu: number | null = null): Promise<[string, string][]> {
+  const paths: [string, string][] = []
+  // The size Word shows each picture at: wp:extent of the wp:inline /
+  // wp:anchor holding it, in EMU.
+  const widths = new Map<XElement, string>()
+  for (const tag of ['inline', 'anchor']) {
+    for (const frame of descendants(para, NS.wp, tag)) {
+      const ext = find(frame, NS.wp, 'extent')
+      const cx = ext === null ? 0 : pyInt(get(ext, null, 'cx'))
+      if (cx <= 0 || !textEmu) continue
+      const frac = Math.max(Math.min(cx / textEmu, 1.0), 0.01)
+      for (const b of descendants(frame, NS.a, 'blip')) widths.set(b, `${pyFixed(frac, 2)}\\textwidth`)
+    }
+  }
   for (const blip of descendants(para, NS.a, 'blip')) {
     const rid = get(blip, NS.r, 'embed')
     if (!rid) continue
     const rel = src.part.rels.get(rid)
     if (rel === undefined || rel.external) continue
     const part = rel.target!
-    const ext = suffix(part.partname) || '.png'
+    let ext = suffix(part.partname) || '.png'
+    let blob: Uint8Array | null = part.blob
+    if (['.emf', '.wmf'].includes(ext.toLowerCase())) {
+      // LaTeX cannot read a Windows metafile (XeTeX stops on it). One that
+      // only wraps a bitmap (a pasted screenshot) becomes a PNG; any other
+      // is left out.
+      blob = ext.toLowerCase() === '.emf' ? _emfBitmapPng(blob) : null
+      if (blob === null) continue
+      ext = '.png'
+    }
     const outPath = join(imageDir, `image_${zpad(startIdx + paths.length, 3)}${ext}`)
-    await fs.write(outPath, part.blob)
-    paths.push(outPath)
+    await fs.write(outPath, blob)
+    paths.push([outPath, widths.get(blip) ?? ''])
   }
   return paths
+}
+
+// The bitmap of an EMF whose picture is one EMR_STRETCHDIBITS record (how
+// Windows stores a pasted screenshot), as a PNG; null for any other
+// metafile.
+export function _emfBitmapPng(emf: Uint8Array): Uint8Array | null {
+  const dv = new DataView(emf.buffer, emf.byteOffset, emf.byteLength)
+  const n = emf.length
+  let i = 0
+  let found = -1
+  while (i + 8 <= n) {
+    const rtype = dv.getUint32(i, true), size = dv.getUint32(i + 4, true)
+    if (size < 8 || i + size > n) return null
+    if (rtype === 81) {                       // EMR_STRETCHDIBITS
+      if (found >= 0) return null
+      found = i
+    } else if (rtype !== 1 && rtype !== 14) { // EMR_HEADER, EMR_EOF
+      return null
+    }
+    i += size
+  }
+  if (found < 0 || found + 80 > n) return null
+  const offBmi = dv.getUint32(found + 48, true), cbBmi = dv.getUint32(found + 52, true)
+  const offBits = dv.getUint32(found + 56, true), cbBits = dv.getUint32(found + 60, true)
+  const bmi = found + offBmi
+  if (cbBmi < 40 || bmi + 40 > n) return null
+  const width = dv.getInt32(bmi + 4, true), height = dv.getInt32(bmi + 8, true)
+  const bits = dv.getUint16(bmi + 14, true), compression = dv.getUint32(bmi + 16, true)
+  const clrUsed = dv.getUint32(bmi + 32, true)
+  if (width <= 0 || height === 0 || (compression !== 0 && compression !== 3) || ![1, 4, 8, 24, 32].includes(bits)) return null
+  if (compression === 3 && bits !== 32) return null
+  const rows = Math.abs(height)
+  const stride = Math.floor((width * bits + 31) / 32) * 4
+  const data = found + offBits
+  if (cbBits < stride * rows || data + stride * rows > n) return null
+  const palette: number[][] = []
+  if (bits <= 8) {
+    const count = clrUsed || (1 << bits)
+    const pal = bmi + dv.getUint32(bmi, true)
+    if (pal + 4 * count > n) return null
+    for (let k = 0; k < count; k++) palette.push([emf[pal + 4 * k + 2], emf[pal + 4 * k + 1], emf[pal + 4 * k]])
+  }
+  const raw = new Uint8Array(rows * (1 + width * 3))
+  let o = 0
+  for (let y = 0; y < rows; y++) {
+    const src = data + (height > 0 ? rows - 1 - y : y) * stride
+    raw[o++] = 0
+    for (let x = 0; x < width; x++) {
+      if (bits === 24 || bits === 32) {
+        const b = bits / 8, p = src + b * x
+        raw[o++] = emf[p + 2]; raw[o++] = emf[p + 1]; raw[o++] = emf[p]
+      } else {
+        const per = 8 / bits
+        const byte = emf[src + Math.floor(x / per)]
+        const idx = (byte >> (8 - bits * (x % per + 1))) & ((1 << bits) - 1)
+        const c = palette[idx] ?? [0, 0, 0]
+        raw[o++] = c[0]; raw[o++] = c[1]; raw[o++] = c[2]
+      }
+    }
+  }
+  return _pngRgb(width, rows, raw)
+}
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256)
+  for (let k = 0; k < 256; k++) {
+    let c = k
+    for (let j = 0; j < 8; j++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1
+    t[k] = c >>> 0
+  }
+  return t
+})()
+
+function crc32(parts: Uint8Array[]): number {
+  let c = 0xFFFFFFFF
+  for (const p of parts) for (let k = 0; k < p.length; k++) c = CRC_TABLE[(c ^ p[k]) & 0xFF] ^ (c >>> 8)
+  return (c ^ 0xFFFFFFFF) >>> 0
+}
+
+function adler32(d: Uint8Array): number {
+  let a = 1, b = 0
+  for (let k = 0; k < d.length; k += 5552) {
+    const end = Math.min(k + 5552, d.length)
+    for (let j = k; j < end; j++) { a += d[j]; b += a }
+    a %= 65521; b %= 65521
+  }
+  return ((b << 16) | a) >>> 0
+}
+
+// A PNG of filtered RGB rows, its zlib stream in stored (uncompressed)
+// blocks so the bytes do not depend on a zlib build. The .ktex is zipped.
+function _pngRgb(width: number, height: number, raw: Uint8Array): Uint8Array {
+  const out: number[] = []
+  const u32 = (v: number) => out.push((v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255)
+  const chunk = (kind: string, body: Uint8Array) => {
+    const k = new Uint8Array([...kind].map(ch => ch.charCodeAt(0)))
+    u32(body.length)
+    for (const x of k) out.push(x)
+    for (let j = 0; j < body.length; j++) out.push(body[j])
+    u32(crc32([k, body]))
+  }
+  const blocks = Math.max(1, Math.ceil(raw.length / 65535))
+  const z = new Uint8Array(2 + raw.length + 5 * blocks + 4)
+  z[0] = 0x78; z[1] = 0x01
+  let o = 2
+  for (let k = 0; k < Math.max(raw.length, 1); k += 65535) {
+    const len = Math.min(65535, raw.length - k)
+    z[o++] = k + 65535 >= raw.length ? 1 : 0
+    z[o++] = len & 255; z[o++] = len >> 8
+    z[o++] = ~len & 255; z[o++] = (~len >> 8) & 255
+    z.set(raw.subarray(k, k + len), o); o += len
+  }
+  const ad = adler32(raw)
+  z[o++] = ad >>> 24; z[o++] = (ad >>> 16) & 255; z[o++] = (ad >>> 8) & 255; z[o++] = ad & 255
+  for (const x of [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) out.push(x)
+  const ihdr = new Uint8Array(13)
+  new DataView(ihdr.buffer).setUint32(0, width)
+  new DataView(ihdr.buffer).setUint32(4, height)
+  ihdr.set([8, 2, 0, 0, 0], 8)
+  chunk('IHDR', ihdr)
+  chunk('IDAT', z.subarray(0, o))
+  chunk('IEND', new Uint8Array(0))
+  return new Uint8Array(out)
 }

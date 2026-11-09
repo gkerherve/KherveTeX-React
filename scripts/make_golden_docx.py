@@ -475,6 +475,74 @@ def fx_numbered_headings():
     return saved(d)
 
 
+def emf_dib(width, height, bits, palette=b"", extra_record=None):
+    """An EMF wrapping one bitmap in EMR_STRETCHDIBITS, as Word stores a
+    pasted screenshot; extra_record makes it a real (vector) metafile."""
+    import struct
+    stride = ((width * bits + 31) // 32) * 4
+    pixels = bytes((7 * k + 3) % 256 for k in range(stride * abs(height)))
+    bmi = struct.pack("<IiiHHIIiiII", 40, width, height, 1, bits, 0, len(pixels), 0, 0,
+                      len(palette) // 4, 0) + palette
+    off_bmi = 80
+    off_bits = off_bmi + len(bmi)
+    size = off_bits + len(pixels)
+    rec = (struct.pack("<II4i", 81, size, 0, 0, width, abs(height))
+           + struct.pack("<6i", 0, 0, 0, 0, width, abs(height))
+           + struct.pack("<IIIIII", off_bmi, len(bmi), off_bits, len(pixels), 0, 0x00CC0020)
+           + struct.pack("<ii", width, abs(height)) + bmi + pixels)
+    header = struct.pack("<II", 1, 16) + b"\0" * 8
+    out = header + rec
+    if extra_record:
+        out += extra_record
+    return out + struct.pack("<II", 14, 20) + b"\0" * 12
+
+
+def fx_emf_images():
+    import struct
+    d = docx.Document()
+    tmp = Path(tempfile.mkdtemp())
+    for k in range(5):
+        (tmp / f"p{k}.png").write_bytes(png_bytes(2, 2, color=(10 * k, 20, 30)))
+        d.add_paragraph().add_run().add_picture(str(tmp / f"p{k}.png"))
+    d.add_paragraph("After")
+    pal = b"".join(bytes((k, 255 - k, 2 * k % 256, 0)) for k in range(4))
+    blobs = {
+        "image1.png": emf_dib(5, 3, 24),
+        "image2.png": emf_dib(3, -2, 32),
+        "image3.png": emf_dib(6, 2, 8, pal),
+        "image4.png": emf_dib(2, 2, 24, extra_record=struct.pack("<II", 27, 16) + b"\0" * 8),
+        "image5.png": b"\xd7\xcd\xc6\x9a" + b"\0" * 40,
+    }
+    exts = {"image1.png": "emf", "image2.png": "emf", "image3.png": "emf", "image4.png": "emf",
+            "image5.png": "wmf"}
+    data = saved(d)
+    import io, zipfile
+    zin = zipfile.ZipFile(io.BytesIO(data))
+    names = sorted(n for n in zin.namelist() if n.startswith("word/media/"))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            body = zin.read(item.filename)
+            name = item.filename
+            if name.startswith("word/media/"):
+                continue
+            if name == "word/_rels/document.xml.rels":
+                txt = body.decode()
+                for k, n in enumerate(names):
+                    base = n.split("/")[-1]
+                    txt = txt.replace(f'Target="media/{base}"',
+                                      f'Target="media/m{k}.{exts[list(exts)[k]]}"')
+                body = txt.encode()
+            if name == "[Content_Types].xml":
+                body = body.replace(b"</Types>", b'<Default Extension="emf" ContentType="image/x-emf"/>'
+                                    b'<Default Extension="wmf" ContentType="image/x-wmf"/></Types>')
+            zout.writestr(item, body)
+        for k, n in enumerate(names):
+            key = list(exts)[k]
+            zout.writestr(f"word/media/m{k}.{exts[key]}", blobs[key])
+    return out.getvalue()
+
+
 def omath(inner: str) -> str:
     return f"<m:oMath>{inner}</m:oMath>"
 
@@ -607,6 +675,7 @@ IMPORT_FIXTURES = {
     "table_bad_vmerge": fx_table_bad_vmerge,
     "images": fx_images,
     "numbered_headings": fx_numbered_headings,
+    "emf_images": fx_emf_images,
     "equations": fx_equations,
     "plain": fx_plain,
     "no_styles_part": fx_no_styles_part,
