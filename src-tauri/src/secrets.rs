@@ -5,7 +5,7 @@
 
 const SERVICE: &str = "KherveTeX";
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg(target_os = "windows")]
 mod store {
     use super::SERVICE;
 
@@ -33,11 +33,19 @@ mod store {
     }
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+// macOS and Linux: a file only the user can read. On macOS the Keychain
+// ties an item to the app's code signature, so every rebuilt (ad-hoc
+// signed) app lost the token or asked for the login password again; a
+// token saved there earlier is moved here once.
+#[cfg(not(target_os = "windows"))]
 mod store {
     use std::path::PathBuf;
 
     fn path(key: &str) -> Result<PathBuf, String> {
+        #[cfg(target_os = "macos")]
+        let base = std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library").join("Application Support"))
+            .ok_or("no home folder")?;
+        #[cfg(not(target_os = "macos"))]
         let base = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
             .ok_or("no home folder")?;
@@ -48,9 +56,28 @@ mod store {
     pub fn get(key: &str) -> Result<Option<String>, String> {
         match std::fs::read_to_string(path(key)?) {
             Ok(v) => Ok(Some(v)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => from_keychain(key),
             Err(e) => Err(e.to_string()),
         }
+    }
+
+    // A token an earlier version kept in the Keychain: read once, kept here.
+    #[cfg(target_os = "macos")]
+    fn from_keychain(key: &str) -> Result<Option<String>, String> {
+        let Ok(entry) = keyring::Entry::new(super::SERVICE, key) else { return Ok(None) };
+        match entry.get_password() {
+            Ok(v) if !v.is_empty() => {
+                set(key, &v)?;
+                let _ = entry.delete_credential();
+                Ok(Some(v))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn from_keychain(_key: &str) -> Result<Option<String>, String> {
+        Ok(None)
     }
 
     pub fn set(key: &str, value: &str) -> Result<(), String> {
