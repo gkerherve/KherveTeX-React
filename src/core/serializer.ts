@@ -314,7 +314,9 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       return `\\begin{figure}[${placement}]\n`
         + `  ${FIGURE_ALIGN[node.align] ?? '\\centering'}\n`
         + `  \\includegraphics[width=${node.width}]{${path}}\n`
-        + `  \\caption{${node.caption}}\n`
+        // No caption, no label: no "Figure N:" under the picture (an
+        // imported screenshot or icon); a label needs the numbered caption.
+        + (node.caption || node.label ? `  \\caption{${node.caption}}\n` : '')
         + `  ${lab}`
         + '\\end{figure}\n'
     }
