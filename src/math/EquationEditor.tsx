@@ -12,12 +12,15 @@ import { LatexEdit, type LatexEditHandle } from './LatexEdit.tsx'
 import { renderPixmap, svgFit } from './icons.ts'
 import { slotHint } from './fieldLogic.ts'
 import { MATH_FAMILY } from './fontData.ts'
+import { takeLabel } from './label'
 import './math.css'
 
 export interface EquationResult {
   latex: string
   display: boolean
   numbered: boolean
+  // The label to \\ref it by (numbered display equations), or null.
+  label: string | null
 }
 
 export interface EquationEditorProps {
@@ -27,6 +30,7 @@ export interface EquationEditorProps {
   showLayout?: boolean | null
   display?: boolean
   numbered?: boolean
+  label?: string | null
   close: (r: EquationResult | null) => void
 }
 
@@ -36,7 +40,7 @@ const CANVAS_HINT = 'Type to build the equation  ·  /  fraction  ·  ^  supersc
 
 const pyLen = (s: string): number => Array.from(s).length
 
-export function EquationEditor({ initialLatex = '', showLayout = null, display = true, numbered = true, close }: EquationEditorProps) {
+export function EquationEditor({ initialLatex = '', showLayout = null, display = true, numbered = true, label = null, close }: EquationEditorProps) {
   const initial = initialLatex.trim()
   const math = useRef<MathEditHandle>(null)
   const edit = useRef<LatexEditHandle>(null)
@@ -48,6 +52,7 @@ export function EquationEditor({ initialLatex = '', showLayout = null, display =
   const [showSource, setShowSource] = useState(false)
   const [isDisplay, setIsDisplay] = useState(display)
   const [isNumbered, setIsNumbered] = useState(numbered)
+  const [labelText, setLabelText] = useState(label ?? '')
   const [hint, setHint] = useState('')
   const layoutShown = showLayout === null ? !initial : showLayout
 
@@ -103,7 +108,12 @@ export function EquationEditor({ initialLatex = '', showLayout = null, display =
   }
 
   const latex = (): string => (dirty.current ? math.current!.latex().trim() : initial)
-  const accept = () => close({ latex: latex(), display: isDisplay, numbered: isDisplay && isNumbered })
+  const accept = () => {
+    const [clean, typed] = takeLabel(latex())
+    const lab = labelText.trim().replace(/[\s{}]/g, '') || typed
+    const numberedOut = isDisplay && isNumbered
+    close({ latex: clean, display: isDisplay, numbered: numberedOut, label: numberedOut ? lab : null })
+  }
 
   const onKeyDown = (ev: React.KeyboardEvent) => {
     // The default button: Enter the canvas did not use inserts.
@@ -153,6 +163,13 @@ export function EquationEditor({ initialLatex = '', showLayout = null, display =
               <input type="checkbox" checked={isNumbered} disabled={!isDisplay}
                 onChange={e => setIsNumbered(e.target.checked)} />
               Numbered
+            </label>
+          )}
+          {layoutShown && isDisplay && isNumbered && (
+            <label title="The name to refer to this equation by (References ▸ Cross-reference)." className="eqed-label">
+              Label:
+              <input type="text" value={labelText} placeholder="eq:my-equation" spellCheck={false}
+                onChange={e => setLabelText(e.target.value)} />
             </label>
           )}
           <span className="eqed-slothint">{hint}</span>

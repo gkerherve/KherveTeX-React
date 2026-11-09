@@ -344,3 +344,53 @@ export function styleDialog(env: {
     return <Dlg />
   })
 }
+
+// References ▸ Cross-reference: the document's labels to pick from (or a
+// label typed by hand), and the command — \ref, \eqref or \pageref.
+export interface CrossRefChoice { label: string; kind: 'ref' | 'eqref' | 'pageref' }
+
+export function askCrossRef(labels: import('../../core/labels').LabelEntry[]): Promise<CrossRefChoice | null> {
+  const KIND_NAME = { section: 'Section', figure: 'Figure', table: 'Table', equation: 'Equation', other: 'Label' }
+  return openDialog<CrossRefChoice>(close => {
+    function Pick() {
+      const [label, setLabel] = useState(labels[0]?.label ?? '')
+      const entry = labels.find(l => l.label === label)
+      const [kind, setKind] = useState<CrossRefChoice['kind']>(entry?.kind === 'equation' ? 'eqref' : 'ref')
+      const choose = (l: string) => {
+        setLabel(l)
+        const e = labels.find(x => x.label === l)
+        if (e) setKind(e.kind === 'equation' ? 'eqref' : 'ref')
+      }
+      const ok = () => { const l = label.trim(); if (l) close({ label: l, kind }) }
+      return (
+        <Frame title='Cross-reference' className='dlg-xref' close={close as Close<never>} onOk={ok}>
+          <label className='dlg-label'>Refer to:</label>
+          <div className='dlg-xref-list' role='listbox' aria-label='Labels'>
+            {labels.length === 0 && <div className='dlg-xref-empty'>
+              No labels yet. Give a figure, table, equation or heading a label first, or type one below.</div>}
+            {labels.map(l => (
+              <div key={l.label} role='option' aria-selected={l.label === label}
+                className={'dlg-xref-row' + (l.label === label ? ' on' : '')}
+                onClick={() => choose(l.label)} onDoubleClick={() => { choose(l.label); close({ label: l.label, kind: l.kind === 'equation' ? 'eqref' : 'ref' }) }}>
+                <span className='dlg-xref-kind'>{KIND_NAME[l.kind]} {l.number}</span>
+                <span className='dlg-xref-text'>{l.text}</span>
+                <span className='dlg-xref-key'>{l.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className='dlg-xref-form'>
+            <label htmlFor='xref-label'>Label:</label>
+            <input id='xref-label' value={label} onChange={e => setLabel(e.target.value)} spellCheck={false} />
+            <label htmlFor='xref-kind'>Show:</label>
+            <select id='xref-kind' value={kind} onChange={e => setKind(e.target.value as CrossRefChoice['kind'])}>
+              <option value='ref'>Number — \ref (e.g. 2)</option>
+              <option value='eqref'>Equation number — \eqref (e.g. (2))</option>
+              <option value='pageref'>Page number — \pageref</option>
+            </select>
+          </div>
+        </Frame>
+      )
+    }
+    return <Pick />
+  })
+}

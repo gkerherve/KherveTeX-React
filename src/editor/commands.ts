@@ -552,6 +552,26 @@ export function currentEquationNumbered(state: EditorState): boolean {
   return !!m && mathBlockIsNumbered(m.node.attrs.latex, m.node.attrs.numbered)
 }
 
+// The label of the display equation under the caret ('' or null clears it).
+export function currentEquationLabel(state: EditorState): string | null {
+  return currentMathBlock(state)?.node.attrs.label ?? null
+}
+
+export function setEquationLabel(label: string | null): Command {
+  return (state, dispatch) => {
+    const m = currentMathBlock(state)
+    if (!m) return false
+    if (dispatch) {
+      const attrs: Record<string, unknown> = { ...m.node.attrs, label: label || null }
+      // A label is only written for a numbered equation: labelling one numbers it.
+      if (label) attrs.numbered = true
+      const tr = state.tr.setNodeMarkup(m.pos, undefined, attrs)
+      dispatch(tr.setSelection(NodeSelection.create(tr.doc, m.pos)))
+    }
+    return true
+  }
+}
+
 export function setEquationNumbered(on: boolean): Command {
   return (state, dispatch) => {
     const m = currentMathBlock(state)

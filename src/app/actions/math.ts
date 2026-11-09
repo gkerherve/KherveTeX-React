@@ -9,6 +9,7 @@ import { editorApi, type EditorApi } from '../editorApi'
 import { appStore } from '../store'
 import { inlineRaw, mathBlock, mathInline, rawLatex } from '../../core/model'
 import { isTextModeSymbol } from '../../math/symbols'
+import { takeLabel } from '../../math/label'
 
 // What the contextual Equation tab needs beyond EditorApi. The visual
 // editor implements these; until it does the buttons only report it.
@@ -16,6 +17,8 @@ export interface EquationEditing {
   equationNumbered?(): boolean
   setEquationNumbered?(on: boolean): void
   deleteEquation?(): void
+  equationLabel?(): string | null
+  setEquationLabel?(label: string | null): void
 }
 
 const ed = (): (EditorApi & EquationEditing) | null => editorApi() as (EditorApi & EquationEditing) | null
@@ -23,9 +26,9 @@ const ed = (): (EditorApi & EquationEditing) | null => editorApi() as (EditorApi
 const dialogs = () => import('../../math/dialogs')
 
 // insert_math_block_with / insert_inline_math_with: nothing for empty LaTeX.
-function insertMathBlock(latex: string, numbered = false): void {
+function insertMathBlock(latex: string, numbered = false, label: string | null = null): void {
   if (!latex.trim()) return
-  ed()?.insertBlock(mathBlock(latex, numbered))
+  ed()?.insertBlock(mathBlock(latex, numbered, numbered ? label : null))
 }
 
 function insertInlineMath(latex: string): void {
@@ -63,7 +66,7 @@ async function openEquationEditor(display: boolean): Promise<void> {
   if (!r) return
   const latex = r.latex.trim()
   if (!latex) return
-  if (r.display || latex.includes('\\begin{')) insertMathBlock(latex, r.numbered)
+  if (r.display || latex.includes('\\begin{')) insertMathBlock(latex, r.numbered, r.label)
   else insertInlineMath(latex)
 }
 
@@ -81,7 +84,7 @@ registerActions({
     if (!latex) return
     // \begin{equation} (numbered) unless the template already carries its
     // own environment (align, cases, ...).
-    if (r.display) insertMathBlock(latex, r.numbered)
+    if (r.display) insertMathBlock(latex, r.numbered, r.label)
     else applyEquationTemplate(latex)
   },
 
@@ -115,7 +118,11 @@ registerActions({
     if (e === null || latex === null) return
     const { askMath } = await dialogs()
     const fresh = await askMath(latex)
-    if (fresh !== null) e.replaceMath(fresh)
+    if (fresh === null) return
+    // A \label typed into a display equation becomes its label.
+    const [clean, typed] = e.setEquationLabel ? takeLabel(fresh) : [fresh, null]
+    e.replaceMath(clean)
+    if (typed) e.setEquationLabel?.(typed)
   },
 
   // Checkable: the ribbon passes no state, so it toggles.
@@ -128,6 +135,17 @@ registerActions({
     }
     const on = typeof arg === 'boolean' ? arg : !(e.equationNumbered?.() ?? false)
     e.setEquationNumbered(on)
+  },
+
+  // Equation ▸ Label…: the name a cross-reference uses.
+  eq_label: async () => {
+    const e = ed()
+    if (!e?.setEquationLabel) return
+    const { promptText } = await import('../../ui/dialogs/EditorDialogs.tsx')
+    const cur = e.equationLabel?.() ?? ''
+    const r = await promptText('Equation label', 'Label (e.g. eq:energy); empty removes it:', cur)
+    if (r === null) return
+    e.setEquationLabel(r.trim().replace(/[\s{}]/g, '') || null)
   },
 
   eq_delete: () => {

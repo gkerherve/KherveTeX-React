@@ -40,3 +40,15 @@
 .kt-findbar input[type='text'] { font: inherit; min-width: 160px; }
 .kt-findbar button { font: inherit; }
 .kt-findbar .kt-findbar-close { width: 28px; border: none; background: none; }
+
+/* References ▸ Cross-reference */
+.dlg-xref { width: 560px; }
+.dlg-xref-list { height: 220px; overflow: auto; border: 1px solid #c8c8c8; background: #fff; }
+.dlg-xref-row { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 8px; padding: 3px 6px; cursor: default;
+  border-bottom: 1px solid #eee; font-size: 12px; }
+.dlg-xref-row.on { background: var(--menu-sel, #cce4f7); }
+.dlg-xref-kind { font-weight: 600; }
+.dlg-xref-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #444; }
+.dlg-xref-key { font-family: Consolas, 'Courier New', monospace; color: #666; }
+.dlg-xref-empty { padding: 8px; color: #777; font-size: 12px; }
+.dlg-xref-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }

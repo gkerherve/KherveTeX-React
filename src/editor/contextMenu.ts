@@ -107,6 +107,7 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
     if (mb) {
       const on = C.currentEquationNumbered(state)
       entries.push({ text: 'Numbered equation', checked: on, run: () => ed.run(C.setEquationNumbered(!on)) })
+      entries.push({ text: 'Label…', run: () => { void runAction('eq_label') } })
     }
     entries.push('-')
   } else if (!state.selection.empty && state.doc.textBetween(state.selection.from, state.selection.to).trim()) {

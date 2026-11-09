@@ -12,7 +12,8 @@ import { dirname } from '../../core/paths.ts'
 import * as C from '../../editor/commands.ts'
 import { editor } from '../../editor/controller.ts'
 import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
-import { promptItem, promptText } from '../../ui/dialogs/EditorDialogs.tsx'
+import { askCrossRef, promptItem, promptText } from '../../ui/dialogs/EditorDialogs.tsx'
+import { documentLabels } from '../../core/labels.ts'
 import { setCommandChecked } from '../../ui/commands.ts'
 import { hasAction, registerActions, type Handler } from '../actions.ts'
 import { appStore } from '../store.ts'
@@ -113,11 +114,9 @@ async function editFootnote(): Promise<void> {
 }
 
 async function insertCrossref(): Promise<void> {
-  const label = await promptText('Cross-reference', 'Label:')
-  if (!label) return
-  const kind = await promptItem('Reference type', 'Command:', ['ref', 'eqref', 'pageref'])
-  if (!kind) return
-  run(C.insertInlines([M.crossRef(label, kind as M.CrossRef['kind'])]))
+  const r = await askCrossRef(documentLabels(appStore().get().doc))
+  if (!r) return
+  run(C.insertInlines([M.crossRef(r.label, r.kind)]))
 }
 
 async function insertRawLatex(): Promise<void> {

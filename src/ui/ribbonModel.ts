@@ -387,6 +387,7 @@ const cmds: Command[] = [
   // Equation
   { id: 'eq_edit', text: 'Edit Equation', icon: 'equation_builder' },
   { id: 'eq_numbered', text: 'Numbered', icon: 'equation_numbered', checkable: true, checked: true },
+  { id: 'eq_label', text: 'Label…', icon: 'cross_ref', tooltip: 'Name this equation so a cross-reference can point to it' },
   { id: 'eq_delete', text: 'Delete Equation', icon: 'equation_delete' },
 
   // Theorem
@@ -538,7 +539,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Name', large: ['thm_title'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
-    { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_delete'] },
+    { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },
     { label: 'Insert', large: ['symbol', 'equation_builder'] },
   ] },
 ]

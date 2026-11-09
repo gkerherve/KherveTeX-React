@@ -5,7 +5,7 @@
 import { dropCursor } from 'prosemirror-dropcursor'
 import { gapCursor } from 'prosemirror-gapcursor'
 import { history } from 'prosemirror-history'
-import { EditorState, NodeSelection, TextSelection, type Plugin, type Transaction } from 'prosemirror-state'
+import { EditorState, NodeSelection, Selection, TextSelection, type Plugin, type Transaction } from 'prosemirror-state'
 import { tableEditing } from 'prosemirror-tables'
 import { EditorView } from 'prosemirror-view'
 import { runAction } from '../app/actions.ts'
@@ -129,6 +129,23 @@ export class EditorController implements ViewHost {
         focus: () => { this.syncToolbar(); return false },
         contextmenu: (_v, e) => { e.preventDefault(); return showContextMenu(this, e) },
       },
+    })
+    // A click on the sheet outside the text (the blank page under the last
+    // line, the margins) puts the caret on the nearest line, as Word does;
+    // below the text, at the end.
+    mount.addEventListener('mousedown', e => {
+      const t = e.target as Node
+      if (e.button !== 0 || this.view.dom.contains(t)) return
+      if (!(t === this.flowEl || t === mount || this.sheetsEl.contains(t))) return
+      e.preventDefault()
+      const flow = this.view.dom.getBoundingClientRect()
+      const x = Math.min(Math.max(e.clientX, flow.left + 1), flow.right - 1)
+      const y = Math.min(Math.max(e.clientY, flow.top + 1), flow.bottom - 1)
+      const hit = e.clientY > flow.bottom ? null : this.view.posAtCoords({ left: x, top: y })
+      const st = this.view.state
+      const $pos = st.doc.resolve(hit ? hit.pos : st.doc.content.size)
+      this.view.dispatch(st.tr.setSelection(Selection.near($pos, hit ? 1 : -1)).scrollIntoView())
+      this.view.focus()
     })
     // A double-click on a reference list's title (bibView.ts).
     pmEl.addEventListener('kt-bibliography', () => { void runAction('bibliography') })
@@ -753,6 +770,8 @@ export class EditorController implements ViewHost {
       // The contextual Equation tab (src/app/actions/math.ts).
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },
+      equationLabel: () => C.currentEquationLabel(this.view.state),
+      setEquationLabel: label => { this.run(C.setEquationLabel(label)) },
       deleteEquation: () => { this.run(C.deleteEquation) },
       insertInline: node => { this.run(C.insertInlines([node])) },
       insertBlock: node => { this.run(C.insertModelBlocks([node], { trailingParagraph: true })) },
