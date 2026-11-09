@@ -501,6 +501,11 @@ function tablePackages(doc: Document): string[] {
 // right margin; xurl lets it wrap anywhere. Added only when a URL is present.
 function withUrlBreaking(packages: string, ...scanned: string[]): string {
   const combined = scanned.join('')
+  // \href is hyperref's: a link imported from Word in a document that does
+  // not load it stopped the compile on "Undefined control sequence".
+  if (combined.includes('\\href') && !combined.includes('hyperref') && !packages.includes('hyperref')) {
+    packages += '\n\\usepackage{hyperref}'
+  }
   if ((combined.includes('\\url') || combined.includes('\\href')) && !packages.includes('xurl')) {
     return packages + '\n\\usepackage{xurl}'
   }

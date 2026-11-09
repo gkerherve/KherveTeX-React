@@ -2,6 +2,7 @@
 // _import_pdf and _export_docx. The importers write embedded images into
 // "<stem>_images" in the window's temp build dir until the document is
 // saved somewhere.
+import { strip } from '../../core/py'
 import { exportDocx } from '../../core/docxExport'
 import { importDocx } from '../../core/docxImport'
 import type { Document as KDocument } from '../../core/model'
@@ -55,6 +56,13 @@ export async function importPdfFile(path: string,
 // "<stem> (imported)" (file.finishImport); docx and pdf images live in the
 // build dir, so the import source dir is cleared.
 function showImported(doc: KDocument, path: string, message: string): void {
+  // The importers write \date{} under an imported title (as the Python
+  // app does); here that is the date switched off (Insert ▸ Date), so the
+  // page shows no date either and the switch can bring it back.
+  if (strip(doc.meta.frontmatter_extras) === '\\date{}') {
+    doc.meta.frontmatter_extras = ''
+    doc.meta.show_date = false
+  }
   finishImport(doc, path, { sourceDir: null, message })
 }
 

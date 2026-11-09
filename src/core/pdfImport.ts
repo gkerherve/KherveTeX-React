@@ -517,6 +517,9 @@ export async function importPdfSource(
   }
 
   const meta = docMeta({ title: metaTitle, author: metaAuthor })
+  // Word and PDF carry no date to print: without \date{} \maketitle
+  // would put the day of the import under the title.
+  if (metaTitle) meta.frontmatter_extras = '\\date{}'
   return makeDocument(children, meta)
 }
 

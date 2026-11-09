@@ -331,7 +331,11 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
 
   flushList()
 
-  return document(children, docMeta({ title, author }))
+  const meta = docMeta({ title, author })
+  // Word and PDF carry no date to print: without \date{} \maketitle
+  // would put the day of the import under the title.
+  if (children.some((c) => c.type === 'Title')) meta.frontmatter_extras = '\\date{}'
+  return document(children, meta)
 }
 
 // --- Inline extraction (with hyperlinks, footnotes, sub/superscript) -------
