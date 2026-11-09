@@ -49,6 +49,7 @@ export interface Command {
 export type Widget =
   | { widget: 'fontsize' }
   | { widget: 'styles' }
+  | { widget: 'classes' }
   | { widget: 'numbered' }
 
 export type RibbonItem = string | Widget
@@ -483,7 +484,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Layout', groups: [
     { label: 'Page Setup', large: ['margins', 'size', 'cols_1', 'cols_2', 'cols_3'] },
-    { label: 'Document type', large: ['doc_class'] },
+    { label: 'Document type', large: [{ widget: 'classes' }] },
   ] },
   { name: 'Examples', groups: [
     { label: 'Start', large: ['new', 'tour'] },

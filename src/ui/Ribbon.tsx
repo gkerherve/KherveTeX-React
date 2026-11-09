@@ -162,6 +162,67 @@ function StyleTileButton({ level, name, on, onPick }: {
 
 const styleName = (label: string) => label === 'Body text' ? 'Normal' : label
 
+// How many more `tile`s fit in the ribbon's spare width (0..max): the
+// gallery grows into it and gives it back when the window narrows.
+function useFill<T extends HTMLElement>(tile: string, max: number): [React.RefObject<T | null>, number] {
+  const ref = useRef<T>(null)
+  const [extra, setExtra] = useState(0)
+  useLayoutEffect(() => {
+    const gal = ref.current
+    const body = gal?.closest('.rb-body') as HTMLElement | null
+    if (!gal || !body) return
+    const fit = () => {
+      const w = gal.querySelector(tile)?.getBoundingClientRect().width ?? 0
+      const last = body.lastElementChild?.getBoundingClientRect().right ?? 0
+      const pad = parseFloat(getComputedStyle(body).paddingRight) || 0
+      const free = body.getBoundingClientRect().right - pad - last
+      if (w <= 0) return
+      setExtra(n => Math.max(0, Math.min(max, n + Math.floor(free / (w + 1)))))
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [extra, tile, max])
+  return [ref, extra]
+}
+
+// The tiles in their usual order, so a click does not reshuffle them; the
+// current class goes first only when it would otherwise be hidden.
+function shownClasses(cur: string, extra: number): string[] {
+  const first = TEMPLATE_CHOICES.slice(0, extra + 1)
+  return first.includes(cur) ? first : [cur, ...first.slice(0, extra)]
+}
+
+// Layout > Document type: as many classes as fit (the current one always
+// among them), and ▾ for the full grid.
+function ClassGallery({ ctx }: { ctx: Ctx }) {
+  const cur = ctx.docClass
+  const others = TEMPLATE_CHOICES.filter(c => c !== cur)
+  const [ref, extra] = useFill<HTMLDivElement>('.rb-classtile', others.length)
+  const isOpen = ctx.menu?.owner === 'doc_class'
+  const moreTip = useTipProps({ plain: 'All document types' })
+  return (
+    <div className='rb-gallery' ref={ref}>
+      {shownClasses(cur, extra).map(cls => (
+        <button type='button' key={cls} className={'rb-btn rb-classtile' + (cls === cur ? ' on' : '')}
+          aria-pressed={cls === cur} title={isBetaClass(cls) ? `${cls}: the page view is in beta` : cls}
+          onClick={() => { void runAction('doc_class', cls) }}>
+          <Icon name='class_thumbnail' arg={cls} width={34} height={43} />
+          <span className='rb-classtile-name'>{cls}</span>
+        </button>
+      ))}
+      <button type='button' data-menu-owner {...moreTip}
+        className={'rb-btn rb-gallery-more' + (isOpen ? ' on' : '')} aria-label='All document types'
+        onClick={e => ctx.openMenu(isOpen ? null : {
+          owner: 'doc_class', rect: e.currentTarget.getBoundingClientRect(), kind: 'classGrid',
+        })}>
+        <Icon name='gallery_more' size={14} />
+      </button>
+    </div>
+  )
+}
+
 // Tiles beyond GALLERY_INLINE, in the order they join when there is room.
 const GALLERY_MORE = [4, 5, -2, -7, -8, -3, -4, -5, -6]
 
@@ -171,25 +232,7 @@ function StyleGallery({ ctx }: { ctx: Ctx }) {
   const isOpen = ctx.menu?.owner === 'styles'
   const moreTip = useTipProps({ plain: 'All paragraph styles' })
   // As many tiles as the ribbon has room for (at least the inline five).
-  const ref = useRef<HTMLDivElement>(null)
-  const [extra, setExtra] = useState(0)
-  useLayoutEffect(() => {
-    const gal = ref.current
-    const body = gal?.closest('.rb-body') as HTMLElement | null
-    if (!gal || !body) return
-    const fit = () => {
-      const tile = gal.querySelector('.rb-tile')?.getBoundingClientRect().width ?? 0
-      const last = body.lastElementChild?.getBoundingClientRect().right ?? 0
-      const pad = parseFloat(getComputedStyle(body).paddingRight) || 0
-      const free = body.getBoundingClientRect().right - pad - last
-      if (tile <= 0) return
-      setExtra(n => Math.max(0, Math.min(GALLERY_MORE.length, n + Math.floor(free / (tile + 1)))))
-    }
-    fit()
-    const ro = new ResizeObserver(fit)
-    ro.observe(body)
-    return () => ro.disconnect()
-  }, [extra])
+  const [ref, extra] = useFill<HTMLDivElement>('.rb-tile', GALLERY_MORE.length)
   return (
     <div className='rb-gallery' ref={ref}>
       {[...GALLERY_INLINE, ...GALLERY_MORE.slice(0, extra)].map(lv => {
@@ -234,6 +277,7 @@ function Item({ it, ctx, large, text }: {
   if (typeof it !== 'string') {
     if (it.widget === 'fontsize') return <FontSizeCombo ctx={ctx} />
     if (it.widget === 'styles') return <StyleGallery ctx={ctx} />
+    if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
     return <NumberedTile />
   }
   const c = COMMANDS[it]
