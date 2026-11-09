@@ -224,6 +224,9 @@
   min-width: 1em;
   position: relative;
 }
+.kt-cell-text { white-space: pre-wrap; }
+.kt-cell-pics img { display: block; width: 100%; height: auto; margin: 2px 0; }
+.kt-cell-pics + .kt-cell-text:empty { display: none; }
 .kt-table td.selectedCell { background: rgba(26, 109, 216, 0.18) !important; }
 .kt-table-wrap[data-caption]::after {
   content: attr(data-caption);

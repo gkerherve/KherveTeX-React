@@ -6,7 +6,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView } from 'prosemirror-view'
 import type { Inline } from '../core/model.ts'
 import { renderMath } from '../math/render.ts'
-import { cellDisplayText } from './convert.ts'
+import { cellDisplayText, cellPictures } from './convert.ts'
 import type { ReferenceResolver } from '../core/references.ts'
 
 export interface ViewHost {
@@ -218,20 +218,110 @@ class TableView implements NodeView {
   dom: HTMLElement
   contentDOM: HTMLElement
   private node: PMNode
+  private table: HTMLTableElement
   constructor(node: PMNode) {
     this.node = node
     this.dom = document.createElement('div')
     this.dom.className = 'kt-block kt-table-wrap'
-    const table = document.createElement('table')
-    table.className = 'kt-table'
+    this.table = document.createElement('table')
+    this.table.className = 'kt-table'
     this.contentDOM = document.createElement('tbody')
-    table.appendChild(this.contentDOM)
-    this.dom.appendChild(table)
+    this.table.appendChild(this.contentDOM)
+    this.dom.appendChild(this.table)
+    this.size()
+  }
+  // Columns with LaTeX widths (m{0.36\textwidth}) take that share of the
+  // text width, as the PDF does; the cells' share is set by tableCellStyles.
+  private size() {
+    const fr = columnFractions(this.node.attrs.alignment || '')
+    const total = fr.reduce((a: number, b) => a + (b ?? 0), 0)
+    const fixed = fr.length > 0 && fr.every((f) => f !== null)
+    this.table.style.width = fixed ? `${Math.min(100, total * 100 + fr.length * 2)}%` : ''
+    this.table.style.tableLayout = fixed ? 'fixed' : ''
+  }
+  update(node: PMNode) {
+    if (node.type !== this.node.type) return false
+    const spec = node.attrs.alignment !== this.node.attrs.alignment
+    this.node = node
+    if (spec) this.size()
+    return true
+  }
+}
+
+// Each column's width as a share of the text width, from p/m/b{0.36\textwidth}
+// in the column spec; null for a natural-width column (l, c, r, 3cm).
+export function columnFractions(spec: string): (number | null)[] {
+  const out: (number | null)[] = []
+  for (const tok of (spec || '').match(COL_SPEC_RE) ?? []) {
+    if (tok === '|' || '@!<>'.includes(tok[0])) continue
+    const m = /^[pmb]\{\s*([\d.]*)\s*\\(?:textwidth|linewidth|columnwidth|hsize)\s*\}$/.exec(tok)
+    out.push(m ? parseFloat(m[1] || '1') : null)
+  }
+  return out
+}
+
+// A table cell: its text, editable, under a strip with the cell's pictures
+// (\includegraphics in its LaTeX), drawn at the cell's width.
+class TableCellView implements NodeView {
+  dom: HTMLElement
+  contentDOM: HTMLElement
+  private pics: HTMLElement
+  private shown = ''
+  private node: PMNode
+  private host: ViewHost
+  constructor(node: PMNode, host: ViewHost) {
+    this.node = node
+    this.host = host
+    this.dom = document.createElement('td')
+    this.pics = document.createElement('div')
+    this.pics.className = 'kt-cell-pics'
+    this.pics.contentEditable = 'false'
+    this.contentDOM = document.createElement('div')
+    this.contentDOM.className = 'kt-cell-text'
+    this.dom.append(this.pics, this.contentDOM)
+    this.spans()
+    this.render()
+  }
+  private spans() {
+    const a = this.node.attrs
+    if (a.colspan !== 1) this.dom.setAttribute('colspan', String(a.colspan)); else this.dom.removeAttribute('colspan')
+    if (a.rowspan !== 1) this.dom.setAttribute('rowspan', String(a.rowspan)); else this.dom.removeAttribute('rowspan')
+  }
+  render() {
+    const pics = cellPictures(this.node.attrs.raw ?? '')
+    const paths = pics.map((p) => p.path)
+    const srcs = paths.map((p) => this.host.resolveImage(p))
+    const key = pics.map((p, i) => `${p.cmd}|${srcs[i] ?? ''}`).join('\n')
+    if (key === this.shown) return
+    this.shown = key
+    this.pics.replaceChildren(...paths.map((p, i) => {
+      const src = srcs[i]
+      if (!src) {
+        const miss = document.createElement('div')
+        miss.className = 'kt-figure-missing'
+        miss.textContent = p.split('/').pop() ?? p
+        return miss
+      }
+      const im = document.createElement('img')
+      im.src = src
+      im.alt = ''
+      im.draggable = false
+      // \linewidth fills the cell; any other width is the PDF's.
+      const w = pics[i].width
+      if (w && !/^[\d.]*\s*\\linewidth$/.test(w)) im.style.width = `${figureWidthPx(w, this.host.textWidthPx())}px`
+      return im
+    }))
+    this.pics.style.display = paths.length ? '' : 'none'
   }
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
     this.node = node
+    this.spans()
+    this.render()
     return true
+  }
+  ignoreMutation(m: { type: string; target: Node }) {
+    return m.type !== 'selection' && this.pics.contains(m.target)
   }
 }
 
@@ -247,6 +337,10 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
   node.firstChild?.forEach(c => { ncols += c.attrs.colspan })
   const last = nrows - 1
   let [aligns, vrules] = parseColumnSpec(a.alignment || '', ncols)
+  const colTokens = (a.alignment || '').match(COL_SPEC_RE)?.filter((t: string) => t !== '|' && !'@!<>'.includes(t[0])) ?? []
+  const fr = columnFractions(a.alignment || '')
+  const fixed = fr.length === ncols && fr.every((f) => f !== null)
+  const frTotal = fixed ? fr.reduce((x: number, y) => x + y!, 0) || 1 : 1
   if (style === 'grid') vrules = Array(ncols + 1).fill(true)
   let heavy = booktabs ? 1.4 : 0.8
   let thin = 0.8
@@ -273,12 +367,15 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
       const raw: string = cell.attrs.raw ?? ''
       const unedited = cellDisplayText(raw) === cell.textContent.trim()
       const al = aligns[Math.min(c, aligns.length - 1)]
+      const tok = colTokens[Math.min(c, colTokens.length - 1)] ?? ''
       let css = `border-top:${top}px solid ${top ? '#000' : 'transparent'};`
         + `border-bottom:${bottom}px solid ${bottom ? '#000' : 'transparent'};`
         + `border-left:${left}px solid ${left ? '#000' : 'transparent'};`
         + `border-right:${right}px solid ${right ? '#000' : 'transparent'};`
         + `text-align:${al === 'c' ? 'center' : al === 'r' ? 'right' : 'left'};`
         + (bg ? `background:${bg};` : '')
+        + (tok[0] === 'm' ? 'vertical-align:middle;' : tok[0] === 'b' ? 'vertical-align:bottom;' : '')
+        + (fixed && cell.attrs.colspan === 1 ? `width:${(fr[c]! / frTotal) * 100}%;` : '')
       // Header row bold; unedited cells show their LaTeX's bold / italic.
       if ((r === 0 && header) || (unedited && raw.includes('\\textbf{'))) css += 'font-weight:700;'
       if (unedited && (raw.includes('\\textit{') || raw.includes('\\emph{'))) css += 'font-style:italic;'
@@ -426,6 +523,12 @@ export function nodeViews(host: ViewHost, atoms: Set<{ render(): void }>) {
       return Object.assign(v, { destroy: () => { atoms.delete(v) } })
     },
     table: (node: PMNode) => new TableView(node),
+    table_cell: (node: PMNode) => {
+      // Registered so a cell's picture shows once it has loaded.
+      const v = new TableCellView(node, host)
+      atoms.add(v)
+      return Object.assign(v, { destroy: () => { atoms.delete(v) } })
+    },
     raw_float: (node: PMNode) => new RawFloatView(node),
     citation: atom, crossref: atom, footnote: atom, inline_raw: atom, inline_json: atom,
   }

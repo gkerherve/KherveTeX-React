@@ -90,7 +90,8 @@ const nodes: Record<string, NodeSpec> = {
       colspan: n.attrs.colspan !== 1 ? n.attrs.colspan : null,
       rowspan: n.attrs.rowspan !== 1 ? n.attrs.rowspan : null,
     }, 0],
-    parseDOM: [{ tag: 'td' }, { tag: 'th' }],
+    // A structured cell's lines (paragraphs, list items) are newlines.
+    parseDOM: [{ tag: 'td', preserveWhitespace: 'full' }, { tag: 'th', preserveWhitespace: 'full' }],
   },
   raw_latex: {
     group: 'block', content: 'text*', marks: '', code: true, defining: true, attrs: ORIG,

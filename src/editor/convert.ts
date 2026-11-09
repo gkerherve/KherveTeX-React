@@ -8,6 +8,7 @@
 import type { Mark as PMMark, Node as PMNode } from 'prosemirror-model'
 import { TableMap } from 'prosemirror-tables'
 import * as M from '../core/model.ts'
+import { escapeText } from '../core/serializer.ts'
 import { schema, TEXT_MARKS } from './schema.ts'
 
 let gidCounter = 1
@@ -26,9 +27,90 @@ export function cellText(value: unknown): string {
   return value === null || value === undefined ? '' : String(value)
 }
 
+const GRAPHICS_RE = /\\includegraphics\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}/g
+const STRUCTURE_RE = /\\par\b|\\begin\{(itemize|enumerate)\}|\\end\{(?:itemize|enumerate)\}|\\item\b/g
+
+export interface CellPicture {
+  // The \includegraphics command as written.
+  cmd: string
+  path: string
+  // Its width= option ('' when none).
+  width: string
+}
+
+// The pictures (\includegraphics) in a table cell's LaTeX.
+export function cellPictures(raw: string): CellPicture[] {
+  return [...(raw || '').matchAll(GRAPHICS_RE)].map((m) => ({
+    cmd: m[0], path: m[2].trim(), width: /(?:^|,)\s*width\s*=\s*([^,]*)/.exec(m[1] ?? '')?.[1].trim() ?? '',
+  }))
+}
+
+// A cell laid out as paragraphs, lists or pictures (a Word table of steps
+// beside screenshots), rather than one line of text.
+export function isStructuredCell(raw: string): boolean {
+  return /\\includegraphics|\\par\b|\\item\b/.test(raw || '')
+}
+
 // editor._cell_display_text: the LaTeX of a cell as the page shows it.
+// A structured cell shows its paragraphs on their own lines and list items
+// as "• " or "1. "; its pictures are drawn above the text (TableCellView).
 export function cellDisplayText(raw: string): string {
-  return raw.replace(/\\(?:textbf|textit|emph|texttt)\{([^}]*)\}/g, '$1').trim()
+  let s = raw
+  if (isStructuredCell(s)) {
+    s = s.replace(GRAPHICS_RE, '')
+    const lines: string[] = []
+    let env: string | null = null
+    let n = 0
+    let cur = ''
+    const push = () => { if (cur.trim()) lines.push(cur.trim()); cur = '' }
+    let last = 0
+    for (const m of s.matchAll(STRUCTURE_RE)) {
+      cur += s.slice(last, m.index)
+      last = m.index! + m[0].length
+      push()
+      if (m[1]) { env = m[1]; n = 0 }
+      else if (m[0].startsWith('\\end')) env = null
+      else if (m[0] === '\\item') { n += 1; cur = env === 'enumerate' ? `${n}. ` : '• ' }
+    }
+    cur += s.slice(last)
+    push()
+    s = lines.join('\n')
+      .replace(/\\text(?:super|sub)script\{([^}]*)\}/g, '$1')
+      .replace(/\\([%&_#$])/g, '$1')
+  }
+  return s.replace(/\\(?:textbf|textit|emph|texttt)\{([^}]*)\}/g, '$1').trim()
+}
+
+// An edited structured cell back to LaTeX: its lines as paragraphs, "• "
+// and "1. " lines as itemize / enumerate, and its pictures kept where they
+// stood (before the text when the cell began with one).
+export function displayToCellLatex(shown: string, raw: string): string {
+  const pics = cellPictures(raw).map((p) => p.cmd)
+  const parts: string[] = []
+  let items: string[] = []
+  let env = ''
+  const flush = () => {
+    if (items.length) parts.push(`\\begin{${env}} ` + items.map((t) => `\\item ${t}`).join(' ') + ` \\end{${env}}`)
+    items = []
+  }
+  for (const line of shown.split('\n')) {
+    const t = line.trim()
+    if (!t) continue
+    const bullet = /^[•·\-*]\s*(.*)$/.exec(t)
+    const num = /^\d+[.)]\s+(.*)$/.exec(t)
+    if (bullet || num) {
+      const e = bullet ? 'itemize' : 'enumerate'
+      if (items.length && e !== env) flush()
+      env = e
+      items.push(escapeText((bullet ?? num)![1]))
+    } else {
+      flush()
+      parts.push(escapeText(t))
+    }
+  }
+  flush()
+  const first = /^\s*\\includegraphics/.test(raw || '')
+  return (first ? [...pics, ...parts] : [...parts, ...pics]).join(' \\par ')
 }
 
 // ---------- model → ProseMirror ----------
@@ -279,7 +361,11 @@ function tableFromPM(node: PMNode): M.Table {
       if (raw !== null && raw !== undefined) raw = cellText(raw)
       // Unchanged cell: its original LaTeX, so \textbf, math and macros
       // survive; an edited cell takes the new text.
-      row.push(raw !== null && raw !== undefined && cellDisplayText(raw) === shown.trim() ? raw : shown)
+      // A structured cell (paragraphs, lists, pictures) keeps its pictures
+      // and turns its lines back into LaTeX.
+      if (raw !== null && raw !== undefined && cellDisplayText(raw) === shown.trim()) row.push(raw)
+      else if (raw && isStructuredCell(raw)) row.push(displayToCellLatex(shown, raw))
+      else row.push(shown)
       const rs = Math.min(cell.attrs.rowspan, map.height - r)
       if (rs > 1 || cell.attrs.colspan > 1) merges.push([r, c, rs, cell.attrs.colspan])
       if (cell.attrs.shade) shading[`${r},${c}`] = cell.attrs.shade

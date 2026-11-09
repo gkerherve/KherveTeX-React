@@ -196,6 +196,16 @@ def typst_edge_cases(cases: dict) -> None:
         M.Table(rows=[[]], caption=""),
         M.Table(rows=[["only"]], header=True, repeat_header=True, merges=[[0, 0, 3, 3]]),
     ]), importer=False)
+    case(cases, "picture-tables", doc([
+        M.Table(rows=[["\\includegraphics[width=\\linewidth]{images/a.png}", "Step one \\par \\begin{itemize} \\item x \\end{itemize}"],
+                      ["", "Step 100% two"]],
+                alignment="m{0.36\\textwidth}m{0.54\\textwidth}", style="grid"),
+        M.Table(rows=[["a", "\\includegraphics[width=\\linewidth]{images/b.png}"]], caption="With caption",
+                label="tab:pic", alignment="m{0.45\\textwidth}m{0.45\\textwidth}", style="plain"),
+        M.Table(rows=[["H", "I"], ["\\includegraphics{c.png}", "d"]], header=True, repeat_header=True,
+                style="booktabs"),
+        M.Table(rows=[["no", "picture"]], alignment="b{2cm}l"),
+    ]), importer=False)
     case(cases, "typst-table-bad-merge", doc([M.Table(rows=[["a"]], merges=[[0, 0, 1]])]), importer=False)
 
     case(cases, "typst-figures", doc([

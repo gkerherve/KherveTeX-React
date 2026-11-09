@@ -469,6 +469,17 @@ function serializeTable(node: Table, floatH = true): string {
       + (bottomRule ? `${bottomRule}\n` : '')
       + '\\end{longtable}\n'
   }
+  if (tableHasPictures(node)) {
+    // Pictures in the cells (a manual's steps beside their screenshots)
+    // make a table taller than a page: a longtable breaks between rows,
+    // where a floating tabular would run off the page.
+    const capLine = cap ? `\\caption{${cap}}${strip(lab)}\\\\\n` : ''
+    return `\\begin{longtable}{${align}}\n${capLine}`
+      + (topRule ? `${topRule}\n` : '')
+      + bodyRows.join('\n') + '\n'
+      + (bottomRule ? `${bottomRule}\n` : '')
+      + '\\end{longtable}\n'
+  }
   const body = bodyRows.join('\n    ')
   const placement = floatH ? 'H' : 'htbp'
   const rule = (x: string) => (x ? `    ${x}\n` : '')
@@ -492,9 +503,16 @@ function tablePackages(doc: Document): string[] {
     if (b.type !== 'Table') continue
     if (b.merges.some((m) => m[2] > 1) && !need.includes('multirow')) need.push('multirow')
     if ((Object.keys(b.shading).length || b.style === 'striped') && !need.includes('colortbl')) need.push('colortbl')
-    if (b.repeat_header && !need.includes('longtable')) need.push('longtable')
+    if ((b.repeat_header || tableHasPictures(b)) && !need.includes('longtable')) need.push('longtable')
+    // m{} / b{} columns (vertically centred or bottom-aligned) are array's.
+    if (/[mb]\{/.test(b.alignment || '') && !need.includes('array')) need.push('array')
   }
   return need
+}
+
+// A cell holds a picture (\includegraphics).
+export function tableHasPictures(node: Table): boolean {
+  return node.rows.some((row) => row.some((c) => c.includes('\\includegraphics')))
 }
 
 // url refuses to break a link mid-token, so a long address overflows the

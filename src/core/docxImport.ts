@@ -17,6 +17,7 @@ import { figure, link, listItem, list as listNode, paragraph, section, table, te
 import type { Alignment, Block, Document, Inline, ListItem, Mark, Table, Text } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
 import { join, suffix } from './paths.ts'
+import { serializeInlines } from './serializer.ts'
 import { pyFixed, pyRe, reSearch, strip, zpad } from './py.ts'
 import {
   CT, NS, PyError, RT, descendants, find, findall, get, is, iterChildren, localName, lxmlText,
@@ -242,15 +243,14 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     // --- Table ---
     if (tag === 'tbl') {
       flushList()
-      // A table holding pictures is page layout (instructions beside
-      // screenshots, as manuals are written): LaTeX table cells hold text
-      // only, so its rows are unpacked in reading order — each cell's
-      // paragraphs, pictures and tables.
+      // A table holding pictures (instructions beside screenshots, as
+      // manuals are written) keeps its layout: its cells become LaTeX with
+      // the pictures in them.
       if (is(childElem, NS.w, 'tbl') && descendants(childElem, NS.a, 'blip').length) {
-        for (const tr of findall(childElem, NS.w, 'tr')) {
-          for (const tc of findall(tr, NS.w, 'tc')) await walk(iterChildren(tc))
-        }
-        flushList()
+        const [tblNode, next] = await _importPictureTable(childElem, src, imageDir, imageCounter, textEmu, fs,
+          (p) => { const st = paragraphStyle(styles(), pStyleId(p)); return _classifyStyle(st ? (st.name || '') : '', st)[0] })
+        imageCounter = next
+        if (tblNode !== null) children.push(tblNode)
         continue
       }
       if (is(childElem, NS.w, 'tbl')) {
@@ -546,6 +546,117 @@ function _importTable(tbl: XElement): Table | null {
   }
   if (!rows.length) return null
   return table({ rows, caption: '', label: null })
+}
+
+// A w:w / w:val width in twips, or null when it is not a whole number.
+function _twips(v: string | null): number | null {
+  const t = strip(v || '')
+  return /^[0-9]+$/.test(t) ? parseInt(t, 10) : null
+}
+
+// A Word table holding pictures, as a table whose cells are LaTeX: each
+// cell's paragraphs (\par between them), lists and pictures
+// (\includegraphics at the column's width). Its columns are m{} at their
+// Word widths, so a row's text sits centred beside its picture; the
+// serializer makes a table with pictures a longtable, which breaks between
+// rows. Returns the table and the next image number.
+async function _importPictureTable(tbl: XElement, src: Src, imageDir: string, startIdx: number,
+  textEmu: number | null, fs: FileAccess, kindOf: (para: XElement) => Kind): Promise<[Table | null, number]> {
+  let count = startIdx
+
+  const cellLatex = async (tc: XElement): Promise<string> => {
+    const parts: string[] = []
+    let items: string[] = []
+    let ordered = false
+    const flush = () => {
+      if (items.length) {
+        const env = ordered ? 'enumerate' : 'itemize'
+        parts.push(`\\begin{${env}} ` + items.map((t) => `\\item ${t}`).join(' ') + ` \\end{${env}}`)
+        items = []
+      }
+    }
+    const walk = async (elems: Iterable<XElement>): Promise<void> => {
+      for (const el of elems) {
+        const tag = localName(el)
+        if (tag === 'tbl') {
+          for (const tr of findall(el, NS.w, 'tr')) {
+            for (const inner of findall(tr, NS.w, 'tc')) await walk(iterChildren(inner))
+          }
+          continue
+        }
+        if (tag !== 'p') continue
+        const text = strip(serializeInlines(_runsToInlines(el, src)))
+        const pics = await _imagesInParagraph(el, src, imageDir, count, fs)
+        count += pics.length
+        for (const [path] of pics) {
+          flush()
+          parts.push('\\includegraphics[width=\\linewidth]{' + path.replaceAll('\\', '/') + '}')
+        }
+        if (!text) continue
+        if (kindOf(el) === 'list' || _paraIsList(el)) {
+          const o = _paraIsOrdered(el, src)
+          if (items.length && o !== ordered) flush()
+          ordered = o
+          items.push(text)
+        } else {
+          flush()
+          parts.push(text)
+        }
+      }
+    }
+    await walk(iterChildren(tc))
+    flush()
+    return parts.join(' \\par ')
+  }
+
+  const rows: string[][] = []
+  const merges: number[][] = []
+  let r = 0
+  for (const tr of findall(tbl, NS.w, 'tr')) {
+    const row: string[] = []
+    for (const tc of findall(tr, NS.w, 'tc')) {
+      const tcPr = find(tc, NS.w, 'tcPr')
+      const spanEl = tcPr === null ? null : find(tcPr, NS.w, 'gridSpan')
+      let span = spanEl !== null ? _twips(get(spanEl, NS.w, 'val')) : null
+      span = span && span > 1 ? span : 1
+      if (span > 1) merges.push([r, row.length, 1, span])
+      row.push(await cellLatex(tc))
+      for (let k = 1; k < span; k++) row.push('')
+    }
+    rows.push(row)
+    r++
+  }
+  if (!rows.length) return [null, count]
+  const ncols = Math.max(...rows.map((x) => x.length))
+  for (const x of rows) while (x.length < ncols) x.push('')
+
+  // Column widths: Word's grid as a share of the text width, shrunk to 0.9
+  // in all so the cell padding still fits on the line.
+  const gridEl = find(tbl, NS.w, 'tblGrid')
+  const grid = gridEl === null ? [] : findall(gridEl, NS.w, 'gridCol').map((g) => _twips(get(g, NS.w, 'w')))
+  let fracs: number[]
+  if (textEmu && grid.length === ncols && grid.every((g) => g)) {
+    fracs = grid.map((g) => g! * 635 / textEmu)
+  } else {
+    fracs = Array.from({ length: ncols }, () => 1.0 / ncols)
+  }
+  const total = fracs.reduce((a, b) => a + b, 0)
+  if (total > 0.9) fracs = fracs.map((f) => f * 0.9 / total)
+  const spec = fracs.map((f) => `m{${pyFixed(Math.max(f, 0.05), 2)}\\textwidth}`).join('')
+
+  // Ruled when Word draws its borders (a grid style or tblBorders).
+  let style = 'plain'
+  const pr = find(tbl, NS.w, 'tblPr')
+  if (pr !== null) {
+    const st = find(pr, NS.w, 'tblStyle')
+    const borders = find(pr, NS.w, 'tblBorders')
+    if (st !== null && (get(st, NS.w, 'val') || '').toLowerCase().includes('grid')) {
+      style = 'grid'
+    } else if (borders !== null && [...iterChildren(borders)].some((b) => !['', 'nil', 'none'].includes(get(b, NS.w, 'val') || ''))) {
+      style = 'grid'
+    }
+  }
+  return [table({ rows, caption: '', label: null, alignment: spec, style, merges }), count]
 }
 
 // --- Image extraction -------------------------------------------------------

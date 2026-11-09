@@ -6,6 +6,9 @@ import { runAction } from '../app/actions.ts'
 import { DATE_FORMATS } from '../core/dateFormat.ts'
 import { spellHighlighter } from '../spell/shared.ts'
 import * as C from './commands.ts'
+import { cellDisplayText, cellPictures, displayToCellLatex, isStructuredCell } from './convert.ts'
+import { columnFractions } from './views.ts'
+import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorController } from './controller.ts'
 
 interface Item { text: string; run?: () => void; disabled?: boolean; checked?: boolean }
@@ -148,6 +151,13 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
       { text: 'Delete row', run: () => ed.run(C.tableDeleteRow) },
       { text: 'Delete column', run: () => ed.run(C.tableDeleteColumn) },
       { text: 'Delete table', run: () => ed.run(C.tableDelete) })
+    const cell = currentCell(ed)
+    if (cell) {
+      const pics = cellPictures(cellLatex(cell.node))
+      entries.push('-', { text: 'Insert picture in cell…', run: () => { void insertCellPicture(ed) } })
+      if (pics.length) entries.push({ text: pics.length > 1 ? 'Remove pictures from cell' : 'Remove picture from cell',
+        run: () => setCell(ed, cell.pos, cellLatex(cell.node).replace(/\s*(?:\\par\s*)?\\includegraphics\s*(?:\[[^\]]*\])?\s*\{[^}]*\}\s*(?:\\par\b)?/g, ' ').replace(/^\s*\\par\b|\\par\s*$/g, '').trim()) })
+    }
   }
   const x = e.clientX, y = e.clientY
   if (!fig) { show(entries, x, y); return true }
@@ -213,4 +223,61 @@ async function convertSelection(ed: EditorController): Promise<void> {
   } else {
     ed.run(C.insertInlines([{ latex, type: 'MathInline' }]))
   }
+}
+
+// The table cell holding the caret: the cell node and its position.
+function currentCell(ed: EditorController): { node: PMNode; pos: number; table: PMNode; col: number } | null {
+  const $p = ed.view.state.selection.$from
+  for (let d = $p.depth; d > 1; d--) {
+    if ($p.node(d).type.name !== 'table_cell') continue
+    const table = $p.node(d - 2)
+    let col = 0
+    $p.node(d - 1).forEach((c, _o, i) => { if (i < $p.index(d - 1)) col += c.attrs.colspan })
+    return { node: $p.node(d), pos: $p.before(d), table, col }
+  }
+  return null
+}
+
+// A cell's LaTeX as it stands, edits included (as convert.ts writes it).
+function cellLatex(cell: PMNode): string {
+  const raw: string | null = cell.attrs.raw
+  const shown = cell.textContent
+  if (raw !== null && raw !== undefined && cellDisplayText(raw) === shown.trim()) return raw
+  if (raw && isStructuredCell(raw)) return displayToCellLatex(shown, raw)
+  return shown
+}
+
+// Give a cell new LaTeX: its raw and the text the page shows for it.
+function setCell(ed: EditorController, pos: number, latex: string): void {
+  ed.run((s, d) => {
+    const cell = s.doc.nodeAt(pos)
+    if (!cell) return false
+    const shown = cellDisplayText(latex)
+    const next = cell.type.create({ ...cell.attrs, raw: latex }, shown ? s.schema.text(shown) : null)
+    d?.(s.tr.replaceWith(pos, pos + cell.nodeSize, next))
+    return true
+  })
+}
+
+// Insert ▸ picture in a table cell: \includegraphics after the cell's text,
+// filling a column with a LaTeX width (m{0.4\textwidth}), else 0.3 of the
+// text width.
+async function insertCellPicture(ed: EditorController): Promise<void> {
+  const { platform } = await import('../platform/index.ts')
+  let path: string | null = null
+  try {
+    const r = await platform().openFileDialog({
+      title: 'Select image',
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'pdf'] }, { name: 'All', extensions: ['*'] }],
+    })
+    path = r?.[0] ?? null
+  } catch { path = null }
+  if (!path) return
+  const cell = currentCell(ed)
+  if (!cell) return
+  const fr = columnFractions(cell.table.attrs.alignment || '')[cell.col] ?? null
+  const width = fr !== null ? '\\linewidth' : '0.3\\textwidth'
+  const pic = `\\includegraphics[width=${width}]{${path.replaceAll('\\', '/')}}`
+  const cur = cellLatex(cell.node).trim()
+  setCell(ed, cell.pos, cur ? `${cur} \\par ${pic}` : pic)
 }
