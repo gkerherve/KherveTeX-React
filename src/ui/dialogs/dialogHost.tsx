@@ -9,10 +9,12 @@ import './dialogs.css'
 
 export type Close<T> = (value: T | null) => void
 
-export function openDialog<T>(render: (close: Close<T>) => ReactNode): Promise<T | null> {
+// `modeless`: the window stays usable behind it (type in the document
+// while a Cross-reference dialog is open), as a Qt modeless dialog.
+export function openDialog<T>(render: (close: Close<T>) => ReactNode, opts: { modeless?: boolean } = {}): Promise<T | null> {
   return new Promise(resolve => {
     const el = document.createElement('div')
-    el.className = 'dlg-backdrop'
+    el.className = opts.modeless ? 'dlg-backdrop dlg-modeless' : 'dlg-backdrop'
     el.style.zIndex = String(nextModalLayer())
     document.body.appendChild(el)
     const root = createRoot(el)

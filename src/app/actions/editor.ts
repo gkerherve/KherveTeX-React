@@ -114,9 +114,9 @@ async function editFootnote(): Promise<void> {
 }
 
 async function insertCrossref(): Promise<void> {
-  const r = await askCrossRef(documentLabels(appStore().get().doc))
-  if (!r) return
-  run(C.insertInlines([M.crossRef(r.label, r.kind)]))
+  const put = (c: { label: string, kind: M.CrossRef['kind'] }) => { run(C.insertInlines([M.crossRef(c.label, c.kind)])) }
+  const r = await askCrossRef(documentLabels(appStore().get().doc), put)
+  if (r) put(r)
 }
 
 async function insertRawLatex(): Promise<void> {

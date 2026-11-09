@@ -12,6 +12,8 @@ export const BETA_CLASSES: ReadonlySet<string> = new Set([
   'elsarticle', 'IEEEtran', 'revtex4-2', 'achemso', 'acmart', 'amsart', 'mnras', 'apa7',
   'memoir', 'scrbook', 'tufte-book', 'tufte-handout', 'elegantbook', 'mimosis', 'hepthesis',
   'beamer', 'europasscv', 'standalone',
+  // Not flowing pages either: letters, a CV grid, posters.
+  'letter', 'scrlttr2', 'moderncv', 'tikzposter', 'a0poster',
 ])
 
 // Gallery examples (examples.GALLERY labels) that differ, including those

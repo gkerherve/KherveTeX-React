@@ -477,7 +477,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Pages', large: ['pagebreak'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Tables', large: ['table'] },
     { label: 'Illustrations', large: ['figure'], rows: [['drawing'], ['flowchart']], text: true },
-    { label: 'Links', rows: [['link'], ['crossref']], text: true },
+    { label: 'Links', rows: [['link'], ['crossref'], ['insert_reference']], text: true },
     { label: 'Equations', large: ['math_block'],
       rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },
     { label: 'Theorems', large: ['theorem'] },

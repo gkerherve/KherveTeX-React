@@ -225,6 +225,7 @@ function ClassTile({ cls, on }: { cls: string, on: boolean }) {
       aria-pressed={on} onClick={() => { void runAction('doc_class', cls) }}>
       <Icon name='class_thumbnail' arg={cls} width={34} height={43} />
       <span className='rb-classtile-name'>{cls}</span>
+      {isBetaClass(cls) && <span className='beta-tag rb-classbeta'>beta</span>}
     </button>
   )
 }

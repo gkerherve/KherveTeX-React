@@ -8,8 +8,9 @@ import type { DocMeta } from '../../core/model'
 import { openDialog, type Close } from './dialogHost'
 import './editorDialogs.css'
 
-function Frame({ title, children, onOk, close, okText = 'OK', className = '' }: {
+function Frame({ title, children, onOk, close, okText = 'OK', className = '', extra, cancelText = 'Cancel' }: {
   title: string; children: ReactNode; onOk: () => void; close: Close<never>; okText?: string; className?: string
+  extra?: ReactNode; cancelText?: string
 }) {
   return (
     <form className={`dlg ${className}`} role='dialog' aria-label={title}
@@ -18,8 +19,9 @@ function Frame({ title, children, onOk, close, okText = 'OK', className = '' }: 
       <div className='dlg-title'>{title}</div>
       <div className='dlg-body'>{children}</div>
       <div className='dlg-buttons'>
+        {extra}
         <button type='submit'>{okText}</button>
-        <button type='button' onClick={() => close(null)}>Cancel</button>
+        <button type='button' onClick={() => close(null)}>{cancelText}</button>
       </div>
     </form>
   )
@@ -349,7 +351,10 @@ export function styleDialog(env: {
 // label typed by hand), and the command — \ref, \eqref or \pageref.
 export interface CrossRefChoice { label: string; kind: 'ref' | 'eqref' | 'pageref' }
 
-export function askCrossRef(labels: import('../../core/labels').LabelEntry[]): Promise<CrossRefChoice | null> {
+// Modeless: Insert puts the reference at the caret and keeps the dialog
+// open, so the user can type on and insert another; OK inserts and closes.
+export function askCrossRef(labels: import('../../core/labels').LabelEntry[],
+  onInsert?: (c: CrossRefChoice) => void): Promise<CrossRefChoice | null> {
   const KIND_NAME = { section: 'Section', figure: 'Figure', table: 'Table', equation: 'Equation', other: 'Label' }
   return openDialog<CrossRefChoice>(close => {
     function Pick() {
@@ -363,7 +368,9 @@ export function askCrossRef(labels: import('../../core/labels').LabelEntry[]): P
       }
       const ok = () => { const l = label.trim(); if (l) close({ label: l, kind }) }
       return (
-        <Frame title='Cross-reference' className='dlg-xref' close={close as Close<never>} onOk={ok}>
+        <Frame title='Cross-reference' className='dlg-xref' close={close as Close<never>} onOk={ok}
+          okText={onInsert ? 'Insert and close' : 'OK'} cancelText={onInsert ? 'Close' : 'Cancel'}
+          extra={onInsert && <button type='button' onClick={() => { const l = label.trim(); if (l) onInsert({ label: l, kind }) }}>Insert</button>}>
           <label className='dlg-label'>Refer to:</label>
           <div className='dlg-xref-list' role='listbox' aria-label='Labels'>
             {labels.length === 0 && <div className='dlg-xref-empty'>
@@ -392,5 +399,5 @@ export function askCrossRef(labels: import('../../core/labels').LabelEntry[]): P
       )
     }
     return <Pick />
-  })
+  }, { modeless: !!onInsert })
 }
