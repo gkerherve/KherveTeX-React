@@ -57,7 +57,7 @@ export const MENU_BAR: MenuBarMenu[] = [
     { text: '&Theme', items: ['theme_light', 'theme_dark'] },
   ] },
   { text: '&Insert', items: [
-    'pagebreak', 'hrule', 'multicol', '-',
+    'pagebreak', 'hrule', 'show_date', 'multicol', '-',
     'table', 'figure', 'drawing', 'flowchart', '-',
     { text: '&Equation', items: [
       'math_inline', 'math_block', 'equation_builder', 'symbol',

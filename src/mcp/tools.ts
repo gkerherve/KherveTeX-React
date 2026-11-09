@@ -130,13 +130,14 @@ export const TOOLS: ToolSpec[] = [
       + 'body_font_family (default, times, palatino, '
       + 'helvetica, courier, charter, libertine), '
       + 'page_size (a4, letter, ...), line_spacing, '
-      + 'paragraph_indent, margins in cm, add_packages, '
+      + 'paragraph_indent, show_date (the date under the title), margins in cm, add_packages, '
       + 'remove_packages. Only the fields you pass change.',
     input_schema: obj({
       title: STR, author: STR, documentclass: STR,
       body_font_pt: INT, body_font_family: STR,
       page_size: STR, line_spacing: { type: 'number' },
       paragraph_indent: BOOL,
+      show_date: BOOL,
       margin_top_cm: { type: 'number' },
       margin_bottom_cm: { type: 'number' },
       margin_left_cm: { type: 'number' },
@@ -630,6 +631,11 @@ export class ToolExecutor {
         meta.packages.splice(i, 1)
         changed.push(`-${pkg}`)
       }
+    }
+    if ('show_date' in args) {
+      if (args.show_date === false) meta.show_date = false
+      else delete meta.show_date
+      changed.push('show_date')
     }
     if (!changed.length) throw new ToolError('No recognised fields to change.')
     this.host.setMeta(meta)

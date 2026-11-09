@@ -244,6 +244,7 @@ const cmds: Command[] = [
   { id: 'keywords', text: 'Key&words paragraph' },
   { id: 'pagebreak', text: 'Page break', icon: 'page_break' },
   { id: 'hrule', text: 'Horizontal rule', icon: 'horizontal_rule' },
+  { id: 'show_date', text: 'Date', icon: 'title_date', checkable: true, checked: true },
   { id: 'multicol', text: '&Multi-column region (2)...' },
   { id: 'theorem', text: 'Theorem', icon: 'theorem', popup: 'split',
     menu: THEOREM_KINDS.map(([k, name]) => ({ text: name, command: `thm_insert_${k}` })) },
@@ -471,7 +472,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Styles', large: [{ widget: 'styles' }, { widget: 'numbered' }] },
   ] },
   { name: 'Insert', groups: [
-    { label: 'Pages', large: ['pagebreak'], rows: [['hrule']], text: true },
+    { label: 'Pages', large: ['pagebreak'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Tables', large: ['table'] },
     { label: 'Illustrations', large: ['figure'], rows: [['drawing'], ['flowchart']], text: true },
     { label: 'Links', rows: [['link'], ['crossref']], text: true },

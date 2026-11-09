@@ -192,6 +192,14 @@ describe('document tools', () => {
     expect(outline.filter(b => b.type === 'Title').length).toBe(1)
   })
 
+  it('switches the title date off and on', async () => {
+    const w = new FakeWindow('')
+    await run(w, 'set_metadata', { title: 'T', show_date: false })
+    expect((await run(w, 'get_latex')).latex).toContain('\\date{}')
+    await run(w, 'set_metadata', { show_date: true })
+    expect((await run(w, 'get_latex')).latex).not.toContain('\\date{}')
+  })
+
   it('test_unsaved_work_is_not_discarded', async () => {
     const w = new FakeWindow('Keep me.')
     await run(w, 'insert_latex', { latex: 'More.' })

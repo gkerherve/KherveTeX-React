@@ -265,7 +265,9 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false, pdf: PdfTypography | null = null): DocLayout {
   const measured = lookFor(meta.documentclass, meta.body_font_pt)
   const k = pdf ? pdf.bodyPt / measured.body.size : 1
-  const look = pdf && Math.abs(k - 1) > 0.04 && k > 0.6 && k < 1.6 ? scaleLook(measured, k) : measured
+  const scaled = pdf && Math.abs(k - 1) > 0.04 && k > 0.6 && k < 1.6 ? scaleLook(measured, k) : measured
+  // Date switched off (Insert > Date): the page shows none, as \\date{}.
+  const look = meta.show_date === false ? { ...scaled, date: undefined } : scaled
   const g = look.geometry
   const pt = PT_PX
   const page = byCode(meta.page_size)

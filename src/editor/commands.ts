@@ -146,8 +146,10 @@ export function applyHeading(code: number, keepNumbered = false): Command {
       if (keepNumbered) a.numbered = block.attrs.numbered
     }
     if (dispatch) {
-      const tr = state.tr.setNodeMarkup(h.blockPos, type, a)
-      dispatch(tr.scrollIntoView())
+      // No scrollIntoView: the paragraph is where the user clicked, and in
+      // the desktop app (WebKit) a title-area style (Affiliation, Author)
+      // made it scroll to the end of the document.
+      dispatch(state.tr.setNodeMarkup(h.blockPos, type, a))
     }
     return true
   }

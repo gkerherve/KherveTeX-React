@@ -512,6 +512,8 @@ export function startCompileService(): void {
     const s = store.get()
     const was = prev
     prev = s
+    // Insert > Date shows the open document's setting.
+    if (s.doc.meta.show_date !== was.doc.meta.show_date) setCommandChecked('show_date', s.doc.meta.show_date !== false)
     if (s.layout !== was.layout) {
       // apply_layout_mode: "visual"/"page" switch auto-compile off.
       setCommandChecked('auto_compile', s.autoCompile)

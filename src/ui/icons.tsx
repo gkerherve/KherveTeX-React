@@ -575,6 +575,13 @@ export function HorizontalRule(p: IconProps) {
     {L(2.5, 12, 21.5, 12, BLUE, 2)}</Svg>
 }
 
+// A calendar page: the \\maketitle date.
+export function TitleDate(p: IconProps) {
+  return <Svg {...p}>{R(4, 5, 16, 15, { fill: PAPER })}{L(4, 9.5, 20, 9.5, BLUE, 2)}
+    {L(8, 3, 8, 7, INK, 1.6)}{L(16, 3, 16, 7, INK, 1.6)}
+    {L(7.5, 13.5, 16.5, 13.5, INK, 1)}{L(7.5, 16.5, 13, 16.5, INK, 1)}</Svg>
+}
+
 // ----- view -----
 
 export function ZoomIn(p: IconProps) {
@@ -1337,7 +1344,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,
   three_columns: ThreeColumns, page_break: PageBreak,
-  horizontal_rule: HorizontalRule, zoom_in: ZoomIn, zoom_out: ZoomOut,
+  horizontal_rule: HorizontalRule, title_date: TitleDate, zoom_in: ZoomIn, zoom_out: ZoomOut,
   fit_width: FitWidth, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
   table_row_above: TableRowAbove, table_row_below: TableRowBelow,
   table_col_left: TableColLeft, table_col_right: TableColRight,

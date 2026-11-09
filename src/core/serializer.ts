@@ -887,6 +887,7 @@ export function serializeDocument(doc: Document): string {
     const extras = strip(m.frontmatter_extras || '')
     const extrasHasAuthor = /\\author\b/.test(extras)
     if (authorText && !extrasHasAuthor) frontParts.push(`\\author{${authorText}}`)
+    if (m.show_date === false && !/\\date\b/.test(extras)) frontParts.push('\\date{}')
     for (const part of affiliationParts) frontParts.push(`\\address{${part}}`)
     if (correspondenceParts.length && authorParts.length) {
       frontParts.push(`\\cortext[cor1]{${correspondenceParts.join(' ')}}`)
@@ -938,6 +939,7 @@ export function serializeDocument(doc: Document): string {
   if (hasMetadata) {
     if (!/\\title\b/.test(allExtras)) preambleMeta += `\\title{${titleText || '~'}}\n`
     if (authorText && !/\\author\b/.test(allExtras)) preambleMeta += `\\author{${authorText}}\n`
+    if (m.show_date === false && !/\\date\b/.test(allExtras)) preambleMeta += '\\date{}\n'
   }
 
   const parts: string[] = []

@@ -66,6 +66,7 @@ export const TIPS: Record<string, Tip> = {
   act_cols_2: { title: 'Two columns', what: 'Sets the page to two columns, as in most journals.', latex: 'Uses the class\'s twocolumn option.' },
   act_cols_3: { title: 'Three columns', what: 'Sets the page to three columns, as in newsletters and posters.', latex: 'Wraps the text in a multicols environment.' },
   act_pagebreak: { title: 'Page break', what: 'Starts a new page at the cursor, like Ctrl+Enter in Word.', latex: 'Becomes \\newpage.' },
+  act_show_date: { title: 'Date', what: 'Shows or hides the date under the title. Click again to bring it back.', latex: 'Off writes \\date{}; on lets \\maketitle print \\today.' },
   act_hrule: { title: 'Horizontal line', what: 'Inserts a thin line across the page to separate sections.', latex: 'Becomes \\hrulefill.' },
   act_help_guide: { title: 'Help', what: 'Opens the KherveTeX user guide: how to write, insert equations, figures, tables and references, and how the PDF is made.', latex: '' },
   act_shortcuts: { title: 'Keyboard Shortcuts', what: 'Lists every keyboard shortcut, most of them the same as Word\'s.', latex: '' },

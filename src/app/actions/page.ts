@@ -6,6 +6,7 @@ import type { DocMeta } from '../../core/model.ts'
 import { editor, MARGIN_PRESETS } from '../../editor/controller.ts'
 import { platform } from '../../platform/index.ts'
 import { docSettingsDialog, styleDialog, type StyleFile } from '../../ui/dialogs/EditorDialogs.tsx'
+import { setCommandChecked } from '../../ui/commands.ts'
 import { registerActions, type Handler } from '../actions.ts'
 import { appStore, editDoc } from '../store.ts'
 import type { PageFurniture, PdfTypography } from '../pageAnchors.ts'
@@ -43,6 +44,17 @@ function setMeta(patch: Partial<DocMeta>): void {
 
 const actions: Record<string, Handler> = {
   // _set_column_count: nothing when the value is unchanged.
+  // Insert > Date: the date under the title, on or off.
+  show_date: () => {
+    const on = meta().show_date === false
+    const { show_date: _, ...rest } = meta()
+    void _
+    const next: DocMeta = on ? rest : { ...rest, show_date: false }
+    const e = editor()
+    if (e) e.setMeta(next)
+    else editDoc({ ...appStore().get().doc, meta: next })
+    setCommandChecked('show_date', on)
+  },
   cols_1: () => { if (meta().column_count !== 1) setMeta({ column_count: 1 }) },
   cols_2: () => { if (meta().column_count !== 2) setMeta({ column_count: 2 }) },
   cols_3: () => { if (meta().column_count !== 3) setMeta({ column_count: 3 }) },
