@@ -35,7 +35,7 @@ if (location.hash === SPLASH_HASH) {
     path: null, dirty: false, project: null, projectPath: null, chapterIndex: 0,
     tab: 'visual', layout: 'side', autoCompile: true,
     compile: { running: false, ok: null, log: '', pdf: null, serial: 0 },
-    status: '', docSerial: 0,
+    status: '', docSerial: 0, example: null,
   })
 
   createRoot(document.getElementById('root')!).render(

@@ -2,6 +2,7 @@
 // QAction of _build_actions / _build_context_actions becomes a Command
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
+import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 
 export interface MenuItem {
   text: string
@@ -406,7 +407,8 @@ const cmds: Command[] = [
     id: `gallery_${slug(cat)}`, text: cat.replace('&', '&&'), icon: 'class_thumbnail', iconArg: cls,
     popup: 'instant', iconW: 26, iconH: 33, tooltip: `${cat}: ${items.length} examples`,
     menu: items.map((label): MenuItem => ({
-      text: label, icon: 'class_thumbnail', iconArg: cls, command: `example:${label}` })),
+      text: label, icon: 'class_thumbnail', iconArg: cls, command: `example:${label}`,
+      ...(isBetaExample(label) ? { detail: BETA_DETAIL } : {}) })),
   })),
   { id: 'gallery_mine', text: 'My templates', icon: 'class_thumbnail', iconArg: 'article',
     popup: 'instant', iconW: 26, iconH: 33, tooltip: 'My templates',

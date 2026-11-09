@@ -11,21 +11,22 @@ import { offerSaveBefore, openUnsaved, setExampleOpener } from './file'
 
 // _open_example_here: user-default meta fields are layered on top
 // (openUnsaved) so the example follows the same conventions as File > New.
-async function openExampleHere(factory: Factory): Promise<void> {
+async function openExampleHere(factory: Factory, label: string): Promise<void> {
   openUnsaved(factory())
+  appStore().set({ example: label })
   if (appStore().get().autoCompile) await kickCompile()
 }
 
 // _open_example, from the ribbon or the menus.
 async function openExample(factory: Factory, label: string): Promise<void> {
   if (!(await offerSaveBefore(`opening ${label}`))) return
-  await openExampleHere(factory)
+  await openExampleHere(factory, label)
 }
 
 // The welcome page passes the entry's index in GALLERY order.
 setExampleOpener(index => {
   const entry = GALLERY[index]
-  if (entry) return openExampleHere(entry[2])
+  if (entry) return openExampleHere(entry[2], entry[1])
 })
 
 // A gallery entry by its index or label (the menus' `example:<label>`).

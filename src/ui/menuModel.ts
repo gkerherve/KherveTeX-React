@@ -1,6 +1,7 @@
 // The menu bar of khervedoc/mainwindow.py `_build_menus` (plus the
 // entries `_extend_menus` adds), in order. Strings are command ids from
 // COMMANDS, or '-' for a separator.
+import { BETA_DETAIL, isBetaExample } from './pageBeta'
 import { GALLERY, THEOREM_KINDS, type MenuEntry, type MenuItem } from './ribbonModel'
 
 export interface MenuBarMenu {
@@ -15,7 +16,9 @@ const MATH_ENVIRONMENTS = [
 
 const newFromTemplate: MenuEntry[] = [
   ...GALLERY.map(([cat, , items]): MenuItem => ({
-    text: cat.replace('&', '&&'), items: items.map(label => ({ text: label, command: `example:${label}` })),
+    text: cat.replace('&', '&&'), items: items.map(label => ({
+      text: label, command: `example:${label}`, ...(isBetaExample(label) ? { detail: BETA_DETAIL } : {}),
+    })),
   })),
   '-',
   { text: '&My templates', items: [{ text: '(no saved templates)', disabled: true }] },

@@ -4,6 +4,7 @@
 // LaTeX output matters, or the visual editor alone — like Word — with the
 // PDF, console and background compiles off.
 import { AppIcon } from './icons'
+import { isBetaExample } from './pageBeta'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import pkg from '../../package.json'
@@ -89,7 +90,10 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
             <div style={list}>
               {examples.map((label, i) => (
                 <div key={label} style={item(exSel === i)} onClick={() => setExSel(i)}
-                  onDoubleClick={() => finish({ kind: 'example', index: i })}>{label}</div>
+                  onDoubleClick={() => finish({ kind: 'example', index: i })}>
+                  {label}{isBetaExample(label) && <span className='beta-tag' style={{ marginLeft: 6 }}
+                    title='The page view of this template is in beta'>beta</span>}
+                </div>
               ))}
             </div>
           </div>

@@ -353,5 +353,7 @@
   font-size: 12px;
 }
 
+.rb-classcell { position: relative; }
+.rb-classbeta { position: absolute; top: 2px; right: 2px; }
 .rb-classcell:hover { background: var(--menu-sel); }
 .rb-classcell.on { background: var(--pressed-blue); }

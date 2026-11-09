@@ -13,6 +13,7 @@ import { PdfPanel } from './preview/PdfPanel'
 import { Ribbon } from './ui/Ribbon'
 import type { ContextKind } from './ui/ribbonModel'
 import { StatusBar } from './ui/StatusBar'
+import { isBetaPage } from './ui/pageBeta'
 import { ProjectSidebar } from './ui/ProjectSidebar'
 import { session } from './app/actions/project'
 import { TooltipProvider } from './ui/Tooltip'
@@ -68,6 +69,9 @@ export default function App() {
   const showPdf = layout === 'side'
   // The visual page is as wide as the document's paper (or its class's).
   const pageW = pagePx(useApp(s => s.doc.meta)).width
+  const docClass = useApp(s => s.doc.meta.documentclass)
+  const beta = useApp(s => isBetaPage(s.doc.meta.documentclass, s.example))
+  const example = useApp(s => s.example)
 
 
   const fitWidth = cmd.isChecked('fit_page_width')
@@ -101,6 +105,15 @@ export default function App() {
         <div className='workspace'>
           <ProjectSidebar />
           <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}>
+            {beta && (
+              <div className='beta-strip' role='note'>
+                <span className='beta-tag'>beta</span>
+                <span>
+                  Page view in beta for {example && !isBetaPage(docClass, null) ? `"${example}"` : docClass}:
+                  page breaks, headers and footers may differ from the PDF. The PDF is the reference.
+                </span>
+              </div>
+            )}
             <div className='desk-inner' style={{ padding: DESK_PAD }}>
               <div className='page-card' style={{ zoom: zoom / 100 }}>
                 <EditorPane onContext={setContext} />

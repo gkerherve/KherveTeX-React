@@ -33,6 +33,9 @@ export interface AppState {
   // Bumped when the document is replaced wholesale (open, new, import,
   // Code-tab edit) so the visual editor reloads rather than diffing.
   docSerial: number
+  // The gallery example the open document was started from (its label),
+  // or null: the page view's beta note (ui/pageBeta.ts) follows it.
+  example: string | null
 }
 
 type Listener = () => void
@@ -72,7 +75,9 @@ export function useApp<T>(select: (s: AppState) => T): T {
 
 // Replace the whole document (open/new/import/code edit).
 export function replaceDoc(doc: KDocument, extra: Partial<AppState> = {}): void {
-  appStore().set(s => ({ doc, docSerial: s.docSerial + 1, ...extra }))
+  // A new document (a new path, or none) is no longer the example.
+  const fresh = 'path' in extra && !('example' in extra) ? { example: null } : {}
+  appStore().set(s => ({ doc, docSerial: s.docSerial + 1, ...fresh, ...extra }))
 }
 
 // The visual editor reports an edit: same document identity, now dirty.

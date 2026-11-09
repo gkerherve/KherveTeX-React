@@ -7,6 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CommandState } from './commands'
 import { useRibbonWidgets } from '../editor/ribbonState'
 import { Icon } from './icons'
+import { isBetaClass } from './pageBeta'
 import { Popup } from './Menu'
 import {
   bigLabel, COMMANDS, CORNER_LABELLED, CORNER_LEFT, CORNER_RIGHT, FONT_SIZES,
@@ -286,9 +287,10 @@ function ClassGrid({ rect, current, onPick, onClose }: {
     <div className='qmenu rb-classgrid' style={{ left: rect.left, top: rect.bottom }}>
       {TEMPLATE_CHOICES.map(cls => (
         <button type='button' key={cls} className={'rb-classcell' + (cls === current ? ' on' : '')}
-          onClick={() => onPick(cls)}>
+          onClick={() => onPick(cls)} title={isBetaClass(cls) ? `${cls}: the page view is in beta` : undefined}>
           <Icon name='class_thumbnail' arg={cls} width={52} height={66} />
           <span>{cls}</span>
+          {isBetaClass(cls) && <span className='beta-tag rb-classbeta'>beta</span>}
         </button>
       ))}
     </div>
