@@ -184,7 +184,7 @@ describe('document tools', () => {
     expect(outline.map(b => b.type).slice(0, 3)).toEqual(['Title', 'Author', 'Author'])
     expect((await run(w, 'get_latex')).latex).toContain('\\maketitle')
     await run(w, 'set_metadata', { title: 'New title' })
-    expect((await run(w, 'read_blocks', { start: 0 })).blocks[0].latex).toBe('\\maketitle\n')
+    expect(((await run(w, 'read_blocks', { start: 0 })).blocks as { latex: string }[])[0].latex).toBe('\\maketitle\n')
     expect((await run(w, 'get_latex')).latex).toContain('\\title{New title}')
     // \maketitle alone is accepted and does not duplicate the blocks.
     expect((await run(w, 'insert_latex', { latex: '\\maketitle' })).error).toBeUndefined()
