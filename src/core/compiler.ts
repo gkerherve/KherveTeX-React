@@ -495,9 +495,14 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
       }
     }
     // Copy subdirectories (Fonts/, Images/, etc.) so relative paths inside
-    // .cls files (e.g. ./Fonts/Lato/Lato-Regular) resolve.
+    // .cls files (e.g. ./Fonts/Lato/Lato-Regular) resolve. Only the ones
+    // the document names, or all of them beside a custom class or style:
+    // a document saved straight in ~/Documents would otherwise copy every
+    // project there on each compile, and the app hangs on "Compiling".
+    const ownStyle = entries.some(f => f.isFile && ['.cls', '.sty'].includes(suffix(f.name)))
+    const named = (dir: string) => ownStyle || texSource.includes(`${dir}/`) || texSource.includes(`{${dir}}`)
     for (const child of entries) {
-      if (child.isDir && !child.name.startsWith('.')) {
+      if (child.isDir && !child.name.startsWith('.') && named(child.name)) {
         const dest = join(workdir, child.name)
         if (!(await host.exists(dest))) await host.copy(child.path, dest)
       }

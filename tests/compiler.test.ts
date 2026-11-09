@@ -113,6 +113,21 @@ describe('test_compiler', () => {
     expect(calls).toEqual([true])
   })
 
+  it('copies only the folders beside the document that it uses', async () => {
+    const src = tmp(), d = tmp()
+    for (const n of ['Images', 'Projects', 'Big Library']) mkdirSync(join(src, n))
+    writeFileSync(join(src, 'Images', 'a.png'), 'x')
+    const { host } = fakeTectonic(d, { true: [0, 'ok', true] })
+    await compileTex('\\includegraphics{Images/a.png}', d, { sourceDir: src }, host)
+    expect(existsSync(join(d, 'Images'))).toBe(true)
+    expect(existsSync(join(d, 'Projects'))).toBe(false)
+    expect(existsSync(join(d, 'Big Library'))).toBe(false)
+    // Beside a class of its own, every folder goes (its Fonts/ ...).
+    writeFileSync(join(src, 'mine.cls'), '%')
+    await compileTex('x', d, { sourceDir: src }, host)
+    expect(existsSync(join(d, 'Projects'))).toBe(true)
+  })
+
   it('test_compile_goes_online_when_cache_misses_a_package', async () => {
     const d = tmp()
     const { calls, host } = fakeTectonic(d, {
