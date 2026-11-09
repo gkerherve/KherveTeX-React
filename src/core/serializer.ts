@@ -517,6 +517,96 @@ export function tableHasPictures(node: Table): boolean {
 
 // url refuses to break a link mid-token, so a long address overflows the
 // right margin; xurl lets it wrap anywhere. Added only when a URL is present.
+// Characters Latin Modern, the PDF's font, has no glyph for (lower-case
+// Greek, primes, most math symbols): typed in text they printed as nothing.
+// Each becomes an active character drawing its math symbol, or for the
+// Greek mu, the font's own micro sign (upright, as in "5 μm").
+export const TEXT_FALLBACKS: Record<string, string> = {
+  'α': '\\ensuremath{\\alpha}',
+  'β': '\\ensuremath{\\beta}',
+  'γ': '\\ensuremath{\\gamma}',
+  'δ': '\\ensuremath{\\delta}',
+  'ε': '\\ensuremath{\\varepsilon}',
+  'ζ': '\\ensuremath{\\zeta}',
+  'η': '\\ensuremath{\\eta}',
+  'θ': '\\ensuremath{\\theta}',
+  'ι': '\\ensuremath{\\iota}',
+  'κ': '\\ensuremath{\\kappa}',
+  'λ': '\\ensuremath{\\lambda}',
+  'μ': 'µ',
+  'ν': '\\ensuremath{\\nu}',
+  'ξ': '\\ensuremath{\\xi}',
+  'ο': 'o',
+  'π': '\\ensuremath{\\pi}',
+  'ρ': '\\ensuremath{\\rho}',
+  'ς': '\\ensuremath{\\varsigma}',
+  'σ': '\\ensuremath{\\sigma}',
+  'τ': '\\ensuremath{\\tau}',
+  'υ': '\\ensuremath{\\upsilon}',
+  'φ': '\\ensuremath{\\varphi}',
+  'χ': '\\ensuremath{\\chi}',
+  'ψ': '\\ensuremath{\\psi}',
+  'ω': '\\ensuremath{\\omega}',
+  'ϑ': '\\ensuremath{\\vartheta}',
+  'ϕ': '\\ensuremath{\\phi}',
+  'ϖ': '\\ensuremath{\\varpi}',
+  'ϱ': '\\ensuremath{\\varrho}',
+  'ϵ': '\\ensuremath{\\epsilon}',
+  '′': '\\ensuremath{^{\\prime}}',
+  '″': '\\ensuremath{^{\\prime\\prime}}',
+  'ℏ': '\\ensuremath{\\hbar}',
+  '↔': '\\ensuremath{\\leftrightarrow}',
+  '⇌': '\\ensuremath{\\rightleftharpoons}',
+  '⇒': '\\ensuremath{\\Rightarrow}',
+  '⇔': '\\ensuremath{\\Leftrightarrow}',
+  '∀': '\\ensuremath{\\forall}',
+  '∂': '\\ensuremath{\\partial}',
+  '∃': '\\ensuremath{\\exists}',
+  '∅': '\\ensuremath{\\emptyset}',
+  '∆': '\\ensuremath{\\Delta}',
+  '∇': '\\ensuremath{\\nabla}',
+  '∈': '\\ensuremath{\\in}',
+  '∉': '\\ensuremath{\\notin}',
+  '∏': '\\ensuremath{\\prod}',
+  '∑': '\\ensuremath{\\sum}',
+  '∙': '\\ensuremath{\\bullet}',
+  '∝': '\\ensuremath{\\propto}',
+  '∠': '\\ensuremath{\\angle}',
+  '∥': '\\ensuremath{\\parallel}',
+  '∩': '\\ensuremath{\\cap}',
+  '∪': '\\ensuremath{\\cup}',
+  '∫': '\\ensuremath{\\int}',
+  '∼': '\\ensuremath{\\sim}',
+  '≈': '\\ensuremath{\\approx}',
+  '≠': '\\ensuremath{\\neq}',
+  '≡': '\\ensuremath{\\equiv}',
+  '≤': '\\ensuremath{\\leq}',
+  '≥': '\\ensuremath{\\geq}',
+  '≪': '\\ensuremath{\\ll}',
+  '≫': '\\ensuremath{\\gg}',
+  '⊂': '\\ensuremath{\\subset}',
+  '⊥': '\\ensuremath{\\perp}',
+  '⋅': '\\ensuremath{\\cdot}',
+  '✓': '\\ensuremath{\\surd}',
+  '✗': '\\ensuremath{\\times}',
+}
+
+// Define each character of TEXT_FALLBACKS the document uses (and the math
+// alphanumerics, 𝛿, whose letter is one) as an active character: plain TeX,
+// as newunicodechar does, which tectonic's offline cache lacks. Added after
+// the packages, before \title reads any text.
+function withUnicodeFallbacks(packages: string, ...scanned: string[]): string {
+  const found = new Map<string, string>()
+  for (const ch of new Set([...scanned.join('')])) {
+    const base = ch.codePointAt(0)! >= 0x1D400 ? ch.normalize('NFKC') : ch
+    if (Object.prototype.hasOwnProperty.call(TEXT_FALLBACKS, base)) found.set(ch, TEXT_FALLBACKS[base])
+  }
+  if (!found.size) return packages
+  const lines = [...found.keys()].sort((a, b) => a.codePointAt(0)! - b.codePointAt(0)!)
+    .map((ch) => `\\begingroup\\lccode\`\\~=\`${ch}\\lowercase{\\endgroup\\def~}{${found.get(ch)}}\\catcode\`${ch}=\\active`)
+  return packages + '\n' + lines.join('\n')
+}
+
 function withUrlBreaking(packages: string, ...scanned: string[]): string {
   const combined = scanned.join('')
   // \href is hyperref's: a link imported from Word in a document that does
@@ -942,6 +1032,7 @@ export function serializeDocument(doc: Document): string {
     [body, natbib] = withKherverefBibliography(doc, body)
     if (natbib) packages = withNatbib(packages, m)
     packages = withUrlBreaking(packages, packages, frontmatter, body)
+    packages = withUnicodeFallbacks(packages, packages, frontmatter, body)
     return `${documentclassLine(m)}\n${packages}\n\\begin{document}\n${frontmatter}${body}\\end{document}\n`
   }
 
@@ -1101,6 +1192,7 @@ export function serializeDocument(doc: Document): string {
   if (!strip(body)) body = '\\null\n'
   if (natbib) packages = withNatbib(packages, m)
   packages = withUrlBreaking(packages, packages, preambleMeta, body)
+  packages = withUnicodeFallbacks(packages, packages, preambleMeta, body)
   return `${documentclassLine(m)}\n${packages}\n${preambleMeta}\\begin{document}\n${body}\\end{document}\n`
 }
 

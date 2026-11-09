@@ -196,6 +196,13 @@ def typst_edge_cases(cases: dict) -> None:
         M.Table(rows=[[]], caption=""),
         M.Table(rows=[["only"]], header=True, repeat_header=True, merges=[[0, 0, 3, 3]]),
     ]), importer=False)
+    case(cases, "greek-text", doc([
+        M.Title(children=[M.Text(text="Kα and δ")]),
+        M.Paragraph(children=[M.Text(text="Cu Kα (λ = 1.5 Å), 5 μm, a ≈ b ≤ c, 𝛿 and Δ, h′ ✓", marks=[])]),
+        M.Paragraph(children=[M.MathInline(latex="α+x")]),
+        M.Figure(path="a.png", caption="σ map", label=None),
+    ]), importer=False)
+    case(cases, "no-greek", doc([M.Paragraph(children=[M.Text(text="Plain ° ± × µ text", marks=[])])]), importer=False)
     case(cases, "picture-tables", doc([
         M.Table(rows=[["\\includegraphics[width=\\linewidth]{images/a.png}", "Step one \\par \\begin{itemize} \\item x \\end{itemize}"],
                       ["", "Step 100% two"]],

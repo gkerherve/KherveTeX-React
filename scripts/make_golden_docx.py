@@ -616,6 +616,13 @@ def fx_equations():
     # numbered by a typed "(3)", two equations in one display, an empty one
     body_append(d, W(f'<m:oMathPara>{omath(mr("y=2x") + mr("  (3)"))}{omath(mr("z"))}<!-- c -->{omath("")}</m:oMathPara>'))
     body_append(d, W(f'<m:oMathPara>{omath(mr("(4)"))}</m:oMathPara>'))
+    # the Symbol font: letters, private-use codes, Insert > Symbol
+    body_append(d, W('<w:r><w:t xml:space="preserve">h</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol"/></w:rPr>'
+                     '<w:t>n\uf06e\uf0b0 aZ(</w:t></w:r><w:r><w:rPr><w:rFonts w:hAnsi="SYMBOL"/></w:rPr><w:t>m</w:t></w:r>'
+                     '<w:r><w:rPr><w:rFonts w:ascii="Wingdings"/></w:rPr><w:t>\uf06e</w:t></w:r>'
+                     '<w:r><w:sym w:font="Symbol" w:char="F061"/></w:r><w:r><w:sym w:font="Symbol" w:char="62"/></w:r>'
+                     '<w:r><w:sym w:font="Wingdings" w:char="F0FC"/></w:r><w:r><w:sym w:font="Symbol" w:char="zz"/></w:r>'
+                     '<w:r><w:sym w:font="Symbol" w:char="F0E5"/><w:t></w:t></w:r>'))
     # tracked changes: the insertion is kept, the deletion is not
     body_append(d, W('<w:r><w:t xml:space="preserve">Kept </w:t></w:r><w:ins w:id="1" w:author="a"><w:r><w:t>inserted</w:t></w:r></w:ins>'
                      '<w:del w:id="2" w:author="a"><w:r><w:delText>deleted</w:delText></w:r></w:del><w:r><w:t xml:space="preserve"> text.</w:t></w:r>'))
