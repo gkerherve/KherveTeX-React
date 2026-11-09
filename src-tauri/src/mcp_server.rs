@@ -138,6 +138,9 @@ them what you needed rather than working around it.
 pub trait Bridge {
     fn request(&mut self, method: &str, params: Option<J>) -> Result<J, BridgeError>;
     fn close(&mut self) {}
+    /// Counts connections to the app: a new one may be a newer build with
+    /// other tools.
+    fn generation(&self) -> u64 { 0 }
 }
 
 /// Line-delimited JSON client for the in-app bridge.
@@ -150,6 +153,7 @@ pub struct BridgeClient {
     sock: Option<BufReader<TcpStream>>,
     token: String,
     next_id: u64,
+    connections: u64,
 }
 
 enum Io {
@@ -159,7 +163,7 @@ enum Io {
 
 impl BridgeClient {
     pub fn new(endpoint_file: Option<PathBuf>) -> Self {
-        BridgeClient { endpoint_file, sock: None, token: String::new(), next_id: 0 }
+        BridgeClient { endpoint_file, sock: None, token: String::new(), next_id: 0, connections: 0 }
     }
 
     fn connect(&mut self) -> Result<(), BridgeError> {
@@ -177,6 +181,7 @@ impl BridgeClient {
         let _ = sock.set_read_timeout(Some(CALL_TIMEOUT));
         let _ = sock.set_write_timeout(Some(CALL_TIMEOUT));
         self.sock = Some(BufReader::new(sock));
+        self.connections += 1;
         Ok(())
     }
 
@@ -196,6 +201,10 @@ impl BridgeClient {
 }
 
 impl Bridge for BridgeClient {
+    fn generation(&self) -> u64 {
+        self.connections
+    }
+
     fn close(&mut self) {
         if let Some(r) = self.sock.take() {
             let _ = r.get_ref().shutdown(std::net::Shutdown::Both);
@@ -258,6 +267,10 @@ fn log(msg: &str) {
 pub struct McpServer<B: Bridge> {
     pub bridge: B,
     tools_cache: Option<Vec<J>>,
+    // The bridge generation the cached list came from.
+    cache_gen: u64,
+    /// Notifications to write after the replies (tools/list_changed).
+    pub pending: Vec<J>,
 }
 
 fn error(id: &J, code: i64, message: &str) -> J {
@@ -270,7 +283,7 @@ fn error(id: &J, code: i64, message: &str) -> J {
 
 impl<B: Bridge> McpServer<B> {
     pub fn new(bridge: B) -> Self {
-        McpServer { bridge, tools_cache: None }
+        McpServer { bridge, tools_cache: None, cache_gen: 0, pending: Vec::new() }
     }
 
     /// Handle one JSON-RPC message; None means 'no reply'.
@@ -287,7 +300,11 @@ impl<B: Bridge> McpServer<B> {
             }
             "ping" => Ok(J::Obj(vec![])),
             "tools/list" => self.list_tools().map(|t| J::obj(vec![("tools", J::Arr(t))])),
-            "tools/call" => self.call_tool(&params),
+            "tools/call" => {
+                let r = self.call_tool(&params);
+                self.refresh_tools();
+                r
+            }
             // Declared empty rather than unsupported so hosts that probe
             // every capability do not surface an error.
             "resources/list" => Ok(J::obj(vec![("resources", J::Arr(vec![]))])),
@@ -322,7 +339,7 @@ impl<B: Bridge> McpServer<B> {
         J::obj(vec![
             ("protocolVersion", J::s(version)),
             ("capabilities", J::obj(vec![
-                ("tools", J::obj(vec![("listChanged", J::Bool(false))])),
+                ("tools", J::obj(vec![("listChanged", J::Bool(true))])),
                 ("resources", J::Obj(vec![])),
                 ("prompts", J::Obj(vec![])),
             ])),
@@ -335,9 +352,30 @@ impl<B: Bridge> McpServer<B> {
         ])
     }
 
+    /// The app was restarted (perhaps a newer build): fetch its tools again
+    /// and tell the host when they changed, so new parameters reach it
+    /// without restarting the host.
+    fn refresh_tools(&mut self) {
+        if self.tools_cache.is_none() || self.bridge.generation() == self.cache_gen {
+            return;
+        }
+        let old = self.tools_cache.take();
+        if self.list_tools().is_err() {
+            self.tools_cache = old;
+            return;
+        }
+        if self.tools_cache != old {
+            self.pending.push(J::obj(vec![
+                ("jsonrpc", J::s("2.0")),
+                ("method", J::s("notifications/tools/list_changed")),
+            ]));
+        }
+    }
+
     fn list_tools(&mut self) -> Result<Vec<J>, BridgeError> {
         if self.tools_cache.is_none() {
             let tools = self.bridge.request("list_tools", None)?;
+            self.cache_gen = self.bridge.generation();
             let list = match tools {
                 J::Arr(a) => a,
                 _ => vec![],
@@ -409,7 +447,8 @@ pub fn serve(endpoint_file: Option<PathBuf>) -> i32 {
             J::Arr(a) => a,
             m => vec![m],
         };
-        let replies: Vec<J> = batch.iter().filter_map(|m| server.handle(m)).collect();
+        let mut replies: Vec<J> = batch.iter().filter_map(|m| server.handle(m)).collect();
+        replies.append(&mut server.pending);
         let mut out = stdout.lock();
         for reply in &replies {
             let _ = out.write_all((mcp_json::dumps(reply, None) + "\n").as_bytes());
@@ -475,6 +514,36 @@ mod tests {
         assert_eq!(res.get("serverInfo").unwrap().get("name"), Some(&J::s("khervetex")));
         assert_eq!(res.get("serverInfo").unwrap().get("version"), Some(&J::s("9.9")));
         assert!(res.get("instructions").unwrap().as_str().unwrap().contains("KherveTeX"));
+    }
+
+    // A restarted (newer) app with another tool list: the host is told.
+    struct GrowingBridge { n: u64 }
+
+    impl Bridge for GrowingBridge {
+        fn request(&mut self, method: &str, _params: Option<J>) -> Result<J, BridgeError> {
+            Ok(match method {
+                "list_tools" => J::Arr((0..self.n + 1).map(|i| J::obj(vec![
+                    ("name", J::s(format!("t{i}"))), ("input_schema", J::obj(vec![("type", J::s("object"))])),
+                ])).collect()),
+                _ => J::obj(vec![]),
+            })
+        }
+        fn generation(&self) -> u64 { self.n }
+    }
+
+    #[test]
+    fn a_new_app_build_announces_its_tools() {
+        let mut srv = McpServer::new(GrowingBridge { n: 1 });
+        srv.handle(&msg(r#"{"id": 1, "method": "tools/list"}"#)).unwrap();
+        srv.handle(&msg(r#"{"id": 2, "method": "tools/call", "params": {"name": "t0"}}"#)).unwrap();
+        assert!(srv.pending.is_empty());
+        srv.bridge.n = 2;
+        srv.handle(&msg(r#"{"id": 3, "method": "tools/call", "params": {"name": "t0"}}"#)).unwrap();
+        assert_eq!(srv.pending.len(), 1);
+        assert_eq!(srv.pending[0].get("method"), Some(&J::s("notifications/tools/list_changed")));
+        let reply = srv.handle(&msg(r#"{"id": 4, "method": "tools/list"}"#)).unwrap();
+        let J::Arr(tools) = reply.get("result").unwrap().get("tools").unwrap().clone() else { panic!() };
+        assert_eq!(tools.len(), 3);
     }
 
     #[test]

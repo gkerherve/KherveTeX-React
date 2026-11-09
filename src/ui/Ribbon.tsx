@@ -162,14 +162,37 @@ function StyleTileButton({ level, name, on, onPick }: {
 
 const styleName = (label: string) => label === 'Body text' ? 'Normal' : label
 
+// Tiles beyond GALLERY_INLINE, in the order they join when there is room.
+const GALLERY_MORE = [4, 5, -2, -7, -8, -3, -4, -5, -6]
+
 function StyleGallery({ ctx }: { ctx: Ctx }) {
   const level = ctx.styleLevel
   const pick = ctx.setStyleLevel
   const isOpen = ctx.menu?.owner === 'styles'
   const moreTip = useTipProps({ plain: 'All paragraph styles' })
+  // As many tiles as the ribbon has room for (at least the inline five).
+  const ref = useRef<HTMLDivElement>(null)
+  const [extra, setExtra] = useState(0)
+  useLayoutEffect(() => {
+    const gal = ref.current
+    const body = gal?.closest('.rb-body') as HTMLElement | null
+    if (!gal || !body) return
+    const fit = () => {
+      const tile = gal.querySelector('.rb-tile')?.getBoundingClientRect().width ?? 0
+      const last = body.lastElementChild?.getBoundingClientRect().right ?? 0
+      const pad = parseFloat(getComputedStyle(body).paddingRight) || 0
+      const free = body.getBoundingClientRect().right - pad - last
+      if (tile <= 0) return
+      setExtra(n => Math.max(0, Math.min(GALLERY_MORE.length, n + Math.floor(free / (tile + 1)))))
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [extra])
   return (
-    <div className='rb-gallery'>
-      {GALLERY_INLINE.map(lv => {
+    <div className='rb-gallery' ref={ref}>
+      {[...GALLERY_INLINE, ...GALLERY_MORE.slice(0, extra)].map(lv => {
         const label = PARAGRAPH_STYLES.find(([, l]) => l === lv)![0]
         return <StyleTileButton key={lv} level={lv} name={styleName(label)}
           on={level === lv} onPick={() => pick(lv)} />

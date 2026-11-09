@@ -84,6 +84,13 @@ function platformGitIo(): OverleafIo {
     if (r.code !== 0) throw new Error((r.stderr || r.stdout).trim() || `git ${args[0]} failed`)
     return r.stdout.trim()
   }
+  // The branch the Overleaf project is on: older projects use master,
+  // newer ones main, and Overleaf refuses a push that would add a branch.
+  const remoteBranch = async (dir: string, want: string, token = ''): Promise<string> => {
+    const out = await git(dir, ['ls-remote', '--symref', 'origin', 'HEAD', `refs/heads/${want}`], token)
+    if (new RegExp(`\\srefs/heads/${want}$`, 'm').test(out)) return want
+    return /^ref: refs\/heads\/(\S+)\s+HEAD/m.exec(out)?.[1] ?? want
+  }
   const walk = async (dir: string, prefix = ''): Promise<string[]> => {
     const out: string[] = []
     for (const e of await p.listDir(dir)) {
@@ -100,7 +107,14 @@ function platformGitIo(): OverleafIo {
     removeTree: (dir) => p.remove(dir),
     remoteUrl: (dir) => git(dir, ['remote', 'get-url', 'origin']),
     fetch: async (dir, token) => { await git(dir, ['fetch', 'origin'], token) },
-    checkoutRemoteBranch: async (dir, branch) => { await git(dir, ['checkout', '--force', '--detach', `origin/${branch}`]) },
+    checkoutRemoteBranch: async (dir, branch) => {
+      try {
+        await git(dir, ['rev-parse', '--verify', '--quiet', `origin/${branch}`])
+      } catch {
+        branch = await remoteBranch(dir, branch)
+      }
+      await git(dir, ['checkout', '--force', '--detach', `origin/${branch}`])
+    },
     clone: async (url, dir, token, branch) => {
       await p.mkdir(dirname(dir))
       try {
@@ -132,7 +146,10 @@ function platformGitIo(): OverleafIo {
       if (tip && tip !== head) throw new Error('failed to create commit: current tip is not the first parent')
       await git(dir, ['update-ref', ref, sha])
     },
-    push: async (dir, ref, token) => { await git(dir, ['push', 'origin', ref], token) },
+    push: async (dir, ref, token) => {
+      const branch = await remoteBranch(dir, ref.replace(/^refs\/heads\//, ''), token)
+      await git(dir, ['push', 'origin', `${ref}:refs/heads/${branch}`], token)
+    },
   }
 }
 
