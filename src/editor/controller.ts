@@ -64,6 +64,16 @@ export function setImageLoader(fn: ImageLoader | null): void {
 const NO_EXPORT = 'kt-no-export'
 const DESK = '#d0d4d8'
 const SHEET_EDGE = '#b8bcc1'
+// The text of the title, authors, affiliations and correspondence, one
+// space between words: what a first page prints at its top as body.
+function titleAreaText(doc: import('prosemirror-model').Node): string {
+  const out: string[] = []
+  doc.forEach(n => {
+    if (['title', 'author', 'affiliation', 'correspondence'].includes(n.type.name)) out.push(n.textContent)
+  })
+  return out.join(' ').replace(/\s+/g, ' ')
+}
+
 const FIELD_RE = /\{(\w+)\}/g
 
 export class EditorController implements ViewHost {
@@ -654,10 +664,16 @@ export class EditorController implements ViewHost {
             + `border-top-width:${Math.max(0.5, (item.width ?? 0.4) * pt)}px"></div>`)
         }
         const s = geo.widthPx / pdfPage.width
+        const titleArea = k === 0 ? titleAreaText(this.view.state.doc) : ''
         const headBottom = geo.topPx / s
         const footTop = (H - geo.bottomPx) / s
         for (const sp of pdfPage.spans) {
           if (sp.bottom > headBottom + 1 && sp.top < footTop - 1) continue
+          // A class with a small top margin (revtex4-2) prints the title in
+          // the band searched for running heads: on the first page, text of
+          // the title area is the document's own, already on the page.
+          const t = sp.text.replace(/\s+/g, ' ').trim()
+          if (k === 0 && t.length > 2 && titleArea.includes(t)) continue
           const f = resolvePdfFont(sp.font, this.meta) ?? { family: L.bodyChar.family, bold: false, italic: false }
           const size = sp.size * s
           const lh = size * 1.2
