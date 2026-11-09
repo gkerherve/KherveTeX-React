@@ -150,13 +150,23 @@ export class EditorController implements ViewHost {
       if (e.button !== 0 || this.view.dom.contains(t)) return
       if (!(t === this.flowEl || t === mount || this.sheetsEl.contains(t))) return
       e.preventDefault()
+      const st = this.view.state
       const flow = this.view.dom.getBoundingClientRect()
       const x = Math.min(Math.max(e.clientX, flow.left + 1), flow.right - 1)
       const y = Math.min(Math.max(e.clientY, flow.top + 1), flow.bottom - 1)
-      const hit = e.clientY > flow.bottom ? null : this.view.posAtCoords({ left: x, top: y })
-      const st = this.view.state
-      const $pos = st.doc.resolve(hit ? hit.pos : st.doc.content.size)
-      this.view.dispatch(st.tr.setSelection(Selection.near($pos, hit ? 1 : -1)).scrollIntoView())
+      // The end of the document only for a click below its last line; a
+      // click the text cannot be found for leaves the caret where it was,
+      // never sends it to the end. No scrollIntoView: the caret is where
+      // the user clicked, and WebKit (the desktop app) misplaced the page
+      // when asked to scroll to it.
+      let end = Infinity
+      try { end = this.view.coordsAtPos(st.doc.content.size).bottom } catch { /* keep Infinity */ }
+      const hit = this.view.posAtCoords({ left: x, top: y })
+      if (hit && e.clientY <= end) {
+        this.view.dispatch(st.tr.setSelection(Selection.near(st.doc.resolve(hit.pos), 1)))
+      } else if (e.clientY > end) {
+        this.view.dispatch(st.tr.setSelection(Selection.atEnd(st.doc)))
+      }
       this.view.focus()
     })
     // A double-click on a reference list's title (bibView.ts).
