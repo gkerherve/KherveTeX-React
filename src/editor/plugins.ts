@@ -105,6 +105,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
       + `margin-left:${L.left}px;margin-right:${L.right}px;text-indent:${L.indent}px;` + lineHeightCss(L)
     if (L.char) style += charCss(L.char)
     if (L.spans) style += 'column-span:all;'
+    if (L.padBottom) style += `padding-bottom:${L.padBottom + (L.tall?.padBottom ?? 0)}px;`
     const attrs: Record<string, string> = { style }
     if (L.number) {
       attrs['data-num'] = L.number

@@ -25,7 +25,7 @@ import { docFromPM, docToPM } from './convert.ts'
 import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
-import { computeColumnSpacers, computeSpacers, sameSpacers, type PageStart } from './paginate.ts'
+import { computeColumnSpacers, computeSpacers, refreshColumns, sameSpacers, type PageStart } from './paginate.ts'
 import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { bibliographyPlugin } from './bibView.ts'
 import { showContextMenu } from './contextMenu.ts'
@@ -515,6 +515,7 @@ export class EditorController implements ViewHost {
       return
     }
     this.sheets = measure.sheets
+    refreshColumns(this.flowEl)
     this.paint(geo)
   }
 

@@ -155,6 +155,9 @@ export interface BlockLayout {
   // A first line grown tall to set its baseline low: Qt puts the baseline
   // at BASELINE_AT of that height; CSS gets there with padding.
   tall?: { lead: number; padTop: number; padBottom: number }
+  // Room under a block for a label painted below it (the \\maketitle date
+  // under a title block that runs across the columns).
+  padBottom?: number
   // A thebibliography block, drawn as the reference list LaTeX prints:
   // its unnumbered title (\refname / \bibname) and the entries.
   bib?: { title: string; titleChar: CharStyle; bodyChar: CharStyle }
@@ -500,6 +503,9 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       const t = d.day_first ? `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`
         : `${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`
       labels.push(labelEntry(d as unknown as LabelSpec, t, -d.gap * pt, d.centred ?? true))
+      // Across the columns the date must sit inside the title block: the
+      // gap before the first body block would push down only its column.
+      if (L.spans) L.padBottom = d.gap * pt
     }
     L.above = labels
     const onOwnLine = key === 'h1' && !!look.chapter_label && number.startsWith('Chapter ')
@@ -549,7 +555,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
         const indents = followsPara || body.indent_first
         L.indent = indents ? (body.parindent || 0) * pt : 0
         L.bottom = 0
-        L.top = i === afterDate && look.date ? look.date.gap * pt : followsPara ? (body.parskip || 0) * pt : 0
+        L.top = i === afterDate && look.date ? (out[dateLine]?.spans ? 0 : look.date.gap * pt) : followsPara ? (body.parskip || 0) * pt : 0
       } else {
         L.indent = 0
         L.bottom = 0.8 * emPx

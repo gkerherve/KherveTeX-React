@@ -33,6 +33,22 @@ export interface PageMeasure {
   sheets: number
 }
 
+// WebKit (Safari, and the desktop app's web view) keeps a stale place for
+// a column-spanning block (the \\maketitle that runs across the columns)
+// after the columns change around it: the title disappears and the second
+// column starts at the top of the page. Laying the columns out afresh puts
+// it back. Chrome does not need it.
+const STALE_SPANNERS = typeof navigator !== 'undefined'
+  && /AppleWebKit/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)
+
+export function refreshColumns(page: HTMLElement): void {
+  if (!STALE_SPANNERS || !page.classList.contains('kt-cols')) return
+  page.classList.remove('kt-cols')
+  void page.offsetHeight
+  page.classList.add('kt-cols')
+  void page.offsetHeight
+}
+
 function zoomOf(root: HTMLElement): number {
   const r = root.getBoundingClientRect()
   return root.offsetWidth ? r.width / root.offsetWidth : 1
@@ -276,6 +292,7 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     measured = collectUnits(view, yOf)
   } finally {
     page.classList.remove('kt-col-measure')
+    refreshColumns(page)
   }
   const { units, spanEnd } = measured
   forcePageStarts(units, pageStarts)
