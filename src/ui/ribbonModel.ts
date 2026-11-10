@@ -148,6 +148,7 @@ const cmds: Command[] = [
   { id: 'save_as', text: 'Save &As...', shortcut: 'Ctrl+Shift+S' },
   { id: 'close_doc', text: '&Close document' },
   { id: 'new_project', text: 'New &project...' },
+  { id: 'split_documents', text: '&Split into documents...' },
   { id: 'open_project', text: 'Open pro&ject...', icon: 'project_open' },
   { id: 'save_project', text: 'Save projec&t' },
   { id: 'close_project', text: 'Close project' },

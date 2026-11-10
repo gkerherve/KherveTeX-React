@@ -131,6 +131,7 @@ export const SECTION_TYPE_LABELS: [string, string][] = [
   ['chapter', 'Chapter (numbered)'],
   ['appendix', 'Appendix'],
   ['backmatter', 'Back matter (bibliography, index…)'],
+  ['section', 'Sections (continue the chapter before)'],
 ]
 
 export class SidebarModel {
@@ -279,6 +280,8 @@ export class SidebarModel {
         appCounter += 1
         const num = ch.chapter_number !== null ? ch.chapter_number : appCounter
         prefix = `App. ${String.fromCharCode(64 + num)} — `
+      } else if (ctype === 'section') {
+        prefix = '§ '   // section sign
       } else if (ctype === 'frontmatter') {
         prefix = '◇ '   // diamond
       } else if (ctype === 'backmatter') {

@@ -1486,10 +1486,14 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
   // and the chapter counter only where \chapter does.
   const klass = (m.documentclass || '').toLowerCase()
   const hasMatter = ['book', 'memoir', 'scrbook', 'amsbook'].includes(klass)
-  for (const ch of proj.chapters) {
+  const types = proj.chapters.map(c => c.chapter_type ?? 'chapter')
+  for (const [idx, ch] of proj.chapters.entries()) {
     const cmds: string[] = []
-    const ctype = ch.chapter_type ?? 'chapter'
-    if (ctype !== prevType) {
+    const ctype = types[idx]
+    // A section document (a chapter split section by section) runs on in
+    // the chapter before it: no \mainmatter or \appendix of its own, no
+    // chapter number.
+    if (ctype !== prevType && ctype !== 'section') {
       if (ctype === 'frontmatter' && hasMatter) {
         cmds.push('\\frontmatter')
       } else if (ctype === 'chapter' && (prevType === 'frontmatter' || prevType === null)) {
@@ -1530,8 +1534,12 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
 
     if (cmds.length) bodyParts.push(cmds.join('\n') + '\n')
     // \include starts a new page — right for chapters, wrong for the parts
-    // of an article, which should run on.
-    const cmd = hasChapter ? 'include' : 'input'
+    // of an article, which should run on, and for a section document,
+    // which continues its chapter's page. \include also ends with a
+    // \clearpage: a chapter whose sections are documents of their own
+    // would print its title on a page alone (\chapter starts its page).
+    const sectionsFollow = idx + 1 < types.length && types[idx + 1] === 'section'
+    const cmd = hasChapter && ctype !== 'section' && !sectionsFollow ? 'include' : 'input'
     bodyParts.push(`\\${cmd}{${chapterStem(ch)}}\n`)
   }
 

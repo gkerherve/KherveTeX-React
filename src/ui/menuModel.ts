@@ -38,7 +38,7 @@ export const MENU_BAR: MenuBarMenu[] = [
       'configure_remotes', 'pull'] },
     { text: '&Import', items: ['import_tex', 'import_docx', 'import_pdf', 'import_md'] },
     { text: '&Export', items: ['export_pdf', 'export_docx', 'export_tex', 'export_latex_zip'] },
-    { text: 'Pro&ject', items: ['new_project', 'open_project', 'save_project', 'close_project'] },
+    { text: 'Pro&ject', items: ['new_project', 'split_documents', 'open_project', 'save_project', 'close_project'] },
     '-',
     'print_preview', 'print',
     '-',

@@ -136,7 +136,7 @@ export const theorem = (kind = 'theorem', t = '', children: Inline[] = [], start
 
 // ---------------- Project (multi-chapter) ----------------
 
-export const CHAPTER_TYPES = ['frontmatter', 'chapter', 'appendix', 'backmatter']
+export const CHAPTER_TYPES = ['frontmatter', 'chapter', 'appendix', 'backmatter', 'section']
 
 export interface ChapterEntry {
   path: string

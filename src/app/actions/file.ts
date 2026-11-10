@@ -16,7 +16,8 @@ import { basename, dirname, join, normalize, suffix, withSuffix } from '../../co
 import { serializeDocument } from '../../core/serializer'
 import { serializeDocument as serializeTypst } from '../../core/typstSerializer'
 import { isTauri, platform, type FileFilter } from '../../platform'
-import { critical, messageBox, warning } from '../../platform/MessageBox'
+import { critical, information, messageBox, warning } from '../../platform/MessageBox'
+import { chapterPlan, estimatePages, projectFolder, shouldOffer, writeChapterProject, type SplitBy } from '../../core/chapterSplit'
 import { loadSettings, setSetting, setting } from '../../platform/settings'
 import { hasAction, registerActions, runAction } from '../actions'
 import {
@@ -347,6 +348,7 @@ export async function openPath(path: string): Promise<void> {
   setBundledBib(bib)
   appStore().set({ status: '' })
   if (isImport) {
+    if (await offerChapterSplit(path, doc)) return
     finishImport(doc, path)
     void refreshKherverefBib(doc).catch(() => {})
     return
@@ -361,6 +363,83 @@ export async function openPath(path: string): Promise<void> {
   // _refresh_kherveref_bib(doc) feeds the editor the bibliography so
   // citations display as they will compile.
   void refreshKherverefBib(doc).catch(() => {})
+}
+
+// ---- split into documents (chapter_split.py; MainWindow._ask_split) ----
+
+function splitFs() {
+  const p = platform()
+  return { ...fileAccess(), mkdir: (path: string) => p.mkdir(path) }
+}
+
+// How to split `doc` into documents: "chapter", "section", or null (kept
+// as it is). Splitting by section is offered when the chapters have
+// sections.
+async function askSplit(name: string, doc: KDocument, folder: string, keepLabel: string): Promise<SplitBy | null> {
+  const chapters = chapterPlan(doc).filter(p => p[1] !== 'frontmatter').length
+  const sections = chapterPlan(doc, 'section').filter(p => p[1] === 'section').length
+  const answer = await messageBox({
+    title: 'Split into documents', icon: 'question',
+    text: `${name} has ${chapters} chapters${sections ? ` and ${sections} sections` : ''}`
+      + ` (about ${estimatePages(doc)} pages).\n\n`
+      + 'A long document is faster to edit and compile as a project of smaller documents, one per '
+      + 'chapter or one per section; the project still prints the whole document, page for page. '
+      + `The documents go in a new folder, \u201c${basename(folder)}\u201d, beside it.`,
+    buttons: [{ label: 'Split by chapter', default: true },
+      ...(sections ? [{ label: 'Split by section' }] : []), { label: keepLabel }],
+  })
+  return answer === 'Split by chapter' ? 'chapter' : answer === 'Split by section' ? 'section' : null
+}
+
+async function splitAndOpen(doc: KDocument, folder: string, title: string, by: SplitBy): Promise<boolean> {
+  let main: string
+  try {
+    main = await writeChapterProject(doc, folder, title, by, splitFs())
+  } catch (exc) {
+    await critical('Split into documents', exc instanceof Error ? exc.message : String(exc))
+    return false
+  }
+  if (!projectHooks) return false
+  await projectHooks.openFromPath(main)
+  showMessage(`Split into ${chapterPlan(doc, by).length} documents in ${basename(folder)}`, 8000)
+  return true
+}
+
+// A long imported document with chapters (a thesis, a book): offer to make
+// it a project with one document per chapter or per section, written to a
+// new folder beside the file. True when it was split and opened.
+async function offerChapterSplit(path: string, doc: KDocument): Promise<boolean> {
+  if (!projectHooks || !shouldOffer(doc)) return false
+  const folder = await projectFolder(path, fileAccess())
+  const by = await askSplit(basename(path), doc, folder, 'Keep as one document')
+  return by !== null && splitAndOpen(doc, folder, docStem(path), by)
+}
+
+// File > Project > Split into documents: the open document as a project
+// of its chapters (or sections), in a new folder beside it.
+async function splitIntoDocuments(): Promise<void> {
+  if (projectHooks?.isOpen()) {
+    await information('Split into documents', 'This document is already part of a project.')
+    return
+  }
+  const doc = appStore().get().doc
+  if (!chapterPlan(doc).length) {
+    await information('Split into documents',
+      'The document needs at least two chapters (Chapter or Heading 1 headings) to be split.')
+    return
+  }
+  if (appStore().get().path === null) {
+    await information('Split into documents',
+      'Save the document first \u2014 the documents of the split go in a folder beside it.')
+    await saveAs()
+    if (appStore().get().path === null) return
+  } else if (appStore().get().dirty) {
+    await save()
+  }
+  const path = appStore().get().path!
+  const folder = await projectFolder(path, fileAccess())
+  const by = await askSplit(basename(path), appStore().get().doc, folder, 'Cancel')
+  if (by) await splitAndOpen(appStore().get().doc, folder, docStem(path), by)
 }
 
 // open_dropped: the first document replaces this one (after offering to
@@ -709,6 +788,7 @@ registerActions({
   close_doc: () => newDocumentAction('closing it'),
   open: () => openAction(),
   open_recent: (arg) => openRecent(arg),
+  split_documents: () => splitIntoDocuments(),
   save: () => save(),
   save_as: () => saveAs(),
   import_tex: () => importAction('Import LaTeX', [{ name: 'LaTeX', extensions: ['tex'] }, { name: 'All files', extensions: [] }], 'tex'),
