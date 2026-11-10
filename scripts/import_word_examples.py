@@ -3,9 +3,11 @@ make_word_examples.cjs) the way KherveTeX's File > Open does
 (importers.import_docx), save it as .ktex, and compile its LaTeX with
 tectonic to check that it builds.
 
-    ../KherveTeX/.venv/bin/python scripts/import_word_examples.py
+    ../KherveTeX/.venv/bin/python scripts/import_word_examples.py [folder]
 
-Writes examples/word/ktex/<name>.ktex and examples/word/pdf/<name>.pdf, and
+Writes <folder>/ktex/<name>.ktex and <folder>/pdf/<name>.pdf (folder:
+examples/word, its .docx files in docx/; another folder is searched with
+its subfolders, as examples/word/web, real Word files from the web), and
 prints one line per document: blocks by kind and whether the PDF built.
 """
 from __future__ import annotations
@@ -28,16 +30,25 @@ WORD = ROOT / "examples" / "word"
 
 
 def main() -> int:
-    ktex_dir = WORD / "ktex"
-    pdf_dir = WORD / "pdf"
+    root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else WORD
+    sources = (sorted((root / "docx").glob("*.docx")) if root == WORD
+               else sorted(p for p in root.rglob("*.docx")
+                           if p.parent.name not in ("ktex", "pdf")))
+    ktex_dir = root / "ktex"
+    pdf_dir = root / "pdf"
     ktex_dir.mkdir(exist_ok=True)
     pdf_dir.mkdir(exist_ok=True)
     tectonic = shutil.which("tectonic")
     failed = 0
-    for docx in sorted((WORD / "docx").glob("*.docx")):
+    for docx in sources:
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            doc = importers.import_docx(docx, tmp / f"{docx.stem}_images")
+            try:
+                doc = importers.import_docx(docx, tmp / f"{docx.stem}_images")
+            except Exception as exc:
+                failed += 1
+                print(f"{docx.stem}: IMPORT FAILED: {exc}")
+                continue
             out = ktex_dir / f"{docx.stem}.ktex"
             save_kdocz(doc, out)
             kinds = collections.Counter(type(b).__name__ for b in doc.children)

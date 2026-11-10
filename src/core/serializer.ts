@@ -649,6 +649,15 @@ function withUnicodeFallbacks(packages: string, ...scanned: string[]): string {
   return packages + '\n' + lines.join('\n')
 }
 
+// ulem for \sout (strikethrough), [normalem] so \emph stays italic.
+// Without it a struck-out word stopped the compile.
+function withStrikeout(packages: string, ...scanned: string[]): string {
+  if (scanned.join('').includes('\\sout{') && !packages.includes('{ulem}')) {
+    return packages + '\n\\usepackage[normalem]{ulem}'
+  }
+  return packages
+}
+
 function withUrlBreaking(packages: string, ...scanned: string[]): string {
   const combined = scanned.join('')
   // \href is hyperref's: a link imported from Word in a document that does
@@ -1076,6 +1085,7 @@ export function serializeDocument(doc: Document): string {
     [body, natbib] = withKherverefBibliography(doc, body)
     if (natbib) packages = withNatbib(packages, m)
     packages = withUrlBreaking(packages, packages, frontmatter, body)
+    packages = withStrikeout(packages, packages, frontmatter, body)
     packages = withUnicodeFallbacks(packages, packages, frontmatter, body)
     packages = withFloatPlacement(packages, m, isJournal, doc)
     return `${documentclassLine(m)}\n${packages}\n\\begin{document}\n${frontmatter}${body}\\end{document}\n`
@@ -1246,6 +1256,7 @@ export function serializeDocument(doc: Document): string {
   if (!strip(body)) body = '\\null\n'
   if (natbib) packages = withNatbib(packages, m)
   packages = withUrlBreaking(packages, packages, preambleMeta, body)
+  packages = withStrikeout(packages, packages, preambleMeta, body)
   packages = withUnicodeFallbacks(packages, packages, preambleMeta, body)
   packages = withFloatPlacement(packages, m, isJournal, doc)
   return `${documentclassLine(m)}\n${packages}\n${preambleMeta}\\begin{document}\n${body}\\end{document}\n`

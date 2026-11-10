@@ -339,8 +339,18 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     const alignment = _paraAlignment(para)
 
     if (kind === 'title') {
-      title = textRuns.filter((r): r is Text => r.type === 'Text').map((r) => r.text).join('')
-      children.push(titleNode(textRuns))
+      // One title: an empty Title paragraph is left out, and a later one
+      // ("CONTENTS" set in the Title style) is an unnumbered heading. Two
+      // titles printed \maketitle twice, the first with no \title, and the
+      // compile stopped.
+      if (!textRuns.some((r) => r.type === 'Text' && r.text.trim())) {
+        // nothing
+      } else if (children.some((c) => c.type === 'Title')) {
+        children.push(section(1, textRuns, false))
+      } else {
+        title = textRuns.filter((r): r is Text => r.type === 'Text').map((r) => r.text).join('')
+        children.push(titleNode(textRuns))
+      }
     } else if (kind === 'heading') {
       children.push(section(level, textRuns))
     } else if (kind === 'author') {
