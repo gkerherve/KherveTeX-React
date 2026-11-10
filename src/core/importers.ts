@@ -459,6 +459,54 @@ const charAt = (s: string, j: number): string => String.fromCodePoint(s.codePoin
 
 // Try to consume a recognised macro at position i. Returns [node, end]
 // where end is the index past the macro, or null if not recognised.
+// Text-symbol commands -> the character they print. Left as raw LaTeX
+// they showed in the editor as code chips (5~\AA{} thick); the character
+// serializes as itself, which XeLaTeX prints. Like LaTeX, the {} or the
+// spaces after the command word are part of it.
+const TEXT_SYMBOLS: Record<string, string> = {
+  AA: '\u00c5',
+  aa: '\u00e5',
+  AE: '\u00c6',
+  ae: '\u00e6',
+  OE: '\u0152',
+  oe: '\u0153',
+  O: '\u00d8',
+  o: '\u00f8',
+  ss: '\u00df',
+  L: '\u0141',
+  l: '\u0142',
+  i: '\u0131',
+  textdegree: '\u00b0',
+  textmu: '\u00b5',
+  textperthousand: '\u2030',
+  textcopyright: '\u00a9',
+  copyright: '\u00a9',
+  textregistered: '\u00ae',
+  texttrademark: '\u2122',
+  pounds: '\u00a3',
+  textsterling: '\u00a3',
+  S: '\u00a7',
+  P: '\u00b6',
+  dag: '\u2020',
+  ddag: '\u2021',
+  textbullet: '\u2022',
+  textendash: '\u2013',
+  textemdash: '\u2014',
+  ldots: '\u2026',
+  dots: '\u2026',
+  textellipsis: '\u2026',
+  textquoteleft: '\u2018',
+  textquoteright: '\u2019',
+  textquotedblleft: '\u201c',
+  textquotedblright: '\u201d',
+  guillemotleft: '\u00ab',
+  guillemotright: '\u00bb',
+  textless: '\u003c',
+  textgreater: '\u003e',
+  textbar: '\u007c',
+  textunderscore: '\u005f',
+}
+
 function matchMacro(s: string, i: number): [Inline | Inline[], number] | null {
   // Escaped specials (\%, \&, \$, \#, \_, \{, \}) — emit as literal text.
   if (i + 1 < s.length && ESCAPED_SPECIAL.has(s[i + 1])) return [M.text(s[i + 1]), i + 2]
@@ -472,6 +520,10 @@ function matchMacro(s: string, i: number): [Inline | Inline[], number] | null {
       const [arg, after] = consumeBraced(s, j)
       if (arg !== null && [...arg].length === 1 && isAlpha(arg)) {
         base = arg
+        end = after
+      } else if (arg !== null && (strip(arg) === '\\i' || strip(arg) === '\\j')) {
+        // na\"{\i}ve: the dotless i under an accent is the letter.
+        base = strip(arg)[1]
         end = after
       }
     } else if (j < s.length && isAlpha(charAt(s, j))) {
@@ -531,6 +583,12 @@ function matchMacro(s: string, i: number): [Inline | Inline[], number] | null {
   if (name === 'sep') {
     // Elsevier keyword separator — render as a middle dot.
     return [M.text(' · '), after]
+  }
+  if (Object.hasOwn(TEXT_SYMBOLS, name) && s[after - 1] !== '*') {
+    let end = after
+    if (s.startsWith('{}', end)) end += 2
+    else while (end < s.length && ' \t\n'.includes(s[end])) end++
+    return [M.text(TEXT_SYMBOLS[name]), end]
   }
   if (name === 'verb') {
     // \verb<delim>...<delim> — inline verbatim, render as code mark.
