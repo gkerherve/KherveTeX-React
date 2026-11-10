@@ -572,6 +572,12 @@ export function recentFiles(): string[] {
   return [...recent]
 }
 
+// The list itself, for useSyncExternalStore: a new array only when it
+// changes (the status bar's recent-files combo).
+export function recentSnapshot(): readonly string[] {
+  return recent
+}
+
 function rememberRecent(path: string): void {
   recent = [path, ...recent.filter(r => r !== path)].slice(0, RECENT_FILES_MAX)
   setSetting('recent_files', recent)
@@ -651,6 +657,7 @@ export async function startFileService(): Promise<boolean> {
   const list = Array.isArray(raw) ? raw.map(String) : typeof raw === 'string' ? [raw] : []
   const exists = await Promise.all(list.map(f => p.exists(f).catch(() => false)))
   recent = list.filter((_, i) => exists[i])
+  for (const l of recentListeners) l()
   updateTitle()
   let lastPath = appStore().get().path
   appStore().subscribe(() => {

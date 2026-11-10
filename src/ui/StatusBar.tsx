@@ -1,4 +1,5 @@
-// The window's status bar, right side in Qt's order: the Light / Dark
+// The window's status bar: on the left the recent-files combo, then the
+// document's name and folder; right side in Qt's order: the Light / Dark
 // switch, editor zoom (−, slider, +, percent), the PDF zoom, fit width and
 // the compiler indicator.
 import { friendlyDir } from '../core/friendlyDir.ts'
@@ -92,6 +93,23 @@ function ToolIcon({ name, tip, on, onClick }: {
   )
 }
 
+// _recent_combo: a combo listing the recent files by name (full path in
+// the tooltip); picking one opens it, and the combo goes back to its
+// "Recent files" placeholder.
+function RecentCombo({ recent, onOpen }: {
+  recent: readonly string[], onOpen: (path: string) => void
+}) {
+  const tip = useTipProps({ plain: 'Open a recent file' })
+  const name = (p: string) => p.replace(/^.*[\\/]/, '')
+  return (
+    <select className='sb-recent' aria-label='Recent files' value='' disabled={!recent.length}
+      onChange={e => { if (e.target.value) onOpen(e.target.value) }} {...tip}>
+      <option value='' disabled hidden>{recent.length ? 'Recent files' : 'No recent files'}</option>
+      {recent.map(p => <option key={p} value={p} title={p}>{name(p)}</option>)}
+    </select>
+  )
+}
+
 export interface StatusBarProps {
   fileName: string | null
   // The saved document's folder and git branch (_update_title's label).
@@ -110,11 +128,14 @@ export interface StatusBarProps {
   showPdfZoom: boolean
   compiler: string
   message?: string
+  recent?: readonly string[]
+  onOpenRecent?: (path: string) => void
 }
 
 export function StatusBar(p: StatusBarProps) {
   return (
     <div className='statusbar'>
+      {p.onOpenRecent && <RecentCombo recent={p.recent ?? []} onOpen={p.onOpenRecent} />}
       <div className='sb-path' title={p.fileName && p.dir ? `${p.dir}/${p.fileName}` : undefined}>
         {p.fileName
           ? <>

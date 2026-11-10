@@ -19,7 +19,8 @@ import { session } from './app/actions/project'
 import { TooltipProvider } from './ui/Tooltip'
 import { useGlobalShortcuts } from './ui/globalShortcuts'
 import { applyNamedTheme, useThemeName } from './app/actions/theme'
-import { currentBranch, subscribeBranch } from './app/actions/file'
+import { currentBranch, recentSnapshot, subscribeBranch, subscribeRecent } from './app/actions/file'
+import { runAction } from './app/actions'
 import './App.css'
 
 // A4 at 96 dpi: the PDF panel's page.
@@ -49,6 +50,7 @@ export default function App() {
   const dark = useThemeName() === 'Dark'
   useGlobalShortcuts(cmd)
   const branch = useSyncExternalStore(subscribeBranch, currentBranch)
+  const recent = useSyncExternalStore(subscribeRecent, recentSnapshot)
   const [manualZoom, setManualZoom] = useState<number | null>(null)
   const [pdfManualZoom, setPdfManualZoom] = useState<number | null>(null)
   const [pdfWidth, setPdfWidth] = useState(269)
@@ -136,7 +138,8 @@ export default function App() {
           // Qt's PDF slider keeps its own value while the page fits the width.
           pdfZoom={pdfManualZoom ?? 100} onPdfZoom={setPdfManualZoom}
           pdfFitWidth={pdfManualZoom === null} onPdfFitWidth={() => setPdfManualZoom(null)}
-          showPdfZoom compiler={compilerText} message={status} />
+          showPdfZoom compiler={compilerText} message={status}
+          recent={recent} onOpenRecent={p => { void runAction('open_recent', p) }} />
       </div>
     </TooltipProvider>
   )

@@ -283,6 +283,22 @@
 
 .sb-faint { color: #888888; }
 
+/* _recent_combo: a QComboBox, 22 px high, at the left end. */
+.sb-recent {
+  flex: none;
+  width: 170px;
+  height: 22px;
+  margin-right: 2px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--base);
+  color: var(--status-text);
+  font: inherit;
+  font-size: 12px;
+}
+.sb-recent:disabled { color: #888888; }
+
 .sb-switch {
   display: flex;
   width: 40px;
