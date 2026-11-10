@@ -583,9 +583,11 @@ Body text after the chapter.
     const sections = blocksOf(doc.children, 'Section')
     expect(sections.length).toBeGreaterThan(0)
     const levels = sections.map((s) => s.level)
-    expect(levels).toContain(0)  // the \chapter
-    expect(levels).toContain(1)  // the \section
-    expect(serializeDocument(doc)).toContain('\\chapter{Introduction}')
+    expect(levels).toContain(0)  // the \chapter (the editor's Chapter style)
+    expect(levels).toContain(2)  // the \section: Heading 2 in a report
+    const out = serializeDocument(doc)
+    expect(out).toContain('\\chapter{Introduction}')
+    expect(out).toContain('\\section{Background}')
   })
 
   it('test_unknown_macro_with_arg_preserved', () => {

@@ -1267,6 +1267,7 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   }
 
   const children = parseBlocks(body)
+  if (M.classSupportsChapter(meta.documentclass || '')) shiftSectionsForChapters(children)
   const isA = (b: Block, ...types: Block['type'][]) => types.includes(b.type)
 
   // If the source had \title{...} but no Title block was reconstructed,
@@ -1326,11 +1327,28 @@ const orText = (inlines: Inline[], fallback: string): Inline[] => (inlines.lengt
 // happens to contain a full \begin{document}...\end{document} only the
 // body between them is parsed, so a model that ignores the "body only"
 // instruction still yields sensible blocks instead of nothing.
-export function importBodyFragment(latex: string | null | undefined): Block[] {
+// In report/book/memoir the serializer writes Heading 1 (level 1) as
+// \chapter and level n as the command one step up, while SECTION_LEVEL
+// numbers \section 1 as in article. Without this an imported report's
+// \section came back as \chapter and every level below moved up one.
+// \chapter stays level 0, the editor's Chapter style, which also
+// serializes as \chapter; \subparagraph shares \paragraph's level 5,
+// the deepest the editor has.
+function shiftSectionsForChapters(blocks: Block[]): void {
+  for (const b of blocks) {
+    if (b.type === 'Section' && b.level >= 1) b.level = Math.min(b.level + 1, 5)
+  }
+}
+
+export function importBodyFragment(latex: string | null | undefined,
+  { hasChapters = false }: { hasChapters?: boolean } = {}): Block[] {
   let src = stripTexComments(latex || '')
   const bodyM = reSearch(BODY_RE, src)
   if (bodyM) src = bodyM[1]
-  return parseBlocks(src)
+  const blocks = parseBlocks(src)
+  // Inserted into a report/book: \section is Heading 2 there, as in importTex.
+  if (hasChapters) shiftSectionsForChapters(blocks)
+  return blocks
 }
 
 // ============================================================

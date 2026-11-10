@@ -174,6 +174,11 @@ export function serializeInlines(nodes: Inline[]): string {
   return nodes.map(serializeInline).join('')
 }
 
+// The display environments the importer keeps whole in MathBlock.latex
+// (everything it recognises but equation itself; split is not one: it
+// only works inside an equation).
+const PREWRAPPED_MATH_RE = /^\s*\\begin\{(?:align|alignat|gather|multline|eqnarray|flalign|displaymath)\*?\}/
+
 const SECTION_COMMANDS: Record<number, string> = {
   0: 'chapter',  // only valid in report / book / memoir classes
   1: 'section', 2: 'subsection', 3: 'subsubsection',
@@ -296,7 +301,11 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       // The importer stores align*, gather, ... as a complete
       // \begin{env}...\end{env}; re-wrapping it in equation* would nest
       // illegally, so a pre-wrapped body is emitted verbatim.
-      if (lstrip(node.latex).startsWith('\\begin{')) return `${node.latex}\n`
+      // Only a display environment counts: an equation whose body opens
+      // with \begin{split}, \begin{array} or \begin{cases} still needs
+      // its equation around it, or LaTeX stops ("split won't work here",
+      // "Missing $ inserted") and the equation loses its number.
+      if (PREWRAPPED_MATH_RE.test(node.latex)) return `${node.latex}\n`
       const env = node.numbered ? 'equation' : 'equation*'
       const lab = node.numbered ? maybeLabel(node.label) : ''
       return `\\begin{${env}}\n${lab}${node.latex}\n\\end{${env}}\n`

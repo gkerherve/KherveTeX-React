@@ -15,7 +15,7 @@
 import { nextDrawingPath } from '../core/drawingFiles.ts'
 import { importBodyFragment, parseInlines, splitAuthorLines } from '../core/importers.ts'
 import {
-  author, figure, mathBlock, mathInline, paragraph, title, type Block, type DocMeta, type Document as KDocument,
+  author, classSupportsChapter, figure, mathBlock, mathInline, paragraph, title, type Block, type DocMeta, type Document as KDocument,
 } from '../core/model.ts'
 import type { Scene } from '../core/paintModel.ts'
 import { itemToDict, loadSvg } from '../core/paintSvg.ts'
@@ -398,11 +398,11 @@ export class ToolExecutor {
   // \maketitle in a fragment means "show the title here": it becomes the
   // document's Title / Author blocks (built from the metadata), not a
   // block of its own, so it is taken out before parsing.
-  private static parse(latex: unknown): [Block[], boolean] {
+  private static parse(latex: unknown, hasChapters: boolean): [Block[], boolean] {
     let src = typeof latex === 'string' ? latex : ''
     const maketitle = /\\maketitle\b/.test(src)
     if (maketitle) src = src.replace(/\\maketitle\b\s*/g, '')
-    const blocks = importBodyFragment(src)
+    const blocks = importBodyFragment(src, { hasChapters })
     if (!blocks.length && !maketitle) throw new ToolError('That LaTeX produced no content.')
     return [blocks, maketitle]
   }
@@ -574,7 +574,7 @@ export class ToolExecutor {
   // editing -------------------------------------------------------
 
   t_insert_latex(args: Args): ToolResult {
-    const [add, maketitle] = ToolExecutor.parse(args.latex ?? '')
+    const [add, maketitle] = ToolExecutor.parse(args.latex ?? '', classSupportsChapter(this.doc().meta.documentclass || ''))
     const blocks = this.blocks()
     const at = isSet(args.after) ? pyInt(args.after) + 1 : blocks.length
     if (!(at >= 0 && at <= blocks.length)) throw new ToolError(`\`after\` must be -1..${blocks.length - 1}.`)
@@ -586,7 +586,7 @@ export class ToolExecutor {
   t_replace_blocks(args: Args): ToolResult {
     const blocks = this.blocks()
     const [start, end] = this.range(args, blocks.length)
-    const [add, maketitle] = ToolExecutor.parse(args.latex ?? '')
+    const [add, maketitle] = ToolExecutor.parse(args.latex ?? '', classSupportsChapter(this.doc().meta.documentclass || ''))
     this.setBody([...blocks.slice(0, start), ...add, ...blocks.slice(end + 1)])
     if (maketitle) this.syncTitleBlocks({ title: false, author: false })
     return { replaced: end - start + 1, with_blocks: add.length, total_blocks: this.blocks().length }

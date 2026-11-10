@@ -66,7 +66,8 @@ async function pasteSpecial(): Promise<void> {
   const how = await promptItem('Paste Special', 'Paste as:', opts)
   if (how === null) return
   if (how === 'LaTeX (as document content)') {
-    const blocks = importBodyFragment(text)
+    const blocks = importBodyFragment(text,
+      { hasChapters: M.classSupportsChapter(appStore().get().doc.meta.documentclass) })
     if (blocks.length) run(C.insertModelBlocks(blocks))
   } else if (how === 'Keep Text Only') {
     run((s, d) => { d?.(s.tr.insertText(text)); return true })
