@@ -445,3 +445,65 @@
   color: var(--kt-cv-grey);
 }
 .kt-cv-icon { margin-right: 0.3em; font-style: normal; }
+
+/* ----- posters (posterView.ts) ----- */
+/* A layout marker (\begin{columns}, \column, \begin{multicols}...): no
+   room on the page; its LaTeX shows while the caret is in it. */
+.kt-raw.kt-poster-mark { height: 0; overflow: hidden; margin: 0 !important; padding: 0; font-size: 0; background: none; }
+/* A raw block drawn instead of its LaTeX (a0poster's title, a table). */
+.kt-raw.kt-poster-drawn { font-size: 0; line-height: 0; color: transparent; background: none; white-space: normal; }
+.kt-poster-center {
+  font-size: var(--kt-body-size); line-height: 1.2; color: #000; text-align: center; white-space: normal;
+  font-family: var(--kt-body-family);
+}
+.kt-poster-rule { border: none; border-top: 0.4pt solid #000; margin: 1cm 0; }
+.kt-poster-table { margin: 0 auto; border-collapse: collapse; }
+.kt-poster-table td { padding: 0 14pt; }
+.kt-poster-table tr.kt-poster-top td { border-top: 0.08em solid #000; }
+.kt-poster-table tr.kt-poster-mid td { border-bottom: 0.05em solid #000; }
+.kt-poster-table tr.kt-poster-bottom td { border-bottom: 0.08em solid #000; }
+.kt-poster-caption { margin-top: 0.5cm; font-style: italic; }
+
+/* tikzposter's Default theme. The title box across the page: white, a
+   colour-two rule above and below. */
+.kt-tp-titlebox { background: #fff; margin-left: calc(-1 * var(--kt-tp-margin)) !important; margin-right: calc(-1 * var(--kt-tp-margin)) !important; }
+.kt-tp-title { border-top: var(--kt-tp-border) solid var(--kt-tp-two); padding-top: 50pt; }
+.kt-tp-institute {
+  /* The box ends 312 pt below its top, 57 pt above the first block. */
+  display: block; padding: 18pt 0 9pt; margin-bottom: 14.5pt; border-bottom: var(--kt-tp-border) solid var(--kt-tp-two);
+  margin-left: calc(-1 * var(--kt-tp-margin)); margin-right: calc(-1 * var(--kt-tp-margin));
+  font-family: 'KTeX LMRoman17', 'Latin Modern Roman', serif; font-size: 35.7pt; line-height: 1.2;
+  text-align: center; color: #000;
+}
+.kt-tp-author > br.ProseMirror-trailingBreak, .kt-tp-author > img.ProseMirror-separator { display: none; }
+/* A block: its title bar, its body, its foot. */
+.kt-raw.kt-tp-head {
+  font-size: 0; line-height: 0; color: transparent; white-space: normal;
+  margin-top: var(--kt-tp-gap) !important;
+  background: var(--kt-tp-two);
+  border-radius: 14pt 14pt 0 0;
+  break-inside: avoid; break-after: avoid;
+}
+.kt-tp-head-title {
+  height: var(--kt-tp-head); display: flex; align-items: center; justify-content: center;
+  font-family: 'KTeX LMRoman10', 'Latin Modern Roman', serif; font-weight: 700;
+  font-size: var(--kt-tp-head-size); line-height: 1; color: #fff; cursor: text;
+}
+.kt-raw.kt-tp-head-source { margin-top: var(--kt-tp-gap) !important; }
+.kt-tp-body {
+  background: #fff;
+  border-left: var(--kt-tp-border) solid var(--kt-tp-two);
+  border-right: var(--kt-tp-border) solid var(--kt-tp-two);
+  padding-left: calc(var(--kt-tp-pad) - var(--kt-tp-border)) !important;
+  padding-right: calc(var(--kt-tp-pad) - var(--kt-tp-border)) !important;
+  margin-left: 0 !important; margin-right: 0 !important;
+}
+/* A list's markers hang left of its text: room for them inside the frame. */
+.kt-tp-body.kt-list { padding-left: calc(var(--kt-tp-pad) - var(--kt-tp-border) + 1.3em) !important; }
+.kt-raw.kt-tp-foot {
+  height: calc(var(--kt-tp-pad) - var(--kt-tp-border)); overflow: hidden; font-size: 0; line-height: 0; color: transparent;
+  margin-top: 0 !important; background: #fff;
+  border: var(--kt-tp-border) solid var(--kt-tp-two); border-top: none;
+  border-radius: 0 0 14pt 14pt;
+}
+.kt-raw.kt-tp-foot.kt-tp-foot-source { height: auto; font-size: 13.33px; line-height: normal; color: #b71c1c; }

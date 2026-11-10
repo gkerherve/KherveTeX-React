@@ -30,6 +30,7 @@ import { computeColumnSpacers, computeSpacers, refreshColumns, sameSpacers, type
 import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { bibliographyPlugin } from './bibView.ts'
 import { moderncvPlugin } from './cvView.ts'
+import { posterBackground, posterPlugin } from './posterView.ts'
 import { showContextMenu } from './contextMenu.ts'
 import { setRibbonWidgets } from './ribbonState.ts'
 import { SPELL_REFRESH, spellPlugin } from './spell.ts'
@@ -208,7 +209,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), pagesPlugin(), spellPlugin(),
+      layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(),
     ]
@@ -605,11 +606,13 @@ export class EditorController implements ViewHost {
     this.root.style.height = `${total}px`
     this.flowEl.style.minHeight = `${total}px`
     const g = this.pageGapPx()
+    // A tikzposter's background colour.
+    const bg = posterBackground(this.meta)
     const parts: string[] = []
     for (let k = 0; k < n; k++) {
       const top = k * H + (k ? g / 2 : 0)
       const bottom = k < n - 1 ? (k + 1) * H - g / 2 : total - 1
-      parts.push(`<div class="kt-sheet" style="top:${top}px;height:${bottom - top}px;border-color:${SHEET_EDGE}"></div>`)
+      parts.push(`<div class="kt-sheet" style="top:${top}px;height:${bottom - top}px;border-color:${SHEET_EDGE}${bg ? `;background:${bg}` : ''}"></div>`)
       if (k < n - 1) {
         parts.push(`<div class="kt-sheet-gap" style="top:${bottom}px;height:${g}px;background:${DESK}"></div>`)
       }

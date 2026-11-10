@@ -11,6 +11,7 @@ import { classSupportsChapter, THEOREM_KINDS, type DocMeta } from '../core/model
 import { byCode, DPI } from '../core/pageSizes.ts'
 import { lookFor, numberLabel, type LabelSpec, type Look, type StyleKey, type StyleSpec } from './classLooks.ts'
 import { moderncvLook } from './cvView.ts'
+import { posterLook } from './posterView.ts'
 import { baselineskipPt, pdfFont, type ScreenFont } from './latexFonts.ts'
 
 // Where Qt puts the baseline within a fixed-height line, from the line's
@@ -278,7 +279,7 @@ export function parskipFromExtras(extras: string, emPx: number, pt: number): num
 export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0],
   pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false, pdf: PdfTypography | null = null): DocLayout {
   // moderncv's own fonts and colours on its measured sizes (cvView.ts).
-  const measured = moderncvLook(lookFor(meta.documentclass, meta.body_font_pt), meta)
+  const measured = posterLook(moderncvLook(lookFor(meta.documentclass, meta.body_font_pt), meta), meta, doc)
   const k = pdf ? pdf.bodyPt / measured.body.size : 1
   const scaled = pdf && Math.abs(k - 1) > 0.04 && k > 0.6 && k < 1.6 ? scaleLook(measured, k) : measured
   // Date switched off (Insert > Date): the page shows none, as \\date{}.

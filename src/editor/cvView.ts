@@ -226,11 +226,69 @@ export function latexToHtml(src: string, bullet: string): string {
     if (ch === '`') { out += '‘'; i++; continue }
     if (ch === "'") { out += '’'; i++; continue }
     if (ch === '%') { const nl = s.indexOf('\n', i); i = nl < 0 ? s.length : nl + 1; continue }
-    if (ch === '$') { i++; continue }
+    if (ch === '$') {
+      const close = s.indexOf('$', i + 1)
+      if (close > i) { out += mathHtml(s.slice(i + 1, close)); i = close + 1; continue }
+      i++
+      continue
+    }
     out += esc(ch)
     i++
   }
   return out.replace(/<li hidden><\/li>/g, '').replace(/<li hidden>/g, '<li>')
+}
+
+const MATH_SYMBOLS: Record<string, string> = {
+  alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', theta: 'θ', lambda: 'λ',
+  mu: 'μ', nu: 'ν', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', phi: 'φ', varphi: 'φ', chi: 'χ', psi: 'ψ',
+  omega: 'ω', Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω',
+  times: '×', cdot: '·', pm: '±', mp: '∓', circ: '°', degree: '°', approx: '≈', sim: '∼', simeq: '≃',
+  leq: '≤', le: '≤', geq: '≥', ge: '≥', neq: '≠', ne: '≠', infty: '∞', to: '→', rightarrow: '→',
+  leftarrow: '←', partial: '∂', nabla: '∇', sum: '∑', prod: '∏', int: '∫', propto: '∝', ldots: '…',
+  cdots: '⋯', prime: '′', AA: 'Å', ',': '\u2009', ';': '\u2005', ' ': ' ', quad: '\u2003',
+}
+
+// Inline maths, simply: letters in italic, digits upright, ^{} and _{}
+// as superscripts and subscripts, the Greek letters and common symbols.
+function mathHtml(m: string): string {
+  let out = ''
+  let i = 0
+  const group = (at: number): [string, number] => {
+    if (m[at] === '{') {
+      const close = closeBrace(m, at)
+      if (close > 0) return [m.slice(at + 1, close), close + 1]
+    }
+    if (m[at] === '\\') {
+      const c = /^\\([A-Za-z]+|.)/.exec(m.slice(at))
+      if (c) return [c[0], at + c[0].length]
+    }
+    return [m[at] ?? '', at + 1]
+  }
+  while (i < m.length) {
+    const ch = m[i]
+    if (ch === '^' || ch === '_') {
+      const [g, next] = group(i + 1)
+      out += `<${ch === '^' ? 'sup' : 'sub'}>${mathHtml(g)}</${ch === '^' ? 'sup' : 'sub'}>`
+      i = next
+      continue
+    }
+    if (ch === '\\') {
+      const c = /^\\([A-Za-z]+|.)/.exec(m.slice(i))!
+      const name = c[1]
+      i += c[0].length
+      if (name in MATH_SYMBOLS) { out += MATH_SYMBOLS[name]; continue }
+      if (['mathrm', 'text', 'mathbf', 'textrm', 'operatorname'].includes(name) && m[i] === '{') {
+        const [g, next] = group(i)
+        out += name === 'mathbf' ? `<b>${esc(g)}</b>` : esc(g)
+        i = next
+      }
+      continue
+    }
+    if (ch === '{' || ch === '}') { i++; continue }
+    out += /[A-Za-z]/.test(ch) ? `<i>${ch}</i>` : esc(ch)
+    i++
+  }
+  return out
 }
 
 function stripTex(s: string): string {
@@ -351,6 +409,8 @@ export function moderncvPlugin(): Plugin {
     const sep = SEPARATOR * textPx
     const color = cvColor(meta)
     const caret = state.selection.empty ? state.selection.head : -1
+    // A document just opened has the caret at its start, unfocused.
+    const focused = viewRef?.hasFocus() ?? false
     const bodyCss = charCss(ls.layout.bodyChar)
     const decos: Decoration[] = []
     const vars = `--kt-cv-hints:${hint}px;--kt-cv-sep:${sep}px;--kt-cv-color:${color};--kt-cv-grey:${GREY};`
@@ -379,7 +439,7 @@ export function moderncvPlugin(): Plugin {
         // The gap before an entry (the line break between commands).
         if (e.from > prev) decos.push(Decoration.inline(base + prev, base + e.from, { class: 'kt-cv-hide' }))
         prev = e.to
-        const editing = caret >= base + e.from && caret <= base + e.to
+        const editing = focused && caret >= base + e.from && caret <= base + e.to
         if (editing) {
           decos.push(Decoration.inline(base + e.from, base + e.to, { class: 'kt-cv-source' }))
           continue
