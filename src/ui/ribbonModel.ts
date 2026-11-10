@@ -148,7 +148,8 @@ const cmds: Command[] = [
   { id: 'save_as', text: 'Save &As...', shortcut: 'Ctrl+Shift+S' },
   { id: 'close_doc', text: '&Close document' },
   { id: 'new_project', text: 'New &project...' },
-  { id: 'split_documents', text: '&Split into documents...' },
+  { id: 'split_documents', text: '&Split into documents...', icon: 'split_documents',
+    tip: 'Split into documents: one per chapter or per section, as a project' },
   { id: 'open_project', text: 'Open pro&ject...', icon: 'project_open' },
   { id: 'save_project', text: 'Save projec&t' },
   { id: 'close_project', text: 'Close project' },
@@ -262,7 +263,7 @@ const cmds: Command[] = [
     group: 'layout', checked: true },
   { id: 'pdf_window', text: 'PDF in its own &window', checkable: true, group: 'layout',
     tooltip: 'Show the PDF in a separate window, e.g. on a second screen' },
-  { id: 'documents_dock', text: 'Documents', shortcut: 'Ctrl+5', checkable: true },
+  { id: 'documents_dock', text: 'Documents', icon: 'documents_panel', shortcut: 'Ctrl+5', checkable: true },
   { id: 'fit_page_width', text: '&Fit page width', icon: 'fit_width', shortcut: 'Ctrl+0',
     checkable: true, checked: true },
   { id: 'theme_light', text: 'Light', checkable: true, group: 'theme', checked: true },
@@ -487,6 +488,8 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Layout', groups: [
     { label: 'Page Setup', large: ['margins', 'size', 'cols_1', 'cols_2', 'cols_3'] },
     { label: 'Document type', large: [{ widget: 'classes' }] },
+    // A long document as a project of smaller ones, and their list.
+    { label: 'Documents', large: ['split_documents', 'documents_dock'] },
   ] },
   { name: 'Examples', groups: [
     { label: 'Start', large: ['new', 'tour'] },

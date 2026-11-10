@@ -611,6 +611,17 @@ export function FitWidth(p: IconProps) {
   </Svg>
 }
 
+// One long document split into several: a page, an arrow, three small
+// pages (icons.split_documents).
+export function SplitDocuments(p: IconProps) {
+  return <Svg {...p}>{P([[2, 3], [8.5, 3], [11, 5.5], [11, 21], [2, 21]], { fill: PAPER, lw: 1.2 })}
+    {L(4, 8, 9, 8, BLUE, 1)}{L(4, 10.5, 9, 10.5, BLUE, 1)}{L(4, 13, 9, 13, BLUE, 1)}{L(4, 15.5, 9, 15.5, BLUE, 1)}
+    {L(12, 12, 15, 12, BLUE, 1.4)}
+    {P([[14, 10], [16.5, 12], [14, 14]], { color: BLUE, fill: BLUE })}
+    {[2.5, 9.5, 16.5].map(y => <g key={y}>{P([[17, y], [21, y], [22.5, y + 1.5], [22.5, y + 5.5], [17, y + 5.5]], { fill: PAPER, lw: 1.1 })}</g>)}
+  </Svg>
+}
+
 // The Documents panel: a list of documents beside the page.
 export function DocumentsPanel(p: IconProps) {
   return <Svg {...p}>{R(2.5, 4, 19, 16, { fill: PAPER, r: 1.5, lw: 1.2 })}
@@ -1373,7 +1384,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   one_column: OneColumn, two_columns: TwoColumns,
   three_columns: ThreeColumns, page_break: PageBreak,
   horizontal_rule: HorizontalRule, title_date: TitleDate, zoom_in: ZoomIn, zoom_out: ZoomOut,
-  fit_width: FitWidth, pdf_follow: PdfFollow, documents_panel: DocumentsPanel, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
+  fit_width: FitWidth, pdf_follow: PdfFollow, documents_panel: DocumentsPanel, split_documents: SplitDocuments, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
   table_row_above: TableRowAbove, table_row_below: TableRowBelow,
   table_col_left: TableColLeft, table_col_right: TableColRight,
   table_delete_row: TableDeleteRow, table_delete_col: TableDeleteCol,
