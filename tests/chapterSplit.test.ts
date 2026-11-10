@@ -36,16 +36,16 @@ describe('test_chapter_split.py', () => {
   it('test_pdf_thesis_headings_are_gathered_into_chapters', () => {
     const h = (t: string) => section(1, [text(t)])
     const doc = document([
-      h('Production of metal clusters'), para(),
+      h('A Study of River Deltas'), para(),
       h('Acknowledgement'), para(), h('Contents'), para(), h('List of Figures'), para(),
       h('CHAPTERI'), h('Introduction'), ...Array.from({ length: 10 }, para),
-      h('CHAPTER II'), h('Investigation of clusters grown by'), h('Volmer-Weber mode'), ...Array.from({ length: 10 }, para),
+      h('CHAPTER II'), h('Sediment transport in tidal'), h('channels and estuaries'), ...Array.from({ length: 10 }, para),
       h('Chapter 3'), h('Summary'), para(),
       h('Appendix A'), para(), h('Bibliography'), para(),
     ], docMeta({ documentclass: 'article' }))
     expect(chapterPlan(doc).map(([l, k, bs]) => [l, k, bs.length])).toEqual([
       ['Front matter', 'frontmatter', 8], ['Introduction', 'chapter', 12],
-      ['Investigation of clusters grown by Volmer-Weber mode', 'chapter', 13], ['Summary', 'chapter', 3],
+      ['Sediment transport in tidal channels and estuaries', 'chapter', 13], ['Summary', 'chapter', 3],
       ['Appendix A', 'appendix', 2], ['Bibliography', 'appendix', 2]])
     expect(shouldOffer(doc)).toBe(true)
   })
