@@ -26,6 +26,10 @@ export interface EditorApi {
   replaceAll(find: string, repl: string, opts: { caseSensitive: boolean; wholeWord: boolean }): number
   // Scroll to the block holding this plain-text snippet (PDF → Visual sync).
   revealText(snippet: string): boolean
+  // The PDF page (1-based) a point of the page view shows, and how far
+  // down that page it is (0..1), for the PDF to follow the text; null with
+  // no page view.
+  pdfSpotAt?(clientY: number): { page: number; frac: number } | null
   focus(): void
   // The document's thebibliography block (the first), or null.
   bibliography(): { pos: number; text: string } | null

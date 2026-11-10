@@ -7,7 +7,7 @@ import * as M from '../src/core/model.ts'
 import { isBroken, lookFor, LOOKS, numberLabel } from '../src/editor/classLooks.ts'
 import { docToPM } from '../src/editor/convert.ts'
 import { baselineskipPt } from '../src/editor/latexFonts.ts'
-import { anchorOffset, BASELINE_AT, layoutDocument, normalizeForMatch, pdfPageStartBlocks, PX_PER_CM, screenFontFor,
+import { anchorOffset, anchorTargets, BASELINE_AT, layoutDocument, normalizeForMatch, pdfPageStartBlocks, PX_PER_CM, screenFontFor,
   type BlockLayout } from '../src/editor/layout.ts'
 import { TEMPLATE_CHOICES } from '../src/ui/ribbonModel.ts'
 
@@ -191,6 +191,34 @@ describe('the compiled PDF and projects (paged_edit.py)', () => {
     const breaks = pdfPageStartBlocks(pm, [[2, 'Lists']])
     const L = layoutDocument(pm, M.docMeta(), undefined, breaks)
     expect(L.blocks.map(b => b.breakBefore)).toEqual([false, false, true, false])
+  })
+
+  it('a page starting with a chapter-numbered figure starts at the figure, not the paragraph after it', () => {
+    const long = 'word '.repeat(60)
+    const blocks = [M.paragraph([M.text('Before the figure. ' + long)]),
+      M.figure({ path: 'a.png', caption: 'LEED pattern of the clean crystal', label: 'fig:1' }),
+      M.paragraph([M.text('The amount of metal deposited was calculated. ' + long)])]
+    const pm = docToPM(M.document(blocks))
+    const anchors: [number, string][] = [[2, 'Figure 2.1: LEED pattern\nThe amount of metal depo']]
+    const figPos = anchorTargets(pm, anchors)[0].pos
+    expect(pm.nodeAt(figPos)!.type.name).toBe('figure')
+    // The figure starts the page (paginate forces it); the paragraph under
+    // it stays with it.
+    expect([...pdfPageStartBlocks(pm, anchors)]).toEqual([figPos])
+    const L = layoutDocument(pm, M.docMeta(), undefined, pdfPageStartBlocks(pm, anchors))
+    expect(L.blocks.map(b => b.breakBefore)).toEqual([false, false, false])
+  })
+
+  it('a page start is not matched pages beyond the last one (a phrase that recurs later)', () => {
+    const filler = (n: number) => Array.from({ length: n }, (_, i) => M.paragraph([M.text(`Filler paragraph ${i}. ` + 'text '.repeat(400))]))
+    const blocks = [M.paragraph([M.text('Page one starts here and goes on for a while.')]),
+      ...filler(12),
+      M.paragraph([M.text('Much later the spectra were taken at a photon energy of 120 eV.')])]
+    const pm = docToPM(M.document(blocks))
+    // Page 2's only line is a caption's second line, nowhere in the body:
+    // the recurring phrase twelve pages on must not take page 2's start.
+    const t = anchorTargets(pm, [[1, 'Page one starts here and'], [2, 'taken at a photon energy']])
+    expect(t.map(x => x.page)).toEqual([1])
   })
 
   it('anchor_offset: short keys must be the whole line, long ones may start mid-block', () => {

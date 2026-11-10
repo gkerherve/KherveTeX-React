@@ -1,7 +1,7 @@
 // The window's status bar: on the left the recent-files combo, then the
 // document's name and folder; right side in Qt's order: the Light / Dark
-// switch, editor zoom (−, slider, +, percent), the PDF zoom, fit width and
-// the compiler indicator.
+// switch, editor zoom (−, slider, +, percent), the PDF zoom, fit width,
+// the PDF-follows-the-text toggle and the compiler indicator.
 import { friendlyDir } from '../core/friendlyDir.ts'
 import { useRef, type PointerEvent } from 'react'
 import { Icon } from './icons'
@@ -130,6 +130,9 @@ export interface StatusBarProps {
   message?: string
   recent?: readonly string[]
   onOpenRecent?: (path: string) => void
+  // The PDF scrolls with the page view.
+  pdfFollow?: boolean
+  onPdfFollow?: () => void
 }
 
 export function StatusBar(p: StatusBarProps) {
@@ -163,6 +166,9 @@ export function StatusBar(p: StatusBarProps) {
           <span className='sb-pct'>{p.pdfZoom}%</span>
           <ToolIcon name='fit_width' tip='Fit page width (Ctrl+0)' on={p.pdfFitWidth}
             onClick={p.onPdfFitWidth} />
+          {p.onPdfFollow && <ToolIcon name='pdf_follow'
+            tip={p.pdfFollow ? 'The PDF follows the text (click to stop)' : 'Make the PDF follow the text'}
+            on={p.pdfFollow} onClick={p.onPdfFollow} />}
         </>
       )}
       <span className='sb-compiler'>{p.compiler}</span>

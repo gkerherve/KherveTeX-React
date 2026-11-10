@@ -611,6 +611,17 @@ export function FitWidth(p: IconProps) {
   </Svg>
 }
 
+// The PDF follows the text: a page and the PDF beside it, linked.
+export function PdfFollow(p: IconProps) {
+  return <Svg {...p}>{R(2, 4, 8.5, 12, { fill: PAPER, r: 1, lw: 1.2 })}
+    {L(4, 7.5, 8.5, 7.5, INK, 1)}{L(4, 10, 8.5, 10, INK, 1)}{L(4, 12.5, 7, 12.5, INK, 1)}
+    {R(13.5, 8, 8.5, 12, { fill: PAPER, r: 1, lw: 1.2 })}
+    {R(13.5, 8, 8.5, 3.5, { fill: '#d32f2f', r: 1, lw: 0 })}
+    {L(9, 18.5, 13, 18.5, BLUE, 1.5)}{L(6, 16, 6, 18.5, BLUE, 1.5)}{L(6, 18.5, 9, 18.5, BLUE, 1.5)}
+    {P([[11, 16.8], [13.3, 18.5], [11, 20.2]], { color: BLUE, closed: false })}
+  </Svg>
+}
+
 export function Heading({ arg = '1', ...p }: IconProps) {
   const level = Number(arg)
   const size = ({ 1: 14, 2: 13, 3: 12 } as Record<number, number>)[level] ?? 11
@@ -1353,7 +1364,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   one_column: OneColumn, two_columns: TwoColumns,
   three_columns: ThreeColumns, page_break: PageBreak,
   horizontal_rule: HorizontalRule, title_date: TitleDate, zoom_in: ZoomIn, zoom_out: ZoomOut,
-  fit_width: FitWidth, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
+  fit_width: FitWidth, pdf_follow: PdfFollow, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
   table_row_above: TableRowAbove, table_row_below: TableRowBelow,
   table_col_left: TableColLeft, table_col_right: TableColRight,
   table_delete_row: TableDeleteRow, table_delete_col: TableDeleteCol,

@@ -890,28 +890,20 @@ export type PageAnchor = [number, string]
 // (_pdf_page_start_blocks). Only pages that begin at a block's start are
 // forced; anchors match in order, each search after the previous hit.
 export function pdfPageStartBlocks(doc: PMNode, anchors: readonly PageAnchor[]): Set<number> {
-  const out = new Set<number>()
-  const blocks = collect(doc)
-  let at = 0
-  for (const [, snippet] of anchors) {
-    // The page's candidate first lines (pageStartSnippets), in order: the
-    // first one found is where the page starts.
-    const keys = snippet.split('\n').map(s => normalizeForMatch(s).slice(0, 16)).filter(k => k.length >= 3)
-    search: for (const key of keys) {
-      for (let i = at; i < blocks.length; i++) {
-        if (blocks[i].isTable) continue
-        const off = anchorOffset(blocks[i].text, key)
-        if (off === 0) { out.add(blocks[i].pos); at = i + 1; break search }
-        if (off > 0) { at = i; break search }
-      }
-    }
-  }
-  return out
+  // The blocks anchorTargets starts a page with (a page starting inside a
+  // paragraph breaks there, not before the block). One matcher for both:
+  // this one skipped figures, so a page the PDF starts with a figure broke
+  // at the paragraph after it, the figure left alone on a sheet.
+  return new Set(anchorTargets(doc, anchors).filter(t => t.offset === 0).map(t => t.pos))
 }
 
 // Each anchor's block and the offset of its text in it, for finding the
 // line a PDF page starts on (page_anchor_positions).
 // A caption's LaTeX as the words it prints.
+// The most text one PDF page holds (a small-type A4 page runs to about
+// 6000 characters): the reach of a page-start search past the last start.
+const MAX_PAGE_CHARS = 9000
+
 function captionText(latex: string): string {
   return latex.replace(/\\[A-Za-z]+\*?/g, ' ').replace(/\\(.)/g, '$1').replace(/[{}$]/g, '').replace(/\s+/g, ' ').trim()
 }
@@ -920,8 +912,25 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
   const out: { page: number; pos: number; offset: number }[] = []
   const blocks = collect(doc)
   const texts = blocks.map(b => b.node.type.name === 'figure' ? captionText(b.node.attrs.caption || '') : b.text)
+  // Where each block's text starts in the document's running text: a
+  // PDF page holds a few thousand characters, so a match far beyond the
+  // last page start is a phrase that recurs later, not this page's start
+  // (a thesis's "taken at a photon energy" in a caption's second line
+  // matched a paragraph twenty pages on, and every page in between lost
+  // its start).
+  const startOf: number[] = []
+  let run = 0
+  for (const t of texts) { startOf.push(run); run += t.length + 1 }
   let at = 0
+  let atChar = 0
+  let atPage = 0
   for (const [page, snippet] of anchors) {
+    const reach = MAX_PAGE_CHARS * Math.max(1, page - atPage)
+    const tooFar = (i: number, offset: number) => atPage > 0 && startOf[i] + offset - atChar > reach
+    const hit = (i: number, offset: number) => {
+      out.push({ page, pos: blocks[i].pos, offset })
+      at = i; atChar = startOf[i] + offset; atPage = page
+    }
     const keys = (snippet || '').split('\n').map(s => normalizeForMatch(s.trim().slice(0, 24))).filter(k => k.length >= 3)
     // The words the page goes on with, to confirm a match inside a
     // paragraph: a phrase such as "secondary electron cut-o" can recur,
@@ -933,22 +942,24 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
       return ahead.includes(next.slice(0, 12))
     }
     search: for (const [k, keyNorm] of keys.entries()) {
-      // A figure's caption prints after its label ("Figure 1: ...").
-      const capKey = keyNorm.replace(/^(?:figure|fig\.?|table)\s*\d+[a-z]?\s*[.:|]?\s*/, '')
+      // A figure's caption prints after its label ("Figure 1: ...", and
+      // in a report or thesis "Figure 2.9: ...", "Figure A.1: ...").
+      const capKey = keyNorm.replace(/^(?:figure|fig\.?|table)\s*(?:[a-z]\.)?\d+(?:[.-]\d+)*[a-z]?\s*[.:|]?\s*/, '')
       for (let i = at; i < blocks.length; i++) {
+        if (tooFar(i, 0)) break
         // A figure by its caption: a page the PDF starts with a figure
         // (one that floated to its top) starts with the caption's text.
         if (blocks[i].node.type.name === 'figure') {
           const cap = normalizeForMatch(texts[i])
           if (cap && capKey.length >= 8 && (cap.startsWith(capKey) || capKey.startsWith(cap))) {
-            out.push({ page, pos: blocks[i].pos, offset: 0 }); at = i; break search
+            hit(i, 0); break search
           }
           continue
         }
         if (blocks[i].isTable) continue
         const idx = anchorOffset(blocks[i].text, keyNorm)
         if (idx > 0 && !confirms(i, idx, k)) continue
-        if (idx >= 0) { out.push({ page, pos: blocks[i].pos, offset: idx }); at = i; break search }
+        if (idx >= 0 && !tooFar(i, idx)) { hit(i, idx); break search }
       }
     }
   }

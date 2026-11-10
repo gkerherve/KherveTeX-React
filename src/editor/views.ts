@@ -133,8 +133,10 @@ class FigureView implements NodeView {
     // <img> each time, which the browser decodes again: a thesis with 76
     // figures created ~3000 of them on opening and kept the CPU busy for
     // minutes. Redraw only when what the figure shows has changed.
+    // The text width only with an image: a figure built while the editor
+    // view itself is still being made has none yet, and asking crashed.
     const key = [src ?? '', a.path, a.width, a.caption, a.label, a.align,
-      this.host.textWidthPx()].join('\n')
+      src ? this.host.textWidthPx() : 0].join('\n')
     if (key === this.shown) return
     this.shown = key
     this.dom.dataset.align = a.align || 'center'

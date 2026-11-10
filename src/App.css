@@ -137,8 +137,12 @@
   min-width: 100%;
 }
 
+.page-scale { flex: none; }
+
 .page-card {
   flex: none;
+  width: max-content;
+  transform-origin: 0 0;
   border: 1px solid var(--page-border);
   background: var(--page);
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.16);
@@ -260,6 +264,7 @@
 
 .statusbar {
   display: flex;
+  overflow: hidden;
   flex: none;
   align-items: center;
   height: 33px;
@@ -274,7 +279,9 @@
 
 .sb-path {
   flex: 1 1 0;
-  min-width: 200px;
+  /* The name gives way first: at 200 px the zoom controls and the fit
+     button on the right were pushed past the window's edge. */
+  min-width: 40px;
   overflow: hidden;
   padding: 0 6px;
   text-overflow: ellipsis;

@@ -21,6 +21,9 @@ import { useGlobalShortcuts } from './ui/globalShortcuts'
 import { applyNamedTheme, useThemeName } from './app/actions/theme'
 import { currentBranch, recentSnapshot, subscribeBranch, subscribeRecent } from './app/actions/file'
 import { runAction } from './app/actions'
+import { editorApi } from './app/editorApi'
+import { pdfApi } from './preview/PdfView'
+import { loadSettings, setting, setSetting } from './platform/settings'
 import './App.css'
 
 // A4 at 96 dpi: the PDF panel's page.
@@ -29,6 +32,24 @@ const PAGE_W = 794
 const DESK_PAD = 23
 const PDF_PAD = 7
 
+
+// The page card's own size, before the view's scale: the outer box takes
+// the scaled size so the desk scrolls over the page as it is seen.
+function useBoxSize<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const read = () => setSize(s => s.w === el.offsetWidth && s.h === el.offsetHeight
+      ? s : { w: el.offsetWidth, h: el.offsetHeight })
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    read()
+    return () => ro.disconnect()
+  }, [])
+  return [ref, size] as const
+}
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null)
@@ -56,6 +77,7 @@ export default function App() {
   const [pdfWidth, setPdfWidth] = useState(269)
   const [deskRef, deskWidth] = useWidth<HTMLDivElement>()
   const [pdfRef, pdfInner] = useWidth<HTMLDivElement>()
+  const [cardRef, card] = useBoxSize<HTMLDivElement>()
   const path = useApp(s => s.path)
   const tab = useApp(s => s.tab)
   const layout = useApp(s => s.layout)
@@ -79,12 +101,54 @@ export default function App() {
   const fitWidth = cmd.isChecked('fit_page_width')
   const fitZoom = deskWidth > 0
     ? Math.max(25, (deskWidth - 2 * DESK_PAD) / pageW * 100) : 100
-  const zoom = fitWidth && manualZoom === null ? fitZoom : manualZoom ?? 100
+  // Fitting until a zoom of its own is set (fit turned off keeps the
+  // width it fitted, below).
+  const zoom = manualZoom ?? fitZoom
   const pdfFitZoom = pdfInner > 0
     ? Math.max(25, (pdfInner - 2 * PDF_PAD) / PAGE_W * 100) : 100
   const pdfZoom = pdfManualZoom ?? pdfFitZoom
 
-  useEffect(() => { if (fitWidth) setManualZoom(null) }, [fitWidth])
+  // _toggle_fit_page_width: one command fits the page and the PDF. Turned
+  // on, both follow the width; turned off, both keep the zoom they show.
+  const shown = useRef({ zoom, pdfZoom })
+  shown.current = { zoom, pdfZoom }
+  useEffect(() => {
+    if (fitWidth) {
+      setManualZoom(null)
+      setPdfManualZoom(null)
+    } else {
+      setManualZoom(z => z ?? Math.round(shown.current.zoom))
+      setPdfManualZoom(z => z ?? Math.round(shown.current.pdfZoom))
+    }
+  }, [fitWidth])
+  // The PDF follows the text: scrolling the page view scrolls the PDF to
+  // the page (and the height on it) the middle of the view shows.
+  const [follow, setFollow] = useState(() => setting('pdf_follows_text', true))
+  // The window renders before the settings are read.
+  useEffect(() => { void loadSettings().then(() => setFollow(setting('pdf_follows_text', true))) }, [])
+  // Scroll events come once a frame; the work is two reads and a write.
+  const syncPdf = () => {
+    const desk = deskRef.current
+    if (!follow || !showPdf || !desk) return
+    const r = desk.getBoundingClientRect()
+    const spot = editorApi()?.pdfSpotAt?.(r.top + r.height / 2)
+    if (spot) pdfApi()?.showSpot(spot.page, spot.frac)
+  }
+  const toggleFollow = () => {
+    const on = !follow
+    setFollow(on)
+    setSetting('pdf_follows_text', on)
+  }
+  // Turned on, it catches up at once.
+  useEffect(() => { if (follow) syncPdf() }, [follow])
+  // _on_zoom_slider_changed / _nudge_zoom: zooming by hand ends fitting.
+  const endFit = () => {
+    if (!fitWidth) return
+    cmd.setChecked('fit_page_width', false)
+    setSetting('fit_page_width', false)
+  }
+  const zoomBy = (z: number) => { endFit(); setManualZoom(z) }
+  const pdfZoomBy = (z: number) => { endFit(); setPdfManualZoom(z) }
 
   const dragSplitter = (e: PointerEvent<HTMLDivElement>) => {
     const startX = e.clientX
@@ -106,7 +170,8 @@ export default function App() {
         <Ribbon cmd={cmd} context={context} />
         <div className='workspace'>
           <ProjectSidebar />
-          <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}>
+          <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}
+            onScroll={syncPdf}>
             {beta && (
               <div className='beta-strip' role='note'>
                 <span className='beta-tag'>beta</span>
@@ -117,8 +182,14 @@ export default function App() {
               </div>
             )}
             <div className='desk-inner' style={{ padding: DESK_PAD }}>
-              <div className='page-card' style={{ zoom: zoom / 100 }}>
-                <EditorPane onContext={setContext} />
+              {/* The zoom scales the laid-out page; it never lays the text out
+                  again, so every zoom and window width shows the same lines
+                  and the same page breaks (CSS zoom re-flowed the text at
+                  each size, and rounding moved line and page breaks). */}
+              <div className='page-scale' style={{ width: card.w * zoom / 100, height: card.h * zoom / 100 }}>
+                <div ref={cardRef} className='page-card' style={{ transform: `scale(${zoom / 100})` }}>
+                  <EditorPane onContext={setContext} />
+                </div>
               </div>
             </div>
           </div>
@@ -127,17 +198,18 @@ export default function App() {
           {showPdf && <>
             <div className='splitter' onPointerDown={dragSplitter} />
             <div ref={pdfRef} className='pdf-panel' style={{ width: pdfWidth }}>
-              <PdfPanel zoom={pdfZoom} fit={pdfManualZoom === null} />
+              <PdfPanel zoom={pdfZoom} fit={fitWidth && pdfManualZoom === null} />
             </div>
           </>}
         </div>
         <StatusBar fileName={fileName} dark={dark} onToggleTheme={() => applyNamedTheme(dark ? 'Light' : 'Dark')}
           dir={session.titleText() === null && path ? path.replace(/[\\/][^\\/]*$/, '') : null}
           branch={session.titleText() === null ? branch : ''} compiling={compiling}
-          zoom={Math.round(zoom)} onZoom={setManualZoom}
-          // Qt's PDF slider keeps its own value while the page fits the width.
-          pdfZoom={pdfManualZoom ?? 100} onPdfZoom={setPdfManualZoom}
-          pdfFitWidth={pdfManualZoom === null} onPdfFitWidth={() => setPdfManualZoom(null)}
+          zoom={Math.round(zoom)} onZoom={zoomBy}
+          pdfZoom={Math.round(pdfZoom)} onPdfZoom={pdfZoomBy}
+          // _pdf_fit_width_btn: the same Fit page width as View > Zoom.
+          pdfFitWidth={fitWidth} onPdfFitWidth={() => cmd.trigger('fit_page_width')}
+          pdfFollow={follow} onPdfFollow={toggleFollow}
           showPdfZoom compiler={compilerText} message={status}
           recent={recent} onOpenRecent={p => { void runAction('open_recent', p) }} />
       </div>

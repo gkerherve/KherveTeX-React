@@ -36,6 +36,9 @@ export interface PdfApi {
   findText(text: string): Promise<boolean>
   currentPage(): number
   pageCount(): number
+  // Scroll so this point of page `page` (1-based; `frac` 0..1 down it)
+  // sits in the middle of the panel: the PDF following the text.
+  showSpot(page: number, frac: number): void
 }
 
 let primaryApi: PdfApi | null = null
@@ -202,7 +205,13 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
 
   useEffect(() => {
     if (!primary) return
-    const api: PdfApi = { findText, currentPage, pageCount: () => boxes.length }
+    const showSpot = (page: number, frac: number) => {
+      const slot = slots.current[Math.max(0, Math.min(boxes.length - 1, page - 1))]
+      const el = container.current
+      if (!slot || !el) return
+      el.scrollTop = Math.max(0, slot.offsetTop + frac * slot.offsetHeight - el.clientHeight / 2)
+    }
+    const api: PdfApi = { findText, currentPage, pageCount: () => boxes.length, showSpot }
     primaryApi = api
     return () => { if (primaryApi === api) primaryApi = null }
   }, [primary, findText, currentPage, boxes])

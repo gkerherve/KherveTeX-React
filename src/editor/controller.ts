@@ -330,7 +330,13 @@ export class EditorController implements ViewHost {
     for (const t of anchorTargets(this.view.state.doc, anchors)) {
       let y: number
       try {
-        y = (this.view.coordsAtPos(Math.min(t.pos + 1 + t.offset, this.view.state.doc.content.size)).top - top0) / z
+        // A figure (a leaf) by its box: pos + 1 is already the paragraph
+        // after it, and its sheet read as "(cont.)".
+        const leaf = this.view.state.doc.nodeAt(t.pos)
+        const dom = leaf && !leaf.isTextblock ? this.view.nodeDOM(t.pos) : null
+        const top = dom instanceof HTMLElement ? dom.getBoundingClientRect().top
+          : this.view.coordsAtPos(Math.min(t.pos + 1 + t.offset, this.view.state.doc.content.size)).top
+        y = (top - top0) / z
       } catch { continue }
       const k = Math.floor(y / H)
       if (!starts.has(k)) starts.set(k, t.page)
@@ -352,6 +358,22 @@ export class EditorController implements ViewHost {
   }
 
   private firstPage = 1
+  // The last painted sheet labels (sheetLabels), for pdfSpotAt.
+  private labels: string[] = []
+
+  // The PDF page a point of the page view shows: its sheet's label ("7",
+  // or "7 (cont.)" for the run-on of page 7, whose end it then shows).
+  pdfSpotAt(clientY: number): { page: number; frac: number } | null {
+    const H = this.layout.geometry.heightPx
+    if (!H || !this.flowEl.isConnected) return null
+    const y = (clientY - this.flowEl.getBoundingClientRect().top) / this.zoom()
+    const k = Math.max(0, Math.min(this.sheets - 1, Math.floor(y / H)))
+    const label = this.labels[k] ?? String(k + this.firstPage)
+    const page = parseInt(label, 10)
+    if (!Number.isFinite(page)) return null
+    const frac = label.includes('cont') ? 1 : Math.max(0, Math.min(1, (y - k * H) / H))
+    return { page, frac }
+  }
 
   // set_first_page_number: a project document continues from the pages
   // of the documents before it.
@@ -405,6 +427,10 @@ export class EditorController implements ViewHost {
   }
 
   textWidthPx(): number {
+    // Node views are built inside new EditorView(), before this.view is
+    // set: a figure there is drawn at the class's text width and redrawn
+    // once the layout runs.
+    if (!this.view) return 605
     const g = this.layout.geometry
     return g.widthPx - g.leftPx - g.rightPx
   }
@@ -655,6 +681,7 @@ export class EditorController implements ViewHost {
       h1: '', h2: '', num1: '', num2: '',
     }
     const labels = this.sheetLabels(sheets)
+    this.labels = labels
     for (let k = 0; k < sheets; k++) {
       const label = labels[k]
       if (label.includes('cont')) {
@@ -821,6 +848,7 @@ export class EditorController implements ViewHost {
       setPageNumberStart: n => this.setPageNumberStart(n),
       setHeadingOffset: c => this.setHeadingOffset(c ?? []),
       setPageAnchors: (_pages, anchors, furniture, typography) => this.setPageAnchors(anchors, furniture, typography),
+      pdfSpotAt: y => this.pdfSpotAt(y),
       // The contextual Equation tab (src/app/actions/math.ts).
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },

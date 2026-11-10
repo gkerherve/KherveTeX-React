@@ -215,7 +215,22 @@
 .kt-figure-image img { max-width: 100%; vertical-align: top; }
 .kt-figure-missing { font-family: Consolas, 'Courier New', monospace; font-size: 13.33px; color: #999999; }
 .kt-figure-caption { font-style: italic; color: #2e7d32; }
-.kt-figure-label { color: #888888; font-size: 12px; }
+/* The label is a tag in the box's corner, not a row: a row made every
+   figure 31 px taller than the PDF's, and a full page with a figure ran
+   over onto a "(cont.)" sheet of its own. */
+.kt-figure { position: relative; }
+.kt-figure-row.kt-figure-label {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 1px 6px;
+  border: none;
+  border-bottom-left-radius: 3px;
+  background: rgba(232, 245, 233, 0.9);
+  color: #888888;
+  font-size: 11px;
+  line-height: 15px;
+}
 
 /* ----- tables: LaTeX's tabular, rules drawn per cell (TableView) ----- */
 .kt-table-wrap {
