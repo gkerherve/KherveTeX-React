@@ -10,6 +10,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { classSupportsChapter, THEOREM_KINDS, type DocMeta } from '../core/model.ts'
 import { byCode, DPI } from '../core/pageSizes.ts'
 import { lookFor, numberLabel, type LabelSpec, type Look, type StyleKey, type StyleSpec } from './classLooks.ts'
+import { moderncvLook } from './cvView.ts'
 import { baselineskipPt, pdfFont, type ScreenFont } from './latexFonts.ts'
 
 // Where Qt puts the baseline within a fixed-height line, from the line's
@@ -96,7 +97,7 @@ const SCREEN_FONTS_FOR_LATEX: Record<string, string[]> = {
 export function screenFontFor(meta: DocMeta): string {
   const chosen = meta.visual_font_family
   if (chosen && chosen !== 'Georgia') return `'${chosen}'`
-  if (meta.body_font_family === 'default') return pdfFont(lookFor(meta.documentclass, meta.body_font_pt).body.font).family
+  if (meta.body_font_family === 'default') return pdfFont(moderncvLook(lookFor(meta.documentclass, meta.body_font_pt), meta).body.font).family
   const list = SCREEN_FONTS_FOR_LATEX[meta.body_font_family]
   if (list) return [...list, chosen || 'Georgia'].map(f => `'${f}'`).join(', ') + ', serif'
   return `'${chosen || 'Georgia'}'`
@@ -276,7 +277,8 @@ export function parskipFromExtras(extras: string, emPx: number, pt: number): num
 
 export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number[] = [0, 0, 0, 0, 0, 0],
   pdfBreaks: ReadonlySet<number> = new Set(), pdfPaged = false, pdf: PdfTypography | null = null): DocLayout {
-  const measured = lookFor(meta.documentclass, meta.body_font_pt)
+  // moderncv's own fonts and colours on its measured sizes (cvView.ts).
+  const measured = moderncvLook(lookFor(meta.documentclass, meta.body_font_pt), meta)
   const k = pdf ? pdf.bodyPt / measured.body.size : 1
   const scaled = pdf && Math.abs(k - 1) > 0.04 && k > 0.6 && k < 1.6 ? scaleLook(measured, k) : measured
   // Date switched off (Insert > Date): the page shows none, as \\date{}.

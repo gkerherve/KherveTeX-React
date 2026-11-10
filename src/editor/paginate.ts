@@ -109,7 +109,15 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
     lineBands(el).forEach((l, i) => {
       let pos = start
       if (i > 0) {
-        const hit = view.posAtCoords({ left: l.left + 0.5, top: (l.top + l.bottom) / 2 })
+        const at = { left: l.left + 0.5, top: (l.top + l.bottom) / 2 }
+        // A line drawn by a widget standing for its source (a CV entry,
+        // cvView.ts) breaks where that source starts.
+        // Found by its box: off screen, elementFromPoint finds nothing.
+        const owner = [...el.querySelectorAll<HTMLElement>('[data-kt-pos]')].find(w => {
+          const r = w.getBoundingClientRect()
+          return at.top >= r.top && at.top <= r.bottom
+        })
+        const hit = owner ? { pos: Number(owner.dataset.ktPos) } : view.posAtCoords(at)
         pos = hit ? hit.pos : start
       }
       units.push({ top: y(l.top), bottom: y(l.bottom), pos, kind: i === 0 ? 'block' : 'inline', forced: forced && i === 0, gap })

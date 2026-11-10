@@ -351,3 +351,97 @@
   color: #6a1b9a;
   background: #f3e5f5;
 }
+
+/* ----- a moderncv CV, classic style (cvView.ts) ----- */
+/* An entry block: drawn, not code. Sizes are moderncv's at the body size. */
+.kt-raw.kt-cv-block {
+  font-family: 'KTeX LMSans10', 'Latin Modern Sans', sans-serif;
+  font-size: 1em;
+  line-height: 1.237;
+  color: #000000;
+  background: none;
+  white-space: normal;
+}
+.kt-cv-hide { display: none; }
+.kt-cv-source {
+  display: block;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 13.33px;
+  line-height: normal;
+  color: #b71c1c;
+  background: #ffebee;
+  white-space: pre-wrap;
+}
+.kt-cv-drawn { cursor: text; }
+.kt-cv-row {
+  display: grid;
+  grid-template-columns: var(--kt-cv-hints) var(--kt-cv-sep) 1fr;
+  /* The PDF leaves 2.8 pt after a one-line item and 3.8 pt after a
+     two-line one: their mean. */
+  margin-bottom: 0.3em;
+}
+.kt-cv-row > .kt-cv-hint { grid-column: 1; text-align: right; }
+/* TeX shrinks a justified line's spaces by up to a third to keep words on
+   it; the browser never does. Start from TeX's tightest spacing and let
+   justification widen it, so lines break where the PDF's do. */
+.kt-cv-row > .kt-cv-main { grid-column: 3; text-align: justify; hyphens: auto; word-spacing: -0.11em; }
+.kt-cv-row.kt-cv-entry { margin-bottom: 0.24em; }
+.kt-cv-row.kt-cv-double {
+  grid-template-columns: var(--kt-cv-hints) var(--kt-cv-sep) 1fr var(--kt-cv-sep) var(--kt-cv-hints) var(--kt-cv-sep) 1fr;
+}
+.kt-cv-double > :nth-child(2) { grid-column: 3; }
+.kt-cv-double > :nth-child(3) { grid-column: 5; text-align: right; }
+.kt-cv-double > :nth-child(4) { grid-column: 7; }
+.kt-cv-desc { margin-top: 0.08em; font-size: 0.913em; line-height: 1.195; }
+.kt-cv-comment { float: right; font-style: italic; }
+.kt-cv-list { margin: 0; padding: 0; list-style: none; }
+.kt-cv-list > li { position: relative; padding-left: 1.1em; }
+.kt-cv-list > li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.42em;
+  width: 0.36em;
+  height: 0.36em;
+  border: 0.09em solid var(--kt-cv-bullet, #3873b3);
+  border-radius: 50%;
+}
+.kt-cv-list.kt-cv-two { display: grid; grid-template-columns: 1fr 1fr; }
+/* A section title after a rule across the hints column. */
+.kt-cv-section { position: relative; }
+.kt-cv-section::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * (var(--kt-cv-hints) + var(--kt-cv-sep)));
+  width: var(--kt-cv-hints);
+  top: calc(0.5lh - 0.24em);
+  height: 0.32em;
+  background: var(--kt-cv-color);
+}
+/* The name: first and last name on two lines in a box 0.4 of the text
+   width; the title under it, the address set right beside it. */
+.kt-cv-name { position: relative; }
+/* moderncv leaves 52 pt between the title's last line and the first
+   section title; ProseMirror's trailing line break under the header is
+   not part of it. */
+.kt-cv-head { display: block; line-height: normal; padding-bottom: 1.43em; }
+.kt-cv-name > br.ProseMirror-trailingBreak, .kt-cv-name > img.ProseMirror-separator { display: none; }
+.kt-cv-title {
+  margin-top: 0.62em;
+  font-family: 'KTeX LMSans17', 'Latin Modern Sans', sans-serif;
+  font-style: italic;
+  font-size: 0.508em;
+  line-height: 0.79;
+  color: var(--kt-cv-grey);
+}
+.kt-cv-address {
+  position: absolute;
+  bottom: 0;
+  font-family: 'KTeX LMSans10', 'Latin Modern Sans', sans-serif;
+  font-style: italic;
+  font-size: 0.294em;
+  line-height: 1.2;
+  text-align: right;
+  color: var(--kt-cv-grey);
+}
+.kt-cv-icon { margin-right: 0.3em; font-style: normal; }

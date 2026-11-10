@@ -29,6 +29,7 @@ import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type Pag
 import { computeColumnSpacers, computeSpacers, refreshColumns, sameSpacers, type PageStart } from './paginate.ts'
 import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { bibliographyPlugin } from './bibView.ts'
+import { moderncvPlugin } from './cvView.ts'
 import { showContextMenu } from './contextMenu.ts'
 import { setRibbonWidgets } from './ribbonState.ts'
 import { SPELL_REFRESH, spellPlugin } from './spell.ts'
@@ -207,7 +208,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), bibliographyPlugin(), pagesPlugin(), spellPlugin(),
+      layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), pagesPlugin(), spellPlugin(),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(),
     ]
