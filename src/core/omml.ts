@@ -94,9 +94,10 @@ const DELIMS: Record<string, string> = {
 const own = (o: Record<string, string>, k: string) => Object.prototype.hasOwnProperty.call(o, k)
 
 // A trailing "(1)" typed after a display equation: its number.
-const NUMBER_RE = /(?:\\\s|\s)*\(\s*\d+[a-z]?\s*\)\s*$/
-// The same typed as text beside the equation, after a tab.
-export const TAG_RE = /^\s*\(\s*\d+[a-z]?\s*\)\s*$/
+const NUMBER_RE = /(?:\\\s|\s)*\(\s*(?:[A-Z]\.)?\d+(?:[.-]\d+)*[a-z]?\s*\)\s*$/
+// The same typed as text beside the equation, after a tab. A thesis numbers
+// by chapter: "(3.1)", "(A.2)".
+export const TAG_RE = /^\s*\(\s*(?:[A-Z]\.)?\d+(?:[.-]\d+)*[a-z]?\s*\)\s*$/
 
 // The element children (lxml also yields comments, whose tag is not a
 // string: they convert to nothing).

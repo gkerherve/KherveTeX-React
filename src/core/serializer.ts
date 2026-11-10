@@ -949,6 +949,8 @@ function geometryLine(m: DocMeta): string {
     + `left=${pyFloat(m.margin_left_cm)}cm,right=${pyFloat(m.margin_right_cm)}cm]{geometry}`
 }
 
+const DATE_ONLY_RE = /^(?:\s*\\date\{[^{}]*\}\s*)+$/
+
 export function serializeDocument(doc: Document): string {
   const m = doc.meta
   const isElsarticle = (m.documentclass || '').toLowerCase().startsWith('elsarticle')
@@ -1083,7 +1085,7 @@ export function serializeDocument(doc: Document): string {
   // keywords inline. Journal classes whose preamble_extras (or Wiley-style
   // frontmatter_extras) already carry \title / \author get no duplicates.
   const extrasSrc = m.preamble_extras || ''
-  const fmExtras = strip(m.frontmatter_extras || '')
+  let fmExtras = strip(m.frontmatter_extras || '')
   const allExtras = extrasSrc + '\n' + fmExtras
   let preambleMeta = ''
   if (clsLower === 'moderncv' && !/\\name\b/.test(allExtras)) {
@@ -1104,6 +1106,15 @@ export function serializeDocument(doc: Document): string {
 
   const parts: string[] = []
   let emittedMaketitle = false
+  // Front matter that is only \date{} (a Word or PDF import: no date to
+  // print) is no Wiley author block: it goes first and the title, author
+  // and abstract follow as usual. Taken for one, the abstract went before
+  // \maketitle as \abstract{...}, which in article opens the abstract
+  // environment and pushed the title onto the next page.
+  if (fmExtras && !isElsarticle && DATE_ONLY_RE.test(fmExtras)) {
+    parts.push(fmExtras + '\n')
+    fmExtras = ''
+  }
   // Wiley-style classes: body-level frontmatter commands at the top of the
   // body, then \maketitle.
   if (fmExtras && !isElsarticle) {
