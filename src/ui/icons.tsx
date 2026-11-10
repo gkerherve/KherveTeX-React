@@ -611,6 +611,15 @@ export function FitWidth(p: IconProps) {
   </Svg>
 }
 
+// The Documents panel: a list of documents beside the page.
+export function DocumentsPanel(p: IconProps) {
+  return <Svg {...p}>{R(2.5, 4, 19, 16, { fill: PAPER, r: 1.5, lw: 1.2 })}
+    {L(9, 4, 9, 20, INK, 1.2)}
+    {L(4, 8, 7.5, 8, BLUE, 1.4)}{L(4, 11, 7.5, 11, BLUE, 1.4)}{L(4, 14, 7.5, 14, BLUE, 1.4)}
+    {L(11, 8, 19.5, 8, INK, 1)}{L(11, 10.5, 19.5, 10.5, INK, 1)}{L(11, 13, 17, 13, INK, 1)}
+  </Svg>
+}
+
 // The PDF follows the text: a page and the PDF beside it, linked.
 export function PdfFollow(p: IconProps) {
   return <Svg {...p}>{R(2, 4, 8.5, 12, { fill: PAPER, r: 1, lw: 1.2 })}
@@ -1364,7 +1373,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   one_column: OneColumn, two_columns: TwoColumns,
   three_columns: ThreeColumns, page_break: PageBreak,
   horizontal_rule: HorizontalRule, title_date: TitleDate, zoom_in: ZoomIn, zoom_out: ZoomOut,
-  fit_width: FitWidth, pdf_follow: PdfFollow, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
+  fit_width: FitWidth, pdf_follow: PdfFollow, documents_panel: DocumentsPanel, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
   table_row_above: TableRowAbove, table_row_below: TableRowBelow,
   table_col_left: TableColLeft, table_col_right: TableColRight,
   table_delete_row: TableDeleteRow, table_delete_col: TableDeleteCol,

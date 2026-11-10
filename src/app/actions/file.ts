@@ -353,6 +353,7 @@ export async function openPath(path: string): Promise<void> {
     void refreshKherverefBib(doc).catch(() => {})
     return
   }
+  if (await offerChapterSplit(path, doc, true)) return
   importedStem = null
   setImportSourceDir(null)
   const cached = join(dirname(path), `${docStem(path)}.pdf`)
@@ -405,14 +406,22 @@ async function splitAndOpen(doc: KDocument, folder: string, title: string, by: S
   return true
 }
 
-// A long imported document with chapters (a thesis, a book): offer to make
-// it a project with one document per chapter or per section, written to a
-// new folder beside the file. True when it was split and opened.
-async function offerChapterSplit(path: string, doc: KDocument): Promise<boolean> {
+// A long document with chapters (a thesis, a book), imported or opened:
+// offer to make it a project with one document per chapter or per section,
+// written to a new folder beside the file. True when it was split and
+// opened. A file kept as one document when opened is not asked about again.
+async function offerChapterSplit(path: string, doc: KDocument, opened = false): Promise<boolean> {
   if (!projectHooks || !shouldOffer(doc)) return false
+  const raw = setting<unknown>('split_declined', [])
+  const declined = Array.isArray(raw) ? raw.map(String) : typeof raw === 'string' ? [raw] : []
+  if (opened && declined.includes(path)) return false
   const folder = await projectFolder(path, fileAccess())
   const by = await askSplit(basename(path), doc, folder, 'Keep as one document')
-  return by !== null && splitAndOpen(doc, folder, docStem(path), by)
+  if (by === null) {
+    if (opened) setSetting('split_declined', [...declined, path])
+    return false
+  }
+  return splitAndOpen(doc, folder, docStem(path), by)
 }
 
 // File > Project > Split into documents: the open document as a project

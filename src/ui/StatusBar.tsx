@@ -130,6 +130,10 @@ export interface StatusBarProps {
   message?: string
   recent?: readonly string[]
   onOpenRecent?: (path: string) => void
+  // The Documents panel of a project of several documents: shown with a
+  // project, its button on or off as the panel is.
+  docsPanel?: boolean
+  onDocsPanel?: () => void
   // The PDF scrolls with the page view.
   pdfFollow?: boolean
   onPdfFollow?: () => void
@@ -139,6 +143,9 @@ export function StatusBar(p: StatusBarProps) {
   return (
     <div className='statusbar'>
       {p.onOpenRecent && <RecentCombo recent={p.recent ?? []} onOpen={p.onOpenRecent} />}
+      {p.onDocsPanel && <ToolIcon name='documents_panel'
+        tip={p.docsPanel ? 'Hide the Documents panel (Ctrl+5)' : 'Show the Documents panel (Ctrl+5)'}
+        on={p.docsPanel} onClick={p.onDocsPanel} />}
       <div className='sb-path' title={p.fileName && p.dir ? `${p.dir}/${p.fileName}` : undefined}>
         {p.fileName
           ? <>

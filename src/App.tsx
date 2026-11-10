@@ -21,6 +21,7 @@ import { useGlobalShortcuts } from './ui/globalShortcuts'
 import { applyNamedTheme, useThemeName } from './app/actions/theme'
 import { currentBranch, recentSnapshot, subscribeBranch, subscribeRecent } from './app/actions/file'
 import { runAction } from './app/actions'
+import { useDocumentsDock } from './app/actions/project'
 import { editorApi } from './app/editorApi'
 import { pdfApi } from './preview/PdfView'
 import { loadSettings, setting, setSetting } from './platform/settings'
@@ -86,7 +87,8 @@ export default function App() {
   const compiling = useApp(s => s.compile.running)
   const compilerText = useCompileUi(u => u.statusText)
   // A project names itself and the open document (_update_title).
-  useApp(s => s.project)
+  const project = useApp(s => s.project)
+  const docsPanel = useDocumentsDock()
   useApp(s => s.projectPath)
   useApp(s => s.chapterIndex)
   const fileName = session.titleText() ?? (path ? path.split(/[\\/]/).pop()! : null)
@@ -211,7 +213,8 @@ export default function App() {
           pdfFitWidth={fitWidth} onPdfFitWidth={() => cmd.trigger('fit_page_width')}
           pdfFollow={follow} onPdfFollow={toggleFollow}
           showPdfZoom compiler={compilerText} message={status}
-          recent={recent} onOpenRecent={p => { void runAction('open_recent', p) }} />
+          recent={recent} onOpenRecent={p => { void runAction('open_recent', p) }}
+          docsPanel={docsPanel} onDocsPanel={project ? () => cmd.trigger('documents_dock') : undefined} />
       </div>
     </TooltipProvider>
   )
