@@ -18,6 +18,36 @@ export const WORK_DIR = '.kherve'
 // it the folder appears with the first file written into it.
 export interface StoreFs extends FileAccess {
   mkdir?(path: string): Promise<void>  // parents=True, exist_ok=True
+  // A new folder in the system's temporary folder.
+  makeTempDir?(prefix: string): Promise<string>
+}
+
+// A folder a cloud service keeps in sync (OneDrive, iCloud Drive, Dropbox,
+// Google Drive).
+const SYNCED_RE = /[\\/]Library[\\/](?:CloudStorage|Mobile Documents)[\\/]|[\\/](?:OneDrive|Dropbox|Google Drive|iCloud Drive)[^\\/]*[\\/]/i
+export function isSyncedFolder(folder: string): boolean {
+  return SYNCED_RE.test(folder + '/')
+}
+
+let localBase: string | null = null
+const fnv = (s: string) => {
+  let h = 0x811c9dc5
+  for (const ch of s) h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193) >>> 0
+  return h.toString(16).padStart(8, '0')
+}
+
+// Where a document's figures unpack: under .kherve/, or for a folder a
+// cloud service syncs, in a local folder of the project's own. There the
+// service uploaded every unpacked picture again, and while it did reading
+// one timed out: the compile stopped ("Operation timed out").
+async function filesDir(folder: string, stem: string, fs: StoreFs): Promise<string> {
+  if (isSyncedFolder(folder) && fs.makeTempDir) {
+    localBase ??= dirname(await fs.makeTempDir('khervetex-'))
+    const d = join(join(join(localBase, 'khervetex-files'), fnv(folder)), stem)
+    await fs.mkdir?.(d)
+    return d
+  }
+  return join(join(await workDir(folder, fs), 'files'), stem)
 }
 
 export async function workDir(folder: string, fs?: StoreFs): Promise<string> {
@@ -40,11 +70,10 @@ export function docStem(path: string): string {
 const readText = async (path: string, fs: FileAccess) =>
   new TextDecoder('utf-8', { ignoreBOM: true }).decode(await fs.read(path)).replace(/\r\n?/g, '\n')
 
-// Load a project document; .ktex figures unpack under .kherve/.
+// Load a project document; .ktex figures unpack under .kherve/ (filesDir).
 export async function readDoc(path: string, fs: StoreFs): Promise<Document> {
   if (kdocz.isKdoczPath(path)) {
-    const [doc] = await kdocz.loadKdocz(
-      path, join(join(await workDir(dirname(path), fs), 'files'), docStem(path)), fs)
+    const [doc] = await kdocz.loadKdocz(path, await filesDir(dirname(path), docStem(path), fs), fs)
     return doc
   }
   return fromJson(await readText(path, fs))

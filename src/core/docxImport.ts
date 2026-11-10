@@ -13,7 +13,7 @@
 //   paragraph, so their text is not imported.
 
 import { figure, link, listItem, list as listNode, mathBlock, mathInline, paragraph, section, table, text, title as titleNode,
-  author as authorNode, abstract as abstractNode, document, docMeta } from './model.ts'
+  author as authorNode, abstract as abstractNode, document, docMeta, inlineRaw, rawLatex } from './model.ts'
 import type { Alignment, Block, Document, Inline, ListItem, Mark, Table, Text } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
 import { join, suffix } from './paths.ts'
@@ -247,6 +247,13 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
 
   const walk = async (elems: Iterable<XElement>): Promise<void> => {
   for (const childElem of elems) {
+    // The paragraph before ended a Word section (its w:sectPr).
+    let prev = childElem.previousSibling
+    while (prev && !isElement(prev)) prev = prev.previousSibling
+    if (prev && isElement(prev) && localName(prev) === 'p') {
+      const ppr = find(prev, NS.w, 'pPr')
+      if (ppr !== null && find(ppr, NS.w, 'sectPr') !== null) children.push(rawLatex(SECTION_MARK))
+    }
     const tag = localName(childElem)
 
     // --- Table ---
@@ -301,7 +308,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     const [kind, styleLevel] = _classifyStyle(styleName, style)
     let level = styleLevel
 
-    const textRuns = _runsToInlines(para, src)
+    const textRuns = _runsToInlines(para, src, kind === 'author')
 
     // Detect embedded images.
     const paraImages = await _imagesInParagraph(para, src, imageDir, imageCounter, fs, textEmu)
@@ -424,13 +431,174 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   // Word and PDF carry no date to print: without \date{} \maketitle
   // would put the day of the import under the title.
   if (children.some((c) => c.type === 'Title')) meta.frontmatter_extras = '\\date{}'
-  return document(children, meta)
+  // The page in the columns of the section that holds most of the text.
+  const columns = _mainColumns(body!)
+  if (columns >= 2 && columns <= 4) meta.column_count = columns
+  let ordered = _orderColumnAuthors(children)
+  // Empty paragraphs before the first text (a template's spacing above its
+  // title) printed as lines of their own: before \maketitle they made a
+  // page of nothing.
+  while (ordered.length && ordered[0].type === 'Paragraph'
+    && !ordered[0].children.some((c) => !(c.type === 'Text' && !c.text.trim()))) ordered = ordered.slice(1)
+  return document(ordered, meta)
+}
+
+// Word's breaks inside a paragraph (<w:br/>): a line break is LaTeX's \\,
+// and in an author paragraph that Word sets in columns (an IEEE paper's
+// authors side by side) a column break separates two authors, \and, as
+// \maketitle sets them side by side. Dropped, the lines ran together
+// ("Surnameline 2:") and off the page.
+const LINE_BREAK = '\\\\'
+const AUTHOR_BREAK = '\\and{}'
+// Between the blocks of two Word sections while a document is read
+// (_orderColumnAuthors takes them out again).
+const SECTION_MARK = '%% kt-section-end'
+
+// A run holding breaks: each piece of its text, with its formatting, and
+// the breaks between them.
+function _runWithBreaks(runElem: XElement, author: boolean): Inline[] {
+  const out: Inline[] = []
+  const rpr = find(runElem, NS.w, 'rPr')
+  for (const child of iterChildren(runElem)) {
+    const tag = localName(child)
+    if (tag === 't') {
+      const piece = runElem.cloneNode(false) as XElement
+      if (rpr !== null) piece.appendChild(rpr.cloneNode(true))
+      piece.appendChild(child.cloneNode(true))
+      const inline = _runElementToInline(piece)
+      if (inline !== null) out.push(inline)
+    } else if (tag === 'br') {
+      const kind = get(child, NS.w, 'type') || 'textWrapping'
+      if (kind === 'page') continue
+      out.push(inlineRaw(author && kind === 'column' ? AUTHOR_BREAK : LINE_BREAK))
+    }
+  }
+  return out
+}
+
+// No break at the start or the end of a paragraph (LaTeX: "There's no line
+// here to end"), and one where several follow each other.
+function _tidyBreaks(out: Inline[]): Inline[] {
+  const isBreak = (x: Inline) => x.type === 'InlineRaw' && (x.latex === LINE_BREAK || x.latex === AUTHOR_BREAK)
+  const blank = (x: Inline) => x.type === 'Text' && !x.text.trim()
+  let tidy: Inline[] = []
+  for (const x of out) {
+    if (isBreak(x)) {
+      while (tidy.length && blank(tidy[tidy.length - 1])) tidy.pop()
+      const last = tidy[tidy.length - 1]
+      if (!tidy.length || (isBreak(last) && (last as { latex: string }).latex === AUTHOR_BREAK)) continue
+      if (isBreak(last)) {
+        if ((x as { latex: string }).latex === AUTHOR_BREAK) tidy[tidy.length - 1] = x
+        continue
+      }
+    } else if (blank(x) && tidy.length && isBreak(tidy[tidy.length - 1])) {
+      continue
+    }
+    tidy.push(x)
+  }
+  let end = tidy.length
+  while (end && blank(tidy[end - 1])) end -= 1
+  if (end && isBreak(tidy[end - 1])) tidy = tidy.slice(0, end - 1)
+  return tidy
+}
+
+// Authors Word sets in columns, in reading order. Word fills a column
+// before the next: an IEEE paper's six authors in three columns come as
+// 1, 4 | 2, 5 | 3, 6 (a column break, \and, between columns, a new
+// paragraph for the next author down). Read row by row they are 1 to 6, one
+// author block whose \and set them side by side. The section marks are
+// dropped.
+function _orderColumnAuthors(children: Block[]): Block[] {
+  const isMark = (b: Block) => b.type === 'RawLatex' && b.text === SECTION_MARK
+  const isAnd = (x: Inline) => x.type === 'InlineRaw' && x.latex === AUTHOR_BREAK
+  const hasText = (xs: Inline[]) => xs.some((u) => !(u.type === 'Text' && !u.text.trim()))
+  const out: Block[] = []
+  let i = 0
+  while (i < children.length) {
+    const b = children[i]
+    if (isMark(b)) { i += 1; continue }
+    if (b.type !== 'Author') { out.push(b); i += 1; continue }
+    const run: Extract<Block, { type: 'Author' }>[] = []
+    while (i < children.length && children[i].type === 'Author') {
+      run.push(children[i] as Extract<Block, { type: 'Author' }>)
+      i += 1
+    }
+    if (!run.some((a) => a.children.some(isAnd))) { out.push(...run); continue }
+    const columns: Inline[][][] = [[]]
+    let col = 0
+    for (const a of run) {
+      let unit: Inline[] = []
+      for (const x of [...a.children, null]) {
+        if (x === null || isAnd(x)) {
+          if (hasText(unit)) columns[col].push(unit)
+          if (x !== null) {
+            col += 1
+            if (col === columns.length) columns.push([])
+          }
+          unit = []
+        } else {
+          unit.push(x)
+        }
+      }
+    }
+    // Author paragraphs just before (a note under the title, in the Author
+    // style) are entries of their own, ahead of the rows.
+    const names: Inline[] = []
+    const lead: Inline[][] = []
+    while (out.length && out[out.length - 1].type === 'Author') {
+      const prev = out.pop() as Extract<Block, { type: 'Author' }>
+      if (hasText(prev.children)) lead.unshift(prev.children)
+    }
+    for (const unit of lead) {
+      if (names.length) names.push(inlineRaw(AUTHOR_BREAK))
+      names.push(...unit)
+    }
+    const rows = Math.max(...columns.map((c) => c.length))
+    for (let row = 0; row < rows; row++) {
+      for (const c of columns) {
+        if (row < c.length) {
+          if (names.length) names.push(inlineRaw(AUTHOR_BREAK))
+          names.push(...c[row])
+        }
+      }
+    }
+    out.push(authorNode(names))
+  }
+  return out
+}
+
+// The columns of the Word section that holds most of the text (an IEEE
+// paper: its title in one column, its authors in three, its body in two).
+function _mainColumns(body: XElement): number {
+  const cols = (sect: XElement | null): number => {
+    const c = sect !== null ? find(sect, NS.w, 'cols') : null
+    const n = c !== null ? parseInt(get(c, NS.w, 'num') || '1', 10) : 1
+    return Number.isFinite(n) ? Math.max(1, n) : 1
+  }
+  const sections: [number, number][] = []
+  let chars = 0
+  for (const el of iterChildren(body)) {
+    const tag = localName(el)
+    if (tag === 'p' || tag === 'tbl') {
+      chars += (el.textContent ?? '').length
+      const ppr = tag === 'p' ? find(el, NS.w, 'pPr') : null
+      const sect = ppr !== null ? find(ppr, NS.w, 'sectPr') : null
+      if (sect !== null) { sections.push([chars, cols(sect)]); chars = 0 }
+    } else if (tag === 'sectPr') {
+      sections.push([chars, cols(el)])
+      chars = 0
+    }
+  }
+  if (!sections.length) return 1
+  // max() of the pairs: the most text, then the most columns.
+  sections.sort((a, b) => b[0] - a[0] || b[1] - a[1])
+  return sections[0][1]
 }
 
 // --- Inline extraction (with hyperlinks, footnotes, sub/superscript) -------
 
 // Extract inline content from a paragraph, including hyperlinks.
-function _runsToInlines(para: XElement, src: Src): Inline[] {
+function _runsToInlines(para: XElement, src: Src, author = false): Inline[] {
   const out: Inline[] = []
 
   // Walk child XML elements to capture hyperlinks in document order.
@@ -439,6 +607,10 @@ function _runsToInlines(para: XElement, src: Src): Inline[] {
     const tag = localName(elem)
 
     if (tag === 'r') {
+      if (find(elem, NS.w, 'br') !== null) {
+        out.push(..._runWithBreaks(elem, author))
+        continue
+      }
       const inline = _runElementToInline(elem)
       if (inline !== null) out.push(inline)
     } else if (tag === 'oMath' && elem.namespaceURI === M_NS) {
@@ -473,7 +645,7 @@ function _runsToInlines(para: XElement, src: Src): Inline[] {
   // Append footnote markers at the end of inline content.
   _extractFootnotes(para)
 
-  return out
+  return _tidyBreaks(out)
 }
 
 // Convert a <w:r> XML element to a Text inline (or null if empty).
@@ -584,7 +756,9 @@ function _symbolFontText(s: string): string {
   for (const ch of s) {
     let code = ch.codePointAt(0)!
     if (code >= 0xF020 && code <= 0xF0FF) code -= 0xF000
-    out.push(code <= 0xFF && code in SYMBOL_FONT ? SYMBOL_FONT[code] : ch)
+    // What the table leaves out (digits, + = ( ) and the space) is the ASCII
+    // character itself.
+    out.push(code <= 0xFF ? (SYMBOL_FONT[code] ?? String.fromCodePoint(code)) : ch)
   }
   return out.join('')
 }
@@ -607,6 +781,11 @@ function _runElementToInline(runElem: XElement): Text | null {
   // Text set in the Symbol font: "n" (or U+F06E) is its ν.
   const fonts = rpr !== null ? find(rpr, NS.w, 'rFonts') : null
   if (fonts !== null && ['ascii', 'hAnsi'].some((a) => (get(fonts, NS.w, a) || '').toLowerCase() === 'symbol')) {
+    t = _symbolFontText(t)
+  } else if ([...t].some((ch) => ch.codePointAt(0)! >= 0xF020 && ch.codePointAt(0)! <= 0xF0FF)) {
+    // Symbol characters whose font comes from the style (an IEEE
+    // template's "a + b = γ (1)"): Word stores them at U+F020-F0FF, which
+    // no font draws.
     t = _symbolFontText(t)
   }
   if (rpr !== null) {

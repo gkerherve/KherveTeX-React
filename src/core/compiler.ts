@@ -121,6 +121,15 @@ export const MISSING_FONT_RE = new RegExp(
   + '|Could not locate a virtual/physical font named ([^\\s.]+)'
   + '|Cannot proceed without \\.vf or "physical" font for (\\S+)', 'g')
 
+// A file the engine could not read in time ("Operation timed out"): one a
+// cloud service (OneDrive, iCloud) is still syncing. Not a network failure,
+// though NETWORK_ERROR_RE's "timed out" matches it.
+const SLOW_FILE_RE = /error closing out input ([^\n]+)\ncaused by: Operation timed out/
+
+export function slowFileFromLog(log: string): string | null {
+  return SLOW_FILE_RE.exec(log)?.[1] ?? null
+}
+
 export function isOfflineFailure(log: string): boolean {
   return NETWORK_ERROR_RE.test(log)
 }
@@ -575,6 +584,16 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
     const cachedLog = log;
     [code, log, late] = await run(false)
     if (late) return timedOut
+    const slow = slowFileFromLog(cachedLog) ?? slowFileFromLog(log)
+    if (slow) {
+      return {
+        ok: false,
+        pdfPath: (await host.exists(pdfPath)) ? pdfPath : null,
+        log: cachedLog + '\n\n--- online retry ---\n' + log,
+        error: `${slow.split(/[\\/]/).pop()} could not be read in time: its folder is being synced `
+          + '(OneDrive, iCloud…). Compile again once the sync has finished.',
+      }
+    }
     if (isOfflineFailure(log)) {
       const names = [...new Set(missing)].sort().join(', ') || 'some TeX files'
       return {
