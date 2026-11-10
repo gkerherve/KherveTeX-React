@@ -101,7 +101,10 @@
 .kt-list li { margin: 0; }
 
 /* ----- equations ----- */
-.kt-math-inline { display: inline-block; cursor: default; }
+/* An inline-block inherits the paragraph's text-indent and indents its own
+   first line by it: every $x^2$ grew by the first-line indent, or by the
+   whole width of a run-in \paragraph heading, leaving wide gaps. */
+.kt-math-inline { display: inline-block; cursor: default; text-indent: 0; }
 .kt-math-svg { display: inline-block; line-height: 0; }
 .kt-math-svg svg { display: block; overflow: visible; }
 .kt-math-source {

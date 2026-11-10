@@ -124,13 +124,23 @@ class FigureView implements NodeView {
       if (p !== undefined) host.onFigureDoubleClick(p)
     })
   }
+  private shown = ''
   render() {
     const a = this.node.attrs
+    const src = this.host.resolveImage(a.path)
+    // Every image that finishes loading, and every reference refresh,
+    // re-renders all atoms. Rebuilding an unchanged figure made a new
+    // <img> each time, which the browser decodes again: a thesis with 76
+    // figures created ~3000 of them on opening and kept the CPU busy for
+    // minutes. Redraw only when what the figure shows has changed.
+    const key = [src ?? '', a.path, a.width, a.caption, a.label, a.align,
+      this.host.textWidthPx()].join('\n')
+    if (key === this.shown) return
+    this.shown = key
     this.dom.dataset.align = a.align || 'center'
     const rows: HTMLElement[] = []
     const img = document.createElement('div')
     img.className = 'kt-figure-row kt-figure-image'
-    const src = this.host.resolveImage(a.path)
     const missing = (text: string) => {
       const s = document.createElement('span')
       s.className = 'kt-figure-missing'
