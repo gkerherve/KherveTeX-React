@@ -16,6 +16,8 @@ export interface ViewHost {
   resolveImage(path: string): string | null
   onMathDoubleClick(pos: number, display: boolean): void
   onFigureDoubleClick(pos: number): void
+  // A picture resized with its handles: its new LaTeX width.
+  onFigureResized(pos: number, width: string): void
   onFootnoteDoubleClick(pos: number): void
 }
 
@@ -108,13 +110,39 @@ class MathBlockView implements NodeView {
   ignoreMutation() { return true }
 }
 
+// Word's eight sizing handles: corners and side midpoints. The picture
+// keeps its aspect ratio (LaTeX sets only its width), so any handle scales
+// the whole image (paged_edit.py _HANDLE_CURSORS).
+const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+
+// The width a handle dragged by (dx, dy) gives a picture w0 x h0 on screen,
+// kept between 24 px and the text width (mouseMoveEvent).
+export function resizedWidth(handle: string, w0: number, h0: number, dx: number, dy: number,
+  limit: number): number {
+  let w: number
+  if (handle.includes('e')) w = w0 + dx
+  else if (handle.includes('w')) w = w0 - dx
+  else if (h0) w = w0 * (h0 + (handle === 's' ? dy : -dy)) / h0
+  else w = w0
+  return Math.max(24, Math.min(Math.max(40, limit), w))
+}
+
+// The LaTeX width of a picture `w` px wide in a text `textW` px wide, as
+// _on_image_resized records it ("0.53\textwidth").
+export function widthSpec(w: number, textW: number): string {
+  const frac = textW > 0 ? Math.max(0.05, Math.min(1, w / textW)) : 0.8
+  return `${frac.toFixed(2)}\\textwidth`
+}
+
 class FigureView implements NodeView {
   dom: HTMLElement
   private node: PMNode
   private host: ViewHost
+  private getPos: () => number | undefined
   constructor(node: PMNode, host: ViewHost, getPos: () => number | undefined) {
     this.node = node
     this.host = host
+    this.getPos = getPos
     this.dom = document.createElement('div')
     this.dom.className = 'kt-block kt-figure'
     this.render()
@@ -155,7 +183,17 @@ class FigureView implements NodeView {
       im.draggable = false
       im.style.width = `${figureWidthPx(a.width, this.host.textWidthPx())}px`
       im.onerror = () => missing(`[Image not found: ${a.path}]`)
-      img.appendChild(im)
+      const frame = document.createElement('span')
+      frame.className = 'kt-figure-frame'
+      frame.appendChild(im)
+      for (const h of HANDLES) {
+        const d = document.createElement('span')
+        d.className = 'kt-handle'
+        d.dataset.h = h
+        d.addEventListener('pointerdown', e => this.startResize(e, h, im))
+        frame.appendChild(d)
+      }
+      img.appendChild(frame)
     } else {
       missing(`[Image: ${a.path}]`)
     }
@@ -174,6 +212,44 @@ class FigureView implements NodeView {
     }
     this.dom.replaceChildren(...rows)
   }
+  // Drag a handle: the picture follows the mouse, its share of the text
+  // width shown; on release the width goes into the document.
+  private startResize(e: PointerEvent, handle: string, im: HTMLImageElement) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const t = e.currentTarget as HTMLElement
+    t.setPointerCapture(e.pointerId)
+    // The page is drawn scaled (the zoom): mouse moves are in screen px.
+    const scale = im.getBoundingClientRect().width / (im.offsetWidth || 1) || 1
+    const w0 = im.offsetWidth
+    const h0 = im.offsetHeight
+    const textW = this.host.textWidthPx()
+    const x0 = e.clientX
+    const y0 = e.clientY
+    const tip = document.createElement('span')
+    tip.className = 'kt-size-tip'
+    im.parentElement?.appendChild(tip)
+    this.dom.classList.add('kt-resizing')
+    let w = w0
+    const move = (ev: PointerEvent) => {
+      w = resizedWidth(handle, w0, h0, (ev.clientX - x0) / scale, (ev.clientY - y0) / scale, textW)
+      im.style.width = `${w}px`
+      tip.textContent = `${Math.round(w / textW * 100)}% of the text width`
+    }
+    const up = () => {
+      t.removeEventListener('pointermove', move)
+      t.removeEventListener('pointerup', up)
+      t.removeEventListener('pointercancel', up)
+      tip.remove()
+      this.dom.classList.remove('kt-resizing')
+      const pos = this.getPos()
+      if (pos !== undefined && Math.abs(w - w0) >= 1) this.host.onFigureResized(pos, widthSpec(w, textW))
+    }
+    t.addEventListener('pointermove', move)
+    t.addEventListener('pointerup', up)
+    t.addEventListener('pointercancel', up)
+  }
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
     const changed = node.attrs !== this.node.attrs
@@ -182,6 +258,7 @@ class FigureView implements NodeView {
     return true
   }
   ignoreMutation() { return true }
+  stopEvent(e: Event) { return (e.target as HTMLElement | null)?.classList?.contains('kt-handle') ?? false }
 }
 
 // On-screen width of a figure from its LaTeX width (0.6\textwidth, 8cm,

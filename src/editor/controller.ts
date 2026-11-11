@@ -526,6 +526,15 @@ export class EditorController implements ViewHost {
     void runAction('fig_edit')
   }
 
+  // _on_image_resized: the picture's new width, in the document.
+  onFigureResized(pos: number, width: string): void {
+    const node = this.view.state.doc.nodeAt(pos)
+    if (!node || node.type.name !== 'figure') return
+    const tr = this.view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, width })
+    this.view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, pos)))
+    this.syncToolbar()
+  }
+
   onFootnoteDoubleClick(pos: number): void {
     this.selectNode(pos)
     void runAction('footnote_edit')
