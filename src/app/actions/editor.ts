@@ -12,7 +12,7 @@ import { dirname } from '../../core/paths.ts'
 import * as C from '../../editor/commands.ts'
 import { editor } from '../../editor/controller.ts'
 import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
-import { askCrossRef, promptItem, promptText } from '../../ui/dialogs/EditorDialogs.tsx'
+import { askCrossRef, promptItem, promptText, type CrossRefEntry } from '../../ui/dialogs/EditorDialogs.tsx'
 import { documentLabels } from '../../core/labels.ts'
 import { setCommandChecked } from '../../ui/commands.ts'
 import { hasAction, registerActions, type Handler } from '../actions.ts'
@@ -125,7 +125,21 @@ async function editFootnote(): Promise<void> {
 
 async function insertCrossref(): Promise<void> {
   const put = (c: { label: string, kind: M.CrossRef['kind'] }) => { run(C.insertInlines([M.crossRef(c.label, c.kind)])) }
-  const r = await askCrossRef(documentLabels(appStore().get().doc), put)
+  // Every figure, table, numbered equation and heading, labelled or not
+  // (one without a label gets one when it is picked), then the labels
+  // only raw LaTeX defines.
+  const { currentReferables, ensureLabel } = await import('../captions.ts')
+  const refs = currentReferables()
+  const entries: CrossRefEntry[] = refs.map(r => ({
+    key: `#${r.index}`, label: r.label ?? '', kind: r.kind, number: r.number, text: r.text,
+  }))
+  const have = new Set(entries.map(e => e.label).filter(Boolean))
+  for (const l of documentLabels(appStore().get().doc)) if (!have.has(l.label)) entries.push(l)
+  const resolve = (e: CrossRefEntry) => {
+    const r = refs.find(x => `#${x.index}` === e.key)
+    return r ? ensureLabel(r) : e.label
+  }
+  const r = await askCrossRef(entries, put, resolve)
   if (r) put(r)
 }
 
@@ -239,6 +253,24 @@ const actions: Record<string, Handler> = {
   footnote: insertFootnote,
   footnote_edit: editFootnote,
   crossref: insertCrossref,
+  // References ▸ Captions & labels.
+  captions: async () => {
+    const { askCaptions } = await import('../../ui/dialogs/CaptionManager.tsx')
+    const { currentReferables, setCaptionAndLabel, labelForCaption, goTo } = await import('../captions.ts')
+    const items = currentReferables()
+    const r = await askCaptions(items)
+    if (!r) return
+    for (const ed of r.edits) {
+      const item = items.find(x => x.index === ed.index)
+      // A caption left without a label gets one, so it can be referred to.
+      let label = ed.label
+      if (!label && ed.caption && item && (item.kind === 'figure' || item.kind === 'table')) {
+        label = labelForCaption(item.kind, ed.caption)
+      }
+      setCaptionAndLabel(ed.index, ed.caption, label || null)
+    }
+    if (r.goTo !== null) goTo(r.goTo)
+  },
 
   raw: insertRawLatex,
   code_block: insertCodeBlock,

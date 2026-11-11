@@ -16,6 +16,8 @@ export interface ViewHost {
   resolveImage(path: string): string | null
   onMathDoubleClick(pos: number, display: boolean): void
   onFigureDoubleClick(pos: number): void
+  // A double-click on a figure's caption (or label): edit them.
+  onCaptionDoubleClick(pos: number): void
   // A picture resized with its handles: its new LaTeX width.
   onFigureResized(pos: number, width: string): void
   onFootnoteDoubleClick(pos: number): void
@@ -149,7 +151,10 @@ class FigureView implements NodeView {
     this.dom.addEventListener('dblclick', e => {
       e.preventDefault()
       const p = getPos()
-      if (p !== undefined) host.onFigureDoubleClick(p)
+      if (p === undefined) return
+      const onCaption = (e.target as HTMLElement | null)?.closest?.('.kt-figure-caption, .kt-figure-label')
+      if (onCaption) host.onCaptionDoubleClick(p)
+      else host.onFigureDoubleClick(p)
     })
   }
   private shown = ''

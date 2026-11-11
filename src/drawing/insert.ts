@@ -136,8 +136,10 @@ export async function editFigure(fig: { path: string; source?: string }): Promis
     return (await editExistingFlowchart(resolved)) ? 'flowchart' : null
   }
   if ((await drawingSourceFor(resolved, exists)) === null) {
-    await information('Cannot re-edit',
-      'This figure was not created with the drawing tool, or its drawing data is missing.')
+    // A picture (a photo, a screenshot): what can be changed is its
+    // caption and label.
+    const { runAction } = await import('../app/actions')
+    await runAction('caption')
     return null
   }
   const { openDrawingDialog } = await import('./DrawingDialog')

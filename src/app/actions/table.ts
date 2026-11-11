@@ -88,7 +88,15 @@ const actions: Record<string, Handler> = {
     if (!kind) return
     const [caption, label] = C.currentCaption(s)
     const r = await captionDialog(kind, caption, label)
-    if (r) run(C.setCaption(r[0], r[1]))
+    if (!r) return
+    // A caption gets a label at once, so it can be cross-referenced.
+    let lab = r[1]
+    if (r[0] && !lab) {
+      const { labelForCaption } = await import('../captions.ts')
+      lab = labelForCaption(kind === 'Table' ? 'table' : 'figure', r[0])
+    }
+    run(C.setCaption(r[0], lab))
+    if (label && lab && label !== lab) (await import('../captions.ts')).renameReferences(label, lab)
   },
 }
 for (const [c] of SHADES) actions[`shade:${c}`] = () => shade(c)

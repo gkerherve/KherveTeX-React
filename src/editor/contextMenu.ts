@@ -142,8 +142,28 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
   )
 
   const fig = C.currentFigure(state)
+  const hasCaption = C.currentCaption(state)[0].trim() !== ''
+  const captionItem: Item = { text: hasCaption ? 'Edit caption…' : 'Insert caption…', run: () => { void runAction('caption') } }
+  // A right-click on a picture offers what is done to a picture first, as
+  // Word does: its caption, where it sits, its size.
+  if (fig) {
+    const a = fig.node.attrs
+    const align = a.align || 'center'
+    const w = /^([\d.]+)\\textwidth$/.exec((a.width || '').trim())
+    const share = w ? parseFloat(w[1]) : null
+    entries.unshift(
+      captionItem, '-',
+      { text: 'Align left', checked: align === 'left', run: () => { void runAction('fig_left') } },
+      { text: 'Center', checked: align === 'center', run: () => { void runAction('fig_center') } },
+      { text: 'Align right', checked: align === 'right', run: () => { void runAction('fig_right') } }, '-',
+      ...[0.25, 0.5, 0.75, 1].map((f): Item => ({
+        text: `${f * 100}% width`, checked: share !== null && Math.abs(share - f) < 0.005,
+        run: () => { void runAction(`fig_w${f * 100}`) },
+      })), '-',
+      { text: 'Delete picture', run: () => { void runAction('fig_delete') } }, '-')
+  }
   if (C.currentTable(state)) {
-    entries.push('-',
+    entries.push('-', captionItem, '-',
       { text: 'Insert row above', run: () => ed.run(C.tableInsertRow(false)) },
       { text: 'Insert row below', run: () => ed.run(C.tableInsertRow(true)) },
       { text: 'Insert column left', run: () => ed.run(C.tableInsertColumn(false)) },

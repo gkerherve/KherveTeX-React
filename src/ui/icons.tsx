@@ -403,6 +403,15 @@ export function Branch(p: IconProps) {
   </Svg>
 }
 
+// References ▸ Captions & labels: numbered items with a caption line each.
+export function Captions(p: IconProps) {
+  return <Svg {...p}>
+    {R(3, 3, 7, 5, { fill: TINT, color: BLUE, r: 0.8, lw: 1.1 })}{L(12, 4.5, 21, 4.5, INK, 1.1)}{L(12, 7, 18, 7, BLUE, 1)}
+    {R(3, 10, 7, 5, { fill: TINT, color: BLUE, r: 0.8, lw: 1.1 })}{L(12, 11.5, 21, 11.5, INK, 1.1)}{L(12, 14, 18, 14, BLUE, 1)}
+    {R(3, 17, 7, 5, { fill: TINT, color: BLUE, r: 0.8, lw: 1.1 })}{L(12, 18.5, 21, 18.5, INK, 1.1)}{L(12, 21, 18, 21, BLUE, 1)}
+  </Svg>
+}
+
 // File ▸ Share ▸ GitHub: a cloud with a branch in it.
 export function GitHub(p: IconProps) {
   return <Svg {...p}>
@@ -1403,7 +1412,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   accept_change: AcceptChange, reject_change: RejectChange,
   prev_comment: PrevComment, next_comment: NextComment, history: History,
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
-  overleaf_zip: OverleafZip, branch: Branch, github: GitHub, compile_pdf: CompilePdf,
+  overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, compile_pdf: CompilePdf,
   auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff,
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,

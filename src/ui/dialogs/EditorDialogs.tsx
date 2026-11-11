@@ -143,14 +143,14 @@ export function captionDialog(kind: 'Table' | 'Figure', caption: string, label: 
       const [c, setC] = useState(caption)
       const [l, setL] = useState(label)
       return (
-        <Frame title='Insert Caption' close={close as Close<never>} className='dlg-ed'
+        <Frame title={caption ? 'Edit Caption' : 'Insert Caption'} close={close as Close<never>} className='dlg-ed'
           onOk={() => close([c.trim(), l.trim()])}>
           <div className='dlg-form'>
             <label>Caption</label>
             <input autoFocus style={{ minWidth: 360 }} value={c}
               placeholder={`${kind} 1: describe the ${kind.toLowerCase()}`} onChange={e => setC(e.target.value)} />
             <label>Label (for cross-references)</label>
-            <input value={l} placeholder={`e.g. ${kind.slice(0, 3).toLowerCase()}:results`} onChange={e => setL(e.target.value)} />
+            <input value={l} placeholder='Made from the caption when left empty' onChange={e => setL(e.target.value)} />
           </div>
         </Frame>
       )
@@ -353,35 +353,58 @@ export interface CrossRefChoice { label: string; kind: 'ref' | 'eqref' | 'pagere
 
 // Modeless: Insert puts the reference at the caret and keeps the dialog
 // open, so the user can type on and insert another; OK inserts and closes.
-export function askCrossRef(labels: import('../../core/labels').LabelEntry[],
-  onInsert?: (c: CrossRefChoice) => void): Promise<CrossRefChoice | null> {
+// An entry may have no label yet (a figure with a caption only): `key`
+// tells the rows apart, and `resolve` gives it a label when it is picked.
+export type CrossRefEntry = import('../../core/labels').LabelEntry & { key?: string }
+
+export function askCrossRef(labels: CrossRefEntry[],
+  onInsert?: (c: CrossRefChoice) => void,
+  resolve: (e: CrossRefEntry) => string = e => e.label): Promise<CrossRefChoice | null> {
   const KIND_NAME = { section: 'Section', figure: 'Figure', table: 'Table', equation: 'Equation', other: 'Label' }
+  const keyOf = (e: CrossRefEntry) => e.key ?? e.label
   return openDialog<CrossRefChoice>(close => {
     function Pick() {
-      const [label, setLabel] = useState(labels[0]?.label ?? '')
-      const entry = labels.find(l => l.label === label)
+      const [picked, setPicked] = useState(labels[0] ? keyOf(labels[0]) : '')
+      const [typed, setTyped] = useState(labels[0]?.label ?? '')
+      const entry = labels.find(l => keyOf(l) === picked)
       const [kind, setKind] = useState<CrossRefChoice['kind']>(entry?.kind === 'equation' ? 'eqref' : 'ref')
-      const choose = (l: string) => {
-        setLabel(l)
-        const e = labels.find(x => x.label === l)
+      const label = typed
+      const setLabel = (l: string) => { setTyped(l); setPicked('') }
+      const choose = (k: string) => {
+        const e = labels.find(x => keyOf(x) === k)
+        setPicked(k)
+        setTyped(e?.label ?? '')
         if (e) setKind(e.kind === 'equation' ? 'eqref' : 'ref')
       }
-      const ok = () => { const l = label.trim(); if (l) close({ label: l, kind }) }
+      // The label to refer to: the picked item's (given one now when it
+      // has none), else what was typed.
+      const target = (): string => {
+        const e = labels.find(x => keyOf(x) === picked)
+        if (e) {
+          const l = e.label || resolve(e)
+          e.label = l
+          setTyped(l)
+          return l
+        }
+        return label.trim()
+      }
+      const ok = () => { const l = target(); if (l) close({ label: l, kind }) }
       return (
         <Frame title='Cross-reference' className='dlg-xref' close={close as Close<never>} onOk={ok}
           okText={onInsert ? 'Insert and close' : 'OK'} cancelText={onInsert ? 'Close' : 'Cancel'}
-          extra={onInsert && <button type='button' onClick={() => { const l = label.trim(); if (l) onInsert({ label: l, kind }) }}>Insert</button>}>
+          extra={onInsert && <button type='button' onClick={() => { const l = target(); if (l) onInsert({ label: l, kind }) }}>Insert</button>}>
           <label className='dlg-label'>Refer to:</label>
           <div className='dlg-xref-list' role='listbox' aria-label='Labels'>
             {labels.length === 0 && <div className='dlg-xref-empty'>
-              No labels yet. Give a figure, table, equation or heading a label first, or type one below.</div>}
+              Nothing to refer to yet: no figure, table, numbered equation or heading. A label can be typed below.</div>}
             {labels.map(l => (
-              <div key={l.label} role='option' aria-selected={l.label === label}
-                className={'dlg-xref-row' + (l.label === label ? ' on' : '')}
-                onClick={() => choose(l.label)} onDoubleClick={() => { choose(l.label); close({ label: l.label, kind: l.kind === 'equation' ? 'eqref' : 'ref' }) }}>
+              <div key={keyOf(l)} role='option' aria-selected={keyOf(l) === picked}
+                className={'dlg-xref-row' + (keyOf(l) === picked ? ' on' : '')}
+                onClick={() => choose(keyOf(l))}
+                onDoubleClick={() => { const lab = l.label || resolve(l); l.label = lab; close({ label: lab, kind: l.kind === 'equation' ? 'eqref' : 'ref' }) }}>
                 <span className='dlg-xref-kind'>{KIND_NAME[l.kind]} {l.number}</span>
                 <span className='dlg-xref-text'>{l.text}</span>
-                <span className='dlg-xref-key'>{l.label}</span>
+                <span className='dlg-xref-key'>{l.label || 'label made when chosen'}</span>
               </div>
             ))}
           </div>

@@ -78,3 +78,26 @@
 .dlg-warn { color: #b71c1c; }
 .dlg-bib .dlg-form { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
 .dlg-bib .dlg-muted { color: #7f7f7f; font-size: 12px; }
+
+/* References ▸ Captions & labels: every numbered item, its caption and
+   label editable in a table. */
+.dlg-captions { width: min(900px, 96vw); height: min(560px, 92vh); }
+.dlg-captions .dlg-body { flex: 1; min-height: 0; }
+.dlg-captions .cap-top { display: flex; align-items: center; gap: 8px; white-space: normal; }
+.dlg-captions .cap-top span { flex: 1; color: #555; }
+.dlg-captions .cap-table { flex: 1; min-height: 0; overflow: auto; background: #fff; border: 1px solid #a0a0a0; }
+.dlg-captions table { width: 100%; border-collapse: collapse; }
+.dlg-captions th { position: sticky; top: 0; z-index: 1; background: #f0f0f0; border-bottom: 1px solid #d0d0d0;
+  padding: 3px 6px; text-align: left; font-weight: normal; }
+.dlg-captions td { padding: 3px 6px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.dlg-captions .cap-kind { white-space: nowrap; color: #333; }
+.dlg-captions .cap-wide { width: 100%; }
+.dlg-captions td input { width: 100%; box-sizing: border-box; min-width: 140px; }
+.dlg-captions td.cap-label { width: 220px; min-width: 220px; }
+.dlg-captions td button { white-space: nowrap; }
+.dlg-captions .cap-text { display: block; max-width: 420px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: #666; }
+.dlg-captions .cap-text.cap-math { font-family: Consolas, 'Courier New', monospace; font-size: 12px; }
+.dlg-captions .cap-dupe { border-color: #d8000c; background: #fdf0ef; }
+.dlg-captions .cap-error { color: #d8000c; }
+.dlg-captions .cap-empty { color: #777; padding: 12px; }

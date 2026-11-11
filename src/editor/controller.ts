@@ -165,6 +165,20 @@ export class EditorController implements ViewHost {
       transformCopied: slice => absoluteFigurePaths(slice, resolvedSourceDir()),
       handleDOMEvents: {
         focus: () => { this.syncToolbar(); return false },
+        // A double-click on a table's caption (drawn under the table)
+        // edits it, as on a figure's.
+        dblclick: (v, e) => {
+          const wrap = e.target as HTMLElement | null
+          if (!wrap?.classList?.contains('kt-table-wrap') || !wrap.dataset.caption) return false
+          const table = wrap.querySelector('table')
+          const cell = wrap.querySelector('td, th')
+          if (!table || !cell || e.clientY <= table.getBoundingClientRect().bottom) return false
+          e.preventDefault()
+          const pos = v.posAtDOM(cell, 0)
+          v.dispatch(v.state.tr.setSelection(TextSelection.near(v.state.doc.resolve(pos))))
+          void runAction('caption')
+          return true
+        },
         contextmenu: (_v, e) => { e.preventDefault(); return showContextMenu(this, e) },
       },
     })
@@ -533,6 +547,11 @@ export class EditorController implements ViewHost {
     const tr = this.view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, width })
     this.view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, pos)))
     this.syncToolbar()
+  }
+
+  onCaptionDoubleClick(pos: number): void {
+    this.selectNode(pos)
+    void runAction('caption')
   }
 
   onFootnoteDoubleClick(pos: number): void {
