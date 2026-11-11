@@ -190,6 +190,9 @@ export interface DocLayout {
   heads: RunningHead[]
   bodyChar: CharStyle
   fields: Record<string, string>
+  // The reference list LaTeX prints at the end (\bibliography): its
+  // title and the title's look.
+  bibTitle: { title: string; titleChar: CharStyle }
 }
 
 interface LBlock {
@@ -603,7 +606,10 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     const f = b.state === S.TITLE ? 'title' : b.state === S.AUTHOR ? 'author' : b.state === S.AFFILIATION ? 'affil' : ''
     if (f && !(f in fields) && b.text.trim()) fields[f] = b.text.trim()
   }
-  return { look, geometry, blocks: out, heads, bodyChar, fields }
+  return {
+    look, geometry, blocks: out, heads, bodyChar, fields,
+    bibTitle: { title: classChapters ? 'Bibliography' : 'References', titleChar: styleChar('h1') },
+  }
 
   // ---------- helpers that close over the layout state ----------
 

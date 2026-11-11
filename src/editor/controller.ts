@@ -18,6 +18,8 @@ import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
 import * as M from '../core/model.ts'
 import { isAbsolute, join } from '../core/paths.ts'
 import { ReferenceResolver } from '../core/references.ts'
+import { autoBibliography, citeMode } from '../core/autoBibliography.ts'
+import { AUTO_BIB_REFRESH, autoBibliographyPlugin } from './autoBibView.ts'
 import { figuresFloat } from '../core/serializer.ts'
 import type { ContextKind } from '../ui/ribbonModel.ts'
 import { setCommandChecked } from '../ui/commands.ts'
@@ -68,6 +70,20 @@ export function setImageLoader(fn: ImageLoader | null): void {
 }
 
 const NO_EXPORT = 'kt-no-export'
+
+// The citations' display text, in the style the PDF prints them
+// (core/autoBibliography): natbib author-year, or numbered in the order
+// of the reference list LaTeX writes at the end.
+function makeResolver(doc: M.Document): ReferenceResolver {
+  const r = new ReferenceResolver(doc, null, extraBib)
+  r.citeMode = citeMode(doc)
+  if (r.citeMode && !r.citeMode.authorYear) r.listNumbers = autoBibliography(doc, extraBib)?.numbers ?? null
+  return r
+}
+
+export function editorBibliography(): string {
+  return extraBib
+}
 const DESK = '#d0d4d8'
 const SHEET_EDGE = '#b8bcc1'
 // The text of the title, authors, affiliations and correspondence, one
@@ -135,7 +151,7 @@ export class EditorController implements ViewHost {
     const s = appStore().get()
     this.lastDoc = s.doc
     this.serial = s.docSerial
-    this.resolverCache = new ReferenceResolver(s.doc, null, extraBib)
+    this.resolverCache = makeResolver(s.doc)
     this.view = new EditorView({ mount: pmEl }, {
       state: this.makeState(s.doc),
       nodeViews: nodeViews(this, this.atoms),
@@ -247,6 +263,7 @@ export class EditorController implements ViewHost {
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
       layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
+      autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(),
     ]
@@ -451,8 +468,11 @@ export class EditorController implements ViewHost {
 
   private refreshResolverNow = (): void => {
     if (this.destroyed) return
-    this.resolverCache = new ReferenceResolver(docFromPM(this.view.state.doc, this.meta), null, extraBib)
+    this.resolverCache = makeResolver(docFromPM(this.view.state.doc, this.meta))
     for (const a of this.atoms) a.render()
+    // The reference list at the end follows the citations.
+    this.view.dispatch(this.view.state.tr.setMeta(AUTO_BIB_REFRESH, true)
+      .setMeta('addToHistory', false).setMeta(NO_EXPORT, true))
   }
 
   // ---------- ViewHost ----------

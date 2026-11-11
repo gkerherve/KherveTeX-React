@@ -10,6 +10,7 @@
 // overwritten, and BibTeX keys can look like integers ("2020"), which a
 // JavaScript object would reorder — so every key -> value table is a Map.
 
+import { authorYearCite, type CiteMode } from './autoBibliography.ts'
 import { walk } from './model.ts'
 import type { Citation, Document, Figure, MathBlock, RawLatex, Section, Table } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
@@ -164,6 +165,11 @@ export class ReferenceResolver {
   _bibitem_labels = new Map<string, string>()
   cite_numbers = new Map<string, number>()
   labels = new Map<string, string>()
+  // How the citations print when the LaTeX writes the reference list
+  // itself (core/autoBibliography): natbib author-year, or numbers in the
+  // list's order (`listNumbers`). Unset: numbered by first citation.
+  citeMode: CiteMode | null = null
+  listNumbers: Map<string, number> | null = null
 
   // *readBib* stands in for Path.read_text; ReferenceResolver.load reads
   // the files first through a FileAccess.
@@ -264,6 +270,10 @@ export class ReferenceResolver {
   }
 
   citeText(keys: string[], style = 'cite'): string {
+    if (this.citeMode?.authorYear) return authorYearCite(keys, style, k => this.entries.get(k), this.citeMode)
+    if (this.listNumbers && style === 'cite') {
+      return '[' + keys.map(k => String(this.listNumbers!.get(k) ?? `${k}?`)).join(', ') + ']'
+    }
     if (style === 'citet' || style === 'citep') {
       const parts: string[] = []
       for (const k of keys) {
