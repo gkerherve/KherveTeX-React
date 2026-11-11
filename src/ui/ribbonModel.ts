@@ -497,11 +497,10 @@ export const RIBBON_TABS: RibbonTab[] = [
     // A long document as a project of smaller ones, and their list.
     { label: 'Documents', large: ['split_documents', 'documents_dock'] },
   ] },
-  { name: 'Examples', groups: [
-    { label: 'Start', large: ['new', 'tour'] },
-    { label: 'Examples & templates',
-      large: GALLERY.filter(([c]) => c !== 'Start').map(([c]) => gallery(c)) },
-    { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
+  { name: 'View', groups: [
+    { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },
+    { label: 'PDF', large: ['pdf_panel', 'pdf_detach'] },
+    { label: 'Zoom', large: ['fit_page_width'] },
   ] },
   { name: 'References', groups: [
     { label: 'Citations', large: ['insert_reference', 'bibliography', 'citation', 'manage_references'] },
@@ -513,19 +512,20 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Comments', large: ['comment'], rows: [['accept_comment'], ['reject_comment']], text: true },
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'] },
   ] },
+  { name: 'History', groups: [
+    { label: 'Versions', large: ['commit_now', 'history'] },
+    { label: 'Cloud', large: ['github'] },
+  ] },
   { name: 'Compile', groups: [
     { label: 'Compile', large: ['compile_now', 'auto_compile'] },
     { label: 'Options', large: ['compile_range', 'skip_images'] },
     { label: 'Output', large: ['export_pdf', 'print_preview'] },
   ] },
-  { name: 'History', groups: [
-    { label: 'Versions', large: ['commit_now', 'history'] },
-    { label: 'Cloud', large: ['github'] },
-  ] },
-  { name: 'View', groups: [
-    { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },
-    { label: 'PDF', large: ['pdf_panel', 'pdf_detach'] },
-    { label: 'Zoom', large: ['fit_page_width'] },
+  { name: 'Examples', groups: [
+    { label: 'Start', large: ['new', 'tour'] },
+    { label: 'Examples & templates',
+      large: GALLERY.filter(([c]) => c !== 'Start').map(([c]) => gallery(c)) },
+    { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
   ] },
   { name: 'Help', groups: [
     { label: 'Help', large: ['help_guide', 'shortcuts', 'welcome'] },
