@@ -6,7 +6,7 @@
 const SERVICE: &str = "KherveTeX";
 
 #[cfg(target_os = "windows")]
-mod store {
+pub(crate) mod store {
     use super::SERVICE;
 
     fn entry(key: &str) -> Result<keyring::Entry, String> {
@@ -38,7 +38,7 @@ mod store {
 // signed) app lost the token or asked for the login password again; a
 // token saved there earlier is moved here once.
 #[cfg(not(target_os = "windows"))]
-mod store {
+pub(crate) mod store {
     use std::path::PathBuf;
 
     fn path(key: &str) -> Result<PathBuf, String> {

@@ -52,3 +52,21 @@
 .rem-table tr.selected td { background: #0078d7; color: #fff; }
 .rem-buttons { display: flex; gap: 6px; }
 .rem-help { color: #666; user-select: text; }
+
+/* File ▸ Share ▸ GitHub: the account, this document, your repositories. */
+.dlg-github { width: min(720px, 96vw); max-height: 92vh; }
+.dlg-github .dlg-body { gap: 10px; }
+.gh-section { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; }
+.gh-section h3 { margin: 0; font-size: 13px; }
+.gh-section p { margin: 0; white-space: normal; }
+.gh-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.gh-row input[type=password], .gh-row input:not([type]) { flex: 1; min-width: 160px; }
+.gh-muted { color: #777; white-space: normal; }
+.gh-repos .gh-list { height: 180px; overflow: auto; background: #fff; border: 1px solid #a0a0a0; }
+.gh-repo { display: flex; align-items: baseline; gap: 6px; padding: 3px 6px; cursor: default; white-space: nowrap; }
+.gh-repo.selected { background: #0078d7; color: #fff; }
+.gh-repo .gh-desc { overflow: hidden; text-overflow: ellipsis; color: #777; }
+.gh-repo.selected .gh-desc { color: #e0e0e0; }
+.gh-tag { font-size: 10px; padding: 0 4px; border: 1px solid currentColor; border-radius: 6px; }
+.gh-status { padding: 6px 8px; background: #eef6ee; border: 1px solid #b5d8b5; white-space: pre-wrap; }
+.gh-status.error { background: #fdf0ef; border-color: #e5b4ae; }

@@ -74,6 +74,7 @@ pub fn run() {
             system::settings_write,
             system::launch_args,
             git::git_is_available,
+            git::git_clone,
             git::git_init_repo,
             git::git_find_enclosing_repo,
             git::git_commit_all,

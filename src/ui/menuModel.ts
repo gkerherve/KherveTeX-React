@@ -35,7 +35,7 @@ export const MENU_BAR: MenuBarMenu[] = [
     { text: '&Version History', items: ['commit_now', 'history', 'branches'] },
     '-',
     { text: 'S&hare', items: ['overleaf_send', 'overleaf_get', 'overleaf_zip', '-',
-      'configure_remotes', 'pull'] },
+      'github', 'configure_remotes', 'pull'] },
     { text: '&Import', items: ['import_tex', 'import_docx', 'import_pdf', 'import_md'] },
     { text: '&Export', items: ['export_pdf', 'export_docx', 'export_tex', 'export_latex_zip'] },
     { text: 'Pro&ject', items: ['new_project', 'split_documents', 'open_project', 'save_project', 'close_project'] },

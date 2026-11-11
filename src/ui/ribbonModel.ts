@@ -286,7 +286,9 @@ const cmds: Command[] = [
     tooltip: 'Keep this document as a starting point for new ones' },
   { id: 'tour', text: 'Take the guided &tour',
     tooltip: 'A multi-page document that shows what KherveTeX does' },
-  { id: 'configure_remotes', text: 'Connect to &GitHub / GitLab…' },
+  { id: 'github', text: '&GitHub…', icon: 'github',
+    tooltip: 'Sign in to GitHub, publish this document there or connect it to one of your repositories, and open a document from GitHub' },
+  { id: 'configure_remotes', text: 'Other cloud connections (GitLab…)…' },
   { id: 'history', text: 'View &version history…', icon: 'history' },
   { id: 'branches', text: '&Branches…', icon: 'branch' },
 
@@ -516,6 +518,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'History', groups: [
     { label: 'Versions', large: ['commit_now', 'history'] },
+    { label: 'Cloud', large: ['github'] },
   ] },
   { name: 'View', groups: [
     { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },

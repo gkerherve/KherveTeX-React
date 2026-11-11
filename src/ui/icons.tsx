@@ -403,6 +403,17 @@ export function Branch(p: IconProps) {
   </Svg>
 }
 
+// File ▸ Share ▸ GitHub: a cloud with a branch in it.
+export function GitHub(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M6.5,18.5 C3.5,18.5 2,16.6 2,14.6 C2,12.4 3.8,10.8 5.9,10.9 C6.4,7.9 8.9,5.5 12,5.5 C15.3,5.5 17.8,8 18,11 C20.3,11.1 22,12.8 22,14.8 C22,16.9 20.4,18.5 18.2,18.5 Z'
+      stroke={BLUE} strokeWidth={1.4} fill={TINT} />
+    {L(10, 10, 10, 16, INK, 1.2)}
+    <path d='M14.5,11 C14.5,13.5 10,12.8 10,15' stroke={INK} strokeWidth={1.2} fill='none' />
+    {C(10, 10, 1.3, INK, 1, PAPER)}{C(10, 16, 1.3, INK, 1, PAPER)}{C(14.5, 10.6, 1.3, INK, 1, PAPER)}
+  </Svg>
+}
+
 // ----- compile -----
 
 export function CompilePdf(p: IconProps) {
@@ -1392,7 +1403,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   accept_change: AcceptChange, reject_change: RejectChange,
   prev_comment: PrevComment, next_comment: NextComment, history: History,
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
-  overleaf_zip: OverleafZip, branch: Branch, compile_pdf: CompilePdf,
+  overleaf_zip: OverleafZip, branch: Branch, github: GitHub, compile_pdf: CompilePdf,
   auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff,
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,

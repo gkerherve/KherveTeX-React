@@ -71,6 +71,8 @@ export interface GitBackend {
   diffForCommit(repoDir: string, oid: string): Promise<string>
   // repo.default_signature (the user's git identity), null when none is set.
   defaultSignature(repoDir: string): Promise<Identity | null>
+  // Download a repository (GitHub with the user's sign-in) into a new folder.
+  clone?(url: string, dest: string): Promise<GitResult>
 }
 
 export const tauriGit: GitBackend = {
@@ -96,6 +98,7 @@ export const tauriGit: GitBackend = {
   historyGraph: (repoDir, limit = 300) => invoke('git_history_graph', { repoDir, limit }),
   diffForCommit: (repoDir, oid) => invoke('git_diff_for_commit', { repoDir, oid }),
   defaultSignature: (repoDir) => invoke('git_default_signature', { repoDir }),
+  clone: (url, dest) => invoke('git_clone', { url, dest }),
 }
 
 const UNAVAILABLE = 'Git is not available in the browser version.'

@@ -210,13 +210,43 @@ fn list_entries(dir: &Path) -> Vec<PathBuf> {
     }
 }
 
-/// pygit2.KeypairFromAgent("git"): SSH-agent credentials. pygit2 rejects a
-/// credential the transport did not ask for ("credential type not
-/// allowed"), and the agent is tried once, not in a loop.
+/// The secret File ▸ Share ▸ GitHub keeps the user's GitHub sign-in under
+/// (a personal access token).
+pub const GITHUB_TOKEN_KEY: &str = "github_token";
+
+fn github_token() -> Option<String> {
+    crate::secrets::store::get(GITHUB_TOKEN_KEY).ok().flatten().filter(|t| !t.trim().is_empty())
+}
+
+/// An https URL on github.com.
+fn is_github_https(url: &str) -> bool {
+    let u = url.to_ascii_lowercase();
+    u.starts_with("https://github.com/") || u.starts_with("https://www.github.com/")
+}
+
+/// The credentials a fetch, push or clone offers: for an https URL on
+/// github.com, the GitHub sign-in (the token as the password, as GitHub
+/// takes it); otherwise SSH-agent credentials, as
+/// pygit2.KeypairFromAgent("git"). A credential the transport did not ask
+/// for is refused ("credential type not allowed"), and each is tried once,
+/// not in a loop.
 fn agent_callbacks<'a>() -> RemoteCallbacks<'a> {
     let mut cb = RemoteCallbacks::new();
     let mut tried = false;
-    cb.credentials(move |_url, _user, allowed| {
+    let mut tried_token = false;
+    let token = github_token();
+    cb.credentials(move |url, _user, allowed| {
+        if allowed.contains(CredentialType::USER_PASS_PLAINTEXT) && is_github_https(url) {
+            if let Some(t) = token.as_deref() {
+                if !tried_token {
+                    tried_token = true;
+                    return Cred::userpass_plaintext("x-access-token", t);
+                }
+                return Err(git2::Error::from_str(
+                    "GitHub refused the sign-in: sign in again in File ▸ Share ▸ GitHub",
+                ));
+            }
+        }
         if !allowed.contains(CredentialType::SSH_KEY) {
             return Err(git2::Error::from_str("invalid credential type"));
         }
@@ -227,6 +257,22 @@ fn agent_callbacks<'a>() -> RemoteCallbacks<'a> {
         Cred::ssh_key_from_agent("git")
     });
     cb
+}
+
+/// Clone `url` into `dest` (a new or empty folder), with the GitHub
+/// sign-in for a GitHub URL. (ok, message).
+pub fn clone(url: &str, dest: &Path) -> (bool, String) {
+    if dest.exists() && fs::read_dir(dest).map(|mut d| d.next().is_some()).unwrap_or(true) {
+        return (false, format!("The folder {} is not empty.", dest.display()));
+    }
+    let mut fo = FetchOptions::new();
+    fo.remote_callbacks(agent_callbacks());
+    let mut builder = git2::build::RepoBuilder::new();
+    builder.fetch_options(fo);
+    match builder.clone(url, dest) {
+        Ok(_) => (true, format!("Downloaded {url}.")),
+        Err(e) => (false, format!("Download failed: {}", e.message())),
+    }
 }
 
 /// Python's repr() of a str, as the messages quote names with !r.
@@ -1037,6 +1083,11 @@ pub fn default_signature(repo_dir: &Path) -> Option<Identity> {
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn git_clone(url: String, dest: String) -> Result<(bool, String), String> {
+    blocking(move || clone(&url, Path::new(&dest))).await
 }
 
 #[tauri::command]
