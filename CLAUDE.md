@@ -15,8 +15,8 @@ Never work in a git worktree or on a throwaway branch.
 
 ## Always commit and push after any change
 
-Commit after every change; push to `origin/dev` once a remote exists (none
-yet — the GitHub repo is created only when the user says so).
+Commit after every change and push to `origin/dev`
+(https://github.com/gkerherve/KherveTeX-React).
 
 ## Version
 
