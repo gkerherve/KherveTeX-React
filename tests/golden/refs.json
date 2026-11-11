@@ -5244,7 +5244,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 3 cited keys are not in Thesis:\n\nnope\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 3 cited keys are not in Thesis:\n\nnope\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "% Cited entries, written by KherveTeX from KherveRef.\n\n@string{jacs = \"J. Am. Chem. Soc.\"}\n\n@article{smith2020surface,\n  author  = {Smith, Jane and M{\\\"{u}}ller, Anna},\n  title   = {{XPS} of {TiO2} {surfaces}},\n  journal = jacs,\n  year    = {2020},\n  pages   = {1--2}\n}\n\n@book(doe2019book, author = {Doe, John}, title = {A Book (2nd ed.)},\n  publisher = {Pub}, year = {2019})\n",
@@ -5691,7 +5691,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 2 cited keys are not in gone:\n\nmissing1\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 2 cited keys are not in gone:\n\nmissing1\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "% Cited entries, written by KherveTeX from KherveRef.\n\n@string{jacs = \"J. Am. Chem. Soc.\"}\n\n@article{smith2020surface,\n  author  = {Smith, Jane and M{\\\"{u}}ller, Anna},\n  title   = {{XPS} of {TiO2} {surfaces}},\n  journal = jacs,\n  year    = {2020},\n  pages   = {1--2}\n}\n",
@@ -5707,7 +5707,7 @@
     "picker": {
      "items": [
       [
-       "References carried in this document",
+       "This document's references",
        "__bundled__"
       ],
       [
@@ -6006,7 +6006,7 @@
      "check": [
       "warning",
       "Citations",
-      "2 of 6 cited keys are not in any bibliography:\n\nupper\nfromstaged\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "2 of 6 cited keys are not in any bibliography:\n\nupper\nfromstaged\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "",
@@ -6076,7 +6076,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 6 cited keys are not in Main:\n\nabsent\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 6 cited keys are not in Main:\n\nabsent\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "% Cited entries, written by KherveTeX from KherveRef.\n\n@STRING{ieee = \"IEEE Trans.\"}\n\n@String(acs = {ACS {Nano}})\n\n@article{real, journal = ieee # \" Part B\", author = {Real, R.}, year = 2005}\n\n@article{dup, author = {First, F.}, year = {2000}, title = {First}}\n",
@@ -6377,7 +6377,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 3 cited keys are not in 5:\n\nUPPER\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 3 cited keys are not in 5:\n\nUPPER\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "% Cited entries, written by KherveTeX from KherveRef.\n\n@ARTICLE{Upper,\n  AUTHOR = {Case, C.},\n  Title = {Mixed Case},\n  YEAR = {1980},\n  shortauthor = {Wrong},\n  bookauthor = {Wrong too},\n}\n\n@Article{lower, co-author = {Not, N.}, author={Right, R.}, year={1981}}\n",
@@ -7041,7 +7041,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 1 cited keys are not in any bibliography:\n\nsmith2020surface\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 1 cited keys are not in any bibliography:\n\nsmith2020surface\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "",
@@ -7254,7 +7254,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 1 cited keys are not in any bibliography:\n\nsmith2020surface\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 1 cited keys are not in any bibliography:\n\nsmith2020surface\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "",
@@ -7393,7 +7393,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 1 cited keys are not in any bibliography:\n\nsmith2020surface\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 1 cited keys are not in any bibliography:\n\nsmith2020surface\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "",
@@ -7575,7 +7575,7 @@
        "<ROOT>/A"
       ],
       [
-       "References carried in this document",
+       "This document's references",
        "__bundled__"
       ],
       [
@@ -7784,7 +7784,7 @@
        "<ROOT>/A"
       ],
       [
-       "References carried in this document",
+       "This document's references",
        "__bundled__"
       ],
       [
@@ -7963,7 +7963,7 @@
      "check": [
       "warning",
       "Citations",
-      "1 of 1 cited keys are not in nope:\n\ndup\n\nAdd them in KherveRef (they then appear here), or fix the keys."
+      "1 of 1 cited keys are not in nope:\n\ndup\n\nAdd them in KherveRef (they then appear here), in References ▸ Manage references, or fix the keys."
      ],
      "refresh": {
       "bib": "",

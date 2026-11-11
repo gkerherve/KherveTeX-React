@@ -495,6 +495,16 @@ export function Citation(p: IconProps) {
   </Svg>
 }
 
+// The document's references: a list of entries and a magnifier.
+export function ManageReferences(p: IconProps) {
+  return <Svg {...p}>
+    {R(3, 3, 14, 18, { fill: TINT, color: BLUE, r: 1 })}
+    {L(6, 7.5, 14, 7.5, BLUE, 1.2)}{L(6, 11, 14, 11, BLUE, 1.2)}{L(6, 14.5, 14, 14.5, BLUE, 1.2)}
+    {R(13.5, 12.5, 7.5, 7.5, { fill: PAPER, color: FG, r: 3.75, lw: 1.3 })}
+    {L(19.8, 19.6, 22.5, 22.3, FG, 1.8)}
+  </Svg>
+}
+
 // References ▸ Bibliography: a page of numbered entries.
 export function Bibliography(p: IconProps) {
   return <Svg {...p}>
@@ -1387,7 +1397,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,

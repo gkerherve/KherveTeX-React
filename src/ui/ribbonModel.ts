@@ -222,6 +222,7 @@ const cmds: Command[] = [
   { id: 'link', text: '&Hyperlink...', icon: 'link', shortcut: 'Ctrl+K' },
   { id: 'footnote', text: '&Footnote...', icon: 'footnote' },
   { id: 'citation', text: '&Citation...', icon: 'citation' },
+  { id: 'manage_references', text: '&Manage references…', icon: 'manage_references' },
   { id: 'insert_reference', text: 'Insert &reference…', icon: 'citation',
     tooltip: 'Cite a reference of the document\'s reference list, or add a new one and cite it' },
   { id: 'bibliography', text: '&Bibliography…', icon: 'bibliography',
@@ -499,7 +500,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
   ] },
   { name: 'References', groups: [
-    { label: 'Citations', large: ['insert_reference', 'bibliography', 'citation'] },
+    { label: 'Citations', large: ['insert_reference', 'bibliography', 'citation', 'manage_references'] },
     { label: 'Footnotes', large: ['footnote'] },
     { label: 'Captions', large: ['caption', 'crossref'] },
   ] },

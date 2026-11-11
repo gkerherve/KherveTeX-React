@@ -24,6 +24,9 @@ import type { BibEntries } from './references.ts'
 
 export { BIB_NAME }                           // \bibliography{kherveref}
 export const BIB_FILE = `${BIB_NAME}.bib`
+// DocMeta.ref_library of a document that keeps its own list of references
+// (docReferences.ts): its kherveref.bib holds every entry, cited or not.
+export const DOCUMENT_LIBRARY = 'document'
 export const LIBRARY_BIB = 'library.bib'
 
 // Every style the bundled TeX cache is warmed for (compiler.py's
@@ -237,6 +240,10 @@ export function buildBib(keys: string[], sources: Map<string, string>[],
 // Sources, in order: the document's own library (when present on this
 // machine), the copy bundled in the .ktex, then any .bib files in
 // *extraDirs* (e.g. the document's folder).
+//
+// A document with its own list (DOCUMENT_LIBRARY) gets the whole list
+// back, cited or not: it is the list, kept in the .ktex as it is; the keys
+// it lacks are those no source has.
 export async function bibliographyFor(doc: Document, fs: RefFileAccess, bundled = '',
   extraDirs: string[] = []): Promise<[string, string[]]> {
   const texts: string[] = []
@@ -260,6 +267,10 @@ export async function bibliographyFor(doc: Document, fs: RefFileAccess, bundled 
     }
   }
   const keys = citedKeys(doc)
+  if (doc.meta.ref_library === DOCUMENT_LIBRARY) {
+    const have = new Set(texts.flatMap((t) => [...splitBib(t).keys()]))
+    return [strip(bundled) ? bundled : '', keys.filter((k) => !have.has(k))]
+  }
   if (!keys.length) return ['', []]
   const strings = texts.flatMap((t) => stringDefinitions(t))
   return buildBib(keys, texts.map((t) => splitBib(t)), strings)
@@ -321,14 +332,18 @@ export async function checkCitations(doc: Document, bundledBib: string, sourceDi
   if (!missing.length) {
     return { kind: 'information', title: 'Citations', text: `All ${keys.length} cited keys are defined.` }
   }
-  const where = doc.meta.ref_library ? await libraryName(doc.meta.ref_library, fs) : 'any bibliography'
+  const own = doc.meta.ref_library === DOCUMENT_LIBRARY
+  const where = own ? 'this document\'s references'
+    : doc.meta.ref_library ? await libraryName(doc.meta.ref_library, fs) : 'any bibliography'
   return {
     kind: 'warning',
     title: 'Citations',
     text: `${missing.length} of ${keys.length} cited keys are not in ${where}:\n\n`
       + missing.join('\n')
-      + '\n\nAdd them in KherveRef (they then appear here), or fix '
-      + 'the keys.',
+      + (own ? '\n\nAdd them in References ▸ Manage references (they are '
+        + 'listed there as missing), or fix the keys.'
+        : '\n\nAdd them in KherveRef (they then appear here), in '
+        + 'References ▸ Manage references, or fix the keys.'),
   }
 }
 
@@ -346,7 +361,7 @@ export const _BUNDLED = '__bundled__'
 export const PICKER_SEARCH_PLACEHOLDER = 'Search key, author, year, title'
 export const PICKER_MANUAL_PLACEHOLDER = 'Other keys, comma separated (optional)'
 export const PICKER_HINT = 'Ctrl/Shift-click to cite several. Add references in '
-  + 'KherveRef; they appear here after it saves.'
+  + 'References ▸ Manage references, or in KherveRef.'
 export const PICKER_NO_LIBRARY = 'No KherveRef library found. Open or create one in KherveRef '
   + '(it remembers the libraries it has opened), choose “Other '
   + 'library folder…”, or type keys below.'
@@ -367,7 +382,7 @@ export async function pickerLibraries(currentLibrary: string, bundledBib: string
   }
   const items: PickerItem[] = []
   for (const p of libs) items.push(await pickerItemFor(p, fs))
-  if (bundledBib) items.push({ label: 'References carried in this document', data: _BUNDLED })
+  if (bundledBib) items.push({ label: 'This document\'s references', data: _BUNDLED })
   items.push({ label: 'Other library folder…', data: _BROWSE })
   let index = 0
   if (currentLibrary) {

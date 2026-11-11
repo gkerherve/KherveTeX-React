@@ -17,6 +17,7 @@ import { readKherverefSettings, type SettingsValues } from '../../platform/kherv
 import { information, warning } from '../../platform/MessageBox'
 import { askCitation } from '../../ui/dialogs/CitationPicker'
 import { askBibliography, askInsertReference } from '../../ui/dialogs/BibliographyDialog'
+import { askReferences } from '../../ui/dialogs/ReferenceManager'
 import { parseTheBibliography, writeTheBibliography } from '../../core/bibliography'
 import { registerActions } from '../actions'
 import { setBibStager } from '../compile'
@@ -181,8 +182,64 @@ async function insertReference(): Promise<void> {
   }
 }
 
+// References ▸ Manage references (MainWindow._manage_references): the
+// document's own list. It starts from the list the document has (for a
+// document citing from a KherveRef library, its cited entries); a changed
+// list becomes the document's own (DOCUMENT_LIBRARY), bundled in its .ktex.
+async function manageReferences(): Promise<void> {
+  await reloadKherverefSettings()
+  const doc = appStore().get().doc
+  const meta = doc.meta
+  const fs = refsFs()
+  let start = bundledBib
+  if (meta.ref_library !== kr.DOCUMENT_LIBRARY) {
+    const [text] = await kr.bibliographyFor(doc, fs, bundledBib)
+    start = text || bundledBib
+  }
+  const linked = meta.ref_library && meta.ref_library !== kr.DOCUMENT_LIBRARY
+    && await kr.isLibrary(meta.ref_library, fs)
+  const note = linked
+    ? `This document cites from the KherveRef library “${await kr.libraryName(meta.ref_library, fs)}”. `
+      + 'Changing the list here gives it a list of its own, its cited references included.'
+    : ''
+  const r = await askReferences(start, kr.citedKeys(doc), {
+    note,
+    inform: (title, text) => information(title, text),
+    importBib: async () => {
+      const paths = await platform().openFileDialog({
+        title: 'Import a .bib file',
+        filters: [{ name: 'BibTeX', extensions: ['bib'] }, { name: 'All files', extensions: [] }],
+      })
+      if (!paths?.length) return null
+      try {
+        return new TextDecoder().decode(await platform().readFile(paths[0]))
+      } catch (e) {
+        await warning('Import .bib', String(e))
+        return null
+      }
+    },
+    fromKherveRef: async () => {
+      const lib = linked ? meta.ref_library : ''
+      const dlg = await askCitation(lib, '', { fs, chooseFolder })
+      if (!dlg || !dlg.library) return null
+      const source = await kr.loadLibrary(dlg.library, fs)
+      return dlg.keys.filter(k => source.has(k)).map(k => source.get(k)!).join('\n\n')
+    },
+  })
+  if (!r) return
+  if (r.changed || (r.text && meta.ref_library !== kr.DOCUMENT_LIBRARY)) {
+    bundledBib = r.text
+    // editor.meta() is the document's own meta, changed in place.
+    meta.ref_library = kr.DOCUMENT_LIBRARY
+    editDoc(doc)
+  }
+  if (r.cite.length) editorApi()?.insertInline(citation(r.cite, 'cite'))
+  await refreshKherverefBib(appStore().get().doc)
+}
+
 registerActions({
   citation: insertCitation,
+  manage_references: manageReferences,
   insert_reference: insertReference,
   bibliography: editBibliography,
   check_citations: checkCitations,
