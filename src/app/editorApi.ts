@@ -4,6 +4,7 @@
 // editorApi() and get null while no editor is mounted. This is
 // DocumentEditor's public surface in editor.py.
 import type { Block, Inline } from '../core/model'
+import type { Misspelling } from '../editor/spellList'
 
 export interface EditorSelectionInfo {
   // The object the caret is in, which picks the contextual ribbon tab.
@@ -31,6 +32,12 @@ export interface EditorApi {
   // no page view.
   pdfSpotAt?(clientY: number): { page: number; frac: number } | null
   focus(): void
+  // The Spelling panel: every mistake of the document's prose, selecting
+  // one on the page, and putting a correction in its place (false when
+  // the text there no longer reads `word`).
+  misspellings?(): Misspelling[]
+  selectRange?(start: number, end: number): void
+  replaceRange?(start: number, end: number, word: string, text: string): boolean
   // The document's thebibliography block (the first), or null.
   bibliography(): { pos: number; text: string } | null
   // Replace that block's LaTeX, or (pos null) add one at the end.

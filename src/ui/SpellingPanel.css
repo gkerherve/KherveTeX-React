@@ -1,0 +1,167 @@
+/* The Spelling dock (QDockWidget + SpellingPanel), on the right. */
+
+.spelling-dock {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  user-select: none;
+}
+
+.spelling-dock .dock-title {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  padding: 0 4px 0 8px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.spelling-dock .dock-close {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 18px;
+}
+
+.spelling-dock .dock-close:hover { background: var(--hover-blue); }
+
+.sp-splitter {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.sp-body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 6px;
+}
+
+.sp-top { display: flex; align-items: center; gap: 6px; }
+.sp-summary { flex: 1 1 0; }
+
+.sp-recheck {
+  padding: 1px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.sp-recheck:hover { background: var(--hover-blue); }
+
+.sp-head, .sp-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  column-gap: 6px;
+}
+
+.sp-head {
+  margin-bottom: -6px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--chrome);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.sp-list {
+  flex: 3 1 0;
+  min-height: 60px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: var(--base);
+  outline: none;
+}
+
+.sp-list:focus-visible { border-color: var(--accent); }
+
+.sp-row {
+  min-height: 18px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.sp-row:nth-child(even) { background: var(--surface); }
+.sp-row.current { background: var(--pressed-blue); }
+
+.sp-word, .sp-mistake { color: #d8000c; font-weight: bold; }
+.sp-word { overflow: hidden; text-overflow: ellipsis; }
+
+/* The text around the mistake, the word kept in view: the text before is
+   cut on its left, the text after on its right. */
+.sp-context { display: flex; min-width: 0; color: var(--text-muted); }
+.sp-before {
+  flex: 0 1 auto;
+  max-width: 40%;
+  overflow: hidden;
+  direction: rtl;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+.sp-mistake { flex: none; }
+.sp-before.gap { margin-right: 0.3em; }
+.sp-after.gap { margin-left: 0.3em; }
+.sp-after { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+
+.sp-label { margin-bottom: -2px; }
+
+.sp-suggestions {
+  flex: 2 1 0;
+  min-height: 50px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: var(--base);
+}
+
+.sp-sugg { padding: 1px 4px; cursor: default; }
+.sp-sugg.current { background: var(--pressed-blue); }
+.sp-sugg.none { color: var(--text-muted); }
+
+.sp-buttons {
+  display: grid;
+  flex: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.sp-buttons .sp-wide { grid-column: 1 / 3; }
+
+.sp-buttons button {
+  min-width: 0;
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--base);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sp-buttons button:hover:not(:disabled) { background: var(--hover-blue); }
+.sp-buttons button:active:not(:disabled) { background: var(--pressed-blue); }
+.sp-buttons button:disabled { color: var(--text-muted); opacity: 0.6; }

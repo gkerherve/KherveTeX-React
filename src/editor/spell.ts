@@ -5,26 +5,10 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 import { spellHighlighter } from '../spell/shared.ts'
+import { blockChars } from './spellList.ts'
 
 export const spellKey = new PluginKey<DecorationSet>('kt-spell')
 export const SPELL_REFRESH = 'kt-spell-refresh'
-
-// A text block's text with the document position of each character;
-// inline objects read as U+FFFC, which no word contains.
-export function blockChars(node: PMNode, start: number): { text: string; pos: number[] } {
-  let text = ''
-  const pos: number[] = []
-  node.forEach((child, off) => {
-    if (child.isText) {
-      const t = child.text!
-      for (let i = 0; i < t.length; i++) { text += t[i]; pos.push(start + off + i) }
-    } else {
-      text += '￼'
-      pos.push(start + off)
-    }
-  })
-  return { text, pos }
-}
 
 function build(doc: PMNode): DecorationSet {
   const sh = spellHighlighter()
@@ -40,6 +24,31 @@ function build(doc: PMNode): DecorationSet {
     return false
   })
   return DecorationSet.create(doc, decos)
+}
+
+// The mistake the Spelling panel went to, highlighted on the page: the
+// selection is not drawn while the panel has the focus (Qt draws it
+// anyway). It goes when the user moves the caret or edits the word.
+export const spellCurrentKey = new PluginKey<DecorationSet>('kt-spell-current')
+export const SPELL_CURRENT = 'kt-spell-current'
+
+export function spellCurrentPlugin(): Plugin<DecorationSet> {
+  return new Plugin<DecorationSet>({
+    key: spellCurrentKey,
+    state: {
+      init: () => DecorationSet.empty,
+      apply: (tr, prev) => {
+        const at = tr.getMeta(SPELL_CURRENT) as { start: number; end: number } | null | undefined
+        if (at !== undefined) {
+          return at ? DecorationSet.create(tr.doc, [Decoration.inline(at.start, at.end, { class: 'kt-spell-current' })])
+            : DecorationSet.empty
+        }
+        if (tr.docChanged || tr.selectionSet) return DecorationSet.empty
+        return prev
+      },
+    },
+    props: { decorations: state => spellCurrentKey.getState(state) },
+  })
 }
 
 export function spellPlugin(): Plugin<DecorationSet> {

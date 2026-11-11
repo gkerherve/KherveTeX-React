@@ -15,6 +15,7 @@ import type { ContextKind } from './ui/ribbonModel'
 import { StatusBar } from './ui/StatusBar'
 import { isBetaPage } from './ui/pageBeta'
 import { ProjectSidebar } from './ui/ProjectSidebar'
+import { SpellingPanel } from './ui/SpellingPanel'
 import { session } from './app/actions/project'
 import { TooltipProvider } from './ui/Tooltip'
 import { useGlobalShortcuts } from './ui/globalShortcuts'
@@ -203,6 +204,7 @@ export default function App() {
               <PdfPanel zoom={pdfZoom} fit={fitWidth && pdfManualZoom === null} />
             </div>
           </>}
+          <SpellingPanel />
         </div>
         <StatusBar fileName={fileName} dark={dark} onToggleTheme={() => applyNamedTheme(dark ? 'Light' : 'Dark')}
           dir={session.titleText() === null && path ? path.replace(/[\\/][^\\/]*$/, '') : null}

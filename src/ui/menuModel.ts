@@ -82,7 +82,7 @@ export const MENU_BAR: MenuBarMenu[] = [
     'manage_styles',
   ] },
   { text: '&Tools', items: [
-    'spell_check', 'check_citations',
+    'spell_check', 'spelling_list', 'check_citations',
     { text: '&Comments && Highlights', items: ['comment', 'accept_comment', 'reject_comment',
       'prev_comment', 'next_comment', '-', 'highlight', 'remove_highlight'] },
     '-',

@@ -33,7 +33,8 @@ import { moderncvPlugin } from './cvView.ts'
 import { posterBackground, posterPlugin } from './posterView.ts'
 import { showContextMenu } from './contextMenu.ts'
 import { setRibbonWidgets } from './ribbonState.ts'
-import { SPELL_REFRESH, spellPlugin } from './spell.ts'
+import { SPELL_CURRENT, SPELL_REFRESH, spellCurrentPlugin, spellPlugin } from './spell.ts'
+import { misspellings, replaceWord } from './spellList.ts'
 import { spellHighlighter } from '../spell/shared.ts'
 import { nodeViews, type ViewHost } from './views.ts'
 
@@ -209,7 +210,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(),
+      layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(),
     ]
@@ -884,6 +885,23 @@ export class EditorController implements ViewHost {
       replaceAll: (find, repl, opts) => C.replaceAll(find, repl, opts, this.view.state, tr => this.view.dispatch(tr)),
       revealText: snippet => this.revealText(snippet),
       focus: () => this.view.focus(),
+      misspellings: () => misspellings(this.view.state.doc, spellHighlighter()),
+      selectRange: (start, end) => {
+        const doc = this.view.state.doc
+        const at = (n: number) => Math.max(0, Math.min(n, doc.content.size))
+        this.view.dispatch(this.view.state.tr.setSelection(TextSelection.create(doc, at(start), at(end)))
+          .setMeta(SPELL_CURRENT, { start: at(start), end: at(end) }))
+        // To the word itself: its paragraph is as wide as the page, and
+        // scrolling to it moved the page sideways.
+        const word = this.view.dom.querySelector('.kt-spell-current')
+        if (word) word.scrollIntoView({ block: 'center', inline: 'nearest' })
+        else this.scrollToSelection()
+      },
+      replaceRange: (start, end, word, text) => {
+        const tr = replaceWord(this.view.state, start, end, word, text)
+        if (tr) this.view.dispatch(tr)
+        return tr !== null
+      },
       bibliography: () => {
         let hit: { pos: number; text: string } | null = null
         this.view.state.doc.forEach((node, pos) => {

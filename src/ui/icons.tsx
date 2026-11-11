@@ -316,6 +316,15 @@ export function SpellCheck(p: IconProps) {
       { color: BLUE, closed: false, lw: 2 })}</Svg>
 }
 
+// The Spelling panel: a word underlined in red, then the list of the
+// others.
+export function SpellingList(p: IconProps) {
+  return <Svg {...p}>{T([0, 0, 24, 12], 'abc', { size: 8, bold: true })}
+    {P([[4, 13.5], [6, 12], [8, 13.5], [10, 12], [12, 13.5], [14, 12], [16, 13.5], [18, 12], [20, 13.5]],
+      { color: '#d8000c', closed: false, lw: 1.2 })}
+    {L(4, 17, 20, 17, BLUE, 1.4)}{L(4, 20.5, 15, 20.5, BLUE, 1.4)}</Svg>
+}
+
 // ----- review -----
 
 export function Comment(p: IconProps) {
@@ -1369,7 +1378,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   numbered_list: NumberedList, align_left: AlignLeft,
   align_center: AlignCenter, align_right: AlignRight,
   align_justify: AlignJustify, formatting_marks: FormattingMarks,
-  gallery_more: GalleryMore, spell_check: SpellCheck, comment: Comment,
+  gallery_more: GalleryMore, spell_check: SpellCheck, spelling_list: SpellingList, comment: Comment,
   accept_change: AcceptChange, reject_change: RejectChange,
   prev_comment: PrevComment, next_comment: NextComment, history: History,
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,

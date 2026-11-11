@@ -269,6 +269,7 @@ const cmds: Command[] = [
   { id: 'theme_light', text: 'Light', checkable: true, group: 'theme', checked: true },
   { id: 'theme_dark', text: 'Dark', checkable: true, group: 'theme' },
   { id: 'spell_check', text: 'Check &spelling', icon: 'spell_check', checkable: true, checked: true },
+  { id: 'spelling_list', text: 'Spelling &list', icon: 'spelling_list', shortcut: 'F7', checkable: true },
 
   // Git
   { id: 'commit_now', text: '&Save snapshot and upload', icon: 'commit',
@@ -503,7 +504,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Captions', large: ['caption', 'crossref'] },
   ] },
   { name: 'Review', groups: [
-    { label: 'Proofing', large: ['spell_check'] },
+    { label: 'Proofing', large: ['spell_check', 'spelling_list'] },
     { label: 'Comments', large: ['comment'], rows: [['accept_comment'], ['reject_comment']], text: true },
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'] },
   ] },

@@ -20,6 +20,32 @@ export function isCheckable(word: string): boolean {
   return [...word].every(c => /\p{L}/u.test(c) || "'’-".includes(c))
 }
 
+// Characters of the paragraph shown on each side of a mistake in the
+// Spelling panel.
+export const CONTEXT_CHARS = 30
+
+// The text before and after text[start:end] in its paragraph, for the
+// Spelling panel's list: at most `width` characters each side, cut at a
+// word, whitespace runs shown as one space, an ellipsis where the
+// paragraph goes on. Inline objects (U+FFFC) read as a space.
+export function contextAround(text: string, start: number, end: number,
+  width = CONTEXT_CHARS): [string, string] {
+  const tidy = (s: string) => s.replace(/\uFFFC/g, ' ').replace(/\s+/g, ' ')
+  let before = text.slice(0, start)
+  let after = text.slice(end)
+  if (before.length > width) {
+    const cut = before.slice(-width)
+    const sp = cut.indexOf(' ')
+    before = '…' + (sp >= 0 && sp < width - 1 ? cut.slice(sp + 1) : cut)
+  }
+  if (after.length > width) {
+    const cut = after.slice(0, width)
+    const sp = cut.lastIndexOf(' ')
+    after = (sp > 0 ? cut.slice(0, sp) : cut) + '…'
+  }
+  return [tidy(before).replace(/^\s+/, ''), tidy(after).replace(/\s+$/, '')]
+}
+
 function stripChars(s: string, chars: string): string {
   let a = 0
   let b = s.length
@@ -47,6 +73,10 @@ export class SpellHighlighter {
   private unknownCache = new Map<string, boolean>()
   // User additions ("ignore this word in future"). Kept lowercase.
   private ignored = new Set<string>()
+  // The words added to the dictionary (not those only ignored), and who
+  // keeps them: the app saves them in its settings.
+  private added: string[] = []
+  onWordAdded: ((word: string) => void) | null = null
   private listeners = new Set<() => void>()
 
   constructor(checker: SpellChecker | null) {
@@ -81,13 +111,42 @@ export class SpellHighlighter {
     this.changed()
   }
 
-  // Mark `word` as known for the rest of this session ("Add to dictionary").
+  // Mark `word` as known: "Add to dictionary" in the right-click menu and
+  // the Spelling panel. The app keeps the user's words (onWordAdded) so
+  // they stay known in later sessions.
   addToDictionary(word: string): void {
+    if (!word) return
+    this.ignoreWord(word)
+    const key = word.toLowerCase()
+    if (!this.added.includes(key)) {
+      this.added.push(key)
+      this.onWordAdded?.(key)
+    }
+  }
+
+  // Stop flagging `word` for the rest of this session (the Spelling
+  // panel's Ignore all).
+  ignoreWord(word: string): void {
     if (!word) return
     this.ignored.add(word.toLowerCase())
     this.unknownCache.delete(word.toLowerCase())
     this.changed()
   }
+
+  // The user's own words, kept from earlier sessions.
+  loadDictionary(words: Iterable<string>): void {
+    for (const w of words) {
+      if (w && !this.added.includes(w.toLowerCase())) {
+        this.added.push(w.toLowerCase())
+        this.ignored.add(w.toLowerCase())
+      }
+    }
+    this.unknownCache.clear()
+    this.changed()
+  }
+
+  // The words the user added to the dictionary, in order.
+  addedWords(): string[] { return [...this.added] }
 
   private lookup(key: string): boolean {
     let cached = this.unknownCache.get(key)
@@ -112,7 +171,9 @@ export class SpellHighlighter {
   // corpus, more common first, alphabetical on ties; matched to the case
   // of the input.
   suggestions(word: string, limit = 7): string[] {
-    if (!this.isEnabled() || !word) return []
+    // Only the dictionary is needed: the Spelling panel lists mistakes
+    // with the underline turned off too.
+    if (this.checker === null || !word) return []
     const checker = this.checker!
     const key = stripChars(word.toLowerCase(), STRIP)
     const cands = checker.candidates(key)
@@ -129,9 +190,11 @@ export class SpellHighlighter {
     return ranked.slice(0, limit).map(caseMatch)
   }
 
-  // [start, end) UTF-16 offsets of the unknown words in a block of prose.
+  // [start, end) UTF-16 offsets of the unknown words in a block of prose:
+  // what the underline marks, and what the Spelling panel lists (with the
+  // underline turned off too).
   misspelledRanges(text: string): [number, number][] {
-    if (!this.isEnabled() || !text) return []
+    if (this.checker === null || !text) return []
     const out: [number, number][] = []
     for (const m of text.matchAll(WORD_RE)) {
       const raw = m[0]

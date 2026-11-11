@@ -289,6 +289,7 @@
 .ProseMirror-hideselection { caret-color: transparent; }
 
 /* SpellHighlighter's red wavy underline (UNDERLINE_COLOR). */
+.kt-spell-current { background: #b5d5ff; }
 .kt-misspelled { text-decoration: underline wavy #d8000c; text-decoration-skip-ink: none; }
 .kt-context-menu { position: fixed; z-index: 500; }
 
