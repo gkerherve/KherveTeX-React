@@ -936,7 +936,9 @@ function withKherverefBibliography(doc: Document, body: string): [string, boolea
   if (body.includes('\\printbibliography') || body.includes('{thebibliography}')) return [body, false]
   const style = m.bib_style || 'plainnat'
   body = rstrip(body, '\n') + `\n\n\\bibliographystyle{${style}}\n\\bibliography{${BIB_NAME}}\n`
-  return [body, NATBIB_STYLES.has(style)]
+  // \citep and \citet are natbib's: with a numbered style chosen in
+  // References they stopped the compile; natbib numbers with those styles.
+  return [body, NATBIB_STYLES.has(style) || /\\cite[pt]\{/.test(body)]
 }
 
 function withNatbib(packages: string, m: DocMeta): string {

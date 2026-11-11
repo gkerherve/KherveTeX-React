@@ -369,6 +369,8 @@ export class EditorController implements ViewHost {
   // set_meta: page size, class, fonts, margins... changed.
   setMeta(meta: M.DocMeta): void {
     this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { meta }).setMeta('addToHistory', false))
+    // The bibliography style decides how citations print.
+    this.refreshResolverNow()
     void loadFonts(this.families()).then(() => this.relayout())
   }
 

@@ -23,6 +23,7 @@ import { registerActions } from '../actions'
 import { setBibStager } from '../compile'
 import { editorApi } from '../editorApi'
 import { appStore, editDoc } from '../store'
+import { editor, setEditorBibliography } from '../../editor/controller'
 
 let fsOverride: RefFileAccess | null = null
 let chooseFolder: () => Promise<string | null> = async () =>
@@ -97,6 +98,10 @@ function apply(r: RefreshedBib): void {
     extraBib = r.extraBib
     for (const fn of extraListeners) fn(extraBib)
   }
+  // The page view resolves citations and draws the reference list from
+  // it (DocumentEditor.set_extra_bibliography). Nothing passed it on: the
+  // page showed "[1]" and no list where the PDF had both.
+  setEditorBibliography(extraBib)
 }
 
 // _refresh_kherveref_bib: kherveref.bib for *doc* (to bundle on save and
@@ -204,6 +209,7 @@ async function manageReferences(): Promise<void> {
     : ''
   const r = await askReferences(start, kr.citedKeys(doc), {
     note,
+    style: meta.bib_style || '',
     inform: (title, text) => information(title, text),
     importBib: async () => {
       const paths = await platform().openFileDialog({
@@ -233,13 +239,44 @@ async function manageReferences(): Promise<void> {
     meta.ref_library = kr.DOCUMENT_LIBRARY
     editDoc(doc)
   }
+  // The style: the default ('') stays the default.
+  const style = r.style === 'plainnat' && !meta.bib_style ? '' : r.style
+  if (style !== (meta.bib_style || '')) {
+    const e = editor()
+    if (e) e.setMeta({ ...appStore().get().doc.meta, bib_style: style })
+    else { meta.bib_style = style; editDoc(doc) }
+  }
   if (r.cite.length) editorApi()?.insertInline(citation(r.cite, 'cite'))
   await refreshKherverefBib(appStore().get().doc)
 }
 
+// A hand-written reference list (\bibitem entries in a thebibliography
+// block), the document's own references kept that way; null when there is
+// none, or when the document keeps a .bib list.
+function handWrittenList(): { pos: number; text: string } | null {
+  if (appStore().get().doc.meta.ref_library === kr.DOCUMENT_LIBRARY) return null
+  const found = editorApi()?.bibliography() ?? null
+  return found && parseTheBibliography(found.text) ? found : null
+}
+
+// References ▸ Cite: one button for either kind of list. A document with
+// a hand-written list cites from it (adding to it if asked); any other
+// cites from its .bib references or a KherveRef library.
+async function cite(): Promise<void> {
+  if (handWrittenList()) await insertReference()
+  else await insertCitation()
+}
+
+// References ▸ References: the document's list, whichever kind it keeps:
+// the hand-written \bibitem list, else its .bib references.
+async function references(): Promise<void> {
+  if (handWrittenList()) await editBibliography()
+  else await manageReferences()
+}
+
 registerActions({
-  citation: insertCitation,
-  manage_references: manageReferences,
+  citation: cite,
+  manage_references: references,
   insert_reference: insertReference,
   bibliography: editBibliography,
   check_citations: checkCitations,

@@ -1,7 +1,8 @@
 // References ▸ Manage references: the document's own list of references
 // (khervedoc/reference_manager.py). Its logic is ReferenceManagerModel in
 // src/app/referenceManager.ts; this is only the widgets.
-import { useRef, useSyncExternalStore } from 'react'
+import { useRef, useState, useSyncExternalStore } from 'react'
+import { BIB_STYLES } from '../../core/autoBibliography'
 import type { MouseEvent } from 'react'
 import { ENTRY_TYPES, FIELDS, MISSING, CITED } from '../../core/docReferences'
 import { shortAuthor } from '../../core/references'
@@ -12,6 +13,8 @@ export interface ReferenceChoice {
   text: string
   changed: boolean
   cite: string[]
+  // The bibliography style chosen (DocMeta.bib_style).
+  style: string
 }
 
 export interface ReferenceEnv {
@@ -23,15 +26,18 @@ export interface ReferenceEnv {
   note: string
   // A message box.
   inform: (title: string, text: string) => Promise<void>
+  // The document's bibliography style ('' for the default).
+  style: string
 }
 
 function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEnv; close: Close<ReferenceChoice> }) {
   useSyncExternalStore(m.subscribe, m.version)
   const anchor = useRef(0)
+  const [style, setStyle] = useState(env.style || BIB_STYLES[0][0])
   const rows = m.rows()
   const finish = (cite: string[]) => {
     m.done()
-    close({ text: m.text(), changed: m.changed(), cite })
+    close({ text: m.text(), changed: m.changed(), cite, style })
   }
 
   // ExtendedSelection, as the citation picker's list.
@@ -68,6 +74,14 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
       <div className="dlg-title">References of this document</div>
       <div className="dlg-body">
         {env.note && <div className="dlg-refs-note">{env.note}</div>}
+        <div className="dlg-refs-top">
+          <label htmlFor="ref-style">Style:</label>
+          <select id="ref-style" value={style} title="How the citations and the reference list print"
+            onChange={(e) => setStyle(e.target.value)}>
+            {BIB_STYLES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+            {!BIB_STYLES.some(([c]) => c === style) && <option value={style}>{style}</option>}
+          </select>
+        </div>
         <div className="dlg-refs-top">
           <input type="search" autoFocus value={m.query} placeholder="Search key, author, year, title"
             aria-label="Search references" onChange={(e) => m.setQuery(e.target.value)} />

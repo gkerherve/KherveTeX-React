@@ -12,6 +12,18 @@ import { citedKeys } from './model.ts'
 import type { Document, RawLatex } from './model.ts'
 
 const NATBIB_STYLES = new Set(['plainnat', 'abbrvnat', 'unsrtnat'])
+
+// The reference styles References offers: [bibliographystyle, what it
+// looks like]. The first is the default (DocMeta.bib_style '').
+export const BIB_STYLES: [string, string][] = [
+  ['plainnat', 'Author–year, sorted by author: Calì et al. [2023]'],
+  ['abbrvnat', 'Author–year, first names as initials'],
+  ['unsrtnat', 'Author–year, in the order cited'],
+  ['plain', 'Numbered, sorted by author: [1]'],
+  ['unsrt', 'Numbered, in the order cited'],
+  ['abbrv', 'Numbered, first names as initials'],
+  ['ieeetr', 'IEEE: numbered in the order cited, initials'],
+]
 // Styles that list the references in the order they are first cited;
 // the others sort them by author.
 const CITE_ORDER = new Set(['unsrt', 'unsrtnat', 'ieeetr'])
@@ -187,7 +199,7 @@ export function autoBibliography(doc: Document, bibText: string): AutoBibliograp
     entries.sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
   }
   const mode = citeMode(doc)
-  const abbreviate = style.startsWith('abbrv')
+  const abbreviate = style.startsWith('abbrv') || style === 'ieeetr'
   const numbers = new Map<string, number>()
   const items = entries.map((e, i) => {
     numbers.set(e.key, i + 1)

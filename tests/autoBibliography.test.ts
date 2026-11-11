@@ -69,3 +69,24 @@ describe('the reference list LaTeX writes', () => {
     expect(citeMode(M.document(doc().children, M.docMeta()))).toBe(null)
   })
 })
+
+describe('reference styles', () => {
+  it('offers the styles, plainnat first (the default)', async () => {
+    const { BIB_STYLES } = await import('../src/core/autoBibliography.ts')
+    expect(BIB_STYLES[0][0]).toBe('plainnat')
+    expect(BIB_STYLES.map(s => s[0])).toContain('ieeetr')
+  })
+  it('IEEE writes first names as initials', () => {
+    const bib = autoBibliography(doc('ieeetr'), BIB)!
+    expect(bib.items[0].runs[0].text.startsWith('E. Calì, S. Saini')).toBe(true)
+    expect(bib.items[0].label).toBe('[1]')
+  })
+  it('a numbered style with \\citep still loads natbib', async () => {
+    const { serializeDocument } = await import('../src/core/serializer.ts')
+    const tex = serializeDocument(doc('plain'))
+    expect(tex).toContain('\\bibliographystyle{plain}')
+    expect(tex).toContain('\\usepackage{natbib}')
+    const noCitep = M.document([M.paragraph([M.citation(['cali2023'])])], M.docMeta({ ref_library: 'document', bib_style: 'plain' }))
+    expect(serializeDocument(noCitep)).not.toContain('{natbib}')
+  })
+})
