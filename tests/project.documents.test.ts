@@ -89,7 +89,8 @@ describe('test_documents_panel', () => {
     expect(window.firstNumber()).toBe('1')
     await window.session.sidebar.setChecked(0, false)
     await window.session.switchChapter(1)
-    expect(window.firstNumber()).toBe('1')          // ...so Methods is section 1
+    // Left out of the PDF, Introduction still counts: Methods stays 2.
+    expect(window.firstNumber()).toBe('2')
   })
 
   // ---------------------------------------------------------- order / remove

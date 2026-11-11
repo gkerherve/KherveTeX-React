@@ -1412,6 +1412,39 @@ function classAuthors(cls: string, children: Block[]): string {
   return ''
 }
 
+// The heading counters (chapter, section, subsection, ...: the commands
+// SECTION_COMMANDS names) as LaTeX has them at the start of each document
+// of the project, every document counted, ticked or not: an unticked
+// document keeps its place in the numbering, as the Documents panel and
+// the page view show it.
+function countersBefore(proj: Project, chapterDocs: Document[], hasChapter: boolean,
+  hasMatter: boolean): number[][] {
+  let counters = [0, 0, 0, 0, 0, 0]
+  const out: number[][] = []
+  let prevType: string | null = null
+  proj.chapters.forEach((ch, i) => {
+    const doc = chapterDocs[i]
+    const ctype = ch.chapter_type ?? 'chapter'
+    if (ctype !== prevType && ctype !== 'section') {
+      // \appendix starts the chapters (or, in an article, the sections)
+      // again, lettered.
+      if (ctype === 'appendix') counters = [0, 0, 0, 0, 0, 0]
+      prevType = ctype
+    }
+    out.push([...counters])
+    // \frontmatter and \backmatter chapters are not numbered.
+    const unnumbered = hasMatter && (ctype === 'frontmatter' || ctype === 'backmatter')
+    for (const block of doc.children) {
+      if (block.type !== 'Section' || !block.numbered) continue
+      const level = Math.max(0, Math.min(5, hasChapter ? block.level - 1 : block.level))
+      if (level === 0 && (unnumbered || !hasChapter)) continue
+      counters[level] += 1
+      for (let k = level + 1; k < 6; k++) counters[k] = 0
+    }
+  })
+  return out
+}
+
 // The master .tex for a multi-chapter project. Enabled chapters get an
 // \include{}; disabled ones are left out, with counters advanced so later
 // chapters keep their numbers. Packages and preamble lines from the chapter
@@ -1492,12 +1525,24 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
   let prevNumbering: string | null = null
   let prevType: string | null = null
   let runningChapter = 0
+  // and the appendix letter
+  let runningAppendix = 0
   let runningPageOffset = 0
+  // A document left out since the last one printed: the next one sets its
+  // numbers so they stay what they are with every document in.
+  let skipped = false
+  // What a left-out document would have started with (\appendix,
+  // \pagenumbering...): the next document printed starts with it.
+  let carried: string[] = []
   // \frontmatter / \mainmatter / \backmatter exist only in book-like classes
   // and the chapter counter only where \chapter does.
   const klass = (m.documentclass || '').toLowerCase()
   const hasMatter = ['book', 'memoir', 'scrbook', 'amsbook'].includes(klass)
   const types = proj.chapters.map(c => c.chapter_type ?? 'chapter')
+  // chapterDocs holds every document in order unless one could not be
+  // read; the section numbers need them all.
+  const before = chapterDocs && chapterDocs.length && chapterDocs.length === proj.chapters.length
+    ? countersBefore(proj, chapterDocs, hasChapter, hasMatter) : null
   for (const [idx, ch] of proj.chapters.entries()) {
     const cmds: string[] = []
     const ctype = types[idx]
@@ -1513,6 +1558,7 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
       } else if (ctype === 'appendix') {
         cmds.push('\\appendix')
         runningChapter = 0
+        runningAppendix = 0
       } else if (ctype === 'backmatter' && hasMatter) {
         cmds.push('\\backmatter')
       }
@@ -1521,6 +1567,7 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
 
     const chNum = ch.chapter_number ?? null
     if (ctype === 'chapter') runningChapter = chNum !== null ? chNum : runningChapter + 1
+    else if (ctype === 'appendix') runningAppendix = chNum !== null ? chNum : runningAppendix + 1
 
     if (ch.numbering !== prevNumbering) {
       cmds.push(`\\pagenumbering{${ch.numbering}}`)
@@ -1529,8 +1576,12 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
 
     if (!ch.enabled) {
       runningPageOffset += ch.last_known_pages || 0
+      skipped = true
+      carried = carried.concat(cmds)
       continue
     }
+    cmds.unshift(...carried)
+    carried = []
 
     // Auto numbering lets LaTeX carry the page on from the previous
     // document; start_page is then only what the Documents panel shows.
@@ -1542,6 +1593,17 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
     }
 
     if (ctype === 'chapter' && hasChapter) cmds.push(`\\setcounter{chapter}{${runningChapter - 1}}`)
+    if (skipped) {
+      // An appendix keeps its letter, and a document that goes on in a
+      // chapter (a section document) or an article's part its section
+      // numbers, as with every document in.
+      if (ctype === 'appendix' && hasChapter) cmds.push(`\\setcounter{chapter}{${runningAppendix - 1}}`)
+      if (before !== null && (ctype === 'section' || !hasChapter)) {
+        const counts = before[idx]
+        for (let level = 1; level < 4; level++) cmds.push(`\\setcounter{${SECTION_COMMANDS[level]}}{${counts[level]}}`)
+      }
+      skipped = false
+    }
 
     if (cmds.length) bodyParts.push(cmds.join('\n') + '\n')
     // \include starts a new page — right for chapters, wrong for the parts

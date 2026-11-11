@@ -697,13 +697,14 @@ export class ProjectSession {
     this.host.setFirstPageNumber(start)
   }
 
-  // Heading counters after all enabled documents before `idx`, counted
-  // the way LaTeX counts them through the \includes.
+  // Heading counters after all documents before `idx`, counted the way
+  // LaTeX counts them through the \includes. An unticked document counts
+  // too: leaving it out of the PDF keeps the numbers of the others (the
+  // master sets them past it), so Chapter 3 is still Chapter 3 on the page.
   async headingOffsetBefore(idx: number): Promise<number[]> {
     const counters = [0, 0, 0, 0, 0, 0]
     const projDir = dirname(this.projectPath!)
     for (const [i, ch] of this.project!.chapters.slice(0, Math.max(0, idx)).entries()) {
-      if (!ch.enabled) continue
       let doc = this.chapterDocs.get(i)
       if (doc === undefined) {
         try {
@@ -723,10 +724,10 @@ export class ProjectSession {
     return counters
   }
 
+  // The numbers stay: an unticked document still counts.
   async onChapterToggled(idx: number, enabled: boolean): Promise<void> {
     if (this.project === null) return
     this.project.chapters[idx].enabled = enabled
-    if (idx < this.chapterIdx) this.host.setHeadingOffset(await this.headingOffsetBefore(this.chapterIdx))
   }
 
   // Put the project's documents in `order` (old indices). LaTeX numbers
