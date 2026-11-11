@@ -1,8 +1,10 @@
 # CLAUDE.md — working conventions for KherveTeX-React
 
-Project: the React + TypeScript rewrite of KherveTeX (`../KherveTeX`, Python /
-PySide6). It must be an exact behavioural copy: same `.ktex` files, same
-generated LaTeX and Typst byte for byte, same ribbon, menus and commands.
+Project: KherveTeX in React + TypeScript. It began as a rewrite of the
+Python / PySide6 app (`../KherveTeX`); since 2026-11-11 **this is the only
+version under development**. The Python app is frozen: never change it,
+never port features to it, and never build a feature there first. It still
+reads and writes the same `.ktex` files, so keep the file format compatible.
 Stack: Vite, React 19, TypeScript, Vitest; Tauri 2 shell from Phase 1
 (tectonic as a bundled binary, git2-rs for git, pdf.js for the preview).
 
@@ -22,21 +24,21 @@ yet — the GitHub repo is created only when the user says so).
 user-visible change, in the same commit. Every commit message starts with
 `v<major>.<minor>: ` (e.g. `v0.1: phase 0 core`).
 
-## Parity with the Python app is the specification
+## Where the code came from (the Python port)
 
-- `src/core/` is a function-for-function port of `khervedoc/` (model.py →
-  model.ts, serializer.py → serializer.ts, ...). Keep the Python structure
-  and order so the two can be diffed side by side; carry over its *why*
-  comments.
-- `scripts/make_golden.py` runs the Python app and writes
-  `tests/golden/*.json`; the `*.parity.test.ts` files require identical
-  output. After changing the Python serializer/importer, re-run
-  `npm run golden` and port the change here in the same week.
+- `src/core/` started as a function-for-function port of `khervedoc/`
+  (model.py → model.ts, serializer.py → serializer.ts, ...). New work is
+  designed here directly; the Python structure need not be kept.
+- `tests/golden/*.json` were written by the Python app (`npm run golden`).
+  They are now a frozen regression corpus: the `*.parity.test.ts` files
+  check the output stays the same. When a change here is meant to alter
+  the output, update the golden files from this app's own output (never
+  by running the Python app), and say so in the commit.
 - Python semantics that JavaScript gets wrong live in `src/core/py.ts`:
   floats print as `2.0` (`pyFloat`), `str.strip()` whitespace, `round()`
   half-to-even (`pyFixed`), `len()` in code points. Use them.
 - Field names in the model stay snake_case: they are the JSON on disk.
-- Ported Python unit tests keep their Python test names.
+- Tests ported from Python keep their Python test names.
 
 ## Architectural invariants (from KherveTeX)
 
@@ -51,7 +53,6 @@ user-visible change, in the same commit. Every commit message starts with
 
 ## Commands
 
-- `npm test` — all Vitest suites (parity + ported unit tests)
-- `npm run golden` — regenerate the parity corpus from `../KherveTeX`
+- `npm test` — all Vitest suites (golden regression + unit tests)
 - `npm run dev` — the app in a browser at http://localhost:5174
 - `npx tsc -b` — type-check
