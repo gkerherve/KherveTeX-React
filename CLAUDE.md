@@ -24,6 +24,12 @@ Commit after every change and push to `origin/dev`
 user-visible change, in the same commit. Every commit message starts with
 `v<major>.<minor>: ` (e.g. `v0.1: phase 0 core`).
 
+The numbering counts the whole of KherveTeX's history: the Python app's
+257 releases (it stopped at v0.257) plus this app's own. At the switch
+(2026-11-11) the React app's v0.79 became v0.336 (257 + 79); from there
+each change adds one as usual (v0.337, v0.338...). Commits before that
+keep their old numbers (v0.1 to v0.79).
+
 ## Where the code came from (the Python port)
 
 - `src/core/` started as a function-for-function port of `khervedoc/`
