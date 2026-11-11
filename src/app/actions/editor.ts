@@ -46,6 +46,10 @@ async function paste(): Promise<void> {
   const e = ed()
   if (!e) return
   e.view.focus()
+  // A picture on the clipboard (a screenshot) becomes a figure.
+  const { clipboardPicture, insertPictures } = await import('../pictures.ts')
+  const pic = await clipboardPicture()
+  if (pic) { await insertPictures([pic]); return }
   // Browsers only paste through a user gesture; the clipboard API reads it.
   try {
     const text = await navigator.clipboard.readText()
@@ -61,11 +65,16 @@ async function pasteSpecial(): Promise<void> {
   if (!e) return
   let text = ''
   try { text = await navigator.clipboard.readText() } catch { /* no permission */ }
+  const { clipboardPicture, insertPictures } = await import('../pictures.ts')
+  const pic = text.trim() ? null : await clipboardPicture()
   const opts = text ? ['Keep Source Formatting', 'Keep Text Only', 'LaTeX (as document content)'] : []
+  if (pic) opts.push('Picture')
   if (!opts.length) { status('The clipboard holds nothing to paste.'); return }
   const how = await promptItem('Paste Special', 'Paste as:', opts)
   if (how === null) return
-  if (how === 'LaTeX (as document content)') {
+  if (how === 'Picture' && pic) {
+    await insertPictures([pic])
+  } else if (how === 'LaTeX (as document content)') {
     const blocks = importBodyFragment(text,
       { hasChapters: M.classSupportsChapter(appStore().get().doc.meta.documentclass) })
     if (blocks.length) run(C.insertModelBlocks(blocks))

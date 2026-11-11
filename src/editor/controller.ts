@@ -37,6 +37,8 @@ import { SPELL_CURRENT, SPELL_REFRESH, spellCurrentPlugin, spellPlugin } from '.
 import { misspellings, replaceWord } from './spellList.ts'
 import { spellHighlighter } from '../spell/shared.ts'
 import { nodeViews, type ViewHost } from './views.ts'
+import { absoluteFigurePaths, imageFiles, isPicturePaste } from './pictureTransfer.ts'
+import { resolvedSourceDir } from '../app/compile.ts'
 
 let current: EditorController | null = null
 
@@ -141,6 +143,26 @@ export class EditorController implements ViewHost {
       // writingsuggestions: no macOS inline predictions, which WebKit paints as
       // grey text after the caret that looks as if it were in the document.
       attributes: { spellcheck: 'false', writingsuggestions: 'false', autocorrect: 'off', class: 'kt-flow' },
+      // A picture on the clipboard (a screenshot, an image copied in
+      // Preview or a browser) or dropped from a browser becomes a figure
+      // (app/pictures.ts); text pastes as before.
+      handlePaste: (_v, e) => {
+        if (!isPicturePaste(e.clipboardData)) return false
+        const files = imageFiles(e.clipboardData)
+        void import('../app/pictures.ts').then(m => m.insertPictureFiles(files, null, true))
+        return true
+      },
+      handleDrop: (v, e) => {
+        const files = imageFiles(e.dataTransfer)
+        if (!files.length) return false
+        e.preventDefault()
+        const at = v.posAtCoords({ left: e.clientX, top: e.clientY })?.pos ?? null
+        void import('../app/pictures.ts').then(m => m.insertPictureFiles(files, at))
+        return true
+      },
+      // A copied figure carries its full path, so it pastes into a
+      // document in another folder (or another window) and still shows.
+      transformCopied: slice => absoluteFigurePaths(slice, resolvedSourceDir()),
       handleDOMEvents: {
         focus: () => { this.syncToolbar(); return false },
         contextmenu: (_v, e) => { e.preventDefault(); return showContextMenu(this, e) },

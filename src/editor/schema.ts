@@ -64,7 +64,21 @@ const nodes: Record<string, NodeSpec> = {
       path: { default: '' }, caption: { default: '' }, label: { default: null },
       width: { default: '0.8\\textwidth' }, source: { default: '' }, align: { default: 'center' }, ...ORIG,
     },
-    toDOM: () => ['div', { class: 'kt-block kt-figure' }],
+    // The attributes go with a copy, so a copied figure pastes back as a
+    // figure (in this document, another one, another window); the page
+    // shows it through its node view.
+    toDOM: n => ['div', { class: 'kt-block kt-figure', 'data-kt-figure': JSON.stringify(n.attrs) }],
+    parseDOM: [{
+      tag: 'div[data-kt-figure]', priority: 60,
+      getAttrs: d => {
+        try {
+          const a = JSON.parse((d as HTMLElement).getAttribute('data-kt-figure') || '')
+          return a && typeof a === 'object' && typeof a.path === 'string' ? a : false
+        } catch {
+          return false
+        }
+      },
+    }],
   },
   table: {
     group: 'block', content: 'table_row+', isolating: true, tableRole: 'table',

@@ -3,6 +3,7 @@
 // khervedoc/mainwindow.py (_new, _open_path, _save, _save_as, _write_to,
 // _import_tex, _import_md, _export_tex, _export_latex_zip, _export_pdf,
 // _show_in_explorer, _remember_recent, _update_title, offer_save_before).
+import { isImageName } from '../../core/pictures'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import pkg from '../../../package.json'
@@ -764,7 +765,15 @@ export async function startFileService(): Promise<boolean> {
       // The Documents list adds dropped files to the project; opening them
       // here would replace the project instead.
       const r = window.devicePixelRatio || 1
-      if (projectHooks?.dropAt(ev.payload.position.x / r, ev.payload.position.y / r, ev.payload.paths)) return
+      const x = ev.payload.position.x / r
+      const y = ev.payload.position.y / r
+      if (projectHooks?.dropAt(x, y, ev.payload.paths)) return
+      // Pictures (a file from Finder, the screenshot thumbnail) go into the
+      // document where they were dropped; documents open.
+      const pictures = ev.payload.paths.filter(isImageName)
+      if (pictures.length && appStore().get().tab === 'visual') {
+        void import('../pictures.ts').then(m => m.insertPicturePaths(pictures, m.positionAt(x, y)))
+      }
       void openDropped(ev.payload.paths)
     })
   } else {
