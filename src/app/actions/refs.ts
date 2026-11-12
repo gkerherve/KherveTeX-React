@@ -24,6 +24,7 @@ import { setBibStager } from '../compile'
 import { editorApi } from '../editorApi'
 import { appStore, editDoc } from '../store'
 import { editor, setEditorBibliography } from '../../editor/controller'
+import { BIB_STYLES } from '../../core/autoBibliography'
 
 let fsOverride: RefFileAccess | null = null
 let chooseFolder: () => Promise<string | null> = async () =>
@@ -273,6 +274,17 @@ async function references(): Promise<void> {
   if (handWrittenList()) await editBibliography()
   else await manageReferences()
 }
+
+// References ▸ Style: the bibliography style, from the ribbon.
+function setBibStyle(code: string): void {
+  const meta = appStore().get().doc.meta
+  if ((meta.bib_style || 'plainnat') === code) return
+  const e = editor()
+  if (e) e.setMeta({ ...meta, bib_style: code })
+  else { meta.bib_style = code; editDoc(appStore().get().doc) }
+}
+
+for (const [code] of BIB_STYLES) registerActions({ [`bib_style_${code}`]: () => setBibStyle(code) })
 
 registerActions({
   citation: cite,

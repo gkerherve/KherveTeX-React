@@ -18,7 +18,7 @@ import { FIGURE_UPDATED_EVENT } from '../drawing/host.ts'
 import * as M from '../core/model.ts'
 import { isAbsolute, join } from '../core/paths.ts'
 import { ReferenceResolver } from '../core/references.ts'
-import { autoBibliography, citeMode } from '../core/autoBibliography.ts'
+import { autoBibliography, BIB_STYLES, citeMode } from '../core/autoBibliography.ts'
 import { AUTO_BIB_REFRESH, autoBibliographyPlugin } from './autoBibView.ts'
 import { figuresFloat } from '../core/serializer.ts'
 import type { ContextKind } from '../ui/ribbonModel.ts'
@@ -888,6 +888,7 @@ export class EditorController implements ViewHost {
       docClass: meta.documentclass, fontSize: String(meta.body_font_pt), disabledStyles: disabled,
     })
     for (const code of ['A4', 'Letter', 'Legal']) setCommandChecked(`pagesize_${code}`, meta.page_size === code)
+    for (const [code] of BIB_STYLES) setCommandChecked(`bib_style_${code}`, (meta.bib_style || 'plainnat') === code)
     for (const [name, m] of MARGIN_PRESETS) {
       const cur = [meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm]
       setCommandChecked(`margin_${name}`, cur.every((v, i) => Math.abs(v - m[i]) < 0.01))

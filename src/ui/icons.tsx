@@ -403,6 +403,17 @@ export function Branch(p: IconProps) {
   </Svg>
 }
 
+// References ▸ Style: how references print — "[1]" and an author–year line.
+export function ReferenceStyle(p: IconProps) {
+  return <Svg {...p}>
+    {R(3, 3, 18, 18, { fill: PAPER, color: BLUE, r: 1.5, lw: 1.2 })}
+    {T([4, 4, 9, 7], '[1]', { size: 6.5, bold: true, color: BLUE })}
+    {L(13, 7.5, 19, 7.5, INK, 1.1)}
+    {T([4, 11, 9, 7], 'Aa', { size: 6.5, bold: true, color: INK })}
+    {L(13, 14.5, 19, 14.5, INK, 1.1)}{L(6, 18.5, 19, 18.5, INK, 1.1)}
+  </Svg>
+}
+
 // References ▸ Captions & labels: numbered items with a caption line each.
 export function Captions(p: IconProps) {
   return <Svg {...p}>
@@ -1412,7 +1423,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   accept_change: AcceptChange, reject_change: RejectChange,
   prev_comment: PrevComment, next_comment: NextComment, history: History,
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
-  overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, compile_pdf: CompilePdf,
+  overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, reference_style: ReferenceStyle, compile_pdf: CompilePdf,
   auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff,
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,

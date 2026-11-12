@@ -2,6 +2,7 @@
 // QAction of _build_actions / _build_context_actions becomes a Command
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
+import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 
 export interface MenuItem {
@@ -223,6 +224,12 @@ const cmds: Command[] = [
   { id: 'footnote', text: '&Footnote...', icon: 'footnote' },
   { id: 'citation', text: '&Cite…', icon: 'citation' },
   { id: 'manage_references', text: '&References…', icon: 'manage_references' },
+  // The bibliography style: how citations and the reference list print.
+  { id: 'reference_style', text: 'Style', icon: 'reference_style', popup: 'instant',
+    tooltip: 'How the citations and the reference list print: author–year or numbered',
+    menu: BIB_STYLES.map(([code, label]): MenuItem => ({
+      text: label, command: `bib_style_${code}`, checkable: true, checked: code === 'plainnat',
+    })) },
   { id: 'captions', text: 'Captions && &labels…', icon: 'captions',
     tooltip: 'Every figure, table, equation and heading: change their captions and labels, or go to one' },
   { id: 'insert_reference', text: 'Insert &reference…', icon: 'citation',
@@ -494,16 +501,16 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Layout', groups: [
     { label: 'Page Setup', large: ['margins', 'size', 'cols_1', 'cols_2', 'cols_3'] },
     { label: 'Document type', large: [{ widget: 'classes' }] },
-    // A long document as a project of smaller ones, and their list.
-    { label: 'Documents', large: ['split_documents', 'documents_dock'] },
   ] },
   { name: 'View', groups: [
     { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },
     { label: 'PDF', large: ['pdf_panel', 'pdf_detach'] },
     { label: 'Zoom', large: ['fit_page_width'] },
+    // A long document as a project of smaller ones, and their list.
+    { label: 'Documents', large: ['split_documents', 'documents_dock'] },
   ] },
   { name: 'References', groups: [
-    { label: 'Citations', large: ['citation', 'manage_references'] },
+    { label: 'Citations', large: ['citation', 'manage_references', 'reference_style'] },
     { label: 'Footnotes', large: ['footnote'] },
     { label: 'Captions', large: ['caption', 'crossref', 'captions'] },
   ] },
