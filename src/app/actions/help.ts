@@ -5,6 +5,7 @@ import pkg from '../../../package.json'
 import { isTauri, platform } from '../../platform'
 import { aboutHtml, showAboutDialog, showHelpGuide, showShortcuts, type Library } from '../../ui/dialogs/HelpDialogs'
 import { registerActions } from '../actions'
+import { VERSION } from '../../version'
 
 // The version a dependency was built against, as package.json pins it.
 function declared(name: string): string {
@@ -12,9 +13,9 @@ function declared(name: string): string {
   return (deps[name] ?? '').replace(/^[\^~]/, '') || '(unknown)'
 }
 
-// __init__.version_string(): "v<major>.<minor>" (no git build tag here).
+// "vN", the commit count (src/version.ts).
 export function versionString(): string {
-  return 'v' + pkg.version.split('.').slice(0, 2).join('.')
+  return VERSION
 }
 
 async function tauriVersion(): Promise<string | null> {

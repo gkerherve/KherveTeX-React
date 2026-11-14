@@ -130,11 +130,11 @@ export function aboutHtml(libraries: Library[], runtime: string): string {
 
 function About({ version, html, close }: { version: string, html: string, close: () => void }) {
   return (
-    <Frame title='About KherveTeX' className='dlg-about' onClose={close}>
+    <Frame title='About kTeX' className='dlg-about' onClose={close}>
       <div className='about-header' onClick={openLinks}>
         <div className='about-logo'><Icon name='app_icon' size={96} /></div>
         <div className='about-heading'>
-          <h2 style={{ margin: 0 }}>KherveTeX</h2>
+          <h2 style={{ margin: 0 }}>kTeX</h2>
           <p style={{ color: '#888', margin: '3px 0 0 0' }}>{version}</p>
           <p style={{ margin: '8px 0 0 0' }}>A WYSIWYG LaTeX document editor with built-in Git version history.</p>
           <p style={{ margin: '6px 0 0 0' }}>Press <b>F1</b> for the User Guide.</p>

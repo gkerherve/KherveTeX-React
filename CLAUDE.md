@@ -18,17 +18,21 @@ Never work in a git worktree or on a throwaway branch.
 Commit after every change and push to `origin/dev`
 (https://github.com/gkerherve/KherveTeX-React).
 
-## Version
+## Name and version
 
-`package.json` `version` is `"<major>.<minor>.0"`; bump the minor on any
-user-visible change, in the same commit. Every commit message starts with
-`v<major>.<minor>: ` (e.g. `v0.1: phase 0 core`).
+The big name is KherveTeX, the short name **kTeX** (2026-11-13): it shows
+in the title bar, splash, Welcome, About, update messages and release
+titles (`SHORT_NAME` in `src/version.ts`). Files, installers, the `.app`,
+the bundle identifier, settings, the repo and the MCP server keep
+"KherveTeX".
 
-The numbering counts the whole of KherveTeX's history: the Python app's
-257 releases (it stopped at v0.257) plus this app's own. At the switch
-(2026-11-11) the React app's v0.79 became v0.336 (257 + 79); from there
-each change adds one as usual (v0.337, v0.338...). Commits before that
-keep their old numbers (v0.1 to v0.79).
+Like kCAD, the version is the commit count: `package.json` `version` is
+`"<N>.0.0"` with N = `git rev-list --count HEAD` + 1 (the commit being
+made), shown `vN`. Set it in every commit, and every commit message
+starts with `v<N>: `. Release tags are `vN`. As semver N.0.0 is newer
+than the old `0.338.0`, so copies on the old numbering update to it
+with no bridge release. Commits before the switch keep their old
+numbers (v0.1 to v0.79, then v0.336 to v0.338).
 
 ## Where the code came from (the Python port)
 

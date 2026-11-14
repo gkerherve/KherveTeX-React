@@ -19,8 +19,9 @@ describe('updater', () => {
   })
 
   it('shows versions as the title does', () => {
-    expect(shortVersion('0.10.0')).toBe('v0.10')
-    expect(shortVersion('v1.2.3')).toBe('v1.2')
+    expect(shortVersion('0.338.0')).toBe('v0.338')
+    expect(shortVersion('97.0.0')).toBe('v97')
+    expect(shortVersion('v1033.0.0')).toBe('v1033')
   })
 
   it('updates automatically unless turned off', () => {

@@ -7,7 +7,7 @@ import { AppIcon } from './icons'
 import { isBetaExample } from './pageBeta'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import pkg from '../../package.json'
+import { SHORT_NAME, VERSION } from '../version'
 import type { LayoutMode } from '../app/store'
 import { basename, dirname } from '../core/paths'
 
@@ -39,7 +39,6 @@ const START: [string, string, WelcomeChoice][] = [
   ['\u{1F9ED}  Take the guided tour', 'A multi-page document that shows what KherveTeX does', { kind: 'tour' }],
 ]
 
-const VERSION = pkg.version.split('.').slice(0, 2).join('.')
 
 function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: {
   recent: string[]; recentExists: boolean[]; examples: string[]; layout: LayoutMode; showAtStart: boolean
@@ -63,7 +62,7 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
     <div className='kmb-veil' style={{ position: 'fixed', inset: 0, zIndex: 900, display: 'flex',
       alignItems: 'center', justifyContent: 'center', background: 'transparent' }}
       onKeyDown={e => { if (e.key === 'Escape') finish({ kind: 'continue' }) }}>
-      <div className='kwin' role='dialog' aria-label='Welcome to KherveTeX' style={{
+      <div className='kwin' role='dialog' aria-label={`Welcome to ${SHORT_NAME}`} style={{
         width: 'min(960px, 94vw)', height: 'min(640px, 90vh)', minWidth: 600, display: 'flex', flexDirection: 'column',
         gap: 14, boxSizing: 'border-box', padding: '18px 22px 16px', border: '1px solid var(--border)', borderRadius: 6,
         background: 'var(--chrome)', color: 'var(--text)', boxShadow: '0 8px 28px rgba(0,0,0,0.3)',
@@ -71,8 +70,8 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
         <div className='kwin-title' style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <AppIcon size={64} />
           <div>
-            <div style={{ fontSize: 22 * 4 / 3, fontWeight: 700 }}>KherveTeX</div>
-            <div>Write like in Word, publish in LaTeX — version {VERSION}</div>
+            <div style={{ fontSize: 22 * 4 / 3, fontWeight: 700 }}>{SHORT_NAME}</div>
+            <div>Write like in Word, publish in LaTeX — {VERSION}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
@@ -123,7 +122,7 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <label><input type='checkbox' checked={again} onChange={e => setAgain(e.target.checked)} /> Show this page when KherveTeX starts</label>
+          <label><input type='checkbox' checked={again} onChange={e => setAgain(e.target.checked)} /> Show this page when {SHORT_NAME} starts</label>
           <div style={{ flex: 1 }} />
           <button type='button' autoFocus onClick={() => finish({ kind: 'continue' })} style={{
             minWidth: 140, padding: '4px 12px', border: '1px solid var(--accent)', borderRadius: 4,

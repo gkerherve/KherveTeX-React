@@ -5,7 +5,7 @@
 // "splash" window of tauri.conf.json, shown while the main window loads
 // hidden; main.tsx shows the main window and closes this one when ready.
 import { useEffect, useState, type ReactElement } from 'react'
-import pkg from '../../package.json'
+import { SHORT_NAME, VERSION } from '../version'
 import { AppIcon } from './icons'
 
 export const SPLASH_HASH = '#splash'
@@ -82,7 +82,7 @@ export function Splash() {
   const font = "-apple-system, 'Segoe UI', system-ui, sans-serif"
   return (
     <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} style={{ display: 'block' }}
-      role='img' aria-label={`KherveTeX ${pkg.version} is starting`}>
+      role='img' aria-label={`${SHORT_NAME} ${VERSION} is starting`}>
       <defs>
         <linearGradient id='splash-bg' x1='0' y1='0' x2='1' y2='1'>
           <stop offset='0' stopColor='#1f63c6' />
@@ -96,7 +96,7 @@ export function Splash() {
         <Pages x={372} y={70} w={210} h={250} />
         <foreignObject x={40} y={52} width={96} height={96}><AppIcon size={96} /></foreignObject>
         <text x={40} y={197} dominantBaseline='central' fontFamily={font} fontWeight={700} fontSize='34pt'
-          fill='#ffffff'>KherveTeX</text>
+          fill='#ffffff'>{SHORT_NAME}</text>
         <text x={42} y={238} fontFamily={font} fontSize='12.5pt' fill='rgba(255,255,255,0.84)'>
           Write like in Word, publish in LaTeX</text>
         <text x={42} y={HEIGHT - 76} dominantBaseline='central' fontFamily={font} fontSize='10.5pt'
@@ -104,7 +104,7 @@ export function Splash() {
         <rect x={42} y={HEIGHT - 62} width={290} height={5} rx={2.5} fill='rgba(255,255,255,0.14)' />
         {fraction > 0 && <rect x={42} y={HEIGHT - 62} width={290 * fraction} height={5} rx={2.5} fill='#9cc4ff' />}
         <text x={42} y={HEIGHT - 24} dominantBaseline='central' fontFamily={font} fontSize='9.5pt'
-          fill='rgba(255,255,255,0.59)'>Version {pkg.version}</text>
+          fill='rgba(255,255,255,0.59)'>{VERSION}</text>
         <text x={WIDTH - 22} y={HEIGHT - 24} textAnchor='end' dominantBaseline='central' fontFamily={font}
           fontSize='9.5pt' fill='rgba(255,255,255,0.59)'>© 2026 Gwilherm Kerherve · GPL-3.0</text>
       </g>

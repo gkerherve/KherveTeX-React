@@ -7,7 +7,7 @@ name: Release
 # manifest the in-app updater reads at
 # releases/latest/download/latest.json. Trigger: push a tag on dev,
 #
-#   git tag v<major>.<minor> && git push origin v<major>.<minor>
+#   git tag vN && git push origin vN   (N = package.json's major, the commit count)
 #
 # (the tag must match package.json's version), or run it by hand.
 #
@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           FULL=$(node -p "require('./package.json').version")
-          SHORT=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          SHORT=$(node -p "require('./package.json').version.split('.')[0]")
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             TAG="$GITHUB_REF_NAME"
             case "$TAG" in "v$SHORT"|"v$FULL") ;; *)
@@ -87,7 +87,7 @@ jobs:
           ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
                  --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
           if [ -z "$ID" ]; then
-            gh release create "$TAG" --draft --title "KherveTeX $TAG" \
+            gh release create "$TAG" --draft --title "kTeX $TAG" \
               --notes-file notes.txt --target "$GITHUB_SHA"
             ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
                    --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)

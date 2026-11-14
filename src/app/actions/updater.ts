@@ -17,7 +17,6 @@ import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { check, type Update } from '@tauri-apps/plugin-updater'
-import pkg from '../../../package.json'
 import { isTauri } from '../../platform'
 import { information, progressBox, warning } from '../../platform/MessageBox'
 import { setSetting, setting } from '../../platform/settings'
@@ -28,16 +27,12 @@ import { shutdownCompiles } from '../compile'
 import { appStore } from '../store'
 import { offerSaveBefore } from './file'
 
-export const APP_NAME = 'KherveTeX'
+import { SHORT_NAME as APP_NAME, shortVersion, VERSION as CURRENT } from '../../version'
+export { shortVersion }
 export const KEY_AUTO = 'update/auto'              // default on
 export const STARTUP_DELAY_MS = 5000
 export const INTERVAL_MS = 30 * 60 * 1000
 
-// "v<major>.<minor>", as the window title and About show it.
-export function shortVersion(v: string): string {
-  return 'v' + v.replace(/^v/, '').split('.').slice(0, 2).join('.')
-}
-const CURRENT = shortVersion(pkg.version)
 
 // The installer is a separate program on Windows that replaces the running
 // executable, so it can only run as the app quits.

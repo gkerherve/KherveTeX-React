@@ -6,7 +6,6 @@
 import { isImageName } from '../../core/pictures'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import pkg from '../../../package.json'
 import { importMd, importTex, type ImportFs } from '../../core/importers'
 import {
   exportLatexZip, isKdoczPath, isLegacyBundle, loadKdocz, NATIVE_SUFFIX, readBundledBib,
@@ -28,9 +27,9 @@ import { appStore, replaceDoc, type LayoutMode } from '../store'
 import { setCommandChecked } from '../../ui/commands'
 import { GALLERY } from '../../ui/ribbonModel'
 import { showWelcomeDialog } from '../../ui/WelcomeDialog'
+import { SHORT_NAME, VERSION } from '../../version'
 import { getBundledBib, refreshKherverefBib, setBundledBib } from './refs'
 
-const VERSION = 'v' + pkg.version.split('.').slice(0, 2).join('.')
 const RECENT_FILES_MAX = 8
 // project_store.WORK_DIR: working files live in .kherve/ so the folder
 // shows only the .ktex.
@@ -55,16 +54,16 @@ export function fileAccess(): FileAccess {
 
 // ---- title ----
 
-// MainWindow._update_title: "KherveTeX v<major.minor> — <name> [branch]".
+// MainWindow._update_title: "kTeX vN — <name> [branch]".
 // The branch suffix is kept by actions/git.ts for the open document's folder.
 let branchSuffix = { path: '', suffix: '' }
 export function windowTitle(): string {
   const projectTitle = projectHooks?.title() ?? null
-  if (projectTitle !== null) return `KherveTeX ${VERSION} — ${projectTitle}`
+  if (projectTitle !== null) return `${SHORT_NAME} ${VERSION} — ${projectTitle}`
   const path = appStore().get().path
-  if (path === null && importedStem !== null) return `KherveTeX ${VERSION} — ${importedStem} (imported)`
+  if (path === null && importedStem !== null) return `${SHORT_NAME} ${VERSION} — ${importedStem} (imported)`
   const branch = path !== null && branchSuffix.path === path ? branchSuffix.suffix : ''
-  return `KherveTeX ${VERSION} — ${path ? basename(path) + branch : 'Untitled'}`
+  return `${SHORT_NAME} ${VERSION} — ${path ? basename(path) + branch : 'Untitled'}`
 }
 
 export function updateTitle(): void {

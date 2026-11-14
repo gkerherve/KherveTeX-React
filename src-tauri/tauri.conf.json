@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "KherveTeX",
+        "title": "kTeX",
         "width": 1400,
         "height": 900,
         "minWidth": 760,
@@ -27,7 +27,7 @@
       {
         "label": "splash",
         "url": "index.html#splash",
-        "title": "KherveTeX",
+        "title": "kTeX",
         "width": 640,
         "height": 380,
         "resizable": false,
