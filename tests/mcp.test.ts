@@ -92,6 +92,9 @@ class FakeWindow implements ToolHost {
     await writeFile(png, files.previewSvg)
     return true
   }
+  latexSourceOn = false
+  latexSource = () => this.latexSourceOn
+  setLatexSource = (on: boolean) => { this.latexSourceOn = on }
   refreshFigureImage = (p: string) => { this.refreshed.push(p) }
   editInKhervePaint = async (png: string): Promise<[boolean, string]> => {
     if (this.khervePaint === null) {
@@ -119,7 +122,7 @@ describe('tool table', () => {
       'get_compile_log', 'render_page', 'insert_latex', 'replace_blocks', 'delete_blocks', 'replace_text',
       'set_metadata', 'compile_document', 'save_document', 'open_document', 'new_document', 'insert_equation',
       'insert_chemistry', 'list_drawing_symbols', 'insert_drawing', 'get_drawing', 'update_drawing',
-      'open_in_khervepaint', 'export_pdf',
+      'open_in_khervepaint', 'set_latex_display', 'export_pdf',
     ])
     const read = TOOLS.find(t => t.name === 'read_blocks')!
     expect(read.input_schema).toEqual({ type: 'object', properties: { start: { type: 'integer' }, end: { type: 'integer' } },
@@ -145,6 +148,18 @@ describe('tool table', () => {
 // ── tools on a live window ─────────────────────────────────────────
 
 describe('document tools', () => {
+  it('switches raw LaTeX between the PDF look and its source', async () => {
+    const w = new FakeWindow('\\noindent Look \\raisebox{-0.3em}{\\includegraphics[height=1em]{i.png}} here\\\\ \\weird{x}.')
+    const r = await run(w, 'set_latex_display', { mode: 'source' })
+    expect(r.mode).toBe('source')
+    expect(w.latexSourceOn).toBe(true)
+    const back = await run(w, 'set_latex_display', { mode: 'pdf' })
+    expect(back.mode).toBe('pdf')
+    expect(back.raw_inline_shown_as_source).toBe(1)
+    expect(back.not_drawable).toEqual(['\\weird{x}'])
+    expect(toolAllowed('set_latex_display', 'read')).toBe(true)
+  })
+
   it('test_outline_read_and_insert', async () => {
     const w = new FakeWindow('\\section{Intro}\\label{sec:i}\nHello world.\n\\section{Methods}\nWe did things.')
     const outline = (await run(w, 'get_outline')).blocks as ToolResult[]

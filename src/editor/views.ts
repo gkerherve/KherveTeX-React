@@ -8,6 +8,7 @@ import type { Inline } from '../core/model.ts'
 import { renderMath } from '../math/render.ts'
 import { cellDisplayText, cellPictures } from './convert.ts'
 import type { ReferenceResolver } from '../core/references.ts'
+import { inlineRawLook, lengthEm } from './inlineRawLook.ts'
 
 export interface ViewHost {
   resolver(): ReferenceResolver
@@ -530,6 +531,58 @@ export function rawFloatSummary(text: string): string {
   return summary
 }
 
+// Raw inline LaTeX drawn the way the PDF shows it (a picture, a line
+// break, nothing for \noindent), with the source kept beside it: the
+// View > Show LaTeX source toggle (body.kt-latex-source) swaps the two.
+function renderInlineRaw(dom: HTMLElement, latex: string, host: ViewHost) {
+  dom.title = latex
+  const source = document.createElement('span')
+  source.className = 'kt-raw-source'
+  source.textContent = latex
+  const look = inlineRawLook(latex)
+  if (look.kind === 'source') {
+    dom.className = 'kt-inline-raw'
+    dom.replaceChildren(source)
+    return
+  }
+  dom.className = 'kt-inline-raw kt-inline-raw-shown'
+  const shown = document.createElement('span')
+  shown.className = 'kt-raw-look'
+  switch (look.kind) {
+    case 'break': shown.appendChild(document.createElement('br')); break
+    case 'none': break
+    case 'space': shown.style.display = 'inline-block'; shown.style.width = `${look.em}em`; break
+    case 'text': shown.textContent = look.text; break
+    case 'image': {
+      const src = host.resolveImage(look.path)
+      if (!src) { shown.textContent = '[image]'; shown.className += ' kt-raw-missing'; break }
+      const im = document.createElement('img')
+      im.className = 'kt-inline-image'
+      im.src = src
+      im.alt = look.path
+      const body = host.bodyPx()
+      const lenPx = (spec: string): number | null => {
+        if (/\\(textwidth|linewidth|columnwidth|hsize)/.test(spec)) return figureWidthPx(spec, host.textWidthPx())
+        const em = lengthEm(spec)
+        return em === null ? null : em * body
+      }
+      const w = look.width ? lenPx(look.width) : null
+      const h = look.height ? lenPx(look.height) : null
+      if (w !== null) im.style.width = `${w}px`
+      if (h !== null) im.style.height = `${h}px`
+      if (w === null && h === null) {
+        im.style.maxWidth = `${host.textWidthPx()}px`
+        if (look.scale !== null) im.onload = () => { im.style.width = `${im.naturalWidth * look.scale!}px` }
+      }
+      if (look.raiseEm) im.style.verticalAlign = `${look.raiseEm * body}px`
+      im.onerror = () => { shown.textContent = `[Image not found: ${look.path}]`; shown.className += ' kt-raw-missing' }
+      shown.appendChild(im)
+      break
+    }
+  }
+  dom.replaceChildren(shown, source)
+}
+
 // Citations, references, footnotes and verbatim inlines: atoms showing
 // their text the way editor.py's char formats do.
 class AtomView implements NodeView {
@@ -576,11 +629,7 @@ class AtomView implements NodeView {
         break
       }
       case 'inline_raw':
-        this.dom.className = 'kt-inline-raw'
-        this.dom.title = a.latex
-        // A \\ break should look like a break.
-        if (a.latex === '\\\\') this.dom.replaceChildren(document.createElement('br'))
-        else this.dom.textContent = a.latex
+        renderInlineRaw(this.dom, a.latex as string, this.host)
         break
       case 'inline_json': {
         const m = a.node as Inline | null

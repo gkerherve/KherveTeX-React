@@ -41,6 +41,7 @@ export const TIPS: Record<string, Tip> = {
   act_align_center: { title: 'Centre', what: 'Centres the paragraph between the margins.', latex: 'Becomes a center environment.' },
   act_align_right: { title: 'Align right', what: 'Lines the paragraph up on the right margin.', latex: 'Becomes a flushright environment.' },
   act_align_justify: { title: 'Justify', what: 'Spreads each line to touch both margins — the normal look of books and journal articles.', latex: 'LaTeX\'s default; no extra code.' },
+  act_show_latex_source: { title: 'Show LaTeX source', what: 'The visual view shows pictures, icons and line breaks written in LaTeX the way the PDF does. Tick this to see their LaTeX source instead.', latex: 'Display only; nothing changes in the PDF.' },
   act_show_marks: { title: 'Show formatting marks', what: 'Shows spaces as dots and the end of each paragraph as ¶, like Word\'s ¶ button — useful to spot double spaces and empty lines.', latex: 'Display only; nothing changes in the PDF.' },
   act_spell_check: { title: 'Spelling', what: 'Underlines misspelled English words in red as you type. Right-click a word for suggestions.', latex: 'Display only; nothing changes in the PDF.' },
   act_reference_style: { title: 'Reference style', what: 'How the citations and the reference list print: author–year (Calì et al. [2023]) or numbered ([1]), sorted by author or in the order cited, or IEEE. The page and the PDF change at once.', latex: 'Becomes \\bibliographystyle{plainnat}, {plain}, {unsrt}…' },

@@ -140,7 +140,16 @@
 /* These formats name no font: Qt draws them in the document's default
    font (the body's), whatever the line's style. A footnote's is the UI's,
    2 pt smaller. */
-.kt-link, .kt-citation, .kt-crossref, .kt-inline-json {
+.kt-link, .kt-citation, .kt-crossref, .kt-inline-raw-shown { font-family: inherit; color: inherit; background: none; }
+.kt-inline-raw-shown > .kt-raw-source { display: none; }
+.kt-inline-image { display: inline; max-width: 100%; }
+.kt-raw-missing { color: #a33; font-style: italic; }
+/* View > Show LaTeX source: every raw piece as its source again. */
+body.kt-latex-source .kt-inline-raw-shown > .kt-raw-look { display: none; }
+body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
+  display: inline; font-family: Consolas, 'Courier New', monospace; color: #0a3d62; background: #e8f0fb;
+}
+.kt-inline-json {
   font-family: var(--kt-body-family);
   font-size: var(--kt-body-size);
   font-weight: 400;

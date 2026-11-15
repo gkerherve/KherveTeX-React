@@ -53,7 +53,7 @@ export const MENU_BAR: MenuBarMenu[] = [
   { text: '&View', items: [
     'view_formatted', 'view_latex', 'view_pdf', 'view_console', '-',
     'visual_only', 'side_by_side', 'pdf_window', 'documents_dock', '-',
-    'show_marks', 'fit_page_width',
+    'show_marks', 'show_latex_source', 'fit_page_width',
     { text: '&Theme', items: ['theme_light', 'theme_dark'] },
   ] },
   { text: '&Insert', items: [

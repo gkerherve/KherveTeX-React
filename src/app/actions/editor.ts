@@ -218,6 +218,13 @@ async function theoremTitle(): Promise<void> {
 }
 
 let showMarks = false
+let latexSource = false
+export const showLatexSource = () => latexSource
+export function setShowLatexSource(on: boolean): void {
+  latexSource = on
+  document.body.classList.toggle('kt-latex-source', on)
+  setCommandChecked('show_latex_source', on)
+}
 
 const actions: Record<string, Handler> = {
   undo: () => { const e = ed(); if (e) { undo(e.view.state, e.view.dispatch); e.view.focus() } },
@@ -293,6 +300,8 @@ const actions: Record<string, Handler> = {
   next_comment: () => { if (!run(C.findComment(true))) status('No more comments.') },
   prev_comment: () => { if (!run(C.findComment(false))) status('No more comments.') },
 
+  // Raw LaTeX in the text as its source, not as the PDF shows it.
+  show_latex_source: on => { setShowLatexSource(typeof on === 'boolean' ? on : !showLatexSource()) },
   // Word's ¶: spaces, tabs and paragraph ends shown; display only.
   show_marks: on => {
     showMarks = typeof on === 'boolean' ? on : !showMarks

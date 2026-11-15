@@ -12,6 +12,7 @@
 // means the same thing to Claude as to the user looking at the page.
 // Content goes in as LaTeX body source and is parsed into real, editable
 // blocks — never pasted in as a raw string.
+import { inlineRawLook } from '../editor/inlineRawLook.ts'
 import { nextDrawingPath } from '../core/drawingFiles.ts'
 import { importBodyFragment, parseInlines, splitAuthorLines } from '../core/importers.ts'
 import {
@@ -226,6 +227,14 @@ export const TOOLS: ToolSpec[] = [
       + 'KhervePaint app for full editing. Its saves update '
       + 'the figure automatically.',
     input_schema: obj({ index: INT }, ['index']) },
+  { name: 'set_latex_display',
+    description: 'How the visual view shows raw LaTeX inside the text '
+      + '(pictures, \\raisebox icons, \\\\ breaks, \\noindent...): '
+      + '"pdf" draws it as the PDF does, "source" shows the LaTeX. '
+      + 'Display only; the document does not change. Omit `mode` '
+      + 'to only read the setting. Lists the raw pieces that '
+      + 'still show as source because the editor cannot draw them.',
+    input_schema: obj({ mode: { type: 'string', enum: ['pdf', 'source'] } }) },
   { name: 'export_pdf',
     description: 'Compile and write the PDF to `path`. Needs Full '
       + 'access.',
@@ -235,7 +244,7 @@ export const TOOLS: ToolSpec[] = [
 export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'get_document_info', 'get_outline', 'read_blocks', 'get_latex',
   'search_text', 'list_references', 'get_compile_log', 'render_page',
-  'list_drawing_symbols', 'get_drawing',
+  'list_drawing_symbols', 'get_drawing', 'set_latex_display',
 ])
 // Tools that manage files, the compile or the undo stack themselves;
 // wrapping them in an edit block would record an empty undo step.
@@ -304,6 +313,10 @@ export interface ToolHost {
   saveDrawing(scene: Scene, pngPath: string): Promise<boolean>
   refreshFigureImage(pngPath: string): void
   editInKhervePaint(pngPath: string): Promise<[boolean, string]>
+  // View > Show LaTeX source: raw inline LaTeX shown as source (true)
+  // or as the PDF shows it (false).
+  latexSource(): boolean
+  setLatexSource(on: boolean): void
 }
 
 // str.split() / " ".join(...)
@@ -863,6 +876,33 @@ export class ToolExecutor {
     const [ok, msg] = await this.host.editInKhervePaint(png)
     if (!ok) throw new ToolError(msg)
     return { index: i, opened: withSuffix(png, '.svg'), message: msg }
+  }
+
+  async t_set_latex_display(args: Args): Promise<ToolResult> {
+    if (args.mode !== undefined && args.mode !== null) {
+      if (args.mode !== 'pdf' && args.mode !== 'source') throw new ToolError('`mode` must be "pdf" or "source".')
+      this.host.setLatexSource(args.mode === 'source')
+    }
+    let drawn = 0
+    const asSource: string[] = []
+    const walk = (x: unknown): void => {
+      if (Array.isArray(x)) { x.forEach(walk); return }
+      if (x === null || typeof x !== 'object') return
+      const o = x as Record<string, unknown>
+      if (o.type === 'InlineRaw' && typeof o.latex === 'string') {
+        if (inlineRawLook(o.latex).kind === 'source') asSource.push(o.latex)
+        else drawn++
+      }
+      for (const v of Object.values(o)) if (v && typeof v === 'object') walk(v)
+    }
+    walk(this.host.doc().children)
+    const unique = [...new Set(asSource)]
+    return {
+      mode: this.host.latexSource() ? 'source' : 'pdf',
+      raw_inline_drawn_as_pdf: drawn,
+      raw_inline_shown_as_source: asSource.length,
+      not_drawable: unique.slice(0, 20),
+    }
   }
 
   async t_export_pdf(args: Args): Promise<ToolResult> {

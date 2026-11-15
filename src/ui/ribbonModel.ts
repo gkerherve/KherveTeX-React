@@ -276,6 +276,8 @@ const cmds: Command[] = [
   { id: 'documents_dock', text: 'Documents', icon: 'documents_panel', shortcut: 'Ctrl+5', checkable: true },
   { id: 'fit_page_width', text: '&Fit page width', icon: 'fit_width', shortcut: 'Ctrl+0',
     checkable: true, checked: true },
+  { id: 'show_latex_source', text: 'Show LaTeX &source', icon: 'code', checkable: true,
+    tooltip: 'Show raw LaTeX in the text as its source instead of as the PDF shows it' },
   { id: 'theme_light', text: 'Light', checkable: true, group: 'theme', checked: true },
   { id: 'theme_dark', text: 'Dark', checkable: true, group: 'theme' },
   { id: 'spell_check', text: 'Check &spelling', icon: 'spell_check', checkable: true, checked: true },
@@ -506,6 +508,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },
     { label: 'PDF', large: ['pdf_panel', 'pdf_detach'] },
     { label: 'Zoom', large: ['fit_page_width'] },
+    { label: 'Show', large: ['show_latex_source'] },
     // A long document as a project of smaller ones, and their list.
     { label: 'Documents', large: ['split_documents', 'documents_dock'] },
   ] },

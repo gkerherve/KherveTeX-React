@@ -4,6 +4,7 @@
 import { closeHistory } from 'prosemirror-history'
 import { Selection, type Transaction } from 'prosemirror-state'
 import { runAction } from '../app/actions.ts'
+import { setShowLatexSource, showLatexSource } from '../app/actions/editor.ts'
 import { newDocumentAction, openPath } from '../app/actions/file.ts'
 import { compileUi, engineAvailable, kickCompile, resolvedSourceDir } from '../app/compile.ts'
 import { appStore, editDoc } from '../app/store.ts'
@@ -270,6 +271,9 @@ export async function createAppHost(): Promise<ToolHost> {
       await p.writeFile(pngPath, png)
       return true
     },
+
+    latexSource: () => showLatexSource(),
+    setLatexSource: (on: boolean) => setShowLatexSource(on),
 
     refreshFigureImage: (pngPath: string) => announceFigureUpdated(pngPath),
 
