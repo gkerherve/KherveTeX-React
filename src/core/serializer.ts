@@ -203,6 +203,17 @@ export function figureOutputPath(node: Figure, vectorExt: string): string {
   return path
 }
 
+// The \includegraphics of a figure's pictures, one row: the main one by
+// `height` or `width`, the others by their own size.
+export function figureIncludes(node: Figure, vectorExt: string): string {
+  const one = (path: string, size: string) =>
+    `\\includegraphics[${size}]{${figureOutputPath({ ...node, path } as Figure, vectorExt)}}`
+  const main = one(node.path, node.height ? `height=${node.height}` : `width=${node.width}`)
+  const rest = (node.extra ?? []).map((e) =>
+    one(e.path, e.height ? `height=${e.height}` : `width=${e.width || '0.3\\textwidth'}`))
+  return [main, ...rest].join('\\hspace{0.4cm}')
+}
+
 const maybeLabel = (label: string | null) => (label ? `\\label{${label}}\n` : '')
 
 const ALIGN_ENVS: Record<string, string> = { left: 'flushleft', center: 'center', right: 'flushright' }
@@ -322,7 +333,7 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       const placement = floatH ? 'H' : 'htbp'
       return `\\begin{figure}[${placement}]\n`
         + `  ${FIGURE_ALIGN[node.align] ?? '\\centering'}\n`
-        + `  \\includegraphics[width=${node.width}]{${path}}\n`
+        + `  ${(node.extra && node.extra.length) || node.height ? figureIncludes(node, '.pdf') : `\\includegraphics[width=${node.width}]{${path}}`}\n`
         // No caption, no label: no "Figure N:" under the picture (an
         // imported screenshot or icon); a label needs the numbered caption.
         + (node.caption || node.label ? `  \\caption{${node.caption}}\n` : '')

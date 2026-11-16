@@ -61,35 +61,44 @@ async function bundleFigures(doc: Document, baseDir: string, fs: FileAccess): Pr
   const images: [string, string][] = []
   const bySource = new Map<string, string>()  // de-dupe identical paths
   let counter = 1
+  // The archive name for one picture file (adding it once), or its own
+  // path when the file is missing so the user can re-link it later.
+  const bundle = async (src: string, source: string): Promise<string> => {
+    let arcName = bySource.get(src)
+    if (arcName !== undefined) return arcName
+    let srcPath = src
+    // Fall back to looking next to the saved file for relative
+    // references — the common case for imported documents not yet saved.
+    if (!isAbsolute(srcPath) && !(await fs.exists(srcPath))) {
+      const candidate = join(baseDir, src)
+      if (await fs.exists(candidate)) srcPath = candidate
+    }
+    if (await fs.exists(srcPath)) {
+      const ext = suffix(srcPath) || '.png'
+      arcName = `${IMAGES_DIR}/figure_${zpad(counter, 3)}${ext}`
+      counter += 1
+      images.push([srcPath, arcName])
+      // The editable source and the PDF LaTeX includes live beside the
+      // PNG preview; keep them paired by stem.
+      for (const sibExt of FIGURE_SIBLINGS[source] ?? []) {
+        const sib = withSuffix(srcPath, sibExt)
+        if (await fs.exists(sib)) images.push([sib, arcName.slice(0, -ext.length) + sibExt])
+      }
+    } else {
+      arcName = src
+    }
+    bySource.set(src, arcName)
+    return arcName
+  }
   for (const block of doc.children) {
     if (block.type === 'Figure' && block.path) {
-      const src = block.path
-      let arcName = bySource.get(src)
-      if (arcName === undefined) {
-        let srcPath = src
-        // Fall back to looking next to the saved file for relative
-        // references — the common case for imported documents not yet saved.
-        if (!isAbsolute(srcPath) && !(await fs.exists(srcPath))) {
-          const candidate = join(baseDir, src)
-          if (await fs.exists(candidate)) srcPath = candidate
-        }
-        if (await fs.exists(srcPath)) {
-          const ext = suffix(srcPath) || '.png'
-          arcName = `${IMAGES_DIR}/figure_${zpad(counter, 3)}${ext}`
-          counter += 1
-          images.push([srcPath, arcName])
-          // The editable source and the PDF LaTeX includes live beside the
-          // PNG preview; keep them paired by stem.
-          for (const sibExt of FIGURE_SIBLINGS[block.source] ?? []) {
-            const sib = withSuffix(srcPath, sibExt)
-            if (await fs.exists(sib)) images.push([sib, arcName.slice(0, -ext.length) + sibExt])
-          }
-        } else {
-          arcName = src
-        }
-        bySource.set(src, arcName)
+      const arcName = await bundle(block.path, block.source)
+      const out = { ...block, path: arcName } as Figure
+      if (block.extra && block.extra.length) {
+        out.extra = []
+        for (const e of block.extra) out.extra.push({ ...e, path: e.path ? await bundle(e.path, '') : e.path })
       }
-      rewritten.push({ ...block, path: arcName } as Figure)
+      rewritten.push(out)
     } else {
       rewritten.push(block)
     }
@@ -205,6 +214,10 @@ export async function loadKdocz(path: string, extractTo: string, fs: FileAccess)
     if (block.type === 'Figure' && block.path) {
       const candidate = join(extractTo, block.path)
       if (await fs.exists(candidate)) block.path = normalize(candidate)
+      for (const e of block.extra ?? []) {
+        const c = join(extractTo, e.path)
+        if (await fs.exists(c)) e.path = normalize(c)
+      }
     }
   }
   return [doc, extractTo]

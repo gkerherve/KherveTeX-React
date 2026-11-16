@@ -33,7 +33,8 @@ export function absoluteFigurePaths(slice: Slice, docDir: string | null): Slice 
     const out: PMNode[] = []
     frag.forEach(n => {
       if (n.type.name === 'figure' && n.attrs.path && !isAbsolute(n.attrs.path)) {
-        out.push(n.type.create({ ...n.attrs, path: join(docDir, n.attrs.path) }, n.content, n.marks))
+        const extra = (n.attrs.extra ?? []).map((e: { path: string }) => (e.path && !isAbsolute(e.path) ? { ...e, path: join(docDir, e.path) } : e))
+        out.push(n.type.create({ ...n.attrs, path: join(docDir, n.attrs.path), extra }, n.content, n.marks))
       } else {
         out.push(n.isLeaf ? n : n.copy(map(n.content)))
       }

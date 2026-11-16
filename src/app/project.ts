@@ -906,6 +906,9 @@ export class ProjectSession {
       if (block.type === 'Figure' && block.path && !isAbsolute(block.path)) {
         block.path = normalize(join(dirname(src), block.path))
       }
+      if (block.type === 'Figure') {
+        for (const e of block.extra ?? []) if (e.path && !isAbsolute(e.path)) e.path = normalize(join(dirname(src), e.path))
+      }
     }
     const dest = await projectStore.uniquePath(projDir, stem, fs)
     await projectStore.writeDoc(doc, dest, fs)

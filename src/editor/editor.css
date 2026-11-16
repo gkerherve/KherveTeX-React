@@ -222,6 +222,8 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
 .kt-figure[data-align='right'] .kt-figure-row { text-align: right; }
 .kt-figure-row + .kt-figure-row { border-top: 1px solid #c8e6c9; }
 .kt-figure-image img { max-width: 100%; vertical-align: top; }
+.kt-figure-pics { display: inline-flex; flex-wrap: wrap; gap: 0.4cm; align-items: center; justify-content: center; }
+.kt-figure-pics img { max-width: 100%; }
 /* Word's sizing handles, on a picture under the mouse or selected. */
 .kt-figure-frame { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
 .kt-handle {

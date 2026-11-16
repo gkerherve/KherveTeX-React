@@ -518,7 +518,7 @@ const DEFAULT_CONTENT_TYPES = new Set([
 const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((x, i) => x === b[i])
 
 // Run.add_picture(path, width=Inches(4.5))
-function addPicture(b: Builder, run: El, path: string, blob: Uint8Array): void {
+function addPicture(b: Builder, run: El, path: string, blob: Uint8Array, widthIn = 4.5): void {
   const newName = basename(path)
   const newHeader = imageHeader(blob)
   // ImageParts.get_or_add_image_part: the same bytes share one part.
@@ -540,7 +540,7 @@ function addPicture(b: Builder, run: El, path: string, blob: Uint8Array): void {
   if (header.horzDpi === 0 || header.vertDpi === 0) throw new PyError('ZeroDivisionError', 'division by zero')
   const width = Inches(header.pxWidth / header.horzDpi)
   const height = Inches(header.pxHeight / header.vertDpi)
-  const cx = Inches(4.5)
+  const cx = Inches(widthIn)
   if (width === 0) throw new PyError('ZeroDivisionError', 'float division by zero')
   const cy = pyRound(height * (cx / width), 0)
   validateRange(cx, 0, 27273042316900)
@@ -1055,7 +1055,20 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
           const code = (e as { code?: string }).code
           throw new PyError(code === 'EISDIR' ? 'IsADirectoryError' : 'OSError', String(e))
         }
-        addPicture(b, run, block.path === '' ? '.' : block.path, blob)
+        const row = block.extra && block.extra.length > 0
+        // A row of pictures shares the text width (about 6 in), each on
+        // its own run; a lone picture keeps its 4.5 in.
+        const rowIn = row ? 6 / (1 + block.extra!.length) - 0.1 : 4.5
+        addPicture(b, run, block.path === '' ? '.' : block.path, blob, rowIn)
+        for (const e of block.extra ?? []) {
+          const ep = join(baseDir, e.path)
+          if (await fs.exists(ep)) {
+            addRun(para, ' ')
+            addPicture(b, addRun(para), e.path, await fs.read(ep), rowIn)
+          } else {
+            addRun(para, ` [Image: ${e.path}]`)
+          }
+        }
       } else {
         addRun(para, `[Image: ${block.path}]`)
       }

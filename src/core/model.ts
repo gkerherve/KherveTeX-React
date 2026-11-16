@@ -47,8 +47,17 @@ export interface Section {
 export interface MathBlock { latex: string; numbered: boolean; label: string | null; type: 'MathBlock' }
 export interface ListItem { children: Inline[]; type: 'ListItem' }
 export interface List { ordered: boolean; items: ListItem[]; type: 'List' }
+// More pictures shown beside a figure's main one, in one row, under one
+// caption and label. Each is sized by `height` (3.4cm) or, without one,
+// by `width` (0.3\textwidth).
+export interface FigureImage { path: string; height?: string; width?: string }
 export interface Figure {
   path: string; caption: string; label: string | null; width: string
+  // Height of the main picture in a row (replaces `width`); left out when
+  // the figure has one picture sized by `width`. Both fields are only
+  // present when set, so ordinary figures keep their JSON.
+  height?: string
+  extra?: FigureImage[]
   // "drawing": `path` is the PNG preview beside .svg and .pdf siblings.
   // "flowchart": `path` is the PNG preview beside .pdf, .flow.json, .tikz.
   source: string
@@ -118,6 +127,8 @@ export const list = (ordered = false, items: ListItem[] = []): List => ({ ordere
 export const figure = (o: Partial<Omit<Figure, 'type'>> = {}): Figure => ({
   path: o.path ?? '', caption: o.caption ?? '', label: o.label ?? null,
   width: o.width ?? '0.8\\textwidth', source: o.source ?? '', align: o.align ?? 'center',
+  ...(o.height ? { height: o.height } : {}),
+  ...(o.extra && o.extra.length ? { extra: o.extra } : {}),
   type: 'Figure',
 })
 export const table = (o: Partial<Omit<Table, 'type'>> = {}): Table => ({
@@ -307,6 +318,7 @@ function buildBlock(d: Json): Block {
     case 'Figure': return figure({
       path: get(d, 'path', ''), caption: get(d, 'caption', ''), label: get(d, 'label', null),
       width: get(d, 'width', '0.8\\textwidth'), source: get(d, 'source', ''), align: get(d, 'align', 'center'),
+      height: get(d, 'height', ''), extra: get<FigureImage[]>(d, 'extra', []),
     })
     case 'Table': return table({
       rows: get<unknown[][]>(d, 'rows', []).map((row) => row.map((c) => pyStr(c))),

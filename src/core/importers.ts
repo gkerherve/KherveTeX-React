@@ -940,6 +940,25 @@ function parseFigure(body: string): M.Figure {
   }
   const lab = reSearch(LABEL_RE, body)
   let width = '0.8\\textwidth'
+  // Several pictures in one figure: a row under one caption.
+  const incs = [...body.matchAll(/\\includegraphics(?:\[([^\]]*)\])?\{([^}]+)\}/g)]
+  const sizeOf = (opts: string | undefined, key: string) => {
+    const m = new RegExp(`${key}\\s*=\\s*([^,\\]]+)`).exec(opts || '')
+    return m ? m[1].trim() : ''
+  }
+  if (incs.length > 1) {
+    const [first, ...rest] = incs
+    const fh = sizeOf(first[1], 'height')
+    return M.figure({
+      path: first[2], caption, label: lab ? lab[1] : null,
+      width: sizeOf(first[1], 'width') || '0.8\\textwidth',
+      height: fh,
+      extra: rest.map((m) => {
+        const h = sizeOf(m[1], 'height')
+        return h ? { path: m[2], height: h } : { path: m[2], width: sizeOf(m[1], 'width') || '0.3\\textwidth' }
+      }),
+    })
+  }
   if (inc) {
     const opts = inc[1] || ''
     const wm = reSearch(pyRe(String.raw`width\s*=\s*([^,\]]+)`), opts)

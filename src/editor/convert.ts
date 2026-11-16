@@ -254,6 +254,7 @@ function buildBlock(b: M.Block): PMNode {
       b.items.map(it => schema.nodes.list_item.create(null, inlineNodes(it.children, []))))
     case 'Figure': return schema.nodes.figure.create({
       path: b.path, caption: b.caption, label: b.label, width: b.width, source: b.source, align: b.align,
+      height: b.height ?? '', extra: b.extra ?? [],
     })
     case 'Table': return tableNode(b)
     case 'RawLatex':
@@ -415,6 +416,7 @@ export function canonicalBlock(node: PMNode): M.Block | null {
     case 'figure': return M.figure({
       path: a.path, caption: a.caption, label: a.label || null, width: a.width || '0.8\\textwidth',
       source: a.source, align: a.align || 'center',
+      height: a.height || '', extra: a.extra && a.extra.length ? a.extra : [],
     })
     case 'table': return tableFromPM(node)
     case 'raw_latex': return M.rawLatex(node.textContent)

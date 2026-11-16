@@ -7,6 +7,11 @@ import type { Abstract, Block, Document, Figure, Inline, Keywords, Mark } from '
 import { isAlpha, pyFixed, pyFloat, pyTitle, rstrip, strip } from './py.ts'
 import { figureOutputPath } from './serializer.ts'
 
+const lengthToTypst = (v: string | undefined): string => {
+  const m = /^([\d.]+)\s*(cm|mm|in|pt)$/.exec((v ?? '').trim())
+  return m ? `${m[1]}${m[2]}` : 'auto'
+}
+
 const has = (o: object, k: string): boolean => Object.hasOwn(o, k)
 
 // Characters that have special meaning in Typst markup and need escaping.
@@ -233,7 +238,14 @@ function serializeFigure(node: Figure): string {
   const widthPct = latexWidthToTypst(node.width)
   const cap = escapeText(node.caption)
   const lab = maybeLabel(node.label)
-  const parts = [`#figure(\n  image("${path}", width: ${widthPct})`]
+  const row = node.extra && node.extra.length > 0
+  const body = row
+    ? `grid(columns: ${1 + node.extra!.length}, column-gutter: 8pt, align: horizon, `
+      + `image("${path}", height: ${lengthToTypst(node.height)}), `
+      + node.extra!.map((e) => `image("${figureOutputPath({ ...node, path: e.path }, '.svg')}", height: ${lengthToTypst(e.height)})`).join(', ')
+      + ')'
+    : `image("${path}", width: ${widthPct})`
+  const parts = [`#figure(\n  ${body}`]
   if (cap) parts.push(`,\n  caption: [${cap}]`)
   parts.push(`\n)${lab}\n`)
   let out = parts.join('')

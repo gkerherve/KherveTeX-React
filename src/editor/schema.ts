@@ -63,7 +63,8 @@ const nodes: Record<string, NodeSpec> = {
     group: 'block', atom: true, selectable: true, draggable: false,
     attrs: {
       path: { default: '' }, caption: { default: '' }, label: { default: null },
-      width: { default: '0.8\\textwidth' }, source: { default: '' }, align: { default: 'center' }, ...ORIG,
+      width: { default: '0.8\\textwidth' }, source: { default: '' }, align: { default: 'center' },
+      height: { default: '' }, extra: { default: [] }, ...ORIG,
     },
     // The attributes go with a copy, so a copied figure pastes back as a
     // figure (in this document, another one, another window); the page

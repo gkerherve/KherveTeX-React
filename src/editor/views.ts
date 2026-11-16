@@ -169,7 +169,8 @@ class FigureView implements NodeView {
     // minutes. Redraw only when what the figure shows has changed.
     // The text width only with an image: a figure built while the editor
     // view itself is still being made has none yet, and asking crashed.
-    const key = [src ?? '', a.path, a.width, a.caption, a.label, a.align,
+    const extra: { path: string; height?: string; width?: string }[] = a.extra ?? []
+    const key = [src ?? '', a.path, a.width, a.height, JSON.stringify(extra), a.caption, a.label, a.align,
       src ? this.host.textWidthPx() : 0].join('\n')
     if (key === this.shown) return
     this.shown = key
@@ -183,7 +184,23 @@ class FigureView implements NodeView {
       s.textContent = text
       img.replaceChildren(s)
     }
-    if (src) {
+    if (extra.length > 0) {
+      // Several pictures in one row, each at its own height.
+      const row = document.createElement('span')
+      row.className = 'kt-figure-pics'
+      const pics = [{ path: a.path, height: a.height as string, width: a.width as string }, ...extra]
+      for (const p of pics) {
+        const s = this.host.resolveImage(p.path)
+        const im = document.createElement('img')
+        im.draggable = false
+        if (s) im.src = s
+        else im.alt = `[Image: ${p.path}]`
+        if (p.height) im.style.height = `${lengthPx(p.height)}px`
+        else im.style.width = `${figureWidthPx(p.width || '0.3\\textwidth', this.host.textWidthPx())}px`
+        row.appendChild(im)
+      }
+      img.appendChild(row)
+    } else if (src) {
       const im = document.createElement('img')
       im.src = src
       im.draggable = false
@@ -265,6 +282,15 @@ class FigureView implements NodeView {
   }
   ignoreMutation() { return true }
   stopEvent(e: Event) { return (e.target as HTMLElement | null)?.classList?.contains('kt-handle') ?? false }
+}
+
+// A LaTeX length (3.4cm, 12mm, 1.5in, 20pt) in CSS pixels; 110 when it
+// is not one of those.
+export function lengthPx(spec: string): number {
+  const m = /^([\d.]+)\s*(cm|mm|in|pt)$/.exec((spec || '').trim())
+  if (!m) return 110
+  const n = Number(m[1])
+  return Math.round(n * ({ cm: 37.8, mm: 3.78, in: 96, pt: 1.333 } as Record<string, number>)[m[2]])
 }
 
 // On-screen width of a figure from its LaTeX width (0.6\textwidth, 8cm,
