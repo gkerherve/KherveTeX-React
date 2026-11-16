@@ -196,6 +196,20 @@ function setAlignment(p: El, jc: Jc): void {
   setAttr(getOrAdd(getOrAddPPr(p), 'w:jc', PPR_SEQ), 'w:val', jc)
 }
 
+// A box: the paragraph gets a thin black frame on all four sides (Word's
+// paragraph border), the nearest Word has to \fbox.
+function setBoxBorder(p: El): void {
+  const bdr = getOrAdd(getOrAddPPr(p), 'w:pBdr', PPR_SEQ)
+  for (const side of ['w:top', 'w:left', 'w:bottom', 'w:right']) {
+    const e = new El(side)
+    setAttr(e, 'w:val', 'single')
+    setAttr(e, 'w:sz', '6')
+    setAttr(e, 'w:space', '4')
+    setAttr(e, 'w:color', '000000')
+    append(bdr, e)
+  }
+}
+
 function setPStyle(p: El, style: string): void {
   setAttr(getOrAdd(getOrAddPPr(p), 'w:pStyle', PPR_SEQ), 'w:val', PARAGRAPH_STYLE_IDS[style])
 }
@@ -1058,6 +1072,10 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
       setFontName(run, 'Courier New')
     } else if (block.type === 'Frame') {
       const para = b.addParagraph('', 'Heading 1')
+      _addInlines(b, para, block.children)
+    } else if (block.type === 'Box') {
+      const para = b.addParagraph()
+      setBoxBorder(para)
       _addInlines(b, para, block.children)
     }
 

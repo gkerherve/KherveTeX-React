@@ -329,6 +329,7 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
 .kt-show-marks > div.kt-title::after, .kt-show-marks > div.kt-author::after,
 .kt-show-marks > div.kt-abstract::after, .kt-show-marks > div.kt-keywords::after,
 .kt-show-marks > div.kt-theorem::after, .kt-show-marks > div.kt-affiliation::after,
+.kt-show-marks > div.kt-box::after,
 .kt-show-marks > div.kt-correspondence::after {
   content: '¶';
   color: #8a8a8a;
@@ -551,3 +552,13 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
   border-radius: 0 0 14pt 14pt;
 }
 .kt-raw.kt-tp-foot.kt-tp-foot-source { height: auto; font-size: 13.33px; line-height: normal; color: #b71c1c; }
+
+/* \fbox{\parbox{0.95\linewidth}{...}}: a framed paragraph, drawn as the PDF
+   draws it, a thin black frame at 95% of the line. */
+div.kt-box {
+  border: 1px solid #000;
+  padding: 3px 6px;
+  width: 95%;
+  box-sizing: border-box;
+  text-indent: 0 !important;
+}

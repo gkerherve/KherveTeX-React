@@ -696,6 +696,19 @@ function scanBracketArgMacro(body: string, start: number): [number, number] | nu
   return best
 }
 
+// A paragraph that is one frame: [\medskip][\noindent]\fbox{\parbox[pos]{width}{BODY}}
+// and nothing else. Anything else in the paragraph leaves it as it was.
+const BOX_HEAD = /^(?:\\(?:noindent|medskip|smallskip|bigskip|par)(?![a-zA-Z])\s*)*\\fbox\s*\{\s*\\parbox\s*(?:\[[^\]]*\]\s*)?\{[^{}]*\}\s*(?=\{)/
+
+function parseBoxParagraph(para: string): Block | null {
+  const m = BOX_HEAD.exec(para)
+  if (!m) return null
+  const [body, end] = consumeBraced(para, m[0].length)
+  if (body === null || para.slice(end).trim() !== '}') return null
+  const children = parseInlines(strip(body))
+  return children.length ? M.box(children) : null
+}
+
 // Walk the document body and produce a list of Block nodes.
 function parseBlocks(body: string): Block[] {
   const blocks: Block[] = []
@@ -735,6 +748,8 @@ function parseBlocks(body: string): Block[] {
     if (bestStart > i) {
       const chunk = body.slice(i, bestStart)
       for (const para of splitParagraphs(chunk)) {
+        const framed = parseBoxParagraph(para)
+        if (framed) { blocks.push(framed); continue }
         const children = parseInlines(para)
         if (children.length) blocks.push(M.paragraph(children))
       }

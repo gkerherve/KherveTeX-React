@@ -219,6 +219,11 @@ export function serializeBlock(node: Block): string {
       const body = serializeInlines(node.children)
       return `#pagebreak()\n= ${body}\n`
     }
+
+    case 'Box': {
+      const body = serializeInlines(node.children)
+      return `#block(width: 95%, stroke: 0.5pt, inset: 6pt)[${body}]\n`
+    }
   }
   throw new TypeError(`Unknown block node: ${(node as { type: string }).type}`)
 }

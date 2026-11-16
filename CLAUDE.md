@@ -32,7 +32,9 @@ made), shown `vN`. Set it in every commit, and every commit message
 starts with `v<N>: `. Release tags are `vN`. As semver N.0.0 is newer
 than the old `0.338.0`, so copies on the old numbering update to it
 with no bridge release. Commits before the switch keep their old
-numbers (v0.1 to v0.79, then v0.336 to v0.338).
+numbers (v0.1 to v0.79, then v0.336 to v0.338). 2026-11-16: the owner
+set the running number to **v401**, so the next commit is v402 (use the
+number in `package.json` + 1, not the raw commit count).
 
 ## Where the code came from (the Python port)
 

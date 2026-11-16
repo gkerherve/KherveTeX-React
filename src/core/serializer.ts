@@ -348,6 +348,10 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       return `\\begin{keyword}\n${serializeInlines(node.children)}\n\\end{keyword}\n`
     case 'Frame':
       return serializeInlines(node.children)
+    case 'Box':
+      // A frame a little narrower than the line, so frame and padding fit
+      // inside the margins. \medskip keeps neighbouring boxes apart.
+      return `\\medskip\\noindent\\fbox{\\parbox{0.95\\linewidth}{${serializeInlines(node.children)}}}\n`
   }
   throw new TypeError(`Unknown block node: ${(node as { type: string }).type}`)
 }

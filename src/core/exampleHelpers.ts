@@ -36,6 +36,7 @@ export const Correspondence = (o: Kw<M.Correspondence> = {}) => M.correspondence
 export const Abstract = (o: Kw<M.Abstract> = {}) => M.abstract(o.children ?? [])
 export const Keywords = (o: Kw<M.Keywords> = {}) => M.keywords(o.children ?? [])
 export const Frame = (o: Kw<M.Frame> = {}) => M.frame(o.children ?? [])
+export const Box = (o: Kw<M.Box> = {}) => M.box(o.children ?? [])
 export const Theorem = (o: Kw<M.Theorem> = {}) =>
   M.theorem(o.kind ?? 'theorem', o.title ?? '', o.children ?? [], o.start ?? true)
 export const Document = (o: Kw<M.Document> = {}) => M.document(o.children ?? [], o.meta ?? M.docMeta())

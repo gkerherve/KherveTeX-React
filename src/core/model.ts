@@ -74,12 +74,15 @@ export interface Correspondence { children: Inline[]; type: 'Correspondence' }
 export interface Abstract { children: Inline[]; type: 'Abstract' }
 export interface Keywords { children: Inline[]; type: 'Keywords' }
 export interface Frame { children: Inline[]; type: 'Frame' }
+// A framed paragraph: \fbox{\parbox{0.95\linewidth}{...}} in the PDF, a bordered
+// paragraph in Word. It holds one paragraph of inlines.
+export interface Box { children: Inline[]; type: 'Box' }
 // One paragraph of a theorem-like environment; start=false continues the
 // previous one of the same kind.
 export interface Theorem { kind: string; title: string; children: Inline[]; start: boolean; type: 'Theorem' }
 
 export type Block = Paragraph | Section | MathBlock | List | Figure | Table | RawLatex
-  | Title | Author | Affiliation | Correspondence | Abstract | Keywords | Frame | Theorem
+  | Title | Author | Affiliation | Correspondence | Abstract | Keywords | Frame | Theorem | Box
 
 export const THEOREM_KINDS: Record<string, string> = {
   theorem: 'Theorem', lemma: 'Lemma', proposition: 'Proposition',
@@ -131,6 +134,7 @@ export const correspondence = (children: Inline[] = []): Correspondence => ({ ch
 export const abstract = (children: Inline[] = []): Abstract => ({ children, type: 'Abstract' })
 export const keywords = (children: Inline[] = []): Keywords => ({ children, type: 'Keywords' })
 export const frame = (children: Inline[] = []): Frame => ({ children, type: 'Frame' })
+export const box = (children: Inline[] = []): Box => ({ children, type: 'Box' })
 export const theorem = (kind = 'theorem', t = '', children: Inline[] = [], start = true): Theorem =>
   ({ kind, title: t, children, start, type: 'Theorem' })
 
@@ -323,6 +327,7 @@ function buildBlock(d: Json): Block {
     case 'Abstract': return abstract(kids())
     case 'Keywords': return keywords(kids())
     case 'Frame': return frame(kids())
+    case 'Box': return box(kids())
     case 'Theorem': return theorem(get(d, 'kind', 'theorem'), get(d, 'title', ''), kids(), get(d, 'start', true))
   }
   throw new Error(`Unknown block node type: ${JSON.stringify(t)}`)

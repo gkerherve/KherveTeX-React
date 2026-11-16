@@ -25,7 +25,7 @@ export const FONT_HEIGHT_EM = 1.407
 // ---- per-block user state encoding (editor.py) ----
 export const S = {
   PARAGRAPH: 0, TITLE: 7, AUTHOR: 8, ABSTRACT: 9, KEYWORDS: 10, CHAPTER: 11,
-  FRAME: 12, AFFILIATION: 13, CORRESPONDENCE: 14, THEOREM: 15,
+  FRAME: 12, AFFILIATION: 13, CORRESPONDENCE: 14, THEOREM: 15, BOX: 16,
   HEADING_STAR_BASE: 20, CHAPTER_STAR: 31, MATH_BLOCK: 99, FIGURE: 100, TABLE: 101, RAW: 102,
 } as const
 
@@ -74,6 +74,7 @@ export function stateOf(node: PMNode): number {
     case 'affiliation': return S.AFFILIATION
     case 'correspondence': return S.CORRESPONDENCE
     case 'theorem': return S.THEOREM
+    case 'box': return S.BOX
     case 'section':
       if (a.level === 0) return a.numbered ? S.CHAPTER : S.CHAPTER_STAR
       return a.numbered ? a.level : S.HEADING_STAR_BASE + a.level
@@ -340,7 +341,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     : { family: 'system-ui, sans-serif', sizePx: 18 * pt, bold: true, italic: false, upper: false, color: '#1565C0' }
   const charFor = (state: number): CharStyle | null => {
     const code = styleCode(state)
-    if (state === S.THEOREM) return bodyChar
+    if (state === S.THEOREM || state === S.BOX) return bodyChar
     if (code === null) return null
     if (code === 0) return bodyChar
     if (code === -5) return headingChar(0)
@@ -450,6 +451,11 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       L.align = 'justify'
       L.top = node.attrs.start ? 6 : 0
       L.bottom = 6
+    } else if (state === S.BOX) {
+      // \fbox{\parbox{..}}: flush left, a \medskip above, the frame drawn by CSS.
+      L.align = 'left'
+      L.top = 6
+      L.bottom = 6
     } else if (state === S.MATH_BLOCK) L.align = 'center'
     else if (state === S.TITLE || state === S.AUTHOR || state === S.AFFILIATION || state === S.CORRESPONDENCE) L.align = 'center'
     else if (state === S.RAW) { L.top = 6; L.bottom = 6 }
@@ -555,7 +561,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       L.numberStyle = label.startsWith('Proof') ? 'proof' : 'theorem'
       L.numberGap = bodyChar.sizePx * FONT_HEIGHT_EM * 0.4
     }
-    if (state === S.PARAGRAPH) L.lineHeight = bodyLinePx
+    if (state === S.PARAGRAPH || state === S.BOX) L.lineHeight = bodyLinePx
     else if (key) { /* set with the style's own leading */ }
     else if (Math.abs(spacing - 1.0) > 0.01) L.lineHeight = { proportional: spacing }
     else L.lineHeight = 'normal'

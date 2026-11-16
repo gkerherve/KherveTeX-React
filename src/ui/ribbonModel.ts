@@ -574,7 +574,7 @@ export const RIBBON_TABS: RibbonTab[] = [
 export const PARAGRAPH_STYLES: [string, number][] = [
   ['Body text', 0], ['Title', -1], ['Author', -2], ['Affiliation', -7],
   ['Correspondence', -8], ['Abstract', -3], ['Keywords', -4],
-  ['Frame (slide)', -6], ['Chapter', -5],
+  ['Frame (slide)', -6], ['Box (framed)', -9], ['Chapter', -5],
   ['Heading 1', 1], ['Heading 2', 2], ['Heading 3', 3], ['Heading 4', 4],
   ['Heading 5', 5],
 ]

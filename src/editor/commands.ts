@@ -107,6 +107,7 @@ export function headingCode(node: PMNode | null): number {
     case 'abstract': return -3
     case 'keywords': return -4
     case 'frame': return -6
+    case 'box': return -9
     case 'affiliation': return -7
     case 'correspondence': return -8
     case 'paragraph': return 0
@@ -121,7 +122,7 @@ export function currentHeadingLevel(state: EditorState): number {
 
 const CODE_TYPES: Record<number, string> = {
   [-1]: 'title', [-2]: 'author', [-3]: 'abstract', [-4]: 'keywords', [-6]: 'frame',
-  [-7]: 'affiliation', [-8]: 'correspondence',
+  [-7]: 'affiliation', [-8]: 'correspondence', [-9]: 'box',
 }
 
 export function typeForCode(code: number): { type: NodeType; attrs: Record<string, unknown> } {

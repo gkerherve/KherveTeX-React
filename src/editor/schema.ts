@@ -40,6 +40,7 @@ const nodes: Record<string, NodeSpec> = {
   abstract: textBlock('div', 'kt-abstract'),
   keywords: textBlock('div', 'kt-keywords'),
   frame: textBlock('div', 'kt-frame'),
+  box: textBlock('div', 'kt-box'),
   theorem: textBlock('div', 'kt-theorem', {
     kind: { default: 'theorem' }, title: { default: '' }, start: { default: true },
   }),
@@ -171,4 +172,4 @@ export const WRAPPER_MARKS = ['link', 'highlight', 'comment'] as const
 
 // Block node types that hold text with a paragraph style.
 export const STYLED_TEXT = new Set(['paragraph', 'section', 'title', 'author', 'affiliation',
-  'correspondence', 'abstract', 'keywords', 'frame', 'theorem'])
+  'correspondence', 'abstract', 'keywords', 'frame', 'theorem', 'box'])
