@@ -106,7 +106,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bundles: nsis
           - name: macOS-arm64
-            runner: macos-14
+            runner: macos-15
             target: aarch64-apple-darwin
             bundles: app,dmg
           - name: macOS-x86_64
