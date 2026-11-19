@@ -5,7 +5,7 @@ import pkg from '../../../package.json'
 import { isTauri, platform } from '../../platform'
 import { aboutHtml, showAboutDialog, showHelpGuide, showShortcuts, type Library } from '../../ui/dialogs/HelpDialogs'
 import { registerActions } from '../actions'
-import { VERSION } from '../../version'
+import { FEEDBACK_EMAIL, VERSION } from '../../version'
 
 // The version a dependency was built against, as package.json pins it.
 function declared(name: string): string {
@@ -70,4 +70,5 @@ registerActions({
   help_guide: () => showHelpGuide(),
   shortcuts: () => showShortcuts(),
   about: () => about(),
+  send_feedback: () => platform().openUrl(`mailto:${FEEDBACK_EMAIL}?subject=kTeX%20feedback`).catch(() => {}),
 })

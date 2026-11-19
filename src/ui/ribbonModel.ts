@@ -329,6 +329,7 @@ const cmds: Command[] = [
   // Help
   { id: 'help_guide', text: '&User guide', icon: 'help_icon', shortcut: 'F1' },
   { id: 'shortcuts', text: '&Keyboard shortcuts', icon: 'keyboard_icon' },
+  { id: 'send_feedback', text: 'Send &feedback (beta)…' },
   { id: 'about', text: '&About KherveTeX', icon: 'about_icon' },
   { id: 'welcome', text: '&Welcome page…', icon: 'welcome_icon' },
   { id: 'check_updates', text: 'Check for Updates', icon: 'update_icon' },

@@ -7,7 +7,7 @@ import { AppIcon } from './icons'
 import { isBetaExample } from './pageBeta'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { SHORT_NAME, VERSION } from '../version'
+import { FEEDBACK_EMAIL, SHORT_NAME, VERSION } from '../version'
 import type { LayoutMode } from '../app/store'
 import { basename, dirname } from '../core/paths'
 
@@ -121,6 +121,7 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
             </label>
           ))}
         </div>
+        <div style={{ color: 'var(--muted, #888)' }}>{SHORT_NAME} is in beta — some parts are still new. Please send feedback to <b>{FEEDBACK_EMAIL}</b> (Help &gt; Send feedback).</div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label><input type='checkbox' checked={again} onChange={e => setAgain(e.target.checked)} /> Show this page when {SHORT_NAME} starts</label>
           <div style={{ flex: 1 }} />

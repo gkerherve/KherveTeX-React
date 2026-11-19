@@ -5,6 +5,7 @@
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import { platform } from '../../platform'
 import { messageBox } from '../../platform/MessageBox'
+import { FEEDBACK_EMAIL } from '../../version'
 import { Icon } from '../icons'
 import { Mnemonic } from '../Menu'
 import { openDialog } from './dialogHost'
@@ -138,6 +139,8 @@ function About({ version, html, close }: { version: string, html: string, close:
           <p style={{ color: '#888', margin: '3px 0 0 0' }}>{version}</p>
           <p style={{ margin: '8px 0 0 0' }}>A WYSIWYG LaTeX document editor with built-in Git version history.</p>
           <p style={{ margin: '6px 0 0 0' }}>Press <b>F1</b> for the User Guide.</p>
+          <p style={{ margin: '6px 0 0 0' }}>kTeX is in <b>beta</b>: some parts are still new. Feedback is very welcome —<br />
+            <a href={`mailto:${FEEDBACK_EMAIL}?subject=kTeX%20feedback`}>{FEEDBACK_EMAIL}</a></p>
           <p style={{ margin: '6px 0 0 0' }}>© 2026 Gwilherm Kerhervé · GPL-3.0<br />
             <a href='https://github.com/gkerherve/kherveTeX'>github.com/gkerherve/kherveTeX</a></p>
         </div>

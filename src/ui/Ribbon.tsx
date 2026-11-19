@@ -16,6 +16,7 @@ import {
   type Command, type ContextKind, type MenuEntry, type RibbonGroup, type RibbonItem,
 } from './ribbonModel'
 import { lookupTip, useTipProps, type TipContent } from './Tooltip'
+import { FEEDBACK_EMAIL, SHORT_NAME } from '../version'
 import './ribbon.css'
 
 const TILE_W = 70
@@ -461,6 +462,11 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
         <Corner ids={CORNER_LEFT} ctx={ctx} side='left' />
         <TabBar tabs={visible} current={shown.name} onPick={setCurrent} />
         <div className='rb-bar-fill' />
+        <button type='button' className='rb-feedback'
+          title={`${SHORT_NAME} is in beta - some parts are still new. Click to email your feedback to ${FEEDBACK_EMAIL}`}
+          onClick={() => { void runAction('send_feedback') }}>
+          <span className='beta-tag'>beta</span> Send feedback
+        </button>
         <Corner ids={CORNER_RIGHT} ctx={ctx} side='right' />
       </div>
       <div className='rb-body' role='tabpanel' aria-label={shown.name}>
