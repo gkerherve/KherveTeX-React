@@ -84,7 +84,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZEQzg5MUM3RjJERUI0ODEKUldTQnRON3l4NUhJYlk5ZzhyUmFEWkhJakZ0SXFWRG00RjhmVWxHRS9RNlFXUXpvZzZtT2lXeUEK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDMzI2Q0ZERDhBN0U2OUYKUldTZjVxZlkvV3d5ZklMaGs1WVIzYjNicHBhSitXcFNmbFJxNUo0QWNhTFo1ai9iTHY3Yjg3YUYK",
       "endpoints": [
         "https://github.com/gkerherve/KherveTeX-React/releases/latest/download/latest.json"
       ],
