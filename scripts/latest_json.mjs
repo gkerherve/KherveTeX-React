@@ -17,7 +17,7 @@ const PLATFORMS = [
   [/(aarch64|arm64)\.app\.tar\.gz$/i, ['darwin-aarch64', 'darwin-aarch64-app']],
   [/(x64|x86_64)\.app\.tar\.gz$/i, ['darwin-x86_64', 'darwin-x86_64-app']],
 ]
-const REQUIRED = ['windows-x86_64', 'darwin-aarch64', 'darwin-x86_64']
+const REQUIRED = ['windows-x86_64', 'darwin-aarch64']
 
 export function manifest({ repo, tag, version, notes, sigs }) {
   const platforms = {}
