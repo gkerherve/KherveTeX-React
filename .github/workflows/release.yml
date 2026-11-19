@@ -1,3 +1,6 @@
+# NOV 2026: no macOS jobs here any more. Mac DMGs (Apple Silicon only, no Intel) are
+# built on the user's own Mac and uploaded to the release by hand; this runs Windows only.
+
 name: Release
 
 # Builds the Windows NSIS installer and the macOS .app/.dmg (Apple Silicon
@@ -105,14 +108,6 @@ jobs:
             runner: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
-          - name: macOS-arm64
-            runner: macos-15
-            target: aarch64-apple-darwin
-            bundles: app,dmg
-          - name: macOS-x86_64
-            runner: macos-15-intel
-            target: x86_64-apple-darwin
-            bundles: app,dmg
     name: build (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
