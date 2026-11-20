@@ -5,6 +5,9 @@ name: Linux build
 # Uploads a workflow artifact only — publishing is a separate, deliberate step.
 
 on:
+  push:
+    tags:
+      - "linux-v*"
   workflow_dispatch:
     inputs:
       python_ref:
