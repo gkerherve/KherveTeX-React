@@ -1,0 +1,103 @@
+name: Linux build
+
+# Builds the Linux AppImage and .deb (x86_64) with the bundled tectonic and
+# warmed offline TeX cache, installs the .deb and smoke-tests it offline.
+# Uploads a workflow artifact only — publishing is a separate, deliberate step.
+
+on:
+  workflow_dispatch:
+    inputs:
+      python_ref:
+        description: "Branch or tag of gkerherve/kherveTeX whose TeX cache and styles ship"
+        default: dev
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+        working-directory: KherveTeX-React
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: KherveTeX-React
+
+      - uses: actions/checkout@v4
+        with:
+          repository: gkerherve/kherveTeX
+          ref: ${{ inputs.python_ref || 'dev' }}
+          path: KherveTeX
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: System libraries for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 xvfb file
+
+      - name: Restore the warmed TeX cache
+        id: texcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            KherveTeX/khervedoc/tectonic_cache
+            KherveTeX/khervedoc/tectonic_cache.stamp
+          key: tectonic-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('KherveTeX/khervedoc/**/*.py', 'KherveTeX/packaging/fetch_tectonic.py') }}
+
+      - name: Fetch tectonic and warm the offline TeX cache
+        if: steps.texcache.outputs.cache-hit != 'true'
+        working-directory: KherveTeX
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python packaging/fetch_tectonic.py --warm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: KherveTeX-React/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: KherveTeX-React/src-tauri -> target
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Build the AppImage and .deb
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: npx tauri build --bundles appimage,deb
+
+      - name: Check the bundles
+        run: |
+          set -euo pipefail
+          B=src-tauri/target/release/bundle
+          ls -la $B/appimage $B/deb
+          ls $B/appimage/*.AppImage $B/appimage/*.AppImage.sig $B/deb/*.deb
+          dpkg -c $B/deb/*.deb | grep -q tectonic_cache
+          dpkg -c $B/deb/*.deb | grep -q 'bin/tectonic'
+
+      - name: Install the .deb and smoke-test it offline
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y ./src-tauri/target/release/bundle/deb/*.deb
+          EXE=$(dpkg -L $(dpkg-deb -f src-tauri/target/release/bundle/deb/*.deb Package) | grep '^/usr/bin/' | grep -v tectonic | head -1)
+          echo "smoke-testing $EXE"
+          xvfb-run -a node scripts/smoke_test.mjs "$EXE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kTeX-linux-x86_64
+          path: |
+            KherveTeX-React/src-tauri/target/release/bundle/appimage/*.AppImage
+            KherveTeX-React/src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            KherveTeX-React/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
