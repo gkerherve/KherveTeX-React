@@ -85,8 +85,9 @@ jobs:
           B=src-tauri/target/release/bundle
           ls -la $B/appimage $B/deb
           ls $B/appimage/*.AppImage $B/appimage/*.AppImage.sig $B/deb/*.deb
-          dpkg -c $B/deb/*.deb | grep -q tectonic_cache
-          dpkg -c $B/deb/*.deb | grep -q 'bin/tectonic'
+          dpkg -c $B/deb/*.deb > deb.txt
+          grep -c tectonic_cache deb.txt
+          grep 'bin/tectonic' deb.txt
 
       - name: Install the .deb and smoke-test it offline
         run: |
