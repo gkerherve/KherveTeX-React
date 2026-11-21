@@ -13,7 +13,7 @@ import { overleafHost, overleafIo, setOverleafHost, setOverleafIo } from '../../
 import type { OverleafHost, OverleafIo } from '../../core/overleafIo'
 import { basename, dirname, join, suffix, withSuffix } from '../../core/paths'
 import { platform } from '../../platform'
-import { warning } from '../../platform/MessageBox'
+import { question, warning } from '../../platform/MessageBox'
 import { loadSettings, setSetting, setting } from '../../platform/settings'
 import { askOverleaf } from '../../ui/dialogs/OverleafDialog'
 import { registerActions } from '../actions'
@@ -204,7 +204,28 @@ async function askOverleafLink(action: string): Promise<[string, string] | null>
       await warning('Overleaf', `The token could not be saved in the keychain, so it is kept until you quit:\n${exc instanceof Error ? exc.message : String(exc)}`)
     }
   }
+  askAgain = false
   return [answer.link, answer.token]
+}
+
+// Set after Overleaf refused the link or the token: the next Send or Get
+// shows the dialog again instead of retrying the same pair.
+let askAgain = false
+
+// The project this document is linked to, as Save knows the file it was
+// opened from: once a document has a link and the token is in the
+// keychain, Send and Get run at once; only the first time (or after
+// Overleaf refused them) is the dialog shown, as Save As is.
+async function linkedOrAsk(action: string): Promise<[string, string] | null> {
+  await loadSettings()
+  const link = host().settingValue(overleafLinkKey()) ?? ''
+  const token = await savedToken()
+  if (link && token && !askAgain) return [link, token]
+  return askOverleafLink(action)
+}
+
+function refused(exc: overleaf.OverleafError): boolean {
+  return /did not accept the token|could not find that project|Paste the link|sharing link|does not look like an Overleaf/i.test(exc.message)
 }
 
 async function overleafCache(link: string): Promise<string> {
@@ -257,7 +278,7 @@ function reporting(gitIo: OverleafIo, title: string): [OverleafIo, () => void] {
 }
 
 async function overleafSend(): Promise<void> {
-  const ask = await askOverleafLink('Send to')
+  const ask = await linkedOrAsk('Send to')
   if (ask === null) return
   const [link, token] = ask
   const h = host()
@@ -272,6 +293,7 @@ async function overleafSend(): Promise<void> {
     stop()
     if (!(exc instanceof overleaf.OverleafError)) throw exc
     appStore().set({ status: '' })
+    if (refused(exc)) askAgain = true
     await warning('Send to Overleaf', exc.message)
     return
   }
@@ -282,7 +304,7 @@ async function overleafSend(): Promise<void> {
 // Collaborators' version opens in a new window: nothing here is
 // replaced, and either can be saved.
 async function overleafGet(): Promise<void> {
-  const ask = await askOverleafLink('Get from')
+  const ask = await linkedOrAsk('Get from')
   if (ask === null) return
   const [link, token] = ask
   const h = host()
@@ -294,6 +316,7 @@ async function overleafGet(): Promise<void> {
     stop()
     if (!(exc instanceof overleaf.OverleafError)) throw exc
     appStore().set({ status: '' })
+    if (refused(exc)) askAgain = true
     await warning('Get from Overleaf', exc.message)
     return
   }
@@ -321,21 +344,47 @@ function docStem(path: string): string {
 }
 
 // MainWindow._export_latex_zip: a zip to upload as a new Overleaf project
-// (works on a free plan).
+// (works on a free plan). It is offered beside the document, and once saved
+// Overleaf can be opened at its project list to upload it.
 export async function exportLatexZipAction(): Promise<void> {
   const h = host()
   const { doc, path: current } = appStore().get()
   const stem = current ? docStem(current) : 'document'
-  let path = await h.saveFileDialog('Export LaTeX package', `${stem}.zip`,
+  const name = `${stem}.zip`
+  let path = await h.saveFileDialog('Download for Overleaf', current ? join(dirname(current), name) : name,
     { name: 'Zip archive', extensions: ['zip'] })
   if (!path) return
   if (suffix(path).toLowerCase() !== '.zip') path = withSuffix(path, '.zip')
   await h.fs.write(path, await exportLatexZip(doc, sourceDir(), h.fs, stem))
-  appStore().set({ status: `Exported ${path}` })
+  appStore().set({ status: `Saved ${path}` })
+  if (await question('Download for Overleaf',
+    `Saved ${basename(path)}.\n\nOpen Overleaf to upload it? On Overleaf choose New Project › Upload Project and pick this zip.`)) {
+    const p = platform()
+    await p.reveal(path).catch(() => {})
+    await p.openUrl(OVERLEAF_PROJECTS)
+  }
+}
+
+const OVERLEAF_PROJECTS = 'https://www.overleaf.com/project'
+
+// Open the linked project on overleaf.com in the browser.
+async function overleafOpen(): Promise<void> {
+  await loadSettings()
+  const link = host().settingValue(overleafLinkKey())
+  await platform().openUrl(link || OVERLEAF_PROJECTS)
+}
+
+// Link this document to another Overleaf project (or change the token),
+// as Save As picks another file.
+async function overleafLink(): Promise<void> {
+  const ask = await askOverleafLink('Link to')
+  if (ask) appStore().set({ status: `Linked to Overleaf ${projectLabel(ask[0])}` })
 }
 
 registerActions({
   overleaf_send: overleafSend,
   overleaf_get: overleafGet,
   overleaf_zip: exportLatexZipAction,
+  overleaf_open: overleafOpen,
+  overleaf_link: overleafLink,
 })

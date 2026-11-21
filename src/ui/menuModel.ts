@@ -34,7 +34,7 @@ export const MENU_BAR: MenuBarMenu[] = [
     'close_doc', 'save', 'save_as', 'save_as_template',
     { text: '&Version History', items: ['commit_now', 'history', 'branches'] },
     '-',
-    { text: 'S&hare', items: ['overleaf_send', 'overleaf_get', 'overleaf_zip', '-',
+    { text: 'S&hare', items: ['overleaf_send', 'overleaf_get', 'overleaf_zip', 'overleaf_open', 'overleaf_link', '-',
       'github', 'configure_remotes', 'pull'] },
     { text: '&Import', items: ['import_tex', 'import_docx', 'import_pdf', 'import_md'] },
     { text: '&Export', items: ['export_pdf', 'export_docx', 'export_tex', 'export_latex_zip'] },

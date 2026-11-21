@@ -127,7 +127,7 @@ export const browserPlatform: Platform = {
     }
     return out
   },
-  saveFileDialog: async ({ defaultName }) => `${DOWNLOADS}/${defaultName}`,
+  saveFileDialog: async ({ defaultName }) => `${DOWNLOADS}/${defaultName.split('/').pop()}`,
 
   run: async () => ({ code: null, stdout: '', stderr: '', timedOut: false, error: COMPILE_UNAVAILABLE }),
   cancelRunning: async () => {},
