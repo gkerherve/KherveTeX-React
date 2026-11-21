@@ -189,7 +189,7 @@ export default function App() {
                   again, so every zoom and window width shows the same lines
                   and the same page breaks (CSS zoom re-flowed the text at
                   each size, and rounding moved line and page breaks). */}
-              <div className='page-scale' style={{ width: card.w * zoom / 100, height: card.h * zoom / 100, '--kt-zoom': zoom / 100 } as React.CSSProperties}>
+              <div className='page-scale' style={{ width: card.w * zoom / 100, height: card.h * zoom / 100 }}>
                 <div ref={cardRef} className='page-card' style={{ transform: `scale(${zoom / 100})` }}>
                   <EditorPane onContext={setContext} />
                 </div>

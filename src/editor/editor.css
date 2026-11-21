@@ -569,7 +569,7 @@ div.kt-box {
 .kt-review {
   position: absolute;
   top: 0;
-  left: calc(100% + 14px);
+  left: calc(100% + 10px);
   width: 250px;
   height: 100%;
   z-index: 3;
@@ -577,6 +577,8 @@ div.kt-box {
   color: #222;
 }
 .kt-pages:not(.kt-has-review) .kt-review { display: none; }
+/* The sheets, their edges and the gaps between them run under the margin. */
+.kt-has-review .kt-sheets { right: -270px; }
 .kt-review-card {
   position: absolute;
   left: 0;
