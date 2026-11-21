@@ -161,10 +161,13 @@ export function serializeInline(node: Inline): string {
     case 'Highlight':
       return `\\colorbox{hl${capitalize(node.color)}}{${serializeInlines(node.children)}}`
     case 'Comment': {
+      // \kcomment[timestamp]{author}{date}{note}{text}: a numbered marker
+      // after the text and the note in the review column (reviewPreamble).
+      // The timestamp is for the importer only; the date is what prints.
       const body = serializeInlines(node.children)
-      const note = node.note.replaceAll('{', '\\{').replaceAll('}', '\\}')
-      const authorOpt = node.author ? `, author={${node.author}}` : ''
-      return `${body}\\todo[color=blue!20${authorOpt}]{${note}}`
+      const ts = node.timestamp.replace(/[\]{}%\\]/g, '')
+      return `\\kcomment${ts ? `[${ts}]` : ''}{${escapeText(node.author)}}{${commentDate(node.timestamp)}}` +
+        `{${escapeText(node.note).replaceAll('\n', '\\par ')}}{${body}}`
     }
   }
   throw new TypeError(`Unknown inline node: ${(node as { type: string }).type}`)
@@ -710,6 +713,51 @@ function collectReviewUsage(doc: Document): [Set<string>, boolean] {
   return [colors, hasComments]
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// "21 Nov 2026" from the comment's ISO timestamp; the same in every locale,
+// so the .tex does not change with the machine it is written on.
+export function commentDate(ts: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ts)
+  if (!m || +m[2] < 1 || +m[2] > 12) return ''
+  return `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}`
+}
+
+// The review column: comments print as numbered markers after the text
+// and notes beside it, in a grey column added to the right of the page.
+// The page itself (text block, margins, line and page breaks) is the one
+// without comments; only the paper grows by the column's width. Guarded,
+// so a .tex that already carries it (an import) does not widen twice.
+export const REVIEW_PREAMBLE = String.raw`\usepackage{xcolor}
+\usepackage[normalem]{ulem}
+\usepackage{tikz}
+\ifdefined\kRevPaneW\else
+\definecolor{kRevBar}{HTML}{C8650A}
+\definecolor{kRevPane}{HTML}{F3F4F6}
+\definecolor{kRevLine}{HTML}{F5A623}
+\newcounter{kcomment}
+\newif\ifkRevInline
+\newlength\kRevPaneW \setlength\kRevPaneW{6.2cm}
+\makeatletter
+\AtBeginDocument{\@mparswitchfalse
+  \addtolength\paperwidth{\kRevPaneW}%
+  \ifdefined\pdfpagewidth\setlength\pdfpagewidth{\paperwidth}\fi
+  \setlength\marginparsep{\dimexpr\paperwidth-\kRevPaneW-1in-\hoffset-\oddsidemargin-\textwidth+0.45cm\relax}%
+  \setlength\marginparwidth{\dimexpr\kRevPaneW-0.9cm\relax}%
+  \let\kRev@fn\@footnotetext\long\def\@footnotetext#1{\kRev@fn{\kRevInlinetrue#1}}}
+\makeatother
+\AddToHook{shipout/background}{\put(\dimexpr\paperwidth-\kRevPaneW\relax,-\paperheight){\color{kRevPane}\rule{\kRevPaneW}{\paperheight}}%
+  \put(\dimexpr\paperwidth-\kRevPaneW\relax,-\paperheight){\color{black!12}\rule{0.4pt}{\paperheight}}}
+\newcommand\kRevBadge{\tikz[baseline=-0.6ex]\node[circle,fill=kRevBar,text=white,inner sep=0.8pt,minimum size=1.15em,font=\sffamily\bfseries\tiny]{\thekcomment};}
+\newcommand\kRevMark[1]{\bgroup\markoverwith{\textcolor{kRevLine}{\rule[-0.45ex]{2pt}{0.9pt}}}\ULon{#1}}
+% In a footnote, a table, a caption or a box there is no margin: the note
+% prints inline.
+\newcommand\kcomment[5][]{\refstepcounter{kcomment}\kRevMark{#5}\,\raisebox{0.6ex}{\kRevBadge}%
+  \ifinner\kRevInlinetrue\fi\ifkRevInline{\sffamily\footnotesize\color{kRevBar}\,[#2: #4]}\else
+  \marginpar{\sffamily\footnotesize{\color{kRevBar}\vrule width 1.8pt}\hspace{6pt}%
+  \parbox[t]{\dimexpr\marginparwidth-9pt}{\raggedright\kRevBadge\enspace{\bfseries #2}\hfill{\scriptsize\color{black!45}#3}\par\vspace{2pt}#4}}\fi}
+\fi`
+
 function reviewPreamble(colorsUsed: Set<string>, hasComments: boolean): string {
   const lines: string[] = []
   if (colorsUsed.size) {
@@ -718,7 +766,10 @@ function reviewPreamble(colorsUsed: Set<string>, hasComments: boolean): string {
       if (colorsUsed.has(name)) lines.push(`\\definecolor{hl${capitalize(name)}}{HTML}{${lstrip(hex, '#')}}`)
     }
   }
-  if (hasComments) lines.push('\\usepackage[colorinlistoftodos]{todonotes}')
+  if (hasComments) {
+    if (colorsUsed.size) lines.splice(0, 1)  // xcolor comes with the review column
+    lines.unshift(REVIEW_PREAMBLE)
+  }
   return lines.join('\n')
 }
 

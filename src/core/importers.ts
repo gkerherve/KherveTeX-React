@@ -9,6 +9,7 @@
 import * as M from './model.ts'
 import type { Block, Document, Inline, Mark, Table, Text } from './model.ts'
 import { DEFAULT_PACKAGES } from './model.ts'
+import { REVIEW_PREAMBLE } from './serializer.ts'
 import {
   capitalize, isAlpha, lstrip, pyFloatParse, pyIntParse, pyRe, pyRound, reEscape, reFindall,
   reFullmatch, reMatch, reSearch, reSplit, reSub, rstrip, splitlines, strip,
@@ -547,6 +548,26 @@ function matchMacro(s: string, i: number): [Inline | Inline[], number] | null {
       if (c.type === 'Text' && !c.marks.includes(mark)) c.marks.push(mark)
     }
     return [flattenSingle(children), end]
+  }
+  if (name === 'kcomment') {
+    // \kcomment[timestamp]{author}{date}{note}{text} (serializer.ts).
+    let j = after, ts = ''
+    if (s[j] === '[') {
+      const close = s.indexOf(']', j)
+      if (close < 0) return null
+      ts = s.slice(j + 1, close)
+      j = close + 1
+    }
+    const args: string[] = []
+    for (let k = 0; k < 4; k++) {
+      const [arg, end] = consumeBraced(s, j)
+      if (arg === null) return null
+      args.push(arg)
+      j = end
+    }
+    const plain = (t: string) => t.split('\\par ').map((line) => parseInlines(line)
+      .map((n) => (n.type === 'Text' ? n.text : '')).join('')).join('\n')
+    return [M.comment(parseInlines(args[3]), { author: plain(args[0]), note: plain(args[2]), timestamp: ts }), j]
   }
   if (name === 'href') {
     const [url, end] = consumeBraced(s, after)
@@ -1212,6 +1233,9 @@ const STANDARD_CLASSES = new Set([
 // lost from the source. With baseDir, files pulled in by `\input` and
 // friends are inlined first (see expandIncludes).
 export function importTex(texSource: string, baseDir: string | null = null, fs: ImportFs = NO_FS): Document {
+  // The review column is written back by the serializer while there are
+  // comments: never kept as the document's own preamble.
+  texSource = texSource.replace(REVIEW_PREAMBLE, '')
   // Strip line comments first — Elsevier templates use `%%` ruled
   // banners between sections, and without this every banner would
   // appear as a stray paragraph in the imported document.
