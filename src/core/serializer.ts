@@ -689,27 +689,21 @@ function withUrlBreaking(packages: string, ...scanned: string[]): string {
   return packages
 }
 
-// (highlight colours used, has comments). List blocks have no `children`
-// field, so — as in the Python — highlights inside list items are not seen.
+// (highlight colours used, has comments), anywhere in the document: list
+// items, quotes, boxes, footnotes and table cells too (a comment the
+// preamble missed printed its \kcomment arguments as raw text).
 function collectReviewUsage(doc: Document): [Set<string>, boolean] {
   const colors = new Set<string>()
   let hasComments = false
-  const walkInlines = (nodes: Inline[]) => {
-    for (const node of nodes) {
-      if (node.type === 'Highlight') {
-        colors.add(node.color)
-        walkInlines(node.children)
-      } else if (node.type === 'Comment') {
-        hasComments = true
-        walkInlines(node.children)
-      } else if (node.type === 'Link' || node.type === 'Footnote') {
-        walkInlines(node.children)
-      }
-    }
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) { for (const x of v) walk(x); return }
+    if (!v || typeof v !== 'object') return
+    const node = v as { type?: unknown; color?: unknown }
+    if (node.type === 'Highlight' && typeof node.color === 'string') colors.add(node.color)
+    else if (node.type === 'Comment') hasComments = true
+    for (const x of Object.values(v)) if (x && typeof x === 'object') walk(x)
   }
-  for (const block of doc.children) {
-    if ('children' in block) walkInlines(block.children)
-  }
+  walk(doc.children)
   return [colors, hasComments]
 }
 

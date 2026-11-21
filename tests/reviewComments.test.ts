@@ -18,6 +18,13 @@ describe('review comments in LaTeX', () => {
     expect(tex).not.toContain('todonotes')
   })
 
+  it('sets up the review column for a comment inside a list item', () => {
+    const d = M.document([M.list(true, [M.listItem([M.text('Design '), note])])], M.docMeta({ documentclass: 'article' }))
+    const tex = serializeDocument(d)
+    expect(tex).toContain(REVIEW_PREAMBLE)
+    expect(tex).toContain('\\item Design \\kcomment[')
+  })
+
   it('adds nothing without comments', () => {
     expect(serializeDocument(doc([M.text('Plain.')]))).not.toContain('kcomment')
   })
