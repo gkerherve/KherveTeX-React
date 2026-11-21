@@ -1,11 +1,11 @@
 // Comments in the PDF: numbered markers with notes in a review column
 // (serializer REVIEW_PREAMBLE), read back by the importer.
 import { describe, expect, it } from 'vitest'
-import * as M from '../src/core/model'
-import { commentDate, REVIEW_PREAMBLE, serializeDocument } from '../src/core/serializer'
-import { importTex } from '../src/core/importers'
+import * as M from '../src/core/model.ts'
+import { commentDate, REVIEW_PREAMBLE, serializeDocument } from '../src/core/serializer.ts'
+import { importTex } from '../src/core/importers.ts'
 
-const doc = (kids: M.Inline[]) => M.document([M.paragraph(kids)], M.docMeta({ document_class: 'article' }))
+const doc = (kids: M.Inline[]) => M.document([M.paragraph(kids)], M.docMeta({ documentclass: 'article' }))
 const note = M.comment([M.text('calibrated '), M.text('C 1s', ['bold'])],
   { note: '100% wrong & vague?\nSecond line.', author: 'Anne Martin', timestamp: '2026-11-21T10:27:00.000Z' })
 
@@ -29,8 +29,8 @@ describe('review comments in LaTeX', () => {
 
   it('reads the comment back, and drops the review column from the preamble', () => {
     const back = importTex(serializeDocument(doc([M.text('Spectra were '), note, M.text('.')])))
-    const p = back.children.find((b) => b.type === 'Paragraph') as M.Paragraph
-    const c = p.children.find((n) => n.type === 'Comment') as M.Comment
+    const p = back.children.find((b: M.Block) => b.type === 'Paragraph') as M.Paragraph
+    const c = p.children.find((n: M.Inline) => n.type === 'Comment') as M.Comment
     expect(c).toBeTruthy()
     expect(c.author).toBe('Anne Martin')
     expect(c.note).toBe('100% wrong & vague?\nSecond line.')
