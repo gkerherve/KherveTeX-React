@@ -446,3 +446,6 @@
   font-size: 12px;
 }
 :root[data-theme='dark'] .beta-strip { background: #4a3c10; color: #ffe6a0; border-color: #8a6d10; }
+
+/* Room beside the page for the review margin (editor/reviewMargin.ts). */
+.page-scale:has(.kt-has-review) { padding-right: calc(280px * var(--kt-zoom, 1)); }

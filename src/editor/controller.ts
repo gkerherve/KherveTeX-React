@@ -39,6 +39,7 @@ import { SPELL_CURRENT, SPELL_REFRESH, spellCurrentPlugin, spellPlugin } from '.
 import { misspellings, replaceWord } from './spellList.ts'
 import { spellHighlighter } from '../spell/shared.ts'
 import { nodeViews, type ViewHost } from './views.ts'
+import { ReviewMargin } from './reviewMargin.ts'
 import { absoluteFigurePaths, imageFiles, isPicturePaste } from './pictureTransfer.ts'
 import { resolvedSourceDir } from '../app/compile.ts'
 
@@ -120,6 +121,7 @@ export class EditorController implements ViewHost {
   private exportQueued = false
   private lastContext: ContextKind | null = null
   private destroyed = false
+  private review!: ReviewMargin
   // Measurements made before a font arrived (a title's line count, a
   // run-in heading's width) are made again.
   private onFonts = () => this.relayout()
@@ -227,6 +229,7 @@ export class EditorController implements ViewHost {
     })
     // A double-click on a reference list's title (bibView.ts).
     pmEl.addEventListener('kt-bibliography', () => { void runAction('bibliography') })
+    this.review = new ReviewMargin(mount, () => this.view)
     this.applyGeometry()
     setCurrent(this)
     setEditorApi(this.api())
@@ -255,6 +258,7 @@ export class EditorController implements ViewHost {
     clearTimeout(this.pageTimer)
     clearTimeout(this.resolverTimer)
     if (current === this) { setCurrent(null); setEditorApi(null) }
+    this.review.destroy()
     this.view.destroy()
   }
 
@@ -307,7 +311,7 @@ export class EditorController implements ViewHost {
     } else if (pages) {
       this.schedulePages(0, true)
     }
-    if (tr.docChanged || tr.selectionSet || metaChanged) this.syncToolbar()
+    if (tr.docChanged || tr.selectionSet || metaChanged) { this.syncToolbar(); this.review?.schedule() }
   }
 
   // Run a command on the current state.
@@ -665,6 +669,7 @@ export class EditorController implements ViewHost {
     this.sheets = measure.sheets
     refreshColumns(this.flowEl)
     this.paint(geo)
+    this.review.schedule()
   }
 
   pageGapPx(): number {

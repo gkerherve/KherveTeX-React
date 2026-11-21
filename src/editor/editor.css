@@ -564,3 +564,49 @@ div.kt-box {
   box-sizing: border-box;
   text-indent: 0 !important;
 }
+
+/* ----- review margin (reviewMargin.ts): comment balloons beside the page ----- */
+.kt-review {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 14px);
+  width: 250px;
+  height: 100%;
+  z-index: 3;
+  font: 12px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #222;
+}
+.kt-pages:not(.kt-has-review) .kt-review { display: none; }
+.kt-review-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  background: #fff8ec;
+  border: 1px solid #e3b77a;
+  border-left: 4px solid #d96b00;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+.kt-review-card.active { background: #fff1d6; border-color: #d96b00; box-shadow: 0 2px 6px rgba(217, 107, 0, 0.35); }
+.kt-review-head { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 2px; }
+.kt-review-head span { color: #777; font-size: 11px; }
+.kt-review-quote { color: #8a5a20; font-style: italic; margin-bottom: 3px; overflow-wrap: anywhere; }
+.kt-review-quote::before { content: '“'; }
+.kt-review-quote::after { content: '”'; }
+.kt-review-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.kt-review-btns { display: flex; gap: 6px; margin-top: 5px; }
+.kt-review-btns button {
+  flex: 1;
+  font: inherit;
+  padding: 2px 4px;
+  border: 1px solid #c9ccd1;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+}
+.kt-review-btns button:first-child:hover { background: #e3f5ea; border-color: #00aa66; }
+.kt-review-btns button:last-child:hover { background: #fde8e8; border-color: #cc3333; }
+.kt-comment-hot { background: #ffc56e; }
