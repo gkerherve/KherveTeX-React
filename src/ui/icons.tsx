@@ -518,21 +518,59 @@ export function Footnote(p: IconProps) {
     {L(3, 17, 11, 17, INK, 1)}{L(3, 20.5, 20, 20.5, BLUE, 1.2)}</Svg>
 }
 
+// References ▸ Insert citation: a line of text with a blue citation
+// mark "[1]" being put in at the caret, and a green plus.
 export function Citation(p: IconProps) {
   return <Svg {...p}>
-    {R(4, 3, 15, 18, { fill: TINT, color: BLUE, r: 1 })}
-    {L(7, 3, 7, 21, BLUE, 1.2)}
-    {T([7, 4, 12, 15], '“”', { size: 13, bold: true, color: BLUE, family: SERIF })}
+    {L(2.5, 6, 13, 6, INK, 1.3)}{L(2.5, 10, 9, 10, INK, 1.3)}
+    {L(2.5, 18.5, 21, 18.5, INK, 1.3)}
+    {L(10.5, 7.5, 10.5, 13, BLUE, 1.4)}
+    {R(11.5, 8.5, 10, 7, { fill: TINT, color: BLUE, r: 1.5, lw: 1.3 })}
+    {T([11.5, 8.5, 10, 7], '[1]', { size: 5.8, bold: true, color: BLUE })}
+    {L(18.5, 1.5, 18.5, 6.5, GREEN, 1.8)}{L(16, 4, 21, 4, GREEN, 1.8)}
   </Svg>
 }
 
-// The document's references: a list of entries and a magnifier.
+// References ▸ Reference library: the document's references as books on
+// a shelf, the books a reference manager keeps.
 export function ManageReferences(p: IconProps) {
   return <Svg {...p}>
-    {R(3, 3, 14, 18, { fill: TINT, color: BLUE, r: 1 })}
-    {L(6, 7.5, 14, 7.5, BLUE, 1.2)}{L(6, 11, 14, 11, BLUE, 1.2)}{L(6, 14.5, 14, 14.5, BLUE, 1.2)}
-    {R(13.5, 12.5, 7.5, 7.5, { fill: PAPER, color: FG, r: 3.75, lw: 1.3 })}
-    {L(19.8, 19.6, 22.5, 22.3, FG, 1.8)}
+    {R(3, 5, 4, 15, { fill: BLUE, color: BLUE, r: 0.6, lw: 1 })}
+    {L(3.8, 8, 6.2, 8, PAPER, 1)}{L(3.8, 16.5, 6.2, 16.5, PAPER, 1)}
+    {R(8, 3, 4.5, 17, { fill: TINT, color: BLUE, r: 0.6, lw: 1.2 })}
+    {L(9, 6.5, 11.5, 6.5, BLUE, 1)}
+    {R(13.5, 7, 3.5, 13, { fill: '#c97b1a', color: '#9a5c12', r: 0.6, lw: 1 })}
+    <g transform='rotate(-16 19.5 20)'>
+      {R(17.6, 6.5, 3.8, 13.5, { fill: GREEN, color: '#0b5a0b', r: 0.6, lw: 1 })}
+    </g>
+    {L(1.5, 21, 22.5, 21, INK, 1.6)}
+  </Svg>
+}
+
+// References ▸ From Zotero: a red tile with a Z.
+export function RefsZotero(p: IconProps) {
+  return <Svg {...p}>
+    {R(3, 3, 18, 18, { fill: '#cc2936', color: '#a01f2a', r: 3, lw: 1 })}
+    {P([[7.5, 7.5], [16.5, 7.5], [7.5, 16.5], [16.5, 16.5]], { color: '#ffffff', closed: false, lw: 2.2 })}
+  </Svg>
+}
+
+// References ▸ From EndNote: a page marked EN, with an arrow in.
+export function RefsEndNote(p: IconProps) {
+  return <Svg {...p}>
+    {R(5, 2.5, 14, 19, { fill: PAPER, color: INK, r: 1, lw: 1.3 })}
+    {R(5, 2.5, 14, 7.5, { fill: '#1f3864', color: '#1f3864', r: 1, lw: 1 })}
+    {T([5, 2.5, 14, 7.5], 'EN', { size: 6, bold: true, color: '#ffffff' })}
+    {L(8, 13.5, 16, 13.5, INK, 1)}{L(8, 16.5, 16, 16.5, INK, 1)}{L(8, 19, 13, 19, INK, 1)}
+  </Svg>
+}
+
+// References ▸ Import file: a page with a green arrow coming in.
+export function RefsImport(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2.5, 13, 19)}
+    {L(6, 10, 12, 10, INK, 1)}{L(6, 13, 12, 13, INK, 1)}{L(6, 16, 10, 16, INK, 1)}
+    {L(21.5, 8, 21.5, 17, GREEN, 1.8)}
+    {P([[18.5, 14], [21.5, 17], [24, 14]], { color: GREEN, closed: false, lw: 1.8 })}
   </Svg>
 }
 
@@ -1428,7 +1466,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, manage_references: ManageReferences, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,

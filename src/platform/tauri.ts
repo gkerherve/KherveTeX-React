@@ -64,6 +64,8 @@ export const tauriPlatform: Platform = {
   reveal: (path) => invoke('reveal', { path }),
   openPath: (path) => invoke('open_path', { path }),
   openUrl: (url) => invoke('open_url', { url }),
+  localhostGet: (url, timeoutSecs) =>
+    invoke<{ status: number; body: string }>('localhost_get', { url, timeoutSecs }),
   setTitle: async (title) => {
     document.title = title
     await getCurrentWindow().setTitle(title)

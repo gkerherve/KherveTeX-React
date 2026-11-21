@@ -14,7 +14,8 @@ import type { Citation, Document } from '../../core/model'
 import { dirname } from '../../core/paths'
 import { platform } from '../../platform'
 import { readKherverefSettings, type SettingsValues } from '../../platform/kherverefSettings'
-import { information, warning } from '../../platform/MessageBox'
+import { information, question, warning } from '../../platform/MessageBox'
+import { ZOTERO_HELP, zoteroLibrary, zoteroPick, zoteroState } from '../../core/zotero'
 import { askCitation } from '../../ui/dialogs/CitationPicker'
 import { askBibliography, askInsertReference } from '../../ui/dialogs/BibliographyDialog'
 import { askReferences } from '../../ui/dialogs/ReferenceManager'
@@ -192,7 +193,7 @@ async function insertReference(): Promise<void> {
 // document's own list. It starts from the list the document has (for a
 // document citing from a KherveRef library, its cited entries); a changed
 // list becomes the document's own (DOCUMENT_LIBRARY), bundled in its .ktex.
-async function manageReferences(): Promise<void> {
+async function manageReferences(importNow?: 'zotero' | 'endnote' | 'file'): Promise<void> {
   await reloadKherverefSettings()
   const doc = appStore().get().doc
   const meta = doc.meta
@@ -210,21 +211,28 @@ async function manageReferences(): Promise<void> {
     : ''
   const r = await askReferences(start, kr.citedKeys(doc), {
     note,
+    start: importNow,
     style: meta.bib_style || '',
     inform: (title, text) => information(title, text),
-    importBib: async () => {
+    importFile: async (endnote) => {
+      const bib = { name: 'BibTeX (.bib)', extensions: ['bib'] }
+      const en = { name: 'EndNote (.xml, .ris, .enw)', extensions: ['xml', 'ris', 'enw', 'txt'] }
+      const all = { name: 'Reference files (.bib, .ris, .enw, .xml)', extensions: ['bib', 'ris', 'enw', 'xml', 'txt'] }
       const paths = await platform().openFileDialog({
-        title: 'Import a .bib file',
-        filters: [{ name: 'BibTeX', extensions: ['bib'] }, { name: 'All files', extensions: [] }],
+        title: endnote ? 'Import an EndNote export' : 'Import references',
+        filters: endnote ? [en, bib, { name: 'All files', extensions: [] }]
+          : [all, bib, en, { name: 'All files', extensions: [] }],
       })
       if (!paths?.length) return null
       try {
-        return new TextDecoder().decode(await platform().readFile(paths[0]))
+        const text = new TextDecoder().decode(await platform().readFile(paths[0]))
+        return { name: paths[0], text }
       } catch (e) {
-        await warning('Import .bib', String(e))
+        await warning('Import references', String(e))
         return null
       }
     },
+    fromZotero,
     fromKherveRef: async () => {
       const lib = linked ? meta.ref_library : ''
       const dlg = await askCitation(lib, '', { fs, chooseFolder })
@@ -251,6 +259,33 @@ async function manageReferences(): Promise<void> {
   await refreshKherverefBib(appStore().get().doc)
 }
 
+// References ▸ From Zotero (in the reference list): the references picked
+// in Zotero with Better BibTeX, else (after asking) the whole library via
+// Zotero 7's local API; null with an explanation when neither answers.
+async function fromZotero(): Promise<string | null> {
+  const get = platform().localhostGet
+  const state = await zoteroState(get)
+  try {
+    if (state === 'better-bibtex') {
+      const bib = await zoteroPick(get)
+      return bib || null
+    }
+    if (state === 'local-api') {
+      const ok = await question('From Zotero',
+        'Zotero is running without the Better BibTeX add-on, so kTeX cannot show Zotero\'s picker.\n\n'
+        + 'Add every reference of your Zotero library to this document\'s list?')
+      return ok ? (await zoteroLibrary(get)) || null : null
+    }
+  } catch (e) {
+    await warning('From Zotero', String(e instanceof Error ? e.message : e))
+    return null
+  }
+  await information('From Zotero', (state === 'not-running'
+    ? 'Zotero is not running. Start Zotero, then try again.\n\n'
+    : 'Zotero is running but does not share its references yet.\n\n') + ZOTERO_HELP)
+  return null
+}
+
 // A hand-written reference list (\bibitem entries in a thebibliography
 // block), the document's own references kept that way; null when there is
 // none, or when the document keeps a .bib list.
@@ -275,6 +310,20 @@ async function references(): Promise<void> {
   else await manageReferences()
 }
 
+// References ▸ Import (From Zotero, From EndNote, Import file): the
+// reference library, the import started in it. A document with a
+// hand-written \bibitem list keeps that list; it is said so instead.
+async function importReferences(start: 'zotero' | 'endnote' | 'file'): Promise<void> {
+  if (handWrittenList()) {
+    await information('Import references',
+      'This document keeps a hand-written reference list (\\bibitem entries), which kTeX does not fill '
+      + 'from other programs. Add references to it with Reference library…, or start a new document '
+      + 'and import there.')
+    return
+  }
+  await manageReferences(start)
+}
+
 // References ▸ Style: the bibliography style, from the ribbon.
 function setBibStyle(code: string): void {
   const meta = appStore().get().doc.meta
@@ -289,6 +338,9 @@ for (const [code] of BIB_STYLES) registerActions({ [`bib_style_${code}`]: () => 
 registerActions({
   citation: cite,
   manage_references: references,
+  refs_zotero: () => importReferences('zotero'),
+  refs_endnote: () => importReferences('endnote'),
+  refs_import: () => importReferences('file'),
   insert_reference: insertReference,
   bibliography: editBibliography,
   check_citations: checkCitations,

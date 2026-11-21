@@ -130,7 +130,7 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
   }
 
   entries.push(
-    { text: 'Cite…', run: () => { void runAction('citation') } },
+    { text: 'Insert citation…', run: () => { void runAction('citation') } },
     { text: 'Cross-reference…', run: () => { void runAction('crossref') } }, '-',
     { text: 'Undo', run: () => { void runAction('undo') } },
     { text: 'Redo', run: () => { void runAction('redo') } }, '-',

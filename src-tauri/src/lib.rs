@@ -3,6 +3,7 @@
 
 mod fsops;
 mod git;
+mod localhttp;
 mod mcp;
 mod mcp_json;
 pub mod mcp_server;
@@ -70,6 +71,7 @@ pub fn run() {
             system::reveal,
             system::open_path,
             system::open_url,
+            localhttp::localhost_get,
             system::settings_read,
             system::settings_write,
             system::launch_args,

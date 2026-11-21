@@ -141,6 +141,10 @@ export const browserPlatform: Platform = {
   reveal: async () => { throw new Error('Show in file explorer needs the desktop app') },
   openPath: async () => { throw new Error('Opening folders needs the desktop app') },
   openUrl: async (url) => { window.open(url, '_blank', 'noopener') },
+  localhostGet: async (url, timeoutSecs) => {
+    const r = await fetch(url, { signal: AbortSignal.timeout(timeoutSecs * 1000) })
+    return { status: r.status, body: await r.text() }
+  },
   setTitle: async (title) => { document.title = title },
   launchArgs: async () => [],
   // The browser build keeps secrets for the session only.

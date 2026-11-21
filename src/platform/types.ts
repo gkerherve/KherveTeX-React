@@ -88,6 +88,9 @@ export interface Platform {
   reveal(path: string): Promise<void>
   openPath(path: string): Promise<void>
   openUrl(url: string): Promise<void>
+  // A GET to a server on this computer (Zotero's, port 23119); http://
+  // 127.0.0.1 or localhost only. Throws when nothing answers.
+  localhostGet(url: string, timeoutSecs: number): Promise<{ status: number; body: string }>
   setTitle(title: string): Promise<void>
   // Files given on the command line (a double-clicked .ktex).
   launchArgs(): Promise<string[]>

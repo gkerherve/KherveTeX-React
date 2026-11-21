@@ -1,12 +1,14 @@
 // References ▸ Manage references: the document's own list of references
 // (khervedoc/reference_manager.py). Its logic is ReferenceManagerModel in
 // src/app/referenceManager.ts; this is only the widgets.
-import { useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { BIB_STYLES } from '../../core/autoBibliography'
 import type { MouseEvent } from 'react'
 import { ENTRY_TYPES, FIELDS, MISSING, CITED } from '../../core/docReferences'
 import { shortAuthor } from '../../core/references'
 import { FILTERS, LABELS, ReferenceManagerModel } from '../../app/referenceManager'
+import { importToBibtex } from '../../core/refImport'
+import { splitBib } from '../../core/kherveref'
 import { openDialog, type Close } from './dialogHost'
 
 export interface ReferenceChoice {
@@ -18,8 +20,12 @@ export interface ReferenceChoice {
 }
 
 export interface ReferenceEnv {
-  // Import .bib…: a .bib file's text, or null.
-  importBib: () => Promise<string | null>
+  // Import file…: a reference export's name and text (a .bib, RIS,
+  // EndNote .enw or EndNote XML; *endnote* offers EndNote's kinds first),
+  // or null.
+  importFile: (endnote: boolean) => Promise<{ name: string; text: string } | null>
+  // From Zotero…: the .bib source of references taken from Zotero, or null.
+  fromZotero: () => Promise<string | null>
   // From KherveRef…: the .bib source of references picked in a library.
   fromKherveRef: () => Promise<string | null>
   // A note shown above the list (a document citing from a library).
@@ -28,6 +34,8 @@ export interface ReferenceEnv {
   inform: (title: string, text: string) => Promise<void>
   // The document's bibliography style ('' for the default).
   style: string
+  // An import to start as the dialog opens (the ribbon's Import buttons).
+  start?: 'zotero' | 'endnote' | 'file'
 }
 
 function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEnv; close: Close<ReferenceChoice> }) {
@@ -56,12 +64,32 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     }
   }
 
-  const importBib = async () => {
-    const text = await env.importBib()
-    if (text === null) return
-    const added = m.addBib(text)
-    await env.inform('Import .bib', `${added.length} reference${added.length !== 1 ? 's' : ''} added.`)
+  const report = (title: string, added: string[]) =>
+    env.inform(title, `${added.length} reference${added.length !== 1 ? 's' : ''} added.`)
+  const importFile = async (endnote: boolean) => {
+    const title = endnote ? 'Import from EndNote' : 'Import references'
+    const file = await env.importFile(endnote)
+    if (file === null) return
+    let bib: string
+    try {
+      bib = importToBibtex(file.text, file.name, splitBib(m.text()).keys())
+    } catch (e) {
+      await env.inform(title, e instanceof Error ? e.message : String(e))
+      return
+    }
+    await report(title, m.addBib(bib))
   }
+  const fromZotero = async () => {
+    const bib = await env.fromZotero()
+    if (bib) await report('From Zotero', m.addBib(bib))
+  }
+  const started = useRef(false)
+  useEffect(() => {
+    if (started.current || !env.start) return
+    started.current = true
+    if (env.start === 'zotero') void fromZotero()
+    else void importFile(env.start === 'endnote')
+  })
   const fromKherveRef = async () => {
     const text = await env.fromKherveRef()
     if (text) m.addBib(text)
@@ -71,7 +99,7 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     <form className="dlg dlg-refs" role="dialog" aria-label="References of this document"
       onSubmit={(e) => { e.preventDefault(); finish([]) }}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close(null) } }}>
-      <div className="dlg-title">References of this document</div>
+      <div className="dlg-title">Reference library — the references of this document</div>
       <div className="dlg-body">
         {env.note && <div className="dlg-refs-note">{env.note}</div>}
         <div className="dlg-refs-top">
@@ -130,8 +158,12 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
           <button type="button" title="Add a reference to the list" onClick={() => m.newEntry()}>New</button>
           <button type="button" title="Take the selected references out of the list"
             onClick={() => m.deleteSelected()}>Delete</button>
-          <button type="button" title="Add the references of a .bib file (from Zotero, Mendeley, Google Scholar...)"
-            onClick={() => void importBib()}>Import .bib…</button>
+          <button type="button" title="Pick references in Zotero (with the Better BibTeX add-on), or take the Zotero library"
+            onClick={() => void fromZotero()}>From Zotero…</button>
+          <button type="button" title="Add the references of an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw)"
+            onClick={() => void importFile(true)}>From EndNote…</button>
+          <button type="button" title="Add the references of a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml), from Zotero, Mendeley, Google Scholar, a journal..."
+            onClick={() => void importFile(false)}>Import file…</button>
           <button type="button" title="Add references from a KherveRef library"
             onClick={() => void fromKherveRef()}>From KherveRef…</button>
           <span className="dlg-refs-summary">{m.summaryText}</span>
