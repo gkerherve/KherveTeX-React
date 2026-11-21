@@ -447,6 +447,7 @@
 }
 :root[data-theme='dark'] .beta-strip { background: #4a3c10; color: #ffe6a0; border-color: #8a6d10; }
 
-/* The review margin (editor/reviewMargin.ts) widens the page itself, as
-   Word's markup area does: the comments sit on the same sheet. */
-.page-card:has(.kt-has-review) { padding-right: 270px; }
+/* The review margin (editor/reviewMargin.ts) sits on the desk beside the
+   A4 page, never on it: the desk makes room for it so the page and its
+   comments are centred together. */
+.page-scale:has(.kt-has-review) { padding-right: calc(275px * var(--kt-zoom, 1)); }
