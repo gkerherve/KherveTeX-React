@@ -456,6 +456,11 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     if (pageSetup[2]) meta.landscape = true
   }
   // Word's headers and footers, as fancyhdr sets them.
+  // Underlined text breaks across lines, as in Word (\underline cannot).
+  if (JSON.stringify(children).includes('"underline"')) {
+    const ul = '\\usepackage[normalem]{ulem}\n\\AtBeginDocument{\\let\\underline\\uline}'
+    meta.preamble_extras = meta.preamble_extras ? meta.preamble_extras + '\n' + ul : ul
+  }
   const hf = _headerFooterLatex(src, sect)
   if (hf) meta.preamble_extras = meta.preamble_extras ? meta.preamble_extras + '\n' + hf : hf
   if (paraStats.length) {
@@ -900,7 +905,7 @@ function _hfParagraph(p: XElement): [string, string, string] | null {
     if (par && par.localName === 'fldSimple') {
       // <w:fldSimple w:instr="PAGE">: its runs are the shown number.
       const f = (get(par, NS.w, 'instr') ?? '').trim().split(/\s+/)[0]?.toUpperCase()
-      const cmd = f === 'PAGE' ? '\\thepage' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today' : ''
+      const cmd = f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today{}' : ''
       if (cmd) {
         if (!simpleDone.has(par)) parts[parts.length - 1] += cmd
         simpleDone.add(par)
@@ -919,7 +924,7 @@ function _hfParagraph(p: XElement): [string, string, string] | null {
         else if (t === 'separate') {
           inInstr = false; inResult = true
           const f = field.trim().split(/\s+/)[0]?.toUpperCase()
-          const cmd = f === 'PAGE' ? '\\thepage' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today' : ''
+          const cmd = f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today{}' : ''
           if (cmd) parts[parts.length - 1] += marks.includes('bold') ? `\\textbf{${cmd}}` : cmd
           else inResult = false  // another field: its shown text stays
         } else if (t === 'end') { inInstr = false; inResult = false }
@@ -929,7 +934,11 @@ function _hfParagraph(p: XElement): [string, string, string] | null {
       else if (e.localName === 't') {
         const t = (lxmlText(e) ?? '').replace(/ {2,}/g, ' ')
         if (!t) continue
-        parts[parts.length - 1] += serializeInlines([{ type: 'Text', text: t, marks: [...marks] } as Text])
+        let lt = serializeInlines([{ type: 'Text', text: t, marks: [...marks] } as Text])
+        // Spaces at its ends kept ("Page " PAGE " of " NUMPAGES).
+        if (/^\s/.test(t) && !/^\s/.test(lt)) lt = ' ' + lt
+        if (/\s$/.test(t) && !/\s$/.test(lt)) lt += ' '
+        parts[parts.length - 1] += lt
         const sz = rpr === null ? null : find(rpr, NS.w, 'sz')
         if (sz !== null && t.trim()) sizes.push(pyInt(get(sz, NS.w, 'val')))
       }
@@ -984,13 +993,27 @@ export function _headerFooterLatex(src: Src, sect: XElement | null): string {
   const hasAny = descendants(src.part.xml!.documentElement!, NS.w, 'sectPr')
     .some((sp) => findall(sp, NS.w, 'headerReference').length + findall(sp, NS.w, 'footerReference').length)
   if (!hasAny) return ''
+  const rows = { head: 0, foot: 0 }
   const setOf = (type: string) => {
     const h = _hfPart(src, sect, 'header', type), f = _hfPart(src, sect, 'footer', type)
     const lines: string[] = ['\\fancyhf{}']
+    // Several lines, or text on both sides: each part in a box standing on
+    // the header's (footer's) baseline, so it wraps and grows up as in Word.
+    const boxed = (lcr: [string, string, string] | null, k: number) => {
+      if (!lcr || !lcr[k]) return ''
+      const multi = lcr.some((x) => x.includes('\\\\')) || lcr.filter((x) => x).length > 1
+      if (!multi) return lcr[k]
+      const w = lcr.filter((x) => x).length > 1 ? '0.48' : '1.0'
+      const al = ['\\raggedright', '\\centering', '\\raggedleft'][k]
+      return `\\parbox[b]{${w}\\textwidth}{${al} ${lcr[k]}}`
+    }
     ;(['L', 'C', 'R'] as const).forEach((pos, k) => {
-      if (h && h[k]) lines.push(`\\fancyhead[${pos}]{${h[k]}}`)
-      if (f && f[k]) lines.push(`\\fancyfoot[${pos}]{${f[k]}}`)
+      if (h && h[k]) lines.push(`\\fancyhead[${pos}]{${boxed(h, k)}}`)
+      if (f && f[k]) lines.push(`\\fancyfoot[${pos}]{${boxed(f, k)}}`)
     })
+    const count = (lcr: [string, string, string] | null) =>
+      lcr ? Math.max(...lcr.map((x) => (x ? x.split('\\\\').length : 0))) : 0
+    rows.head = Math.max(rows.head, count(h)); rows.foot = Math.max(rows.foot, count(f))
     return lines
   }
   const main = setOf('default')
@@ -1003,7 +1026,17 @@ export function _headerFooterLatex(src: Src, sect: XElement | null): string {
   }
   const out = ['\\usepackage{fancyhdr}']
   if (all.includes('LastPage')) out.push('\\usepackage{lastpage}')
-  out.push('\\setlength{\\headheight}{15pt}', '\\renewcommand{\\headrulewidth}{0pt}')
+  // Room for a header of several lines, and a tall footer taken from the
+  // text area (Word's footer grows up into the page).
+  const hh = Math.max(15, 12 * rows.head + 3)
+  out.push(`\\setlength{\\headheight}{${hh}pt}`, '\\renewcommand{\\headrulewidth}{0pt}')
+  if (hh > 15) out.push(`\\addtolength{\\topmargin}{-${hh - 15}pt}`)
+  if (rows.foot > 1) {
+    // The footer hangs from the text's foot: the text shortened, the footer
+    // lowered by as much, so it stays where Word puts it.
+    const d = 11 * (rows.foot - 1)
+    out.push(`\\addtolength{\\textheight}{-${d}pt}`, `\\addtolength{\\footskip}{${d}pt}`)
+  }
   out.push('\\fancypagestyle{plain}{' + first.join('') + '}')
   out.push('\\pagestyle{fancy}', ...main)
   if (titlePg) out.push('\\AtBeginDocument{\\thispagestyle{plain}}')
