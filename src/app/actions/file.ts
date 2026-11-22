@@ -304,7 +304,14 @@ export function finishImport(doc: KDocument, path: string,
   setImportSourceDir(opts.sourceDir === undefined ? dirname(path) : opts.sourceDir)
   replaceDoc(doc, { path: null, dirty: false })
   updateTitle()
-  showMessage(opts.message ?? `Imported ${basename(path)} — Save As to keep it`, opts.message ? 8000 : 6000)
+  // A Word, OpenDocument, RTF or PDF file is converted by rule; Claude or
+  // ChatGPT, connected to kTeX, can compare it with the original and fix
+  // what the rules missed (its how_to word_to_ktex guide).
+  const fromOffice = /\.(docx|odt|rtf|pdf)$/i.test(path)
+  const tip = fromOffice ? ' — for a closer match, ask Claude or ChatGPT to tidy it '
+    + '(Tools ▸ Connect to Claude or ChatGPT)' : ''
+  showMessage((opts.message ?? `Imported ${basename(path)} — Save As to keep it`) + tip,
+    fromOffice ? 12000 : opts.message ? 8000 : 6000)
 }
 
 // The new window of _overleaf_get: the received version, untitled, with

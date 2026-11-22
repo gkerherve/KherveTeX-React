@@ -548,7 +548,7 @@ function tablePackages(doc: Document): string[] {
     if ((Object.keys(b.shading).length || b.style === 'striped') && !need.includes('colortbl')) need.push('colortbl')
     if ((b.repeat_header || tableHasPictures(b)) && !need.includes('longtable')) need.push('longtable')
     // m{} / b{} columns (vertically centred or bottom-aligned) are array's.
-    if (/[mb]\{/.test(b.alignment || '') && !need.includes('array')) need.push('array')
+    if ((/[mb]\{/.test(b.alignment || '') || b.rows.some((r) => r.some((c) => c.includes('\\arraybackslash')))) && !need.includes('array')) need.push('array')
   }
   return need
 }

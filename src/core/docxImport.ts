@@ -246,6 +246,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   const paraStats: [boolean, boolean, number, number | null][] = []
 
   let usesCheckBoxes = false
+  let blankRoomEmu = 0  // height of text boxes the next blank lines made room for
   const walk = async (elems: Iterable<XElement>): Promise<void> => {
   for (const childElem of elems) {
     // The paragraph before ended a Word section (its w:sectPr).
@@ -285,6 +286,27 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     if (tag !== 'p') continue
     if (!is(childElem, NS.w, 'p')) continue
     const para = childElem
+
+    // Text boxes anchored in the paragraph (a form's introduction set in a
+    // box): their paragraphs and tables, before the paragraph's own text.
+    // A box comes twice (mc:Choice and the VML mc:Fallback): the fallback's
+    // copy is skipped.
+    for (const box of descendants(para, NS.w, 'txbxContent')) {
+      let up = box.parentNode as XElement | null, fallback = false
+      while (up && up !== para) {
+        if (localName(up) === 'Fallback' || (localName(up) === 'txbxContent')) { fallback = true; break }
+        up = up.parentNode as XElement | null
+      }
+      if (!fallback) {
+        await walk(iterChildren(box))
+        // The blank lines Word kept beside the box (to make room for it)
+        // would now add its height again below its text.
+        let frame = box.parentNode as XElement | null
+        while (frame && frame !== para && localName(frame) !== 'anchor') frame = frame.parentNode as XElement | null
+        const ext = frame && frame !== para ? find(frame, NS.wp, 'extent') : null
+        if (ext !== null) blankRoomEmu += pyInt(get(ext, null, 'cy'))
+      }
+    }
 
     // Display equations (m:oMathPara): each its own equation block,
     // numbered when "(1)" was typed after it; any text beside them stays a
@@ -386,12 +408,18 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
           return text(t.text, t.marks.filter((m) => m !== 'bold'))
         }), false))
       } else if (textRuns.some((r) => r.type !== 'Text' || strip(r.text))) {
+        blankRoomEmu = 0
         children.push(paragraph(textRuns, alignment))
         const [before, after, first, line] = _paraSpacing(childElem, defBefore, defAfter, defFirst, defLine)
         paraStats.push([before === 0 && after === 0, first > 0, _firstRunSize(childElem, bodyHp), line])
       } else {
         // A blank line: Word's way of spacing paragraphs. A no-break space
         // keeps it a line in the PDF and on the page.
+        if (blankRoomEmu > 0) {
+          // Its height: the paragraph mark's size, single spaced.
+          blankRoomEmu -= _firstRunSize(childElem, bodyHp) / 2 * 1.15 * 12700
+          continue
+        }
         children.push(paragraph([text('\u00a0', [])], alignment))
       }
     }
@@ -976,10 +1004,16 @@ function _isFormTable(tbl: XElement): boolean {
 }
 
 const _isHex = (v: string) => /^[0-9A-Fa-f]{6}$/.test(v)
+// A fill dark enough that Word writes automatic text on it in white.
+function _isDark(fill: string): boolean {
+  if (!_isHex(fill)) return false
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(fill.slice(i, i + 2), 16))
+  return 0.299 * r + 0.587 * g + 0.114 * b < 110
+}
 
 // One cell paragraph as LaTeX: its runs in their colour, a form field's tick
 // box as \square or \boxtimes, a typed-in form field's text as shown.
-function _formParagraphLatex(p: XElement): [string, number[]] {
+function _formParagraphLatex(p: XElement, dark = false): [string, number[], string] {
   let out = ''
   const sizes: number[] = []
   let inInstr = false  // between a field's begin and separate: its code, not its text
@@ -1008,7 +1042,9 @@ function _formParagraphLatex(p: XElement): [string, number[]] {
     if (!latex) continue
     const rpr = find(r, NS.w, 'rPr')
     const col = rpr === null ? null : find(rpr, NS.w, 'color')
-    const cv = col === null ? '' : (get(col, NS.w, 'val') || '')
+    let cv = col === null ? '' : (get(col, NS.w, 'val') || '')
+    // Word draws "automatic" text white on a dark cell.
+    if (dark && !_isHex(cv)) cv = 'FFFFFF'
     // Spaces outside the colour: \color swallows a space just after it.
     if (_isHex(cv) && cv !== '000000' && latex.trim()) {
       const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(latex)!
@@ -1018,7 +1054,8 @@ function _formParagraphLatex(p: XElement): [string, number[]] {
     if (sz !== null) sizes.push(pyInt(get(sz, NS.w, 'val')))
     out += latex
   }
-  return [out.replace(/ {2,}/g, ' ').trim(), sizes]
+  const ppr = find(p, NS.w, 'pPr'), jc = ppr === null ? null : find(ppr, NS.w, 'jc')
+  return [out.replace(/ {2,}/g, ' ').trim(), sizes, jc === null ? '' : (get(jc, NS.w, 'val') || '')]
 }
 
 // A form table: every cell's paragraphs, merged cells (across and down),
@@ -1050,11 +1087,18 @@ function _importFormTable(tbl: XElement, _src: Src, textEmu: number | null): Tab
         continue
       }
       for (let k = 0; k < span; k++) openV.delete(c + k)
-      const paras = findall(tc, NS.w, 'p').map(_formParagraphLatex)
+      const shd = pr === null ? null : find(pr, NS.w, 'shd')
+      const fill = shd === null ? '' : (get(shd, NS.w, 'fill') || '')
+      const paras = findall(tc, NS.w, 'p').map((p) => _formParagraphLatex(p, _isDark(fill)))
       const sizes = paras.flatMap((x) => x[1])
       let body = paras.map((x) => x[0])
       while (body.length && !body[body.length - 1]) body.pop()
       let cell = body.map((t) => t || '~').join(' \\par ')
+      // A cell whose text is all centred (or right-aligned) is set so;
+      // \arraybackslash keeps the row's \\ ending the row.
+      const aligns = new Set(paras.filter((x) => x[0]).map((x) => (x[2] === 'end' ? 'right' : x[2])))
+      if (cell && aligns.size === 1 && aligns.has('center')) cell = `\\centering\\arraybackslash ${cell}`
+      else if (cell && aligns.size === 1 && aligns.has('right')) cell = `\\raggedleft\\arraybackslash ${cell}`
       if (cell && sizes.length) {
         const hp = _mostCommon(sizes)
         if (hp <= 17) cell = `\\footnotesize ${cell}`
@@ -1064,8 +1108,6 @@ function _importFormTable(tbl: XElement, _src: Src, textEmu: number | null): Tab
         merges.push([r, c, 1, span])
         if (vmVal === 'restart') openV.set(c, [r, merges.length - 1])
       }
-      const shd = pr === null ? null : find(pr, NS.w, 'shd')
-      const fill = shd === null ? '' : (get(shd, NS.w, 'fill') || '')
       if (_isHex(fill) && fill.toLowerCase() !== 'ffffff') shading[`${r},${c}`] = '#' + fill.toUpperCase()
       row.push(cell)
       for (let k = 1; k < span; k++) row.push('')
