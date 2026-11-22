@@ -1034,7 +1034,7 @@ const usesBooktabs = (doc: Document) =>
 
 function geometryLine(m: DocMeta): string {
   const page = byCode(m.page_size)
-  return `\\usepackage[${page.geometry_option},`
+  return `\\usepackage[${page.geometry_option},${m.landscape ? 'landscape,' : ''}`
     + `top=${pyFloat(m.margin_top_cm)}cm,bottom=${pyFloat(m.margin_bottom_cm)}cm,`
     + `left=${pyFloat(m.margin_left_cm)}cm,right=${pyFloat(m.margin_right_cm)}cm]{geometry}`
 }

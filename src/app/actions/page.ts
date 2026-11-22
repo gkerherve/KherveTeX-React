@@ -92,6 +92,9 @@ for (const code of ['A4', 'Letter', 'Legal']) {
   actions[`pagesize_${code}`] = () => { if (meta().page_size !== code) setMeta({ page_size: code }) }
 }
 
+actions.orient_portrait = () => { if (meta().landscape) setMeta({ landscape: undefined }) }
+actions.orient_landscape = () => { if (!meta().landscape) setMeta({ landscape: true }) }
+
 registerActions(actions)
 
 const STYLE_EXT = ['.cls', '.sty', '.bst']

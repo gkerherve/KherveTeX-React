@@ -293,8 +293,9 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   const page = byCode(meta.page_size)
   // A class with a fixed paper size prints on its own page.
   const followsPage = g.follows_page !== false
-  const widthPx = followsPage ? Math.round(page.width_in * DPI) : Math.round(g.page_w * pt)
-  const heightPx = followsPage ? Math.round(page.height_in * DPI) : Math.round(g.page_h * pt)
+  const [pw, ph] = meta.landscape ? [page.height_in, page.width_in] : [page.width_in, page.height_in]
+  const widthPx = followsPage ? Math.round(pw * DPI) : Math.round(g.page_w * pt)
+  const heightPx = followsPage ? Math.round(ph * DPI) : Math.round(g.page_h * pt)
   // A class that ignores the document's margins prints with its own.
   const side = (key: 'top' | 'bottom' | 'left' | 'right', cm: number) => {
     const own = g[key]
@@ -774,7 +775,8 @@ export function pagePx(meta: DocMeta): { width: number; height: number } {
   const g = lookFor(meta.documentclass, meta.body_font_pt).geometry
   if (g.follows_page !== false) {
     const p = byCode(meta.page_size)
-    return { width: Math.round(p.width_in * DPI), height: Math.round(p.height_in * DPI) }
+    const [w, h] = meta.landscape ? [p.height_in, p.width_in] : [p.width_in, p.height_in]
+    return { width: Math.round(w * DPI), height: Math.round(h * DPI) }
   }
   return { width: Math.round(g.page_w * PT_PX), height: Math.round(g.page_h * PT_PX) }
 }

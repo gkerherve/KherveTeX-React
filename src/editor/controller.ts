@@ -893,6 +893,8 @@ export class EditorController implements ViewHost {
       docClass: meta.documentclass, fontSize: String(meta.body_font_pt), disabledStyles: disabled,
     })
     for (const code of ['A4', 'Letter', 'Legal']) setCommandChecked(`pagesize_${code}`, meta.page_size === code)
+    setCommandChecked('orient_portrait', !meta.landscape)
+    setCommandChecked('orient_landscape', !!meta.landscape)
     for (const [code] of BIB_STYLES) setCommandChecked(`bib_style_${code}`, (meta.bib_style || 'plainnat') === code)
     for (const [name, m] of MARGIN_PRESETS) {
       const cur = [meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm]

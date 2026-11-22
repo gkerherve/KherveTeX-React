@@ -222,6 +222,8 @@ export interface DocMeta {
   show_date?: boolean
   // dateFormat.ts key; absent = the class's \\today.
   date_format?: string
+  // Pages turned sideways (geometry's landscape). Stored only when on.
+  landscape?: boolean
 }
 
 // Python stores these as floats: JSON and f-strings print "2.0", not "2".
@@ -251,6 +253,7 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   ref_library: o.ref_library ?? '',
   bib_style: o.bib_style ?? 'plainnat',
   ...(o.show_date === false ? { show_date: false } : {}),
+  ...(o.landscape ? { landscape: true } : {}),
   ...(o.date_format ? { date_format: o.date_format } : {}),
 })
 
@@ -368,6 +371,7 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     frontmatter_extras: pyStr(get(m, 'frontmatter_extras', '')),
     preamble_extras: pyStr(get(m, 'preamble_extras', '')),
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
+    ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
     ...(get(m, 'date_format', '') ? { date_format: pyStr(get(m, 'date_format', '')) } : {}),
     ...(withRefs ? {
       ref_library: pyStr(get(m, 'ref_library', '')),

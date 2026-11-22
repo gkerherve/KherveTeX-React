@@ -372,15 +372,19 @@ const cmds: Command[] = [
       '-', { text: 'Custom Margins…', command: 'doc_props' },
     ] },
   { id: 'size', text: 'Size', icon: 'page_size', tip: 'pagesize', popup: 'instant',
-    menu: PAGE_SIZES.map(([code, w, h]): MenuItem => ({
+    menu: [...PAGE_SIZES.map(([code, w, h]): MenuItem => ({
       text: code, command: `pagesize_${code}`, detail: `${(w * 2.54).toFixed(1)} cm × ${(h * 2.54).toFixed(1)} cm`,
       icon: 'paper_thumb', iconArg: `${w}x${h}`, checkable: true, checked: code === 'A4',
-    })) },
+    })), '-',
+      { text: 'Portrait', command: 'orient_portrait', checkable: true, checked: true },
+      { text: 'Landscape', command: 'orient_landscape', checkable: true }] },
   // The Margins and Size menu entries, checked against the document.
   ...MARGIN_PRESETS.map(([name]): Command => ({ id: `margin_${name}`, text: name, checkable: true,
     group: 'margins', checked: name === 'Normal' })),
   ...PAGE_SIZES.map(([code]): Command => ({ id: `pagesize_${code}`, text: code, checkable: true,
     group: 'pagesize', checked: code === 'A4' })),
+  { id: 'orient_portrait', text: 'Portrait', checkable: true, group: 'orient', checked: true },
+  { id: 'orient_landscape', text: 'Landscape', checkable: true, group: 'orient' },
   { id: 'doc_class', text: 'article', icon: 'class_thumbnail', iconArg: 'article', tip: 'class',
     popup: 'instant', menuKind: 'classGrid', iconW: 26, iconH: 33 },
 

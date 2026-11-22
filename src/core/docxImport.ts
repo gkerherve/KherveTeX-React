@@ -387,7 +387,12 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
         children.push(titleNode(textRuns))
       }
     } else if (kind === 'heading') {
-      children.push(section(level, textRuns))
+      // Tabs in a heading ("Purchase Order<tab>Imperial College") keep a gap.
+      const full = paragraphText(childElem)
+      const runs: Inline[] = /\S\t+\S/.test(full)
+        ? full.trim().split(/\t+/).flatMap((t, i): Inline[] => i ? [{ type: 'InlineRaw', latex: '\\qquad ' }, text(t)] : [text(t)])
+        : textRuns
+      children.push(section(level, runs))
     } else if (kind === 'author') {
       children.push(authorNode(textRuns))
     } else if (kind === 'abstract') {
@@ -448,6 +453,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   if (pageSetup) {
     meta.page_size = pageSetup[0]
     ;[meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm] = pageSetup[1]
+    if (pageSetup[2]) meta.landscape = true
   }
   if (paraStats.length) {
     const pt = _mostCommon(paraStats.map((st) => st[2])) / 2
@@ -1045,6 +1051,10 @@ function _formParagraphLatex(p: XElement, dark = false): [string, number[], stri
     inline.text = inline.text.replace(/[\t   ]/g, ' ')
     let latex = serializeInlines([inline])
     if (!latex) continue
+    // A line break (Shift+Enter) in the run: a new line in the cell.
+    const rt = runText(r)
+    if (rt.startsWith('\n')) latex = '\\newline ' + latex
+    if (rt.length > 1 && rt.endsWith('\n')) latex += '\\newline '
     const rpr = find(r, NS.w, 'rPr')
     const col = rpr === null ? null : find(rpr, NS.w, 'color')
     let cv = col === null ? '' : (get(col, NS.w, 'val') || '')
@@ -1199,19 +1209,20 @@ function _paraSpacing(p: XElement, before: number, after: number, first: number,
 
 // (page size code, [top, bottom, left, right] margins in cm) of a w:sectPr,
 // or null when it does not give them all.
-function _pageSetup(sect: XElement | null): [string, [number, number, number, number]] | null {
+function _pageSetup(sect: XElement | null): [string, [number, number, number, number], boolean] | null {
   if (sect === null) return null
   const pgSz = find(sect, NS.w, 'pgSz'), pgMar = find(sect, NS.w, 'pgMar')
   if (pgSz === null || pgMar === null) return null
   let w = _twips(get(pgSz, NS.w, 'w')), h = _twips(get(pgSz, NS.w, 'h'))
   const margins = ['top', 'bottom', 'left', 'right'].map((k) => _twips(get(pgMar, NS.w, k)))
   if (w === null || h === null || margins.some((m) => m === null)) return null
+  const landscape = get(pgSz, NS.w, 'orient') === 'landscape' || w > h
   ;[w, h] = [Math.min(w, h), Math.max(w, h)]
   let code = 'A4'
   if (Math.abs(w - 12240) <= 120 && Math.abs(h - 15840) <= 120) code = 'Letter'
   else if (Math.abs(w - 12240) <= 120 && Math.abs(h - 20160) <= 120) code = 'Legal'
   const cm = margins.map((m) => parseFloat(pyFixed(m! * 2.54 / 1440, 2))) as [number, number, number, number]
-  return [code, cm]
+  return [code, cm, landscape]
 }
 
 // The text size (half-points) of a paragraph's first run with text.
@@ -1474,11 +1485,20 @@ async function _imagesInParagraph(para: XElement, src: Src, imageDir: string, st
     const part = rel.target!
     let ext = suffix(part.partname) || '.png'
     let blob: Uint8Array | null = part.blob
+    // A picture whose name lies (a PNG saved as .gif): its own kind.
+    const lc = ext.toLowerCase()
+    if (blob[0] === 0x89 && blob[1] === 0x50 && blob[2] === 0x4E && blob[3] === 0x47 && lc !== '.png') ext = '.png'
+    else if (blob[0] === 0xFF && blob[1] === 0xD8 && !['.jpg', '.jpeg', '.jpe'].includes(lc)) ext = '.jpg'
     if (['.emf', '.wmf'].includes(ext.toLowerCase())) {
       // LaTeX cannot read a Windows metafile (XeTeX stops on it). One that
       // only wraps a bitmap (a pasted screenshot) becomes a PNG; any other
       // is left out.
       blob = ext.toLowerCase() === '.emf' ? _emfBitmapPng(blob) : null
+      if (blob === null) continue
+      ext = '.png'
+    } else if (ext.toLowerCase() === '.gif') {
+      // Nor GIF: its first frame becomes a PNG.
+      blob = _gifPng(blob)
       if (blob === null) continue
       ext = '.png'
     } else if (['.tif', '.tiff'].includes(ext.toLowerCase())) {
@@ -1582,6 +1602,79 @@ function adler32(d: Uint8Array): number {
     a %= 65521; b %= 65521
   }
   return ((b << 16) | a) >>> 0
+}
+
+// The first frame of a GIF as a PNG (transparent pixels white), or null
+// when it is not one.
+export function _gifPng(g: Uint8Array): Uint8Array | null {
+  if (g.length < 13 || String.fromCharCode(g[0], g[1], g[2]) !== 'GIF') return null
+  const u16 = (i: number) => g[i] | (g[i + 1] << 8)
+  const W = u16(6), H = u16(8)
+  let pos = 13
+  let gct: Uint8Array | null = null
+  if (g[10] & 0x80) { const n = 3 << ((g[10] & 7) + 1); gct = g.subarray(pos, pos + n); pos += n }
+  let trans = -1
+  while (pos < g.length) {
+    const b = g[pos++]
+    if (b === 0x21) {  // extension
+      const label = g[pos++]
+      if (label === 0xF9 && g[pos] >= 4 && (g[pos + 1] & 1)) trans = g[pos + 4]
+      while (pos < g.length && g[pos] !== 0) pos += g[pos] + 1
+      pos++
+    } else if (b === 0x2C) {  // image
+      const ix = u16(pos), iy = u16(pos + 2), iw = u16(pos + 4), ih = u16(pos + 6), f = g[pos + 8]
+      pos += 9
+      let pal = gct
+      if (f & 0x80) { const n = 3 << ((f & 7) + 1); pal = g.subarray(pos, pos + n); pos += n }
+      if (pal === null) return null
+      const minCode = g[pos++]
+      const data: number[] = []
+      while (pos < g.length && g[pos] !== 0) { const n = g[pos]; for (let k = 1; k <= n; k++) data.push(g[pos + k]); pos += n + 1 }
+      // LZW
+      const clear = 1 << minCode, eoi = clear + 1
+      const out = new Uint8Array(iw * ih)
+      let o = 0, size = minCode + 1, next = eoi + 1, prev = -1, bit = 0
+      const prefix = new Int32Array(4096), suffixB = new Uint8Array(4096), first = new Uint8Array(4096)
+      for (let k = 0; k < clear; k++) { prefix[k] = -1; suffixB[k] = k; first[k] = k }
+      const stack = new Uint8Array(4097)
+      while (o < out.length && (bit + size) <= data.length * 8) {
+        let code = 0
+        for (let k = 0; k < size; k++, bit++) code |= ((data[bit >> 3] >> (bit & 7)) & 1) << k
+        if (code === clear) { size = minCode + 1; next = eoi + 1; prev = -1; continue }
+        if (code === eoi) break
+        let c = code, sp = 0
+        if (prev === -1) { if (code >= clear) return null; out[o++] = code; prev = code; continue }
+        if (code >= next) { stack[sp++] = first[prev]; c = prev }
+        while (c >= clear) { stack[sp++] = suffixB[c]; c = prefix[c] }
+        stack[sp++] = c
+        if (next < 4096) { prefix[next] = prev; suffixB[next] = c; first[next] = c; next++ }
+        if (next === (1 << size) && size < 12) size++
+        while (sp > 0 && o < out.length) out[o++] = stack[--sp]
+        prev = code
+      }
+      // Interlaced rows in their order.
+      const rowOf = (r: number) => r
+      let order: number[] = Array.from({ length: ih }, (_, r) => rowOf(r))
+      if (f & 0x40) {
+        order = []
+        for (const [st, step] of [[0, 8], [4, 8], [2, 4], [1, 2]]) for (let r = st; r < ih; r += step) order.push(r)
+      }
+      const raw = new Uint8Array(H * (1 + 3 * W)).fill(255)
+      for (let y = 0; y < H; y++) raw[y * (1 + 3 * W)] = 0
+      order.forEach((dy, k) => {
+        const y = iy + dy
+        if (y >= H) return
+        for (let x = 0; x < iw && ix + x < W; x++) {
+          const v = out[k * iw + x]
+          if (v === trans) continue
+          const q = y * (1 + 3 * W) + 1 + 3 * (ix + x)
+          raw[q] = pal![3 * v]; raw[q + 1] = pal![3 * v + 1]; raw[q + 2] = pal![3 * v + 2]
+        }
+      })
+      return _pngRgb(W, H, raw)
+    } else return null
+  }
+  return null
 }
 
 // The first image of a TIFF as a PNG, for the baseline kinds Word documents
