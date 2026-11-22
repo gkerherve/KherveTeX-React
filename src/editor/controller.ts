@@ -912,6 +912,10 @@ export class EditorController implements ViewHost {
     setRibbonWidgets({
       styleLevel: level, numberedEnabled: isHeading, numbered: isHeading ? C.isHeadingNumbered(s) : true,
       docClass: meta.documentclass, fontSize: String(meta.body_font_pt), disabledStyles: disabled,
+      para: s.selection.$from.parent.type.name === 'paragraph' ? {
+        left_cm: s.selection.$from.parent.attrs.left_cm || 0, right_cm: s.selection.$from.parent.attrs.right_cm || 0,
+        before_pt: s.selection.$from.parent.attrs.before_pt || 0, after_pt: s.selection.$from.parent.attrs.after_pt || 0,
+      } : null,
     })
     for (const code of ['A4', 'Letter', 'Legal']) setCommandChecked(`pagesize_${code}`, meta.page_size === code)
     setCommandChecked('orient_portrait', !meta.landscape)

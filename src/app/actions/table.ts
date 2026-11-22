@@ -16,7 +16,7 @@ const act = (cmd: C.Command): Handler => () => { run(cmd); sync() }
 // The colour the Shading button applies (MainWindow._last_shading).
 let lastShading = '#ffeb3b'
 
-const SHADES: [string, string][] = [['#ffeb3b', 'Yellow'], ['#fde2e1', 'Light red'], ['#dff0d8', 'Light green'],
+export const SHADES: [string, string][] = [['#ffeb3b', 'Yellow'], ['#fde2e1', 'Light red'], ['#dff0d8', 'Light green'],
   ['#dce8f7', 'Light blue'], ['#eeeeee', 'Grey'], ['#fff2cc', 'Cream']]
 
 function shade(color: string | null): void {
@@ -25,7 +25,7 @@ function shade(color: string | null): void {
 }
 
 // QColorDialog.getColor: the browser's own colour picker.
-function pickColor(initial: string): Promise<string | null> {
+export function pickColor(initial: string): Promise<string | null> {
   return new Promise(resolve => {
     const input = document.createElement('input')
     input.type = 'color'

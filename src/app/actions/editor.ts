@@ -18,6 +18,8 @@ import { setCommandChecked } from '../../ui/commands.ts'
 import { hasAction, registerActions, type Handler } from '../actions.ts'
 import { appStore } from '../store.ts'
 import { setSetting, setting } from '../../platform/settings'
+import { pickColor, SHADES } from './table.ts'
+const PARA_SHADES = SHADES.map(([c]) => c)
 
 const ed = () => editor()
 
@@ -282,6 +284,20 @@ const actions: Record<string, Handler> = {
 
   bullet: () => { run(C.toggleList(false)); sync() },
   numbered: () => { run(C.toggleList(true)); sync() },
+  // Word's Paragraph group: list styles, indent, sort, spacing, shading, borders.
+  multilevel: () => { run(C.setListStyle(true, 'legal')); sync() },
+  indent_dec: () => { run(C.changeIndent(-1)); sync() },
+  indent_inc: () => { run(C.changeIndent(1)); sync() },
+  sort_paras: () => { if (!run(C.sortParagraphs(false))) status('Put the caret in a list, or select two or more paragraphs, to sort them.') },
+  'sort_paras:desc': () => { if (!run(C.sortParagraphs(true))) status('Put the caret in a list, or select two or more paragraphs, to sort them.') },
+  line_spacing: () => {},
+  para_shading: () => { run(C.setParagraphAttrs({ shade: lastParaShade })); sync() },
+  'pshade:none': () => { run(C.setParagraphAttrs({ shade: null })); sync() },
+  pshade_more: async () => {
+    const c = await pickColor(lastParaShade)
+    if (c) { lastParaShade = c; run(C.setParagraphAttrs({ shade: c })); sync() }
+  },
+  para_borders: () => { run(C.setParagraphAttrs({ border: lastBorder })); sync() },
 
   link: insertLink,
   footnote: insertFootnote,
@@ -342,6 +358,29 @@ for (const [k] of [['theorem'], ['lemma'], ['proposition'], ['corollary'], ['def
   actions[`thm_insert_${k}`] = () => { run(C.insertTheorem(k)); sync() }
   actions[`thm_kind_${k}`] = () => { run(C.setTheoremKind(k)); sync() }
 }
+
+let lastParaShade = '#FFEB3B'
+let lastBorder = 'bottom'
+for (const st of ['disc', 'circle', 'square', 'dash', 'arrow', 'check', 'diamond']) {
+  actions[`bullet_style:${st}`] = () => { run(C.setListStyle(false, st)); sync() }
+}
+for (const st of ['arabic', 'paren', 'alpha', 'alphaparen', 'Alpha', 'roman', 'Roman']) {
+  actions[`num_style:${st}`] = () => { run(C.setListStyle(true, st === 'arabic' ? '' : st)); sync() }
+}
+actions['multilevel:legal'] = () => { run(C.setListStyle(true, 'legal')); sync() }
+actions['multilevel:default'] = () => { run(C.setListStyle(true, '')); sync() }
+actions['multilevel:bullets'] = () => { run(C.setListStyle(false, '')); sync() }
+for (const v of [1.0, 1.15, 1.5, 2.0, 2.5, 3.0]) {
+  actions[`spacing:${v}`] = () => { run(C.setParagraphAttrs({ spacing: v === 1 ? null : v })); sync() }
+}
+for (const c of PARA_SHADES) actions[`pshade:${c}`] = () => { lastParaShade = c; run(C.setParagraphAttrs({ shade: c })); sync() }
+for (const b of ['bottom', 'top', 'topbottom', 'box']) {
+  actions[`border:${b}`] = () => { lastBorder = b; run(C.setParagraphAttrs({ border: b })); sync() }
+}
+for (const f of ['left_cm', 'right_cm', 'before_pt', 'after_pt']) {
+  actions[`parafield:${f}`] = v => { run(C.setParagraphAttrs({ [f]: Math.max(0, Number(v) || 0) })); sync() }
+}
+actions['border:none'] = () => { run(C.setParagraphAttrs({ border: null })); sync() }
 
 registerActions(actions)
 

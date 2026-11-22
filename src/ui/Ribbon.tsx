@@ -63,7 +63,7 @@ function iconOf(c: Command, ctx: Ctx, size: number) {
 }
 
 function menuSize(c: Command): number {
-  if (c.id === 'size') return 28
+  if (c.id === 'size' || c.id === 'orientation' || c.id === 'columns') return 28
   if (c.id.startsWith('gallery_')) return 26
   return 16
 }
@@ -115,6 +115,25 @@ function BigButton({ c, ctx }: { c: Command, ctx: Ctx }) {
 function SmallButton({ c, ctx, text }: { c: Command, ctx: Ctx, text: boolean }) {
   const tip = useTipProps(tipFor(c))
   const on = c.checkable && ctx.cmd.isChecked(c.id)
+  // A small button with a menu, as Word's Bullets, Numbering, Shading:
+  // the icon does the last choice (split) or opens the menu (instant), the
+  // arrow beside it opens the menu.
+  if (c.menu && c.popup) {
+    const isOpen = ctx.menu?.owner === c.id
+    const open = (el: HTMLElement) => ctx.openMenu(isOpen ? null : {
+      owner: c.id, rect: el.getBoundingClientRect(), entries: c.menu, iconSize: menuSize(c), kind: c.menuKind,
+    })
+    return (
+      <div className={'rb-split rb-split-small' + (isOpen ? ' open' : '')} data-menu-owner {...tip}>
+        <button type='button' className={'rb-btn rb-small' + (on ? ' on' : '')} aria-label={shortText(c.text)}
+          onClick={e => (c.popup === 'split' ? ctx.cmd.trigger(c.id) : open(e.currentTarget.parentElement!))}>
+          {c.icon && <Icon name={c.icon} arg={c.iconArg} size={18} />}
+        </button>
+        <button type='button' className='rb-btn rb-split-arrow-small' aria-label={`${shortText(c.text)} options`}
+          onClick={e => open(e.currentTarget.parentElement!)}><Chevron /></button>
+      </div>
+    )
+  }
   return (
     <button type='button' {...tip}
       className={'rb-btn rb-small' + (text ? ' rb-text' : '') + (on ? ' on' : '')}
@@ -146,6 +165,44 @@ function FontSizeCombo({ ctx }: { ctx: Ctx }) {
         })}>
         <Chevron />
       </button>
+    </div>
+  )
+}
+
+// Layout ▸ Indent (Left / Right, cm) and Spacing (Before / After, pt):
+// Word's number boxes with their up and down steps, for the caret's
+// paragraph.
+const PARA_FIELDS = {
+  left_cm: { label: 'Left', unit: 'cm', step: 0.1, icon: 'indent_inc' },
+  right_cm: { label: 'Right', unit: 'cm', step: 0.1, icon: 'indent_dec' },
+  before_pt: { label: 'Before', unit: 'pt', step: 6, icon: 'space_before' },
+  after_pt: { label: 'After', unit: 'pt', step: 6, icon: 'space_after' },
+} as const
+function ParaField({ field }: { field: keyof typeof PARA_FIELDS }) {
+  const w = useRibbonWidgets()
+  const f = PARA_FIELDS[field]
+  const cur = w.para ? w.para[field] : 0
+  const shown = `${Math.round(cur * 100) / 100} ${f.unit}`
+  const [value, setValue] = useState(shown)
+  useEffect(() => setValue(shown), [shown])
+  const commit = (v: number) => {
+    if (!w.para || !isFinite(v)) { setValue(shown); return }
+    void runAction(`parafield:${field}`, String(Math.max(0, Math.round(v * 100) / 100)))
+  }
+  return (
+    <div className='rb-parafield' title={`${f.label} ${field.endsWith('cm') ? 'indent' : 'spacing'} of the paragraph`}>
+      <Icon name={f.icon} size={16} />
+      <span className='rb-parafield-label'>{f.label}:</span>
+      <div className='rb-spin'>
+        <input value={value} disabled={!w.para} aria-label={`${f.label} (${f.unit})`}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') commit(parseFloat(value)) }}
+          onBlur={() => { if (value !== shown) commit(parseFloat(value)) }} />
+        <div className='rb-spin-arrows'>
+          <button type='button' disabled={!w.para} aria-label='Up' onClick={() => commit(cur + f.step)}>▴</button>
+          <button type='button' disabled={!w.para} aria-label='Down' onClick={() => commit(cur - f.step)}>▾</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -295,6 +352,7 @@ function Item({ it, ctx, large, text }: {
 }) {
   if (typeof it !== 'string') {
     if (it.widget === 'fontsize') return <FontSizeCombo ctx={ctx} />
+    if (it.widget === 'parafield') return <ParaField field={it.field} />
     if (it.widget === 'styles') return <StyleGallery ctx={ctx} />
     if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
     return <NumberedTile />

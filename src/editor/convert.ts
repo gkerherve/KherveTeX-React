@@ -336,7 +336,10 @@ export function isRawFloat(text: string): boolean {
 
 function buildBlock(b: M.Block): PMNode {
   switch (b.type) {
-    case 'Paragraph': return textNode('paragraph', { alignment: b.alignment }, b.children)
+    case 'Paragraph': return textNode('paragraph', {
+      alignment: b.alignment, left_cm: b.left_cm ?? 0, right_cm: b.right_cm ?? 0, before_pt: b.before_pt ?? 0,
+      after_pt: b.after_pt ?? 0, spacing: b.spacing ?? null, shade: b.shade ?? null, border: b.border ?? null,
+    }, b.children)
     case 'Section': return textNode('section', { level: b.level, numbered: b.numbered, label: b.label }, b.children)
     case 'Title': return textNode('title', null, b.children)
     case 'Author': return textNode('author', null, b.children)
@@ -348,8 +351,8 @@ function buildBlock(b: M.Block): PMNode {
     case 'Box': return textNode('box', null, b.children)
     case 'Theorem': return textNode('theorem', { kind: b.kind, title: b.title, start: b.start }, b.children)
     case 'MathBlock': return schema.nodes.math_block.create({ latex: b.latex, numbered: b.numbered, label: b.label })
-    case 'List': return schema.nodes.list.create({ ordered: b.ordered },
-      b.items.map(it => schema.nodes.list_item.create(null, inlineNodes(it.children, []))))
+    case 'List': return schema.nodes.list.create({ ordered: b.ordered, style: b.style ?? '' },
+      b.items.map(it => schema.nodes.list_item.create({ level: it.level ?? 0 }, inlineNodes(it.children, []))))
     case 'Figure': return schema.nodes.figure.create({
       path: b.path, caption: b.caption, label: b.label, width: b.width, source: b.source, align: b.align,
       height: b.height ?? '', extra: b.extra ?? [],
@@ -500,7 +503,10 @@ export function blockFromPM(node: PMNode): M.Block | null {
 export function canonicalBlock(node: PMNode): M.Block | null {
   const a = node.attrs
   switch (node.type.name) {
-    case 'paragraph': return M.paragraph(inlinesFromPM(node), a.alignment)
+    case 'paragraph': return M.paraFormat(M.paragraph(inlinesFromPM(node), a.alignment), {
+      left_cm: a.left_cm, right_cm: a.right_cm, before_pt: a.before_pt, after_pt: a.after_pt,
+      spacing: a.spacing, shade: a.shade, border: a.border,
+    })
     case 'section': return M.section(a.level, inlinesFromPM(node), a.numbered, a.label)
     case 'title': return M.title(inlinesFromPM(node))
     case 'author': return M.author(inlinesFromPM(node))
@@ -514,8 +520,8 @@ export function canonicalBlock(node: PMNode): M.Block | null {
     case 'math_block': return M.mathBlock(a.latex, a.numbered, a.label)
     case 'list': {
       const items: M.ListItem[] = []
-      node.forEach(it => items.push(M.listItem(inlinesFromPM(it))))
-      return M.list(a.ordered, items)
+      node.forEach(it => items.push(M.listItem(inlinesFromPM(it), it.attrs.level || 0)))
+      return M.list(a.ordered, items, a.style || '')
     }
     case 'figure': return M.figure({
       path: a.path, caption: a.caption, label: a.label || null, width: a.width || '0.8\\textwidth',

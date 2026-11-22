@@ -283,6 +283,49 @@ export function NumberedList(p: IconProps) {
     {L(9, y, 21, y, INK, 1.4)}</g>)}</Svg>
 }
 
+export function MultilevelList(p: IconProps) {
+  return <Svg {...p}>
+    {T([0, 0.5, 7, 10], '1', { size: 7.5, bold: true, color: BLUE })}{L(8, 5, 21, 5, INK, 1.4)}
+    {T([3, 7, 10, 10], 'a', { size: 7.5, bold: true, color: BLUE })}{L(11, 12, 21, 12, INK, 1.4)}
+    {T([6, 13.5, 13, 10], 'i', { size: 7.5, bold: true, color: BLUE })}{L(14, 19, 21, 19, INK, 1.4)}
+  </Svg>
+}
+
+function IndentIcon({ inc, ...p }: IconProps & { inc: boolean }) {
+  return <Svg {...p}>
+    {L(3, 4, 21, 4, INK, 1.4)}{L(11, 9.5, 21, 9.5, INK, 1.4)}{L(11, 14.5, 21, 14.5, INK, 1.4)}{L(3, 20, 21, 20, INK, 1.4)}
+    {inc ? <>{L(2.5, 12, 8.5, 12, BLUE, 1.5)}{P([[6, 9.5], [8.8, 12], [6, 14.5]], { closed: false, lw: 1.5, color: BLUE })}</>
+      : <>{L(3, 12, 9, 12, BLUE, 1.5)}{P([[5.5, 9.5], [2.7, 12], [5.5, 14.5]], { closed: false, lw: 1.5, color: BLUE })}</>}
+  </Svg>
+}
+export const IndentDec = (p: IconProps) => <IndentIcon {...p} inc={false} />
+export const IndentInc = (p: IconProps) => <IndentIcon {...p} inc />
+
+export function LineSpacing(p: IconProps) {
+  return <Svg {...p}>
+    {L(10, 5, 21, 5, INK, 1.4)}{L(10, 10, 21, 10, INK, 1.4)}{L(10, 15, 21, 15, INK, 1.4)}{L(10, 20, 21, 20, INK, 1.4)}
+    {L(5, 4, 5, 21, BLUE, 1.3)}{P([[2.5, 6.5], [5, 3.5], [7.5, 6.5]], { closed: false, lw: 1.3, color: BLUE })}
+    {P([[2.5, 18.5], [5, 21.5], [7.5, 18.5]], { closed: false, lw: 1.3, color: BLUE })}
+  </Svg>
+}
+
+// Borders: the dotted grid of a box with the chosen sides drawn solid.
+export function ParaBorders({ arg, ...p }: IconProps) {
+  const a = arg || 'bottom'
+  const dot = (x1: number, y1: number, x2: number, y2: number) => L(x1, y1, x2, y2, '#9aa0a6', 0.9, '1 1.6')
+  const solid = (x1: number, y1: number, x2: number, y2: number) => L(x1, y1, x2, y2, INK, 1.6)
+  const top = a === 'top' || a === 'topbottom' || a === 'box'
+  const bot = a === 'bottom' || a === 'topbottom' || a === 'box'
+  const side = a === 'box'
+  return <Svg {...p}>
+    {dot(12, 4, 12, 20)}{dot(4, 12, 20, 12)}
+    {top ? solid(4, 4, 20, 4) : dot(4, 4, 20, 4)}
+    {bot ? solid(4, 20, 20, 20) : dot(4, 20, 20, 20)}
+    {side ? solid(4, 4, 4, 20) : dot(4, 4, 4, 20)}
+    {side ? solid(20, 4, 20, 20) : dot(20, 4, 20, 20)}
+  </Svg>
+}
+
 function Align({ widths, ...p }: IconProps & { widths: Pt[] }) {
   return <Svg {...p}>{widths.map(([x1, x2], k) => <g key={k}>
     {L(x1, 5 + k * 4.6, x2, 5 + k * 4.6, INK, 1.4)}</g>)}</Svg>
@@ -901,6 +944,25 @@ export function PaperThumb({ arg = '8.27x11.69', ...p }: IconProps) {
   return <Svg {...p}>{Page(12 - w / 2, 12 - h / 2, w, h, 3)}</Svg>
 }
 
+// Orientation: a portrait page with a landscape one over it.
+export function Orientation(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 12, 16, 2.5)}{F(8, 11, 14, 10, '#fff')}{Page(8, 11, 14, 10, 2.5)}</Svg>
+}
+
+// Space before / after: lines with a blue double arrow above or below.
+function SpaceIcon({ after, ...p }: IconProps & { after: boolean }) {
+  const lines = after ? [4, 8.5, 13] : [11, 15.5, 20]
+  const [a, b] = after ? [15, 21] : [3, 9]
+  return <Svg {...p}>
+    {lines.map(v => <g key={v}>{L(10, v, 21, v, INK, 1.3)}</g>)}
+    {L(5, a, 5, b, BLUE, 1.3)}
+    {P([[3, a + 2], [5, a], [7, a + 2]], { closed: false, lw: 1.3, color: BLUE })}
+    {P([[3, b - 2], [5, b], [7, b - 2]], { closed: false, lw: 1.3, color: BLUE })}
+  </Svg>
+}
+export const SpaceBefore = (p: IconProps) => <SpaceIcon {...p} after={false} />
+export const SpaceAfter = (p: IconProps) => <SpaceIcon {...p} after />
+
 // ----- view tab -----
 
 export function PageView(p: IconProps) {
@@ -1498,6 +1560,8 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,
+  multilevel_list: MultilevelList, indent_dec: IndentDec, indent_inc: IndentInc, line_spacing: LineSpacing,
+  para_borders: ParaBorders,
   numbered_list: NumberedList, align_left: AlignLeft,
   align_center: AlignCenter, align_right: AlignRight,
   align_justify: AlignJustify, formatting_marks: FormattingMarks,
@@ -1525,6 +1589,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   picture_edit: PictureEdit, picture_width: PictureWidth,
   equation_numbered: EquationNumbered, equation_delete: EquationDelete,
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb,
+  orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
   theorem: Theorem, caption: Caption, table_style_icon: TableStyleIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,

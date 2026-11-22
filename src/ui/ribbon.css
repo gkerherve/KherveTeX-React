@@ -382,3 +382,22 @@
 .rb-coffee { flex: none; margin: 0 8px 0 -4px; padding: 1px 3px; border: 1px solid transparent; border-radius: 12px;
   background: transparent; cursor: pointer; display: flex; align-items: center; }
 .rb-coffee:hover { border-color: var(--accent); }
+
+/* Layout ▸ Indent / Spacing: icon, label and a number box with steps. */
+.rb-parafield { display: flex; align-items: center; gap: 4px; height: 24px; }
+.rb-parafield-label { width: 44px; font-size: 12px; }
+.rb-spin {
+  display: inline-flex; align-items: stretch; height: 20px; width: 78px; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: 3px; background: var(--base);
+}
+.rb-spin:focus-within { border-color: var(--accent); }
+.rb-spin input { flex: 1; min-width: 0; border: none; background: none; padding: 0 0 0 5px; font: inherit; font-size: 12px; outline: none; }
+.rb-spin-arrows { display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+.rb-spin-arrows button { flex: 1; width: 14px; padding: 0; border: none; background: none; font-size: 8px; line-height: 1; cursor: pointer; color: var(--text); }
+.rb-spin-arrows button:hover:not(:disabled) { background: var(--hover, #e8eef7); }
+.rb-spin input:disabled, .rb-spin-arrows button:disabled { opacity: 0.45; cursor: default; }
+
+/* Word's small split buttons (Bullets ▾, Shading ▾). */
+.rb-split-small { display: inline-flex; align-items: stretch; }
+.rb-split-arrow-small { width: 11px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.rb-split-arrow-small svg { width: 8px; height: 8px; }

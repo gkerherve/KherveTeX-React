@@ -105,6 +105,17 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
       + `margin-left:${L.left}px;margin-right:${L.right}px;text-indent:${L.indent}px;` + lineHeightCss(L)
     if (L.char) style += charCss(L.char)
     if (L.spans) style += 'column-span:all;'
+    if (L.marker !== undefined) style += `list-style-type:${JSON.stringify(L.marker + '\u2002')};`
+    // Word's shading and borders on a paragraph, as the PDF's box draws them.
+    if (node.type.name === 'paragraph' && (node.attrs.shade || node.attrs.border)) {
+      const b: string = node.attrs.border || ''
+      const line = '0.67px solid #000'
+      if (node.attrs.shade) style += `background:${node.attrs.shade};`
+      style += 'padding:3px 4px;'
+      if (b === 'box') style += `border:${line};`
+      if (b === 'top' || b === 'topbottom') style += `border-top:${line};`
+      if (b === 'bottom' || b === 'topbottom') style += `border-bottom:${line};`
+    }
     if (L.padBottom) style += `padding-bottom:${L.padBottom + (L.tall?.padBottom ?? 0)}px;`
     const attrs: Record<string, string> = { style }
     if (L.number) {

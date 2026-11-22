@@ -52,6 +52,8 @@ export type Widget =
   | { widget: 'styles' }
   | { widget: 'classes' }
   | { widget: 'numbered' }
+  // Layout ▸ Indent / Spacing: a number box for the caret's paragraph.
+  | { widget: 'parafield', field: 'left_cm' | 'right_cm' | 'before_pt' | 'after_pt' }
 
 export type RibbonItem = string | Widget
 
@@ -224,8 +226,44 @@ const cmds: Command[] = [
   // Insert
   { id: 'math_inline', text: 'Inline &math', icon: 'math_inline', shortcut: 'Ctrl+M' },
   { id: 'math_block', text: 'Math &block', icon: 'math_block', shortcut: 'Ctrl+Shift+M' },
-  { id: 'bullet', text: 'Bullet &list', icon: 'bullet_list' },
-  { id: 'numbered', text: '&Numbered list', icon: 'numbered_list' },
+  { id: 'bullet', text: 'Bullet &list', icon: 'bullet_list', popup: 'split',
+    menu: ([['disc', '•  Bullet'], ['circle', '◦  Circle'], ['square', '▪  Square'], ['dash', '–  Dash'],
+      ['arrow', '▹  Arrow'], ['check', '✓  Check mark'], ['diamond', '⋄  Diamond']] as const)
+      .map(([st, label]): MenuItem => ({ text: label, command: `bullet_style:${st}` })) },
+  { id: 'numbered', text: '&Numbered list', icon: 'numbered_list', popup: 'split',
+    menu: ([['arabic', '1.  2.  3.'], ['paren', '1)  2)  3)'], ['alpha', 'a.  b.  c.'], ['alphaparen', 'a)  b)  c)'],
+      ['Alpha', 'A.  B.  C.'], ['roman', 'i.  ii.  iii.'], ['Roman', 'I.  II.  III.']] as const)
+      .map(([st, label]): MenuItem => ({ text: label, command: `num_style:${st}` })) },
+  { id: 'multilevel', text: 'Multilevel list', icon: 'multilevel_list', popup: 'split',
+    menu: [
+      { text: '1.  1.1.  1.1.1.', command: 'multilevel:legal' },
+      { text: '1.  (a)  i.', command: 'multilevel:default' },
+      { text: '•  –  ∗', command: 'multilevel:bullets' },
+      '-', { text: 'Increase level (Increase Indent)', command: 'indent_inc' },
+      { text: 'Decrease level (Decrease Indent)', command: 'indent_dec' },
+    ] },
+  { id: 'indent_dec', text: 'Decrease Indent', icon: 'indent_dec' },
+  { id: 'indent_inc', text: 'Increase Indent', icon: 'indent_inc' },
+  { id: 'sort_paras', text: 'Sort', icon: 'sort_icon', iconArg: '', popup: 'split',
+    menu: [{ text: 'Sort A → Z', command: 'sort_paras' }, { text: 'Sort Z → A', command: 'sort_paras:desc' }] },
+  { id: 'line_spacing', text: 'Line and Paragraph Spacing', icon: 'line_spacing', popup: 'instant',
+    menu: ['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((v): MenuItem => ({ text: v, command: `spacing:${Number(v)}` })) },
+  { id: 'para_shading', text: 'Shading', icon: 'shading_icon', iconArg: '#ffeb3b', popup: 'split',
+    menu: [
+      { text: 'No Color', command: 'pshade:none' },
+      ...([['#ffeb3b', 'Yellow'], ['#fde2e1', 'Light red'], ['#dff0d8', 'Light green'],
+        ['#dce8f7', 'Light blue'], ['#eeeeee', 'Grey'], ['#fff2cc', 'Cream']] as const)
+        .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: c, command: `pshade:${c}` })),
+      '-', { text: 'More Colors…', command: 'pshade_more' },
+    ] },
+  { id: 'para_borders', text: 'Borders', icon: 'para_borders', popup: 'split',
+    menu: [
+      { text: 'Bottom Border', icon: 'para_borders', iconArg: 'bottom', command: 'border:bottom' },
+      { text: 'Top Border', icon: 'para_borders', iconArg: 'top', command: 'border:top' },
+      { text: 'Top and Bottom Borders', icon: 'para_borders', iconArg: 'topbottom', command: 'border:topbottom' },
+      { text: 'Outside Borders', icon: 'para_borders', iconArg: 'box', command: 'border:box' },
+      { text: 'No Border', icon: 'para_borders', iconArg: 'none', command: 'border:none' },
+    ] },
   { id: 'link', text: '&Hyperlink...', icon: 'link', shortcut: 'Ctrl+K' },
   { id: 'footnote', text: '&Footnote...', icon: 'footnote' },
   { id: 'citation', text: 'Insert &citation…', icon: 'citation',
@@ -375,9 +413,18 @@ const cmds: Command[] = [
     menu: [...PAGE_SIZES.map(([code, w, h]): MenuItem => ({
       text: code, command: `pagesize_${code}`, detail: `${(w * 2.54).toFixed(1)} cm × ${(h * 2.54).toFixed(1)} cm`,
       icon: 'paper_thumb', iconArg: `${w}x${h}`, checkable: true, checked: code === 'A4',
-    })), '-',
-      { text: 'Portrait', command: 'orient_portrait', checkable: true, checked: true },
-      { text: 'Landscape', command: 'orient_landscape', checkable: true }] },
+    }))] },
+  { id: 'orientation', text: 'Orientation', icon: 'orientation', popup: 'instant',
+    menu: [
+      { text: 'Portrait', command: 'orient_portrait', icon: 'paper_thumb', iconArg: '8.27x11.69', checkable: true, checked: true },
+      { text: 'Landscape', command: 'orient_landscape', icon: 'paper_thumb', iconArg: '11.69x8.27', checkable: true },
+    ] },
+  { id: 'columns', text: 'Columns', icon: 'two_columns', popup: 'instant',
+    menu: [
+      { text: 'One', command: 'cols_1', icon: 'one_column', checkable: true, checked: true },
+      { text: 'Two', command: 'cols_2', icon: 'two_columns', checkable: true },
+      { text: 'Three', command: 'cols_3', icon: 'three_columns', checkable: true },
+    ] },
   // The Margins and Size menu entries, checked against the document.
   ...MARGIN_PRESETS.map(([name]): Command => ({ id: `margin_${name}`, text: name, checkable: true,
     group: 'margins', checked: name === 'Normal' })),
@@ -517,8 +564,8 @@ export const RIBBON_TABS: RibbonTab[] = [
       [{ widget: 'fontsize' }, 'smallcaps', 'code'],
       ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'highlight']] },
     { label: 'Paragraph', rows: [
-      ['bullet', 'numbered', 'show_marks'],
-      ['align_left', 'align_center', 'align_right', 'align_justify']] },
+      ['bullet', 'numbered', 'multilevel', 'indent_dec', 'indent_inc', 'sort_paras', 'show_marks'],
+      ['align_left', 'align_center', 'align_right', 'align_justify', 'line_spacing', 'para_shading', 'para_borders']] },
     { label: 'Styles', large: [{ widget: 'styles' }, { widget: 'numbered' }] },
   ] },
   { name: 'Insert', groups: [
@@ -532,7 +579,9 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig']], text: true },
   ] },
   { name: 'Layout', groups: [
-    { label: 'Page Setup', large: ['margins', 'size', 'cols_1', 'cols_2', 'cols_3'] },
+    { label: 'Page Setup', large: ['margins', 'orientation', 'size', 'columns'] },
+    { label: 'Indent', rows: [[{ widget: 'parafield', field: 'left_cm' }], [{ widget: 'parafield', field: 'right_cm' }]] },
+    { label: 'Spacing', rows: [[{ widget: 'parafield', field: 'before_pt' }], [{ widget: 'parafield', field: 'after_pt' }]] },
     { label: 'Document type', large: [{ widget: 'classes' }] },
   ] },
   { name: 'View', groups: [

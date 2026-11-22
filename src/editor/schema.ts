@@ -27,7 +27,13 @@ const textBlock = (tag: string, cls: string, attrs: Record<string, { default: un
 const nodes: Record<string, NodeSpec> = {
   doc: { content: 'block+' },
   paragraph: {
-    ...textBlock('p', 'kt-paragraph', { alignment: { default: 'justify' } }),
+    ...textBlock('p', 'kt-paragraph', {
+      alignment: { default: 'justify' },
+      // Word's paragraph formatting (model.Paragraph): indents (cm), space
+      // before / after (pt), line spacing, shading colour, border.
+      left_cm: { default: 0 }, right_cm: { default: 0 }, before_pt: { default: 0 }, after_pt: { default: 0 },
+      spacing: { default: null }, shade: { default: null }, border: { default: null },
+    }),
     parseDOM: [{ tag: 'p' }],
   },
   section: textBlock('h2', 'kt-section', {
@@ -50,12 +56,12 @@ const nodes: Record<string, NodeSpec> = {
     toDOM: () => ['div', { class: 'kt-block kt-math-block' }],
   },
   list: {
-    group: 'block', content: 'list_item*', attrs: { ordered: { default: false }, ...ORIG },
+    group: 'block', content: 'list_item*', attrs: { ordered: { default: false }, style: { default: '' }, ...ORIG },
     toDOM: n => [n.attrs.ordered ? 'ol' : 'ul', { class: 'kt-block kt-list' }, 0],
     parseDOM: [{ tag: 'ul', attrs: { ordered: false } }, { tag: 'ol', attrs: { ordered: true } }],
   },
   list_item: {
-    content: 'inline*', defining: true,
+    content: 'inline*', defining: true, attrs: { level: { default: 0 } },
     toDOM: () => ['li', { class: 'kt-item' }, 0],
     parseDOM: [{ tag: 'li' }],
   },

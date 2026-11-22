@@ -7,7 +7,7 @@ import {
   HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
 } from './model.ts'
 import type {
-  Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, Project, Table,
+  Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, List, Paragraph, Project, Table,
 } from './model.ts'
 import { byCode } from './pageSizes.ts'
 import { capitalize, lstrip, pyFixed, pyFloat, rstrip, splitlines, strip } from './py.ts'
@@ -286,6 +286,92 @@ function theoremPreamble(doc: Document): string {
   return lines.join('\n')
 }
 
+// Word's bullet and numbering styles as LaTeX's list labels.
+const BULLET_LABELS: Record<string, string> = {
+  disc: '\\textbullet', circle: '$\\circ$', square: '\\raisebox{0.15ex}{\\rule{0.45em}{0.45em}}',
+  dash: '--', arrow: '$\\triangleright$', check: '$\\checkmark$', diamond: '$\\diamond$',
+}
+const NUMBER_FORMATS: Record<string, [string, string]> = {
+  arabic: ['\\arabic', '.'], paren: ['\\arabic', ')'], alpha: ['\\alph', '.'], alphaparen: ['\\alph', ')'],
+  Alpha: ['\\Alph', '.'], roman: ['\\roman', '.'], Roman: ['\\Roman', '.'],
+}
+const ROMAN_LEVELS = ['i', 'ii', 'iii', 'iv']
+
+function listLabelCommands(node: List): string {
+  const st = node.style ?? ''
+  if (!node.ordered) {
+    const lab = BULLET_LABELS[st]
+    return lab ? ROMAN_LEVELS.map((r) => `\\renewcommand{\\labelitem${r}}{${lab}}`).join('') : ''
+  }
+  if (st === 'legal') {
+    // 1.  1.1.  1.1.1.
+    return '\\renewcommand{\\labelenumi}{\\arabic{enumi}.}'
+      + '\\renewcommand{\\theenumii}{\\arabic{enumii}}\\renewcommand{\\labelenumii}{\\arabic{enumi}.\\arabic{enumii}.}'
+      + '\\renewcommand{\\theenumiii}{\\arabic{enumiii}}\\renewcommand{\\labelenumiii}{\\arabic{enumi}.\\arabic{enumii}.\\arabic{enumiii}.}'
+      + '\\renewcommand{\\theenumiv}{\\arabic{enumiv}}\\renewcommand{\\labelenumiv}{\\arabic{enumi}.\\arabic{enumii}.\\arabic{enumiii}.\\arabic{enumiv}.}'
+  }
+  const f = NUMBER_FORMATS[st]
+  return f ? `\\renewcommand{\\theenumi}{${f[0]}{enumi}}\\renewcommand{\\labelenumi}{\\theenumi${f[1]}}` : ''
+}
+
+// A paragraph's Word formatting around its LaTeX: line spacing (setspace),
+// left and right indent (kIndent, a list with those margins), space
+// before and after, and shading or borders
+// (a breakable tcolorbox).
+function paraWrap(node: Paragraph, body: string): string {
+  let out = body
+  if (node.spacing) out = `\\begin{spacing}{${pyFloat(node.spacing)}}\n${out}\\end{spacing}\n`
+  if (node.shade || node.border) {
+    const b = node.border ?? ''
+    const w = (on: boolean) => (on ? '0.5pt' : '0pt')
+    const opts = [
+      'breakable', 'sharp corners', 'boxsep=0pt', 'left=4pt', 'right=4pt', 'top=3pt', 'bottom=3pt',
+      `colback=${node.shade ? `kShade${node.shade.replace('#', '').toUpperCase()}` : 'white'}`, 'colframe=black',
+      'before skip=4pt', 'after skip=4pt',
+    ]
+    // A box: the frame. A rule above or below only: no frame, just that line.
+    if (b === 'box') opts.push('boxrule=0.5pt')
+    else {
+      opts.push('enhanced', 'frame hidden')
+      if (b === 'top' || b === 'topbottom') opts.push('borderline north={0.5pt}{0pt}{black}')
+      if (b === 'bottom' || b === 'topbottom') opts.push('borderline south={0.5pt}{0pt}{black}')
+    }
+    void w
+    out = `\\begin{tcolorbox}[${opts.join(',')}]\n${out}\\end{tcolorbox}\n`
+  }
+  if (node.left_cm || node.right_cm) {
+    out = `\\begin{kIndent}{${pyFloat(node.left_cm ?? 0)}cm}{${pyFloat(node.right_cm ?? 0)}cm}\n${out}\\end{kIndent}\n`
+  }
+  if (node.before_pt) out = `\\vspace{${pyFloat(node.before_pt)}pt}\n${out}`
+  if (node.after_pt) out = `${out}\\vspace{${pyFloat(node.after_pt)}pt}\n`
+  return out
+}
+
+// Packages and definitions Word's paragraph formatting needs.
+function paraFormatPreamble(doc: Document): [string[], string] {
+  const need: string[] = []
+  const defs: string[] = []
+  const shades = new Set<string>()
+  let indent = false
+  for (const b of doc.children) {
+    if (b.type !== 'Paragraph') continue
+    if (b.spacing && !need.includes('setspace')) need.push('setspace')
+    if (b.shade || b.border) {
+      if (!need.includes('xcolor')) need.push('xcolor')
+      if (!need.includes('tcolorbox')) need.push('tcolorbox')
+      if (b.shade) shades.add(b.shade.replace('#', '').toUpperCase())
+    }
+    if (b.left_cm || b.right_cm) indent = true
+  }
+  if (need.includes('tcolorbox')) defs.push('\\tcbuselibrary{breakable,skins}')
+  for (const c of shades) defs.push(`\\definecolor{kShade${c}}{HTML}{${c}}`)
+  if (indent) {
+    defs.push('\\newenvironment{kIndent}[2]{\\list{}{\\leftmargin=#1\\rightmargin=#2\\itemindent=0pt'
+      + '\\listparindent=\\parindent\\topsep=0pt\\partopsep=0pt\\parsep=\\parskip}\\item\\relax}{\\endlist}')
+  }
+  return [need, defs.join('\n')]
+}
+
 export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; floatH?: boolean } = {}): string {
   const hasChapters = opts.hasChapters ?? false
   const floatH = opts.floatH ?? true
@@ -298,11 +384,12 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       const body = serializeInlines(node.children)
       // LaTeX justifies by default, so a left/center/right paragraph needs a
       // wrapper for the PDF to look like the editor.
+      let out = body + '\n'
       if (node.alignment in ALIGN_ENVS) {
         const env = ALIGN_ENVS[node.alignment]
-        return `\\begin{${env}}\n${body}\n\\end{${env}}\n`
+        out = `\\begin{${env}}\n${body}\n\\end{${env}}\n`
       }
-      return body + '\n'
+      return paraWrap(node, out)
     }
     case 'Section': {
       // For chapter classes, the editor's "Heading 1" is \chapter.
@@ -326,8 +413,23 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
     }
     case 'List': {
       const env = node.ordered ? 'enumerate' : 'itemize'
-      const items = node.items.map((it) => `  \\item ${serializeInlines(it.children)}\n`).join('')
-      return `\\begin{${env}}\n${items}\\end{${env}}\n`
+      if (!node.style && !node.items.some((it) => it.level)) {
+        const items = node.items.map((it) => `  \\item ${serializeInlines(it.children)}\n`).join('')
+        return `\\begin{${env}}\n${items}\\end{${env}}\n`
+      }
+      // Nested items (Increase Indent) open a list inside the item before;
+      // a bullet or numbering style redefines the labels in a group.
+      let out = ''
+      let depth = -1
+      for (const it of node.items) {
+        const lv = Math.min(Math.max(it.level ?? 0, 0), 3, depth + 1)
+        while (depth < lv) { depth++; out += `${'  '.repeat(depth)}\\begin{${env}}\n` }
+        while (depth > lv) { out += `${'  '.repeat(depth)}\\end{${env}}\n`; depth-- }
+        out += `${'  '.repeat(depth + 1)}\\item ${serializeInlines(it.children)}\n`
+      }
+      while (depth >= 0) { out += `${'  '.repeat(depth)}\\end{${env}}\n`; depth-- }
+      const labels = listLabelCommands(node)
+      return labels ? `{${labels}\n${out}}\n` : out
     }
     case 'Figure': {
       const path = figureOutputPath(node, '.pdf')
@@ -1072,6 +1174,8 @@ export function serializeDocument(doc: Document): string {
   if (usesBooktabs(doc) && !pkgList.includes('booktabs') && !m.preamble_extras.includes('{booktabs}')) {
     pkgList.push('booktabs')
   }
+  const [paraPkgs, paraDefs] = paraFormatPreamble(doc)
+  for (const p of paraPkgs) if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
   for (const p of tablePackages(doc)) {
     if (p === 'colortbl' && !pkgList.includes('xcolor')) pkgList.push('xcolor')  // \cellcolor[HTML]
     if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
@@ -1079,6 +1183,7 @@ export function serializeDocument(doc: Document): string {
   const pkgLines = pkgList.map((p) => `\\usepackage{${p}}`).join('\n')
   let packages = geometry ? strip(geometry + '\n' + pkgLines) : pkgLines
   if (preambleExtras) packages += '\n' + preambleExtras
+  if (paraDefs) packages += '\n' + paraDefs
   // User preamble (\lstset, \definecolor, \hypersetup, \newcommand...),
   // preserved verbatim from the imported .tex.
   if (m.preamble_extras && strip(m.preamble_extras)) packages += '\n' + strip(m.preamble_extras)

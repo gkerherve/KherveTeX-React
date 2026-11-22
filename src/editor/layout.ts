@@ -143,6 +143,8 @@ export interface BlockLayout {
   left: number
   right: number
   indent: number
+  // A styled or nested list item's label (listLabels).
+  marker?: string
   // px, 'normal' or a proportional factor.
   lineHeight: number | 'normal' | { proportional: number }
   // Painted before the first line, as HEADING_NUMBER / THEOREM_LABEL.
@@ -202,7 +204,7 @@ interface LBlock {
   state: number
   text: string
   isTable: boolean
-  item?: { index: number; count: number }
+  item?: { index: number; count: number; label?: string }
 }
 
 // The text the Qt block holds: inline objects count as characters.
@@ -218,6 +220,45 @@ function blockText(node: PMNode): string {
   return s
 }
 
+// The labels a styled or nested list prints, item by item (serializer's
+// listLabelCommands and LaTeX's nesting: 1. (a) i. A. / • – ∗ ·), or null
+// for a plain one-level list (the browser's own markers).
+const BULLETS: Record<string, string> = { disc: '•', circle: '◦', square: '▪', dash: '–', arrow: '▹', check: '✓', diamond: '⋄' }
+const LEVEL_BULLETS = ['•', '–', '∗', '·']
+function roman(n: number): string {
+  const t: [number, string][] = [[10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]
+  let out = ''
+  for (const [v, r] of t) while (n >= v) { out += r; n -= v }
+  return out
+}
+const alph = (n: number) => String.fromCharCode(96 + ((n - 1) % 26) + 1)
+export function listLabels(list: PMNode): string[] | null {
+  const style: string = list.attrs.style || ''
+  let nested = false
+  list.forEach((it) => { if (it.attrs.level) nested = true })
+  if (!style && !nested) return null
+  const out: string[] = []
+  const counts = [0, 0, 0, 0]
+  list.forEach((it) => {
+    const lv = Math.min(3, Math.max(0, it.attrs.level || 0))
+    counts[lv]++
+    for (let k = lv + 1; k < 4; k++) counts[k] = 0
+    if (!list.attrs.ordered) { out.push(BULLETS[style] ?? LEVEL_BULLETS[lv]); return }
+    const n = counts[lv]
+    if (style === 'legal') { out.push(counts.slice(0, lv + 1).join('.') + '.'); return }
+    if (lv === 0) {
+      const f: Record<string, string> = {
+        paren: `${n})`, alpha: `${alph(n)}.`, alphaparen: `${alph(n)})`, Alpha: `${alph(n).toUpperCase()}.`,
+        roman: `${roman(n)}.`, Roman: `${roman(n).toUpperCase()}.`,
+      }
+      out.push(f[style] ?? `${n}.`)
+      return
+    }
+    out.push(lv === 1 ? `(${alph(n)})` : lv === 2 ? `${roman(n)}.` : `${alph(n).toUpperCase()}.`)
+  })
+  return out
+}
+
 function collect(doc: PMNode): LBlock[] {
   const out: LBlock[] = []
   doc.forEach((node, offset) => {
@@ -231,6 +272,9 @@ function collect(doc: PMNode): LBlock[] {
       // Fix the item numbers relative to the list.
       const first = out.length - node.childCount
       for (let i = first; i < out.length; i++) out[i].item!.index = i - first
+      // A styled or nested list: each item's label as the PDF prints it.
+      const labels = listLabels(node)
+      if (labels) for (let i = first; i < out.length; i++) out[i].item!.label = labels[i - first]
       return
     }
     const isTable = node.type.name === 'table' || node.type.name === 'figure'
@@ -562,10 +606,18 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       L.numberStyle = label.startsWith('Proof') ? 'proof' : 'theorem'
       L.numberGap = bodyChar.sizePx * FONT_HEIGHT_EM * 0.4
     }
-    if (state === S.PARAGRAPH || state === S.BOX) L.lineHeight = bodyLinePx
+    if (state === S.PARAGRAPH || state === S.BOX) L.lineHeight = bodyLinePx * (node.type.name === 'paragraph' && node.attrs.spacing ? node.attrs.spacing : 1)
     else if (key) { /* set with the style's own leading */ }
     else if (Math.abs(spacing - 1.0) > 0.01) L.lineHeight = { proportional: spacing }
     else L.lineHeight = 'normal'
+    // Word's indents (cm) and space before / after (pt).
+    if (node.type.name === 'paragraph') {
+      const a = node.attrs
+      if (a.left_cm) L.left += a.left_cm / 2.54 * 72 * pt
+      if (a.right_cm) L.right += a.right_cm / 2.54 * 72 * pt
+      if (a.before_pt) L.top += a.before_pt * pt
+      if (a.after_pt) L.bottom += a.after_pt * pt
+    }
     if (b.item) {
       // LaTeX's list spacing: \topsep around the list and \itemsep
       // between items (10pt and 5pt at 12pt).
@@ -574,6 +626,9 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       L.bottom = b.item.index === b.item.count - 1 ? 0.83 * size * pt : 0
       // A list item's block format is Qt's default: flush left.
       L.align = 'left'
+      // Nested: 40 px a level, as the list's own indent.
+      L.left = (node.attrs.level || 0) * 40
+      if (b.item.label !== undefined) L.marker = b.item.label
     }
     if (state === S.PARAGRAPH && !b.item) {
       // LaTeX never indents the first paragraph after a heading, title

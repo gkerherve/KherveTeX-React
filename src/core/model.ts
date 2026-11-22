@@ -40,13 +40,26 @@ export const HIGHLIGHT_COLORS: Record<string, string> = {
 
 export type Alignment = 'left' | 'center' | 'right' | 'justify'
 
-export interface Paragraph { children: Inline[]; alignment: Alignment; type: 'Paragraph' }
+// Word's paragraph formatting, each stored only when set (so a plain
+// paragraph's JSON stays the Python app's): left and right indent (cm),
+// space before and after (pt), line spacing (1.15, 1.5...), shading
+// colour, borders.
+export type ParaBorder = 'box' | 'top' | 'bottom' | 'topbottom'
+export interface Paragraph {
+  children: Inline[]; alignment: Alignment; type: 'Paragraph'
+  left_cm?: number; right_cm?: number; before_pt?: number; after_pt?: number
+  spacing?: number; shade?: string; border?: ParaBorder
+}
 export interface Section {
   level: number; children: Inline[]; numbered: boolean; label: string | null; type: 'Section'
 }
 export interface MathBlock { latex: string; numbered: boolean; label: string | null; type: 'MathBlock' }
-export interface ListItem { children: Inline[]; type: 'ListItem' }
-export interface List { ordered: boolean; items: ListItem[]; type: 'List' }
+// A list item's depth (0 = top; stored only when nested).
+export interface ListItem { children: Inline[]; type: 'ListItem'; level?: number }
+// style: a bullet ('disc', 'circle', 'square', 'dash', 'arrow', 'check')
+// or a numbering ('arabic', 'paren', 'alpha', 'Alpha', 'roman', 'Roman',
+// 'legal' = 1. 1.1. 1.1.1.); absent = LaTeX's default.
+export interface List { ordered: boolean; items: ListItem[]; type: 'List'; style?: string }
 // More pictures shown beside a figure's main one, in one row, under one
 // caption and label. Each is sized by `height` (3.4cm) or, without one,
 // by `width` (0.3\textwidth).
@@ -122,8 +135,27 @@ export const section = (level = 1, children: Inline[] = [], numbered = true, lab
   ({ level, children, numbered, label, type: 'Section' })
 export const mathBlock = (latex: string, numbered = false, label: string | null = null): MathBlock =>
   ({ latex, numbered, label, type: 'MathBlock' })
-export const listItem = (children: Inline[] = []): ListItem => ({ children, type: 'ListItem' })
-export const list = (ordered = false, items: ListItem[] = []): List => ({ ordered, items, type: 'List' })
+export const listItem = (children: Inline[] = [], level = 0): ListItem =>
+  (level > 0 ? { children, type: 'ListItem', level } : { children, type: 'ListItem' })
+export const list = (ordered = false, items: ListItem[] = [], style = ''): List =>
+  (style ? { ordered, items, type: 'List', style } : { ordered, items, type: 'List' })
+
+// A paragraph with Word's formatting; the fields left out when unset.
+export interface ParaFormat {
+  left_cm?: number | null; right_cm?: number | null; before_pt?: number | null; after_pt?: number | null
+  spacing?: number | null; shade?: string | null; border?: ParaBorder | null
+}
+export function paraFormat(p: Paragraph, f: ParaFormat): Paragraph {
+  const out: Paragraph = { children: p.children, alignment: p.alignment, type: 'Paragraph' }
+  for (const k of ['left_cm', 'right_cm', 'before_pt', 'after_pt'] as const) {
+    const v = f[k]
+    if (typeof v === 'number' && Math.abs(v) > 0.001) out[k] = Math.round(v * 100) / 100
+  }
+  if (f.spacing && Math.abs(f.spacing - 1) > 0.001) out.spacing = f.spacing
+  if (f.shade) out.shade = f.shade
+  if (f.border) out.border = f.border
+  return out
+}
 export const figure = (o: Partial<Omit<Figure, 'type'>> = {}): Figure => ({
   path: o.path ?? '', caption: o.caption ?? '', label: o.label ?? null,
   width: o.width ?? '0.8\\textwidth', source: o.source ?? '', align: o.align ?? 'center',
@@ -310,14 +342,18 @@ function buildBlock(d: Json): Block {
   switch (t) {
     // The dataclass default is "justify" but a stored paragraph without an
     // alignment has always loaded as "left".
-    case 'Paragraph': return paragraph(kids(), get(d, 'alignment', 'left'))
+    case 'Paragraph': return paraFormat(paragraph(kids(), get(d, 'alignment', 'left')), {
+      left_cm: get(d, 'left_cm', null), right_cm: get(d, 'right_cm', null), before_pt: get(d, 'before_pt', null),
+      after_pt: get(d, 'after_pt', null), spacing: get(d, 'spacing', null), shade: get(d, 'shade', null), border: get(d, 'border', null),
+    })
     case 'Section': return section(get(d, 'level', 1), kids(), get(d, 'numbered', true), get(d, 'label', null))
     case 'MathBlock': {
       if (!('latex' in d)) throw new Error("KeyError: 'latex'")
       return mathBlock(d.latex as string, get(d, 'numbered', false), get(d, 'label', null))
     }
     case 'List': return list(get(d, 'ordered', false),
-      get<Json[]>(d, 'items', []).map((it) => listItem(buildInlines(get(it, 'children', [])))))
+      get<Json[]>(d, 'items', []).map((it) => listItem(buildInlines(get(it, 'children', [])), get(it, 'level', 0))),
+      get(d, 'style', ''))
     case 'Figure': return figure({
       path: get(d, 'path', ''), caption: get(d, 'caption', ''), label: get(d, 'label', null),
       width: get(d, 'width', '0.8\\textwidth'), source: get(d, 'source', ''), align: get(d, 'align', 'center'),

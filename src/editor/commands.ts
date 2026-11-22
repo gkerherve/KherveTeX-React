@@ -335,7 +335,7 @@ export const liftListItem: Command = (state, dispatch) => {
     const nodes: PMNode[] = []
     if (before.length) nodes.push(N.list.create(list.attrs, before))
     nodes.push(para)
-    if (after.length) nodes.push(N.list.create({ ordered: list.attrs.ordered }, after))
+    if (after.length) nodes.push(N.list.create(list.attrs, after))
     const tr = state.tr.replaceWith(listPos, listPos + list.nodeSize, nodes)
     const paraPos = listPos + (before.length ? nodes[0].nodeSize : 0)
     tr.setSelection(TextSelection.create(tr.doc, paraPos + 1 + $from.parentOffset))
@@ -1055,4 +1055,108 @@ export function replaceAll(needle: string, repl: string, o: { caseSensitive: boo
     dispatch(tr)
   }
   return hits.length
+}
+
+// ---------- Word's Paragraph group ----------
+
+// A bullet or numbering style (Home ▸ Bullets / Numbering / Multilevel
+// list menus): the caret's list takes it, or its lines become such a list.
+export function setListStyle(ordered: boolean, style: string): Command {
+  return (state, dispatch) => {
+    const $from = state.selection.$from
+    if ($from.parent.type !== N.list_item) {
+      // The lines become a list, which takes the style, in one undo step.
+      return toggleList(ordered)(state, dispatch && (tr => {
+        const $g = tr.selection.$from
+        tr.setNodeMarkup($g.before($g.depth - 1), null, { ...$g.node($g.depth - 1).attrs, ordered, style })
+        dispatch(tr)
+      }))
+    }
+    const listPos = $from.before($from.depth - 1)
+    const list = $from.node($from.depth - 1)
+    if (dispatch) dispatch(state.tr.setNodeMarkup(listPos, null, { ...list.attrs, ordered, style }))
+    return true
+  }
+}
+
+// Increase / Decrease Indent: list items go a level deeper or up (0-3);
+// paragraphs move by Word's 1.27 cm steps.
+export function changeIndent(delta: number): Command {
+  return (state, dispatch) => {
+    const { from, to } = state.selection
+    const tr = state.tr
+    let any = false
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type === N.list_item) {
+        const lv = Math.min(3, Math.max(0, (node.attrs.level || 0) + delta))
+        if (lv !== (node.attrs.level || 0)) { tr.setNodeMarkup(pos, null, { ...node.attrs, level: lv }); any = true }
+        return false
+      }
+      if (node.type === N.paragraph) {
+        // Word's indent buttons: to the next 1.27 cm step.
+        const cur = node.attrs.left_cm || 0
+        const steps = delta > 0 ? Math.floor(cur / 1.27 + 1e-6) + 1 : Math.ceil(cur / 1.27 - 1e-6) - 1
+        const ind = Math.min(10.16, Math.max(0, Math.round(steps * 1.27 * 100) / 100))
+        if (ind !== cur) { tr.setNodeMarkup(pos, null, { ...node.attrs, left_cm: ind }); any = true }
+        return false
+      }
+      return !node.isTextblock
+    })
+    if (any && dispatch) dispatch(tr)
+    return any
+  }
+}
+
+// Line spacing, shading or borders on the selected paragraphs.
+export function setParagraphAttrs(attrs: Record<string, unknown>): Command {
+  return (state, dispatch) => {
+    const { from, to } = state.selection
+    const tr = state.tr
+    let any = false
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type === N.paragraph) { tr.setNodeMarkup(pos, null, { ...node.attrs, ...attrs }); any = true }
+      return !node.isTextblock
+    })
+    if (any && dispatch) dispatch(tr)
+    return any
+  }
+}
+
+// Sort A→Z (or Z→A): the caret's list's items, or the selected
+// paragraphs, by their text.
+export function sortParagraphs(desc: boolean): Command {
+  return (state, dispatch) => {
+    const cmp = (a: PMNode, b: PMNode) => {
+      const r = a.textContent.localeCompare(b.textContent, undefined, { numeric: true, sensitivity: 'base' })
+      return desc ? -r : r
+    }
+    const $from = state.selection.$from
+    if ($from.parent.type === N.list_item) {
+      const listPos = $from.before($from.depth - 1)
+      const list = $from.node($from.depth - 1)
+      const items: PMNode[] = []
+      list.forEach(it => items.push(it))
+      items.sort(cmp)
+      if (dispatch) {
+        const tr = state.tr.replaceWith(listPos + 1, listPos + list.nodeSize - 1, items)
+        tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(state.selection.from, tr.doc.content.size))))
+        dispatch(tr)
+      }
+      return true
+    }
+    const { from, to } = state.selection
+    const paras: { node: PMNode; pos: number }[] = []
+    state.doc.forEach((node, pos) => {
+      if (node.type === N.paragraph && pos + node.nodeSize > from && pos < to) paras.push({ node, pos })
+    })
+    if (paras.length < 2) return false
+    // Only a run of paragraphs side by side.
+    for (let i = 1; i < paras.length; i++) if (paras[i].pos !== paras[i - 1].pos + paras[i - 1].node.nodeSize) return false
+    if (dispatch) {
+      const sorted = paras.map(p => p.node).sort(cmp)
+      const start = paras[0].pos, end = paras[paras.length - 1].pos + paras[paras.length - 1].node.nodeSize
+      dispatch(state.tr.replaceWith(start, end, sorted))
+    }
+    return true
+  }
 }

@@ -12,11 +12,14 @@ export interface RibbonWidgets {
   numberedEnabled: boolean
   // Styles greyed out for this class (Chapter, Frame), with why.
   disabledStyles: Record<number, string>
+  // The caret's paragraph's indents (cm) and space before / after (pt);
+  // null outside a paragraph (Layout ▸ Indent / Spacing).
+  para: { left_cm: number; right_cm: number; before_pt: number; after_pt: number } | null
 }
 
 let state: RibbonWidgets = {
   docClass: 'article', fontSize: '12', styleLevel: 0, numbered: true, numberedEnabled: false,
-  disabledStyles: {},
+  disabledStyles: {}, para: null,
 }
 const listeners = new Set<() => void>()
 
