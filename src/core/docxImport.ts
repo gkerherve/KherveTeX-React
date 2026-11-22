@@ -1000,7 +1000,12 @@ function _isFormTable(tbl: XElement): boolean {
     const fill = shd === null ? '' : (get(shd, NS.w, 'fill') || '').toLowerCase()
     if (/^[0-9a-f]{6}$/.test(fill) && fill !== 'ffffff') return true
   }
-  return descendants(tbl, NS.w, 'checkBox').length > 0
+  if (descendants(tbl, NS.w, 'checkBox').length > 0) return true
+  // A box (one column, as a form's free-text answer) or cells holding
+  // several paragraphs: their lines and borders kept too.
+  const gridEl = find(tbl, NS.w, 'tblGrid')
+  if (gridEl !== null && findall(gridEl, NS.w, 'gridCol').length === 1) return true
+  return descendants(tbl, NS.w, 'tc').some((tc) => findall(tc, NS.w, 'p').filter((p) => strip(paragraphText(p))).length > 1)
 }
 
 const _isHex = (v: string) => /^[0-9A-Fa-f]{6}$/.test(v)
@@ -1055,6 +1060,8 @@ function _formParagraphLatex(p: XElement, dark = false): [string, number[], stri
     out += latex
   }
   const ppr = find(p, NS.w, 'pPr'), jc = ppr === null ? null : find(ppr, NS.w, 'jc')
+  // A list item in a cell keeps its bullet.
+  if (out.trim() && _paraIsList(p)) out = '\\textbullet~' + out.trim()
   return [out.replace(/ {2,}/g, ' ').trim(), sizes, jc === null ? '' : (get(jc, NS.w, 'val') || '')]
 }
 
