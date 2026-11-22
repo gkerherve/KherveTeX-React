@@ -3,6 +3,7 @@
 // three small rows as tall as one big button. Its contents come from
 // ribbonModel.ts.
 import { runAction } from '../app/actions'
+import { setSetting, setting } from '../platform/settings'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CommandState } from './commands'
 import { useRibbonWidgets } from '../editor/ribbonState'
@@ -516,6 +517,19 @@ function TabBar({ tabs, current, onPick }: {
 
 export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKind | null }) {
   const [current, setCurrent] = useState('Home')
+  // As Word: a click on the open tab folds the ribbon away (only the tab
+  // names stay); a click on a tab shows it again. Remembered.
+  const [folded, setFolded] = useState(() => Boolean(setting('ribbon_folded', false)))
+  const pick = (name: string) => {
+    if (name === shown.name) {
+      const f = !folded
+      setFolded(f)
+      setSetting('ribbon_folded', f)
+    } else {
+      setCurrent(name)
+      if (folded) { setFolded(false); setSetting('ribbon_folded', false) }
+    }
+  }
   const [menu, setMenu] = useState<OpenMenu | null>(null)
   // The hidden combos' state follows the caret (editor/ribbonState.ts).
   const widgets = useRibbonWidgets()
@@ -548,7 +562,7 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
     <div className='ribbon'>
       <div className='rb-bar'>
         <Corner ids={CORNER_LEFT} ctx={ctx} side='left' />
-        <TabBar tabs={visible} current={shown.name} onPick={setCurrent} />
+        <TabBar tabs={visible} current={shown.name} onPick={pick} />
         <div className='rb-bar-fill' />
         <button type='button' className='rb-feedback'
           title={`${SHORT_NAME} is in beta - some parts are still new. Click to email your feedback to ${FEEDBACK_EMAIL}`}
@@ -562,9 +576,11 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
         </button>
         <Corner ids={CORNER_RIGHT} ctx={ctx} side='right' />
       </div>
-      <div className='rb-body' role='tabpanel' aria-label={shown.name}>
-        {shown.groups.map((g, i) => <Group key={`${shown.name}-${i}`} g={g} ctx={ctx} />)}
-      </div>
+      {!folded && (
+        <div className='rb-body' role='tabpanel' aria-label={shown.name}>
+          {shown.groups.map((g, i) => <Group key={`${shown.name}-${i}`} g={g} ctx={ctx} />)}
+        </div>
+      )}
       {menu?.kind === 'classGrid' && (
         <ClassGrid rect={menu.rect} current={docClass} onClose={closeMenu}
           onPick={cls => { void runAction('doc_class', cls); closeMenu() }} />
