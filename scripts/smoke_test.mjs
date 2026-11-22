@@ -1,7 +1,7 @@
 // Smoke-test a built KherveTeX: the port of ../KherveTeX/packaging/smoke_test.py.
 //
-//   node scripts/smoke_test.mjs src-tauri/target/release/bundle/macos/KherveTeX.app
-//   node scripts/smoke_test.mjs "%LOCALAPPDATA%\KherveTeX\khervetex.exe"
+//   node scripts/smoke_test.mjs src-tauri/target/release/bundle/macos/kTeX.app
+//   node scripts/smoke_test.mjs "%LOCALAPPDATA%\kTeX\kTeX.exe"
 //
 // An installer fails quietly: a sidecar or a resource left out of the bundle
 // only shows on a user's first compile, and a package or font missing from

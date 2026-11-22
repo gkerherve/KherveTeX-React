@@ -22,9 +22,11 @@ Commit after every change and push to `origin/dev`
 
 The big name is KherveTeX, the short name **kTeX** (2026-11-13): it shows
 in the title bar, splash, Welcome, About, update messages and release
-titles (`SHORT_NAME` in `src/version.ts`). Files, installers, the `.app`,
-the bundle identifier, settings, the repo and the MCP server keep
-"KherveTeX".
+titles (`SHORT_NAME` in `src/version.ts`). Since 2026-11-22 the installed
+app is **kTeX** too (owner's request): `productName` in tauri.conf.json,
+so `kTeX.app`, the `kTeX_N...` installers and the file-type name. The bundle
+identifier (`com.kerherve.khervetex`, which also names the settings
+folder), the repo, the Cargo crate and the MCP server keep "KherveTeX".
 
 Like kCAD, the version is the commit count: `package.json` `version` is
 `"<N>.0.0"` with N = `git rev-list --count HEAD` + 1 (the commit being

@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "KherveTeX",
+  "productName": "kTeX",
   "version": "../package.json",
   "identifier": "com.kerherve.khervetex",
   "build": {
@@ -59,8 +59,8 @@
     "fileAssociations": [
       {
         "ext": ["ktex", "ktexz", "kdocz"],
-        "name": "KherveTeX document",
-        "description": "KherveTeX document",
+        "name": "kTeX document",
+        "description": "kTeX document",
         "role": "Editor"
       }
     ],

@@ -194,19 +194,19 @@ jobs:
         run: |
           set -euo pipefail
           B=src-tauri/target/${{ matrix.target }}/release/bundle
-          APP="$B/macos/KherveTeX.app"
+          APP="$B/macos/kTeX.app"
           plutil -p "$APP/Contents/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleShortVersionString|LSMinimumSystemVersion|ktex'
           codesign --verify --deep --strict "$APP"
           ARCH=$([ "${{ matrix.target }}" = aarch64-apple-darwin ] && echo arm64 || echo x86_64)
           for f in "$APP"/Contents/MacOS/*; do lipo -archs "$f" | grep -qw "$ARCH"; done
           test -x "$APP/Contents/MacOS/tectonic"
           test -d "$APP/Contents/Resources/resources/tectonic_cache"
-          test -f "$B"/macos/KherveTeX.app.tar.gz.sig
+          test -f "$B"/macos/kTeX.app.tar.gz.sig
           ls -la "$B"/dmg "$B"/macos
 
       - name: Smoke-test the macOS app
         if: runner.os == 'macOS'
-        run: node scripts/smoke_test.mjs src-tauri/target/${{ matrix.target }}/release/bundle/macos/KherveTeX.app
+        run: node scripts/smoke_test.mjs src-tauri/target/${{ matrix.target }}/release/bundle/macos/kTeX.app
 
       - name: Check the Windows installer
         if: runner.os == 'Windows'
@@ -221,7 +221,7 @@ jobs:
         shell: pwsh
         run: |
           $setup = Get-ChildItem "src-tauri\target\${{ matrix.target }}\release\bundle\nsis\*-setup.exe" | Select-Object -First 1
-          $dir = Join-Path $env:RUNNER_TEMP "KherveTeX-installed"
+          $dir = Join-Path $env:RUNNER_TEMP "kTeX-installed"
           # NSIS: /S silent; /D= must come last and unquoted.
           $p = Start-Process -FilePath $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "the installer exited with $($p.ExitCode)" }
