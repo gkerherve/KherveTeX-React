@@ -168,14 +168,14 @@ const MULTICOL = '\\begin{multicols}{2}\n'
   + 'is balanced into the two columns automatically.\n'
   + '\\end{multicols}'
 
-// MainWindow._show_highlight_picker: the preset colours.
+// Highlight: the colour chosen last (yellow at first), straight away, as
+// Word's button; the arrow beside it picks another.
+let lastHighlight = 'yellow'
 async function highlight(): Promise<void> {
   const e = ed()
   if (!e) return
   if (e.view.state.selection.empty) { status('Select the text to highlight first.'); return }
-  const names = Object.keys(M.HIGHLIGHT_COLORS)
-  const color = await promptItem('Highlight', 'Colour:', names.map(n => n[0].toUpperCase() + n.slice(1)))
-  if (color) run(C.addHighlight(color.toLowerCase()))
+  run(C.addHighlight(lastHighlight))
 }
 
 // MainWindow._insert_comment: the author is the git user name.
@@ -417,7 +417,9 @@ for (const st of ['double', 'wave', 'dotted', 'dashed']) actions[`uline:${st}`] 
 for (const k of ['sentence', 'lower', 'upper', 'capitalize', 'toggle'] as const) {
   actions[`case:${k}`] = () => { if (!run(C.changeCase(k))) status('Select the text to change first.') }
 }
-for (const name of Object.keys(M.HIGHLIGHT_COLORS)) actions[`hl:${name}`] = () => { if (!run(C.addHighlight(name))) status('Select the text to highlight first.') }
+for (const name of Object.keys(M.HIGHLIGHT_COLORS)) {
+  actions[`hl:${name}`] = () => { lastHighlight = name; if (!run(C.addHighlight(name))) status('Select the text to highlight first.') }
+}
 let lastParaShade = '#FFEB3B'
 let lastBorder = 'bottom'
 for (const st of ['disc', 'circle', 'square', 'dash', 'arrow', 'check', 'diamond']) {

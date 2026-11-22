@@ -12,7 +12,7 @@
 //   or w:fldSimple are not direct w:r / w:hyperlink children of the
 //   paragraph, so their text is not imported.
 
-import { figure, link, listItem, list as listNode, mathBlock, mathInline, paragraph, section, table, text, title as titleNode,
+import { figure, highlight, link, paraFormat, type ParaFormat, listItem, list as listNode, mathBlock, mathInline, paragraph, section, table, text, title as titleNode,
   author as authorNode, abstract as abstractNode, document, docMeta, inlineRaw, rawLatex } from './model.ts'
 import type { Alignment, Block, Document, Inline, ListItem, Mark, Table, Text } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
@@ -224,12 +224,14 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   // Track consecutive list paragraphs so we can merge them.
   let pendingListItems: ListItem[] = []
   let pendingListOrdered = false
+  let pendingListStyle = ''
 
   const flushList = () => {
     if (pendingListItems.length) {
-      children.push(listNode(pendingListOrdered, pendingListItems))
+      children.push(listNode(pendingListOrdered, pendingListItems, pendingListStyle))
       pendingListItems = []
       pendingListOrdered = false
+      pendingListStyle = ''
     }
   }
 
@@ -241,6 +243,38 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   let stylesForDefaults: XElement | null = null
   try { stylesForDefaults = src.stylesEl() } catch { stylesForDefaults = null }
   const [bodyHp, defBefore, defAfter, defFirst, defLine] = _styleDefaults(stylesForDefaults)
+  // The body's size and font: the most used in the text (a template sets
+  // them on every run, not in Normal), so only text set apart is marked.
+  {
+    const sizes = new Map<number, number>(), fonts = new Map<string, number>()
+    // A paragraph style's own size (its w:rPr), for runs that set none.
+    const styleSize = new Map<string, number>()
+    if (stylesForDefaults) {
+      for (const st of findall(stylesForDefaults, NS.w, 'style')) {
+        const rp = find(st, NS.w, 'rPr'), sz = rp === null ? null : find(rp, NS.w, 'sz')
+        if (sz !== null) styleSize.set(get(st, NS.w, 'styleId') ?? '', Number(get(sz, NS.w, 'val') ?? 0))
+      }
+    }
+    for (const r of descendants(body, NS.w, 'r')) {
+      const n = (lxmlText(find(r, NS.w, 't') ?? r) ?? '').length
+      if (!n) continue
+      const rpr = find(r, NS.w, 'rPr')
+      const sz = rpr === null ? null : find(rpr, NS.w, 'sz')
+      let p = r.parentNode as XElement | null
+      while (p && p.localName !== 'p') p = p.parentNode as XElement | null
+      const own = p ? styleSize.get(pStyleId(p) ?? '') : undefined
+      const hp = sz === null ? (own || bodyHp) : Number(get(sz, NS.w, 'val') ?? bodyHp)
+      sizes.set(hp, (sizes.get(hp) ?? 0) + n)
+      const f = rpr === null ? null : find(rpr, NS.w, 'rFonts')
+      const fam = _fontKey((f === null ? '' : get(f, NS.w, 'ascii') || get(f, NS.w, 'hAnsi') || '') || _defaultFont(stylesForDefaults))
+      fonts.set(fam, (fonts.get(fam) ?? 0) + n)
+    }
+    const top = <T>(m: Map<T, number>, d: T) => [...m].sort((a, b) => b[1] - a[1])[0]?.[0] ?? d
+    _runCtx.bodyHp = top(sizes, bodyHp)
+    // Code set in Courier is never the body font, however long.
+    fonts.delete('courier')
+    _runCtx.bodyFont = top(fonts, '')
+  }
   // (no space around it, first line indented, text size, line spacing) for
   // each body paragraph.
   const paraStats: [boolean, boolean, number, number | null][] = []
@@ -336,7 +370,11 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     const [kind, styleLevel] = _classifyStyle(styleName, style)
     let level = styleLevel
 
+    // Sizes and fonts set on runs are kept in body text, not in headings
+    // and titles (their own style sets them).
+    _runCtx.body = kind === 'paragraph' || kind === 'list'
     const textRuns = _runsToInlines(para, src, kind === 'author')
+    _runCtx.body = false
 
     // Detect embedded images.
     const paraImages = await _imagesInParagraph(para, src, imageDir, imageCounter, fs, textEmu)
@@ -361,10 +399,14 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     // like "List Paragraph" and also paragraphs with ad-hoc numbering).
     const isList = kind === 'list' || (kind !== 'heading' && kind !== 'title' && _paraIsList(para))
     if (isList) {
-      const ordered = _paraIsOrdered(para, src)
-      if (pendingListItems.length && ordered !== pendingListOrdered) flushList()
+      // Nested items keep their level; the list takes its top level's
+      // kind and style (Word's bullet character or number format).
+      const lv = Math.max(0, _paraListLevel(para))
+      const ordered = lv > 0 && pendingListItems.length ? pendingListOrdered : _paraIsOrdered(para, src)
+      if (pendingListItems.length && lv === 0 && ordered !== pendingListOrdered) flushList()
+      if (!pendingListItems.length) pendingListStyle = _listStyle(para, src, ordered)
       pendingListOrdered = ordered
-      pendingListItems.push(listItem(textRuns))
+      pendingListItems.push(listItem(textRuns, Math.min(3, lv)))
       continue
     }
 
@@ -414,7 +456,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
         }), false))
       } else if (textRuns.some((r) => r.type !== 'Text' || strip(r.text))) {
         blankRoomEmu = 0
-        children.push(paragraph(textRuns, alignment))
+        children.push(paraFormat(paragraph(textRuns, alignment), _paraFormat(childElem)))
         const [before, after, first, line] = _paraSpacing(childElem, defBefore, defAfter, defFirst, defLine)
         paraStats.push([before === 0 && after === 0, first > 0, _firstRunSize(childElem, bodyHp), line])
       } else {
@@ -662,16 +704,32 @@ function _runsToInlines(para: XElement, src: Src, author = false): Inline[] {
         continue
       }
       const inline = _runElementToInline(elem)
-      if (inline !== null) out.push(inline)
+      if (inline !== null) out.push(_highlighted(elem, inline))
     } else if (tag === 'oMath' && elem.namespaceURI === M_NS) {
       // A Word equation in the line of text.
       const latex = ommlToLatex(elem)
       if (latex) out.push(mathInline(latex))
     } else if (tag === 'ins') {
-      // Text typed with Track Changes on: the document as it now reads, its
-      // insertions accepted (deletions, w:del, stay out).
+      // Text typed with Track Changes on: kept as an insertion (its mark
+      // carries the author and date).
       for (const sub of findall(elem, NS.w, 'r')) {
         const inline = _runElementToInline(sub)
+        if (inline !== null) out.push(_highlighted(sub, inline))
+      }
+    } else if (tag === 'del') {
+      // Text deleted with Track Changes on: kept, struck through, as a
+      // deletion to accept or reject (w:delText holds it).
+      for (const sub of findall(elem, NS.w, 'r')) {
+        const dt = find(sub, NS.w, 'delText')
+        if (dt === null) continue
+        const piece = sub.cloneNode(true) as XElement
+        const t = piece.ownerDocument!.createElementNS(NS.w, 'w:t')
+        t.textContent = lxmlText(dt) ?? ''
+        piece.appendChild(t)
+        // Read as if in the w:del (for the mark): put it back under it.
+        elem.appendChild(piece)
+        const inline = _runElementToInline(piece)
+        elem.removeChild(piece)
         if (inline !== null) out.push(inline)
       }
     } else if (tag === 'hyperlink') {
@@ -851,9 +909,75 @@ function _runElementToInline(runElem: XElement): Text | null {
       else if (val === 'superscript') marks.push('superscript')
     }
     if (find(rpr, NS.w, 'smallCaps') !== null) marks.push('smallcaps')
+    // Word's Font group: underline style, colour, size and font.
+    const uv = uEl === null ? '' : (get(uEl, NS.w, 'val') ?? 'single')
+    const ul = ({ double: 'double', wave: 'wave', wavyDouble: 'wave', wavyHeavy: 'wave', dotted: 'dotted', dottedHeavy: 'dotted',
+      dash: 'dashed', dashLong: 'dashed', dashedHeavy: 'dashed', dashDotHeavy: 'dashed', dotDash: 'dashed', dotDotDash: 'dashed' } as Record<string, string>)[uv]
+    if (ul) { marks.splice(marks.indexOf('underline'), 1); marks.push(`uline:${ul}`) }
+    const col = find(rpr, NS.w, 'color')
+    const cv = col === null ? '' : (get(col, NS.w, 'val') ?? '')
+    if (_isHex(cv) && cv.toUpperCase() !== '000000') marks.push(`color:${cv.toUpperCase()}`)
+    if (_runCtx.body) {
+      const sz = find(rpr, NS.w, 'sz')
+      const hp = sz === null ? 0 : Number(get(sz, NS.w, 'val') ?? 0)
+      if (hp && Math.abs(hp - _runCtx.bodyHp) >= 2) marks.push(`size:${hp / 2}`)
+      const f = find(rpr, NS.w, 'rFonts')
+      const fam = f === null ? '' : _fontKey(get(f, NS.w, 'ascii') || get(f, NS.w, 'hAnsi') || '')
+      if (fam && fam !== _runCtx.bodyFont) marks.push(`font:${fam}`)
+    }
+  }
+  // Tracked: inside w:ins / w:del (Word's Track Changes).
+  for (let up = runElem.parentNode as XElement | null; up; up = up.parentNode as XElement | null) {
+    if (up.nodeType !== 1 || up.namespaceURI !== NS.w) break
+    if (up.localName === 'ins' || up.localName === 'del') {
+      const who = encodeURIComponent(get(up, NS.w, 'author') ?? '')
+      const when = (get(up, NS.w, 'date') ?? '').replace(/Z$/, '').slice(0, 19)
+      marks.push(`${up.localName}:${who}|${when}` as Mark)
+      break
+    }
+    if (up.localName === 'p') break
   }
 
   return text(t, marks)
+}
+
+// A run Word highlights (w:highlight): in kTeX's nearest highlight colour.
+function _highlighted(r: XElement, inline: Inline): Inline {
+  const rpr = find(r, NS.w, 'rPr')
+  const h = rpr === null ? null : find(rpr, NS.w, 'highlight')
+  const v = h === null ? '' : (get(h, NS.w, 'val') ?? '')
+  if (!v || v === 'none') return inline
+  const color = /green/i.test(v) ? 'green' : /cyan|blue|turquoise/i.test(v) ? 'blue'
+    : /magenta|pink|red/i.test(v) ? 'pink' : /darkYellow|orange/i.test(v) ? 'orange' : 'yellow'
+  return highlight([inline], color)
+}
+
+// What the run reader needs from the document: the body text size and
+// font, and whether the paragraph is body text.
+const _runCtx = { bodyHp: 24, bodyFont: '', body: false }
+
+// A Word font name as one of the fonts kTeX sets (FONT_FAMILIES), or ''.
+function _fontKey(name: string): string {
+  const n = name.toLowerCase()
+  if (/^arial/.test(n)) return 'arial'
+  if (/helvetica/.test(n)) return 'helvetica'
+  if (/times/.test(n)) return 'times'
+  if (/courier|consolas|menlo|monaco/.test(n)) return 'courier'
+  if (/palatino|book antiqua/.test(n)) return 'palatino'
+  if (/bookman/.test(n)) return 'bookman'
+  if (/century gothic|avant/.test(n)) return 'avantgarde'
+  if (/charter/.test(n)) return 'charter'
+  return ''
+}
+
+// The Normal font (document defaults' w:rFonts), '' when it is a theme's.
+function _defaultFont(styles: XElement | null): string {
+  if (styles === null) return ''
+  const dd = find(styles, NS.w, 'docDefaults')
+  const r = dd === null ? null : find(dd, NS.w, 'rPrDefault')
+  const rpr = r === null ? null : find(r, NS.w, 'rPr')
+  const f = rpr === null ? null : find(rpr, NS.w, 'rFonts')
+  return f === null ? '' : (get(f, NS.w, 'ascii') ?? '')
 }
 
 // Python appends a Footnote for each w:footnoteReference whose text it
@@ -1127,6 +1251,86 @@ function _paraIsOrdered(para: XElement, src: Src): boolean {
     // python-docx raising is a bulleted list
   }
   return false
+}
+
+// Word's bullet or number format of a list (its first level): kTeX's list
+// style ('' = LaTeX's default).
+function _listStyle(para: XElement, src: Src, ordered: boolean): string {
+  try {
+    const numPr = descendants(para, NS.w, 'numPr')[0]
+    const numIdEl = numPr === undefined ? null : find(numPr, NS.w, 'numId')
+    if (numIdEl === null) return ''
+    const numId = get(numIdEl, NS.w, 'val') ?? '0'
+    const numElem = src.numberingEl()
+    const num = findall(numElem, NS.w, 'num').find((n) => get(n, NS.w, 'numId') === numId)
+    const absRef = num === undefined ? null : find(num, NS.w, 'abstractNumId')
+    const absId = absRef === null ? null : get(absRef, NS.w, 'val')
+    const abs = findall(numElem, NS.w, 'abstractNum').find((a) => get(a, NS.w, 'abstractNumId') === absId)
+    if (abs === undefined) return ''
+    const lvls = findall(abs, NS.w, 'lvl')
+    const lvl0 = lvls.find((l) => (get(l, NS.w, 'ilvl') ?? '0') === '0')
+    if (!lvl0) return ''
+    const fmtEl = find(lvl0, NS.w, 'numFmt'), txtEl = find(lvl0, NS.w, 'lvlText')
+    const fmt = fmtEl === null ? '' : get(fmtEl, NS.w, 'val') ?? ''
+    const txt = txtEl === null ? '' : get(txtEl, NS.w, 'val') ?? ''
+    if (!ordered) {
+      const c = txt.codePointAt(0) ?? 0
+      if (txt === 'o' || txt === '◦' || c === 0xF0A1) return 'circle'
+      if (c === 0xF0A7 || c === 0xF06E || txt === '▪' || txt === '■') return 'square'
+      if (txt === '–' || txt === '-' || txt === '—') return 'dash'
+      if (c === 0xF0D8 || txt === '➢' || txt === '►' || txt === '▶') return 'arrow'
+      if (c === 0xF0FC || txt === '✓' || txt === '✔') return 'check'
+      if (c === 0xF076 || txt === '❖' || txt === '◆') return 'diamond'
+      return ''
+    }
+    // 1. 1.1. 1.1.1.: the second level writes both numbers.
+    const lvl1 = lvls.find((l) => get(l, NS.w, 'ilvl') === '1')
+    const t1 = lvl1 ? (find(lvl1, NS.w, 'lvlText') ? get(find(lvl1, NS.w, 'lvlText')!, NS.w, 'val') ?? '' : '') : ''
+    if (fmt === 'decimal' && /%1\.%2/.test(t1)) return 'legal'
+    const paren = txt.endsWith(')')
+    if (fmt === 'decimal') return paren ? 'paren' : ''
+    if (fmt === 'lowerLetter') return paren ? 'alphaparen' : 'alpha'
+    if (fmt === 'upperLetter') return 'Alpha'
+    if (fmt === 'lowerRoman') return 'roman'
+    if (fmt === 'upperRoman') return 'Roman'
+  } catch {
+    // no numbering part: LaTeX's default
+  }
+  return ''
+}
+
+// A body paragraph's own indents, shading and borders (its w:pPr), as
+// kTeX's paragraph formatting.
+function _paraFormat(p: XElement): ParaFormat {
+  const ppr = find(p, NS.w, 'pPr')
+  if (ppr === null) return {}
+  const out: ParaFormat = {}
+  const ind = find(ppr, NS.w, 'ind')
+  if (ind !== null) {
+    const cm = (k: string, k2: string) => {
+      const v = Number(get(ind, NS.w, k) ?? get(ind, NS.w, k2) ?? 0)
+      return v > 0 ? Math.round(v / 1440 * 2.54 * 100) / 100 : 0
+    }
+    const left = cm('left', 'start'), right = cm('right', 'end')
+    if (left >= 0.2) out.left_cm = left
+    if (right >= 0.2) out.right_cm = right
+  }
+  const shd = find(ppr, NS.w, 'shd')
+  const fill = shd === null ? '' : get(shd, NS.w, 'fill') ?? ''
+  if (_isHex(fill) && fill.toUpperCase() !== 'FFFFFF') out.shade = `#${fill.toUpperCase()}`
+  const bdr = find(ppr, NS.w, 'pBdr')
+  if (bdr !== null) {
+    const on = (k: string) => {
+      const e = find(bdr, NS.w, k)
+      return e !== null && !['nil', 'none'].includes(get(e, NS.w, 'val') ?? 'nil')
+    }
+    const [t, b, l, r] = [on('top'), on('bottom'), on('left') || on('start'), on('right') || on('end')]
+    if (l || r) out.border = 'box'
+    else if (t && b) out.border = 'topbottom'
+    else if (t) out.border = 'top'
+    else if (b) out.border = 'bottom'
+  }
+  return out
 }
 
 // --- Paragraph alignment ---------------------------------------------------

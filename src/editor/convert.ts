@@ -629,3 +629,25 @@ export function normalizeDoc(doc: M.Document): M.Document {
   })
   return M.document(blocks.length ? blocks : [M.paragraph([], 'justify')], doc.meta)
 }
+
+// A caption's LaTeX as the page shows it: \textit / \emph in italics,
+// \textbf in bold, \underline, \texttt, escapes undone, math and
+// references as their text (the caption itself stays LaTeX in the model).
+export function captionHtml(latex: string): string {
+  let s = (latex || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  s = s.replace(/\\label\{[^{}]*\}/g, '').replace(/\\(?:cite[tp]?|ref|eqref)\{([^{}]*)\}/g, '[$1]')
+  const TAGS: Record<string, [string, string]> = {
+    textit: ['<i>', '</i>'], emph: ['<i>', '</i>'], textsl: ['<i>', '</i>'], textbf: ['<b>', '</b>'],
+    underline: ['<u>', '</u>'], texttt: ['<code>', '</code>'], textsc: ['<span style="font-variant:small-caps">', '</span>'],
+    textsuperscript: ['<sup>', '</sup>'], textsubscript: ['<sub>', '</sub>'], textrm: ['', ''], textup: ['', ''],
+  }
+  const RE = /\\(textit|emph|textsl|textbf|underline|texttt|textsc|textsuperscript|textsubscript|textrm|textup)\{([^{}]*)\}/g
+  for (let prev = ''; prev !== s;) { prev = s; s = s.replace(RE, (_m, c: string, b: string) => TAGS[c][0] + b + TAGS[c][1]) }
+  s = s.replace(/\$([^$]*)\$/g, '<i>$1</i>').replace(/\^\{?([^{}\s])\}?/g, '<sup>$1</sup>')
+  return s.replace(/\\([%&_#$])/g, '$1').replace(/(?<!\\)~/g, ' ').replace(/\\,/g, ' ')
+    .replace(/\\textendash\b\s*|--/g, '–').replace(/\\textemdash\b\s*|---/g, '—').replace(/[{}]/g, '')
+}
+
+export function captionText(latex: string): string {
+  return captionHtml(latex).replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+}

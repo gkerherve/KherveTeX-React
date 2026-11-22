@@ -6,7 +6,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView } from 'prosemirror-view'
 import type { Inline } from '../core/model.ts'
 import { renderMath } from '../math/render.ts'
-import { cellDisplayText, cellLook, cellPictures } from './convert.ts'
+import { captionHtml, cellDisplayText, cellLook, cellPictures } from './convert.ts'
 import type { ReferenceResolver } from '../core/references.ts'
 import { inlineRawLook, lengthEm } from './inlineRawLook.ts'
 
@@ -224,7 +224,7 @@ class FigureView implements NodeView {
     if (a.caption) {
       const cap = document.createElement('div')
       cap.className = 'kt-figure-row kt-figure-caption'
-      cap.textContent = `Figure: ${a.caption}`
+      cap.innerHTML = `Figure: ${captionHtml(a.caption)}`
       rows.push(cap)
     }
     if (a.label) {

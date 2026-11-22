@@ -1,4 +1,5 @@
 // Two decoration layers over the document: the page layout (layout.ts —
+import { captionText } from './convert.ts'
 // each block's font, margins, numbers and labels, recomputed on every
 // change as _apply_page_layout is) and the page breaks (paginate.ts).
 import type { PdfTypography } from '../app/pageAnchors.ts'
@@ -90,7 +91,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
       const attrs: Record<string, string> = { style: `margin-top:${L.gap}px;` }
       if (node.type.name === 'table') {
         tables += 1
-        if (node.attrs.caption) attrs['data-caption'] = `Table ${tables}: ${node.attrs.caption}`
+        if (node.attrs.caption) attrs['data-caption'] = `Table ${tables}: ${captionText(node.attrs.caption)}`
         for (const c of tableCellStyles(node)) {
           const cell = node.nodeAt(c.offset - 1)
           if (cell) decos.push(Decoration.node(pos + c.offset, pos + c.offset + cell.nodeSize, { style: c.style }))
