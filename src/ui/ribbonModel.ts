@@ -329,6 +329,8 @@ const cmds: Command[] = [
   { id: 'comment', text: 'New &comment', icon: 'comment', shortcut: 'Ctrl+Alt+M' },
   { id: 'your_name', text: 'Your &name…', icon: 'your_name',
     tooltip: 'Your name, shown on your comments and reviews (in the margin, the PDF and Word)' },
+  { id: 'settings', text: '&Settings…', icon: 'settings',
+    tooltip: 'Settings: your name (on comments and reviews) and how kTeX starts' },
   { id: 'accept_comment', text: '&Accept', icon: 'accept_change' },
   { id: 'reject_comment', text: '&Reject', icon: 'reject_change' },
   { id: 'prev_comment', text: '← &Previous comment', icon: 'prev_comment', shortcut: 'Ctrl+Shift+[' },
@@ -496,7 +498,7 @@ export const CORNER_LEFT: (string | null)[] = [
   'new', 'open', 'save', 'print', null, 'undo', 'redo',
 ]
 export const CORNER_RIGHT: (string | null)[] = [
-  'compile_now', 'auto_compile', null, 'help_guide',
+  'compile_now', 'auto_compile', null, 'help_guide', 'settings',
 ]
 // Corner buttons that show their name, like Word's Share button.
 export const CORNER_LABELLED = new Set(['compile_now'])
@@ -545,7 +547,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Review', groups: [
     { label: 'Proofing', large: ['spell_check', 'spelling_list'] },
-    { label: 'Comments', large: ['comment'], rows: [['accept_comment'], ['reject_comment'], ['your_name']], text: true },
+    { label: 'Comments', large: ['comment'], rows: [['accept_comment'], ['reject_comment']], text: true },
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'],
       rows: [['overleaf_open'], ['overleaf_link']], text: true },
   ] },

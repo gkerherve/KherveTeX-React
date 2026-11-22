@@ -84,12 +84,12 @@ export const MENU_BAR: MenuBarMenu[] = [
   { text: '&Tools', items: [
     'spell_check', 'spelling_list', 'check_citations',
     { text: '&Comments && Highlights', items: ['comment', 'accept_comment', 'reject_comment',
-      'prev_comment', 'next_comment', '-', 'your_name', '-', 'highlight', 'remove_highlight'] },
+      'prev_comment', 'next_comment', '-', 'highlight', 'remove_highlight'] },
     '-',
     { text: '&Compiler', items: ['compiler_latex', 'compiler_typst', '-', 'compiler_status',
       'download_bundle', 'open_cache'] },
     '-',
-    'connect_claude',
+    'connect_claude', '-', 'settings',
   ] },
   // One entry per open window; this app has one.
   { text: '&Window', items: [{ text: 'Untitled', checkable: true, checked: true }] },

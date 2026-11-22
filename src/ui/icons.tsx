@@ -1029,6 +1029,22 @@ export function HelpIcon(p: IconProps) {
     {T([3, 3, 18, 18], '?', { size: 13, bold: true, color: BLUE })}</Svg>
 }
 
+// The Settings button: a gear.
+export function SettingsIcon(p: IconProps) {
+  const teeth: string[] = []
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4
+    const [c, s] = [Math.cos(a), Math.sin(a)]
+    teeth.push(`M${12 + 6.2 * c - 1.4 * s} ${12 + 6.2 * s + 1.4 * c}L${12 + 9 * c - 1.2 * s} ${12 + 9 * s + 1.2 * c}`
+      + `L${12 + 9 * c + 1.2 * s} ${12 + 9 * s - 1.2 * c}L${12 + 6.2 * c + 1.4 * s} ${12 + 6.2 * s - 1.4 * c}Z`)
+  }
+  return <Svg {...p}>
+    <path d={teeth.join('')} fill={BLUE} />
+    {C(12, 12, 6.6, BLUE, 1.6, PAPER)}
+    {C(12, 12, 2.4, BLUE, 1.4, PAPER)}
+  </Svg>
+}
+
 export function KeyboardIcon(p: IconProps) {
   const keys: Pt[] = []
   for (const y of [9.5, 12.5]) for (let x = 5; x < 20; x += 3) keys.push([x, y])
@@ -1513,7 +1529,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   theorem: Theorem, caption: Caption, table_style_icon: TableStyleIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
-  repeat_header: RepeatHeader, help_icon: HelpIcon,
+  repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,
   keyboard_icon: KeyboardIcon, welcome_icon: WelcomeIcon,
   update_icon: UpdateIcon, about_icon: AboutIcon, style_tile: StyleTile,
   numbered_heading_tile: NumberedHeadingTile,

@@ -188,7 +188,7 @@ async function comment(): Promise<void> {
   run(C.addComment(note.trim(), commentAuthor ?? await yourNameOrAsk(), ts))
 }
 
-// The name comments and reviews are signed with (Review ▸ Your name),
+// The name comments and reviews are signed with (Settings ▸ Your name),
 // kept in the settings. Asked once, on the first comment, with the git
 // user name offered.
 export const USER_NAME_KEY = 'user/name'
@@ -200,7 +200,7 @@ export function userName(): string {
 async function askYourName(first: boolean): Promise<string | null> {
   const current = userName() || await gitAuthor()
   const r = await promptText('Your name',
-    first ? 'Your name, shown on your comments and reviews (you can change it later in Review ▸ Your name):'
+    first ? 'Your name, shown on your comments and reviews (you can change it later in Settings, the gear beside Help):'
       : 'Your name, shown on your comments and reviews:', current)
   if (r === null) return null
   setSetting(USER_NAME_KEY, r.trim())
@@ -222,7 +222,7 @@ export function setCommentAuthor(name: string | null): void {
 
 // MainWindow._insert_comment: the user's git identity for the document's
 // repository (the enclosing one, else its folder), "" when there is none.
-async function gitAuthor(): Promise<string> {
+export async function gitAuthor(): Promise<string> {
   const path = appStore().get().path
   if (!path) return ''
   try {

@@ -21,7 +21,7 @@ export interface WelcomeResult {
   showAtStart: boolean
 }
 
-const MODES: [LayoutMode, string, string][] = [
+export const MODES: [LayoutMode, string, string][] = [
   ['side', 'Visual + PDF side by side',
     'Edit on the left and watch the compiled LaTeX PDF on the right, updated as you type.'],
   ['window', 'Visual + PDF in its own window',

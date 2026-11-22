@@ -925,7 +925,23 @@ export async function startFileService(): Promise<boolean> {
   return false
 }
 
+// Settings (the gear beside Help): your name, then how kTeX starts.
+async function settingsAction(): Promise<void> {
+  const { settingsDialog } = await import('../../ui/dialogs/SettingsDialog')
+  const { USER_NAME_KEY, userName, gitAuthor } = await import('./editor')
+  const r = await settingsDialog({
+    name: userName(), showWelcome: setting('show_welcome', true),
+    layout: setting<LayoutMode>('layout_mode', 'side'),
+  }, await gitAuthor().catch(() => ''))
+  if (!r) return
+  setSetting(USER_NAME_KEY, r.name)
+  setSetting('show_welcome', r.showWelcome)
+  if (r.layout !== setting<LayoutMode>('layout_mode', 'side')) applyLayoutMode(r.layout)
+  showMessage(r.name ? `Settings saved. Comments are signed “${r.name}”.` : 'Settings saved.', 4000)
+}
+
 registerActions({
+  settings: () => settingsAction(),
   new: () => newDocumentAction(),
   // MainWindow wires Close document to _new.
   close_doc: () => newDocumentAction('closing it'),
