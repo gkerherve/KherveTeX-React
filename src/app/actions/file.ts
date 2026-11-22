@@ -38,7 +38,7 @@ const WORK_DIR = '.kherve'
 const BIB_FILE = 'kherveref.bib'
 
 const OPENABLE_SUFFIXES = new Set(['.ktex', '.ktexz', '.kdocz', '.tex', '.md', '.markdown', '.docx', '.pdf', '.json',
-  '.zip', '.tar', '.gz', '.tgz', '.bz2', '.tbz', '.tbz2'])
+  '.zip', '.tar', '.gz', '.tgz', '.bz2', '.tbz', '.tbz2', '.rtf', '.odt', '.gdoc'])
 const IMAGE_SUFFIXES = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff', '.webp', '.svg'])
 
 // Cited KherveRef entries carried by the open document (from its .ktex),
@@ -230,6 +230,7 @@ const ARCHIVE_EXTENSIONS = ['zip', 'tar', 'gz', 'tgz', 'bz2', 'tbz', 'tbz2']
 
 const OPEN_FILTERS: FileFilter[] = [
   { name: 'All supported', extensions: ['ktex', 'ktexz', 'kdocz', 'json', 'tex', 'md', 'markdown', 'docx', 'pdf',
+    'rtf', 'odt', 'gdoc',
     ...ARCHIVE_EXTENSIONS] },
   { name: 'KherveTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
   { name: 'JSON', extensions: ['json'] },
@@ -237,6 +238,8 @@ const OPEN_FILTERS: FileFilter[] = [
   { name: 'LaTeX package (.zip, .tar.gz, .tar.bz2)', extensions: ARCHIVE_EXTENSIONS },
   { name: 'Markdown', extensions: ['md', 'markdown'] },
   { name: 'Word', extensions: ['docx'] },
+  { name: 'RTF / OpenDocument (LibreOffice, OpenOffice)', extensions: ['rtf', 'odt'] },
+  { name: 'Google Docs shortcut (.gdoc)', extensions: ['gdoc'] },
   { name: 'PDF', extensions: ['pdf'] },
   { name: 'All files', extensions: [] },
 ]
@@ -325,7 +328,12 @@ export async function openPath(path: string): Promise<void> {
   await projectHooks?.leave()
   if (isArchiveName(path)) { await importLatexPackage(path); return }
   const sfx = suffix(path).toLowerCase()
-  const isImport = ['.tex', '.md', '.markdown', '.docx', '.pdf'].includes(sfx)
+  if (sfx === '.gdoc') {
+    const wp = await import('./wordPdf')
+    await wp.importGoogleDoc(await p.readText(path))
+    return
+  }
+  const isImport = ['.tex', '.md', '.markdown', '.docx', '.pdf', '.rtf', '.odt'].includes(sfx)
   appStore().set({ status: isImport ? 'Importing…' : 'Opening…' })
   let doc: KDocument
   let bib = ''
@@ -338,6 +346,9 @@ export async function openPath(path: string): Promise<void> {
       doc = await importTexFile(path)
     } else if (sfx === '.md' || sfx === '.markdown') {
       doc = importMd(await p.readText(path))
+    } else if (sfx === '.rtf' || sfx === '.odt') {
+      const wp = await import('./wordPdf')
+      ;[doc] = await wp.importOfficeFile(path)
     } else if (sfx === '.docx' || sfx === '.pdf') {
       const wp = await import('./wordPdf')
       ;[doc] = sfx === '.docx' ? await wp.importDocxFile(path) : await wp.importPdfFile(path)

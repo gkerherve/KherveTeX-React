@@ -8,8 +8,11 @@ import { importDocx } from '../../core/docxImport'
 import type { Document as KDocument } from '../../core/model'
 import { basename, join } from '../../core/paths'
 import { importPdf } from '../../core/pdfImport'
+import { importOdt } from '../../core/odtImport'
+import { importRtf } from '../../core/rtfImport'
 import { platform } from '../../platform'
-import { critical } from '../../platform/MessageBox'
+import { critical, messageBox } from '../../platform/MessageBox'
+import { promptText } from '../../ui/dialogs/EditorDialogs'
 import { registerActions } from '../actions'
 import { buildDir, docStem, resolvedSourceDir } from '../compile'
 import { appStore } from '../store'
@@ -42,6 +45,17 @@ const loadPdfJs = async () => {
 export async function importDocxFile(path: string): Promise<[KDocument, string]> {
   const imageDir = await imageDirFor(path)
   return [dateOff(await importDocx(await platform().readFile(path), imageDir, fileAccess())), imageDir]
+}
+
+// Rich Text (.rtf) and OpenDocument text (.odt: LibreOffice, OpenOffice,
+// Google Docs' "Download ▸ OpenDocument"); pictures go to the image dir.
+export async function importOfficeFile(path: string): Promise<[KDocument, string]> {
+  const imageDir = await imageDirFor(path)
+  const bytes = await platform().readFile(path)
+  const doc = path.toLowerCase().endsWith('.odt')
+    ? await importOdt(bytes, imageDir, fileAccess())
+    : await importRtf(bytes, imageDir, fileAccess())
+  return [doc, imageDir]
 }
 
 // importers.import_pdf(path, image_dir, progress)
@@ -91,6 +105,54 @@ async function importDocxAction(): Promise<void> {
     `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted to ${imageDir})`)
 }
 
+async function importOfficeAction(): Promise<void> {
+  const picked = await platform().openFileDialog({ title: 'Import RTF or OpenDocument',
+    filters: [{ name: 'RTF / OpenDocument (.rtf, .odt)', extensions: ['rtf', 'odt'] },
+      { name: 'All files', extensions: [] }] })
+  if (!picked?.length) return
+  const path = picked[0]
+  if (!(await offerSaveBefore(`importing ${basename(path)}`))) return
+  appStore().set({ status: 'Importing…' })
+  let doc: KDocument
+  let imageDir: string
+  try {
+    [doc, imageDir] = await importOfficeFile(path)
+  } catch (exc) {
+    appStore().set({ status: '' })
+    await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
+    return
+  }
+  showImported(doc, path, `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`)
+}
+
+// The id of a Google Doc from its link (or a .gdoc file's text).
+export function googleDocId(s: string): string | null {
+  return /\/document\/(?:u\/\d+\/)?d\/([\w-]{20,})/.exec(s)?.[1]
+    ?? /"doc_id"\s*:\s*"([\w-]{20,})"/.exec(s)?.[1] ?? null
+}
+
+// File ▸ Import ▸ Google Doc: Google Docs needs your Google sign-in, which
+// your browser has. The browser downloads the document as Word (.docx),
+// then that file is imported. *source* is a link or a .gdoc file's text.
+export async function importGoogleDoc(source?: string): Promise<void> {
+  const link = source ?? await promptText('Import a Google Doc',
+    'Paste the link of the Google Doc (Share ▸ Copy link, or the address in your browser):', '')
+  if (!link) return
+  const id = googleDocId(link)
+  if (!id) {
+    await critical('Import a Google Doc', 'That is not a Google Docs link. It looks like '
+      + 'https://docs.google.com/document/d/…/edit')
+    return
+  }
+  await platform().openUrl(`https://docs.google.com/document/d/${id}/export?format=docx`).catch(() => {})
+  const go = await messageBox({ title: 'Import a Google Doc', icon: 'information',
+    text: 'Your browser is downloading the Google Doc as a Word file (.docx), with its pictures, '
+      + 'tables and headings (usually into Downloads).\n\nWhen it has finished, choose that file.',
+    buttons: [{ label: 'Choose the downloaded file…', default: true }, { label: 'Cancel' }] })
+  if (go !== 'Choose the downloaded file…') return
+  await importDocxAction()
+}
+
 async function importPdfAction(): Promise<void> {
   const picked = await platform().openFileDialog({ title: 'Import PDF',
     filters: [{ name: 'PDF', extensions: ['pdf'] }, { name: 'All files', extensions: [] }] })
@@ -133,5 +195,7 @@ async function writeDocxTo(path: string): Promise<void> {
 registerActions({
   import_docx: () => importDocxAction(),
   import_pdf: () => importPdfAction(),
+  import_office: () => importOfficeAction(),
+  import_gdoc: () => importGoogleDoc(),
   export_docx: () => exportDocxAction(),
 })
