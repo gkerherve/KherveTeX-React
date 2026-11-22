@@ -433,11 +433,16 @@ function gridRule(i: number, cols: number, covered: Covered): string {
 // p{\dimexpr<share>\linewidth-2\tabcolsep\relax}) a p{} as wide as the
 // columns it covers, so its text still wraps.
 const DIMEXPR_RE = /^[pm]\{\\dimexpr([0-9.]+)\\linewidth-2\\tabcolsep\\relax\}$/
+// Word sets a form's cells flush left, not justified.
+const RAGGED = '>{\\raggedright\\arraybackslash}'
+const raggedForm = (align: string) =>
+  align.replace(/(?<!\})([pm]\{\\dimexpr)/g, `${RAGGED}$1`)
+
 function spanAlign(grid: boolean, c: number, cs = 1, tokens: string[] = []): string {
   const shares = tokens.slice(c, c + cs).map((t) => DIMEXPR_RE.exec(t))
   if (cs > 0 && shares.length === cs && shares.every((m) => m)) {
     const sum = shares.reduce((a, m) => a + parseFloat(m![1]), 0)
-    const p = `p{\\dimexpr${pyFixed(sum, 4)}\\linewidth-2\\tabcolsep\\relax}`
+    const p = `${RAGGED}p{\\dimexpr${pyFixed(sum, 4)}\\linewidth-2\\tabcolsep\\relax}`
     return grid ? (c === 0 ? `|${p}|` : `${p}|`) : p
   }
   return grid ? (c === 0 ? '|c|' : 'c|') : 'c'
@@ -507,7 +512,7 @@ function serializeTable(node: Table, floatH = true): string {
     const head = [topRule, bodyRows[0]].filter((x) => x).join('\n')
     const capLine = cap ? `\\caption{${cap}}${strip(lab)}\\\\\n` : ''
     const rest = bodyRows.slice(1).join('\n')
-    return `\\begin{longtable}{${align}}\n${capLine}${head}\n`
+    return `\\begin{longtable}{${raggedForm(align)}}\n${capLine}${head}\n`
       + `\\endhead\n${rest}\n`
       + (bottomRule ? `${bottomRule}\n` : '')
       + '\\end{longtable}\n'
@@ -517,7 +522,7 @@ function serializeTable(node: Table, floatH = true): string {
     // make a table taller than a page: a longtable breaks between rows,
     // where a floating tabular would run off the page.
     const capLine = cap ? `\\caption{${cap}}${strip(lab)}\\\\\n` : ''
-    return `\\begin{longtable}{${align}}\n${capLine}`
+    return `\\begin{longtable}{${raggedForm(align)}}\n${capLine}`
       + (topRule ? `${topRule}\n` : '')
       + bodyRows.join('\n') + '\n'
       + (bottomRule ? `${bottomRule}\n` : '')
@@ -548,7 +553,7 @@ function tablePackages(doc: Document): string[] {
     if ((Object.keys(b.shading).length || b.style === 'striped') && !need.includes('colortbl')) need.push('colortbl')
     if ((b.repeat_header || tableHasPictures(b)) && !need.includes('longtable')) need.push('longtable')
     // m{} / b{} columns (vertically centred or bottom-aligned) are array's.
-    if ((/[mb]\{/.test(b.alignment || '') || b.rows.some((r) => r.some((c) => c.includes('\\arraybackslash')))) && !need.includes('array')) need.push('array')
+    if ((/[mb]\{|\\dimexpr/.test(b.alignment || '') || b.rows.some((r) => r.some((c) => c.includes('\\arraybackslash')))) && !need.includes('array')) need.push('array')
   }
   return need
 }

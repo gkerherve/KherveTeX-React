@@ -392,7 +392,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
       const runs: Inline[] = /\S\t+\S/.test(full)
         ? full.trim().split(/\t+/).flatMap((t, i): Inline[] => i ? [{ type: 'InlineRaw', latex: '\\qquad ' }, text(t)] : [text(t)])
         : textRuns
-      children.push(section(level, runs))
+      children.push(section(level, runs, _wordNumbersHeading(para, styles())))
     } else if (kind === 'author') {
       children.push(authorNode(textRuns))
     } else if (kind === 'abstract') {
@@ -455,6 +455,9 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     ;[meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm] = pageSetup[1]
     if (pageSetup[2]) meta.landscape = true
   }
+  // Word's headers and footers, as fancyhdr sets them.
+  const hf = _headerFooterLatex(src, sect)
+  if (hf) meta.preamble_extras = meta.preamble_extras ? meta.preamble_extras + '\n' + hf : hf
   if (paraStats.length) {
     const pt = _mostCommon(paraStats.map((st) => st[2])) / 2
     meta.body_font_pt = pt <= 10.5 ? 10 : pt <= 11.5 ? 11 : 12
@@ -872,6 +875,170 @@ function _paraIsList(para: XElement): boolean {
   return numId !== null && (get(numId, NS.w, 'val') ?? '0') !== '0'
 }
 
+// --- Headers and footers ---------------------------------------------------
+
+// A header or footer paragraph as [left, centre, right] LaTeX: its text
+// split at its tabs (one part: placed by its alignment; two: left and
+// right; three: left, centre, right). PAGE and NUMPAGES fields become the
+// page number and page count; deleted text and drawings (a decorative
+// band in a text box) are left out.
+function _hfParagraph(p: XElement): [string, string, string] | null {
+  const parts: string[] = ['']
+  const sizes: number[] = []
+  let field = '', inInstr = false, inResult = false
+  const skip = (r: XElement) => {
+    for (let up = r.parentNode as XElement | null; up && up !== p; up = up.parentNode as XElement | null) {
+      if (up.nodeType === 1 && ['del', 'moveFrom', 'txbxContent', 'drawing', 'pict', 'AlternateContent'].includes(up.localName ?? '')) return true
+    }
+    return false
+  }
+  const simpleDone = new Set<XElement>()
+  for (const r of descendants(p, NS.w, 'r')) {
+    if (skip(r)) continue
+    const rpr = find(r, NS.w, 'rPr')
+    const par = r.parentNode as XElement
+    if (par && par.localName === 'fldSimple') {
+      // <w:fldSimple w:instr="PAGE">: its runs are the shown number.
+      const f = (get(par, NS.w, 'instr') ?? '').trim().split(/\s+/)[0]?.toUpperCase()
+      const cmd = f === 'PAGE' ? '\\thepage' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today' : ''
+      if (cmd) {
+        if (!simpleDone.has(par)) parts[parts.length - 1] += cmd
+        simpleDone.add(par)
+        continue
+      }
+    }
+    const inline = _runElementToInline(r)
+    const marks = inline ? inline.marks : []
+    for (let n = r.firstChild; n; n = n.nextSibling) {
+      if (n.nodeType !== 1) continue
+      const e = n as XElement
+      if (e.namespaceURI !== NS.w) continue
+      if (e.localName === 'fldChar') {
+        const t = get(e, NS.w, 'fldCharType')
+        if (t === 'begin') { inInstr = true; field = '' }
+        else if (t === 'separate') {
+          inInstr = false; inResult = true
+          const f = field.trim().split(/\s+/)[0]?.toUpperCase()
+          const cmd = f === 'PAGE' ? '\\thepage' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today' : ''
+          if (cmd) parts[parts.length - 1] += marks.includes('bold') ? `\\textbf{${cmd}}` : cmd
+          else inResult = false  // another field: its shown text stays
+        } else if (t === 'end') { inInstr = false; inResult = false }
+      } else if (e.localName === 'instrText') field += lxmlText(e) ?? ''
+      else if (inInstr || inResult) continue
+      else if (e.localName === 'tab' || e.localName === 'ptab') parts.push('')
+      else if (e.localName === 't') {
+        const t = (lxmlText(e) ?? '').replace(/ {2,}/g, ' ')
+        if (!t) continue
+        parts[parts.length - 1] += serializeInlines([{ type: 'Text', text: t, marks: [...marks] } as Text])
+        const sz = rpr === null ? null : find(rpr, NS.w, 'sz')
+        if (sz !== null && t.trim()) sizes.push(pyInt(get(sz, NS.w, 'val')))
+      }
+    }
+  }
+  const segs = parts.map((x) => x.trim()).filter((x) => x)
+  if (!segs.length) return null
+  let size = ''
+  if (sizes.length) {
+    const hp = _mostCommon(sizes)
+    size = hp <= 14 ? '\\scriptsize ' : hp <= 17 ? '\\footnotesize ' : hp <= 20 ? '\\small ' : ''
+  }
+  const z = (x: string) => (x ? size + x : '')
+  if (segs.length >= 3) return [z(segs[0]), z(segs[1]), z(segs.slice(2).join(' '))]
+  if (segs.length === 2) return [z(segs[0]), '', z(segs[1])]
+  const ppr = find(p, NS.w, 'pPr'), jc = ppr === null ? null : find(ppr, NS.w, 'jc')
+  const a = jc === null ? '' : get(jc, NS.w, 'val') ?? ''
+  return a === 'center' ? ['', z(segs[0]), ''] : a === 'right' || a === 'end' ? ['', '', z(segs[0])] : [z(segs[0]), '', '']
+}
+
+// The [left, centre, right] of a header or footer part: its paragraphs
+// with text, one line each.
+function _hfPart(src: Src, sect: XElement, kind: 'header' | 'footer', type: string): [string, string, string] | null {
+  // A section without its own takes the one before's (Word's "Link to
+  // previous").
+  const all = descendants(src.part.xml!.documentElement!, NS.w, 'sectPr')
+  const pick = (sp: XElement) => findall(sp, NS.w, `${kind}Reference`).find((x) => (get(x, NS.w, 'type') ?? 'default') === type)
+  let ref = pick(sect)
+  for (let k = all.indexOf(sect) - 1; ref === undefined && k >= 0; k--) ref = pick(all[k])
+  if (ref === undefined) return null
+  const rel = src.part.rels.get(get(ref, NS.r, 'id') ?? '')
+  const root = rel === undefined || rel.external ? null : rel.target?.xml?.documentElement ?? null
+  if (!root) return null
+  const out: [string[], string[], string[]] = [[], [], []]
+  const inBox = (p: XElement) => {
+    for (let up = p.parentNode as XElement | null; up && up !== root; up = up.parentNode as XElement | null) {
+      if (['txbxContent', 'drawing', 'pict', 'AlternateContent'].includes(up.localName ?? '')) return true
+    }
+    return false
+  }
+  for (const p of descendants(root, NS.w, 'p').filter((x) => !inBox(x))) {
+    const lcr = _hfParagraph(p)
+    if (lcr) lcr.forEach((x, k) => { if (x) out[k].push(x) })
+  }
+  return out.map((x) => x.join('\\\\')) as [string, string, string]
+}
+
+// fancyhdr lines for the section's headers and footers, or '' when Word
+// has none (LaTeX's page number then stays).
+export function _headerFooterLatex(src: Src, sect: XElement | null): string {
+  if (sect === null) return ''
+  const hasAny = descendants(src.part.xml!.documentElement!, NS.w, 'sectPr')
+    .some((sp) => findall(sp, NS.w, 'headerReference').length + findall(sp, NS.w, 'footerReference').length)
+  if (!hasAny) return ''
+  const setOf = (type: string) => {
+    const h = _hfPart(src, sect, 'header', type), f = _hfPart(src, sect, 'footer', type)
+    const lines: string[] = ['\\fancyhf{}']
+    ;(['L', 'C', 'R'] as const).forEach((pos, k) => {
+      if (h && h[k]) lines.push(`\\fancyhead[${pos}]{${h[k]}}`)
+      if (f && f[k]) lines.push(`\\fancyfoot[${pos}]{${f[k]}}`)
+    })
+    return lines
+  }
+  const main = setOf('default')
+  const titlePg = find(sect, NS.w, 'titlePg') !== null
+  const first = titlePg ? setOf('first') : main
+  const all = main.concat(first).join('\n')
+  if (main.length === 1 && first.length === 1) {
+    // References to empty parts: Word prints nothing there.
+    return '\\usepackage{fancyhdr}\n\\pagestyle{empty}'
+  }
+  const out = ['\\usepackage{fancyhdr}']
+  if (all.includes('LastPage')) out.push('\\usepackage{lastpage}')
+  out.push('\\setlength{\\headheight}{15pt}', '\\renewcommand{\\headrulewidth}{0pt}')
+  out.push('\\fancypagestyle{plain}{' + first.join('') + '}')
+  out.push('\\pagestyle{fancy}', ...main)
+  if (titlePg) out.push('\\AtBeginDocument{\\thispagestyle{plain}}')
+  return out.join('\n')
+}
+
+// Whether Word prints a number before this heading: the paragraph, or its
+// style (through basedOn), is in a numbering list. A Heading 1 with none
+// (the usual case in a report or a form) prints no number, so neither
+// does LaTeX.
+export function _wordNumbersHeading(para: XElement, styles: XElement | null): boolean {
+  const numOf = (ppr: XElement | null): boolean | null => {
+    const np = ppr === null ? null : find(ppr, NS.w, 'numPr')
+    if (np === null) return null
+    const id = find(np, NS.w, 'numId')
+    return id === null ? null : (get(id, NS.w, 'val') ?? '0') !== '0'
+  }
+  // A number typed before the text ("2.1\u2003Methods", as kTeX's own
+  // Word export writes it): numbered.
+  if (/^\s*\d+(?:\.\d+)*\.?[\u2003\t ]/.test(paragraphText(para))) return true
+  const own = numOf(find(para, NS.w, 'pPr'))
+  if (own !== null) return own
+  if (styles === null) return true
+  let id = pStyleId(para)
+  for (let depth = 0; id && depth < 10; depth++) {
+    const st = findall(styles, NS.w, 'style').find((x) => get(x, NS.w, 'styleId') === id)
+    if (st === undefined) break
+    const v = numOf(find(st, NS.w, 'pPr'))
+    if (v !== null) return v
+    const based = find(st, NS.w, 'basedOn')
+    id = based === null ? null : get(based, NS.w, 'val')
+  }
+  return false
+}
+
 // The paragraph's own numbering level (w:numPr/w:ilvl), or -1.
 // int(s) or 0 (int() raising, or no value).
 function pyInt(v: string | null): number {
@@ -1047,7 +1214,10 @@ function _formParagraphLatex(p: XElement, dark = false): [string, number[], stri
     }
     if (inInstr) continue
     const inline = _runElementToInline(r)
-    if (inline === null) continue
+    // A tab (alone in its run, or leading one): a gap, as Word leaves.
+    const tabs = runText(r)
+    if (inline === null) { if (tabs.includes('\t')) out += '\\quad '; continue }
+    if (tabs.startsWith('\t')) out += '\\quad '
     inline.text = inline.text.replace(/[\t   ]/g, ' ')
     let latex = serializeInlines([inline])
     if (!latex) continue
@@ -1131,6 +1301,10 @@ function _importFormTable(tbl: XElement, _src: Src, textEmu: number | null): Tab
     }
     rows.push(row)
   })
+  // Grid columns no row reaches (every row ends with w:gridAfter): Word
+  // draws nothing there.
+  const used = Math.max(0, ...rows.map((x) => x.length))
+  if (used > 0 && used < grid.length) grid.length = used
   const ncols = Math.max(grid.length, ...rows.map((x) => x.length))
   for (const x of rows) while (x.length < ncols) x.push('')
   // Colour of covered cells: as their merge's first cell.

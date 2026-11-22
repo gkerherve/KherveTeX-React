@@ -89,6 +89,7 @@ function cellPlain(raw: string): string {
   let s = raw
     .replace(/\$\\boxtimes\$/g, '☒').replace(/\$\\square\$/g, '☐')
     .replace(/\\textbullet~?/g, '• ')
+    .replace(/\\quad\s*/g, ' ').replace(/\\newline\s*/g, ' ')
     .replace(/\\(?:centering|raggedleft|raggedright)\\arraybackslash\s*/g, '')
     .replace(/\\(?:footnotesize|small|scriptsize|large)\b\s*/g, '')
     .replace(/\\cellcolor\[HTML\]\{[0-9A-Fa-f]{6}\}/g, '')
