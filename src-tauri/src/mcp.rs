@@ -15,7 +15,7 @@
 //! Security posture: the listener binds to 127.0.0.1 only, and every
 //! request must carry the random token from the endpoint file, which is
 //! written user-readable only. The bridge is off unless the user turns it
-//! on in AI > Connect to Claude.
+//! on in Tools > Connect to Claude or ChatGPT.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};

@@ -346,7 +346,7 @@ const cmds: Command[] = [
   { id: 'compiler_status', text: 'Compiler &status…' },
   { id: 'download_bundle', text: '&Download offline bundle…' },
   { id: 'open_cache', text: '&Open the package cache folder' },
-  { id: 'connect_claude', text: 'Connect to &Claude…' },
+  { id: 'connect_claude', text: 'Connect to &Claude or ChatGPT…' },
 
   // Help
   { id: 'help_guide', text: '&User guide', icon: 'help_icon', shortcut: 'F1' },

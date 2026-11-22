@@ -8,6 +8,7 @@
 // lookup as QSettings would; "Other library folder…" uses the platform's
 // folder chooser.
 import * as kr from '../../core/kherveref'
+import * as docRefs from '../../core/docReferences'
 import type { RefFileAccess, RefreshedBib } from '../../core/kherveref'
 import { citation } from '../../core/model'
 import type { Citation, Document } from '../../core/model'
@@ -283,6 +284,29 @@ async function manageReferences(importNow?: 'zotero' | ImportKind): Promise<void
   }
   if (r.cite.length) editorApi()?.insertInline(citation(r.cite, 'cite'))
   await refreshKherverefBib(appStore().get().doc)
+}
+
+// Add BibTeX to the document's own reference list (the MCP tools'
+// add_references): a document citing from a KherveRef library gets a list
+// of its own, its cited references included, as the library dialog does.
+// The keys added.
+export async function addDocumentReferences(bibtex: string): Promise<string[]> {
+  await reloadKherverefSettings()
+  const doc = appStore().get().doc
+  const meta = doc.meta
+  let start = bundledBib
+  if (meta.ref_library && meta.ref_library !== kr.DOCUMENT_LIBRARY) {
+    const [text] = await kr.bibliographyFor(doc, refsFs(), bundledBib)
+    start = text || bundledBib
+  }
+  const [merged, added] = docRefs.merge(start, bibtex)
+  bundledBib = merged
+  if (meta.ref_library !== kr.DOCUMENT_LIBRARY) {
+    meta.ref_library = kr.DOCUMENT_LIBRARY
+  }
+  editDoc(doc)
+  await refreshKherverefBib(appStore().get().doc)
+  return added
 }
 
 // Mendeley has no connection on the computer that other programs can use

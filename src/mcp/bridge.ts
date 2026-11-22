@@ -10,7 +10,7 @@
 // Security posture: the listener binds to 127.0.0.1 only, and every
 // request must carry the random token from the endpoint file, which is
 // written user-readable only. The bridge is off unless the user turns it
-// on in AI > Connect to Claude.
+// on in Tools > Connect to Claude or ChatGPT.
 import {
   PATH_TOOLS, READ_ONLY_TOOLS, TOOLS, ToolExecutor, type ToolHost, type ToolResult,
   type ToolSpec,
@@ -212,7 +212,7 @@ export class McpBridge {
         ? `${tool} reads or writes a file path you chose, which needs MCP access set to 'Full'.`
         : `${tool} would change the document, and MCP access is set to 'Read only'.`
       this.record(tool, 'refused')
-      return { error: `Refused: ${reason} The user can change this in AI ▸ Connect to Claude.` }
+      return { error: `Refused: ${reason} The user can change this in Tools ▸ Connect to Claude or ChatGPT.` }
     }
     // Tool calls are asynchronous (a compile, file writes), so a second
     // request can arrive while one runs. Two tool calls interleaving on

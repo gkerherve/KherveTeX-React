@@ -377,6 +377,150 @@ export class Host {
   }
 }
 
+// ── ChatGPT (desktop app) and Codex: ~/.codex/config.toml ───────────
+//
+// ChatGPT's desktop app and the Codex CLI share one TOML file, where a
+// server is a [mcp_servers.<name>] table with `command` and `args`. Only
+// our table is touched, as text: comments and every other table stay as
+// they were written.
+
+// A TOML basic string.
+export function tomlString(s: string): string {
+  return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')
+    .replace(/[\u0000-\u001f\u007f]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')) + '"'
+}
+
+// Our table, as written into config.toml.
+export function tomlEntry(): string {
+  const [command, ...args] = launchCommand()
+  return `[mcp_servers.${SERVER_NAME}]\ncommand = ${tomlString(command)}\nargs = [${args.map(tomlString).join(', ')}]\n`
+}
+
+const HEADER_RE = /^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$/
+const isOurs = (table: string) => {
+  const t = table.replace(/"/g, '')
+  return t === `mcp_servers.${SERVER_NAME}` || t.startsWith(`mcp_servers.${SERVER_NAME}.`)
+}
+
+// The text without our tables, and where the first one was (or -1).
+export function tomlWithout(text: string): { rest: string[]; at: number } {
+  const lines = text.split(/\r?\n/)
+  const rest: string[] = []
+  let ours = false
+  let at = -1
+  for (const line of lines) {
+    const h = HEADER_RE.exec(line)
+    if (h) {
+      ours = isOurs(h[1])
+      if (ours && at < 0) at = rest.length
+    }
+    if (!ours) rest.push(line)
+  }
+  return { rest, at }
+}
+
+// Our entry as it stands in the file: command and args, or null.
+export function tomlRead(text: string): { command: string; args: string[] } | null {
+  const lines = text.split(/\r?\n/)
+  let inside = false
+  let command: string | null = null
+  let args: string[] = []
+  const unq = (v: string) => {
+    const m = /^"((?:[^"\\]|\\.)*)"|^'([^']*)'/.exec(v.trim())
+    if (!m) return null
+    if (m[2] !== undefined) return m[2]
+    return m[1].replace(/\\u([0-9a-fA-F]{4})/g, (_x, h) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/\\(.)/g, (_x, c) => ({ n: '\n', t: '\t' } as Record<string, string>)[c] ?? c)
+  }
+  for (const line of lines) {
+    const h = HEADER_RE.exec(line)
+    if (h) { inside = h[1].replace(/"/g, '') === `mcp_servers.${SERVER_NAME}`; continue }
+    if (!inside) continue
+    const kv = /^\s*(command|args)\s*=\s*(.*)$/.exec(line)
+    if (!kv) continue
+    if (kv[1] === 'command') command = unq(kv[2])
+    else args = [...kv[2].matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)].map(m => unq(m[0]) ?? '')
+  }
+  return command === null ? null : { command, args }
+}
+
+// ChatGPT's desktop app and Codex.
+class TomlHost extends Host {
+  private appPaths: Partial<Record<Platform, string>>
+  constructor(key: string, label: string, paths: Partial<Record<Platform, string>>, note: string,
+    appPaths: Partial<Record<Platform, string>>) {
+    super(key, label, paths, note)
+    this.appPaths = appPaths
+  }
+
+  private async text(): Promise<string | null> {
+    const p = this.path()
+    if (!p || !(await host().isFile(p))) return null
+    try { return await host().readText(p) } catch { return null }
+  }
+
+  async exists(): Promise<boolean> {
+    const p = this.path()
+    const app = this.appPaths[host().platform]
+    return (!!p && (await host().isDir(dirname(p))))
+      || (!!app && ((await host().isDir(expandPath(app))) || (await host().isFile(expandPath(app)))))
+  }
+
+  async connected(): Promise<boolean> {
+    const t = await this.text()
+    return t !== null && tomlRead(t) !== null
+  }
+
+  async upToDate(): Promise<boolean> {
+    const t = await this.text()
+    const e = t === null ? null : tomlRead(t)
+    return e !== null && deepEqual([e.command, ...e.args], launchCommand())
+  }
+
+  private async save(text: string): Promise<string> {
+    const p = this.path()!
+    let backup = ''
+    if (await host().isFile(p)) {
+      backup = `${p}.khervedoc-${stamp(host().now())}.bak`
+      await host().copy(p, backup)
+    }
+    await host().writeAtomic(p, text)
+    return backup
+  }
+
+  async connect(): Promise<HostReport> {
+    const p = this.path()
+    if (!p) return { ok: false, host: this.label, error: `${this.label} is not supported here.` }
+    const old = (await this.text()) ?? ''
+    const existed = tomlRead(old) !== null
+    const { rest, at } = tomlWithout(old)
+    while (rest.length && !rest[rest.length - 1].trim()) rest.pop()
+    const entry = tomlEntry().trimEnd().split('\n')
+    const lines = at >= 0 ? [...rest.slice(0, at), ...entry, '', ...rest.slice(at)] : [...rest, ...(rest.length ? [''] : []), ...entry]
+    let backup: string
+    try {
+      backup = await this.save(lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n')
+    } catch (exc) {
+      return { ok: false, host: this.label, path: p, error: `Could not write ${p}: ${errText(exc)}` }
+    }
+    return { ok: true, host: this.label, path: p, backup, action: existed ? 'updated' : 'added', restart: true }
+  }
+
+  async disconnect(): Promise<HostReport> {
+    const p = this.path()
+    const old = await this.text()
+    if (old === null || tomlRead(old) === null) return { ok: true, host: this.label, path: p ?? undefined, action: 'already absent' }
+    const { rest } = tomlWithout(old)
+    let backup: string
+    try {
+      backup = await this.save(rest.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n')
+    } catch (exc) {
+      return { ok: false, host: this.label, path: p ?? undefined, error: `Could not write ${p}: ${errText(exc)}` }
+    }
+    return { ok: true, host: this.label, path: p ?? undefined, backup, action: 'removed', restart: true }
+  }
+}
+
 const PY_PLATFORM: Record<Platform, string> = { darwin: 'darwin', win: 'win32', linux: 'linux' }
 
 function errText(exc: unknown): string {
@@ -395,6 +539,12 @@ export const HOSTS: Host[] = [
     win: '~/.claude.json',
     linux: '~/.claude.json',
   }, 'Applied through the claude CLI. Reconnect the session to see the tools.', false, ['claude']),
+  new TomlHost('chatgpt', 'ChatGPT (desktop app) and Codex', {
+    darwin: '~/.codex/config.toml',
+    win: '~/.codex/config.toml',
+    linux: '~/.codex/config.toml',
+  }, 'Quit and reopen ChatGPT (or restart Codex). kTeX then shows among its MCP servers; '
+    + 'turn its tools on in a chat if ChatGPT asks.', { darwin: '/Applications/ChatGPT.app', win: '%LOCALAPPDATA%/Programs/ChatGPT' }),
   new Host('cursor', 'Cursor', {
     darwin: '~/.cursor/mcp.json',
     win: '~/.cursor/mcp.json',

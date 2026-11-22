@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSy
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { cliCommand, expandPath, Host, hostByKey, hostConfig, HOSTS, pyDumps, serverEntry, setHostIo, type HostIo, type RunOutcome } from '../src/mcp/hosts.ts'
+import { cliCommand, expandPath, Host, hostByKey, hostConfig, HOSTS, pyDumps, serverEntry, setHostIo, tomlEntry, tomlRead, tomlString, type HostIo, type RunOutcome } from '../src/mcp/hosts.ts'
 
 const EXE = '/Applications/KherveTeX.app/Contents/MacOS/khervetex'
 
@@ -72,7 +72,7 @@ describe('the entry', () => {
 
 describe('config files', () => {
   it('lists the Python hosts in order', () => {
-    expect(HOSTS.map(h => h.key)).toEqual(['claude-desktop', 'claude-code', 'cursor', 'windsurf', 'vscode', 'cline',
+    expect(HOSTS.map(h => h.key)).toEqual(['claude-desktop', 'claude-code', 'chatgpt', 'cursor', 'windsurf', 'vscode', 'cline',
       'lmstudio', 'zed'])
   })
 
@@ -170,5 +170,45 @@ describe('Claude Code', () => {
     const r = await hostByKey('claude-code')!.connect()
     expect(r.ok).toBe(false)
     expect(r.error).toContain("The 'claude' command is not on PATH")
+  })
+})
+
+describe('ChatGPT and Codex (config.toml)', () => {
+  const chatgpt = () => hostByKey('chatgpt')!
+  const file = () => join(home, '.codex', 'config.toml')
+
+  it('writes a TOML table with this executable', () => {
+    expect(tomlEntry()).toBe(`[mcp_servers.khervetex]\ncommand = "${EXE}"\nargs = ["--mcp-server"]\n`)
+    expect(tomlString('C:\\a "b"')).toBe('"C:\\\\a \\"b\\""')
+  })
+
+  it('is installed when ~/.codex exists, then connects and stays up to date', async () => {
+    expect(await chatgpt().status()).toBe('not installed')
+    mkdirSync(join(home, '.codex'))
+    expect(await chatgpt().status()).toBe('not connected')
+    const r = await chatgpt().connect()
+    expect(r).toMatchObject({ ok: true, action: 'added', restart: true })
+    expect(await chatgpt().status()).toBe('connected')
+    expect(tomlRead(readFileSync(file(), 'utf8'))).toEqual({ command: EXE, args: ['--mcp-server'] })
+  })
+
+  it('keeps the other servers, settings and comments, and replaces only its own table', async () => {
+    mkdirSync(join(home, '.codex'))
+    const before = '# my settings\nmodel = "gpt-5"\n\n[mcp_servers.khervetex]\ncommand = "/old/path"\nargs = []\n\n'
+      + '[mcp_servers.khervetex.env]\nX = "1"\n\n[mcp_servers.other]\ncommand = "npx"\nargs = ["-y", "pkg"] # keep\n'
+    writeFileSync(file(), before)
+    expect(await chatgpt().status()).toBe('connected (points elsewhere)')
+    expect(await chatgpt().connect()).toMatchObject({ ok: true, action: 'updated' })
+    const after = readFileSync(file(), 'utf8')
+    expect(after).toBe('# my settings\nmodel = "gpt-5"\n\n' + tomlEntry() + '\n[mcp_servers.other]\ncommand = "npx"\nargs = ["-y", "pkg"] # keep\n')
+    expect(readdirSync(join(home, '.codex')).some(f => f.includes('.khervedoc-') && f.endsWith('.bak'))).toBe(true)
+    expect(await chatgpt().disconnect()).toMatchObject({ ok: true, action: 'removed' })
+    expect(readFileSync(file(), 'utf8')).toBe('# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "npx"\nargs = ["-y", "pkg"] # keep\n')
+  })
+
+  it('is installed when the ChatGPT app is there, even before ~/.codex', async () => {
+    mkdirSync(join(home, 'Apps'))
+    setHostIo({ ...io(), isDir: async p => p === '/Applications/ChatGPT.app' || (!!p && existsSync(p) && statSync(p).isDirectory()) })
+    expect(await chatgpt().status()).toBe('not connected')
   })
 })

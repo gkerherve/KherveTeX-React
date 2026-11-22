@@ -281,5 +281,29 @@ export async function createAppHost(): Promise<ToolHost> {
       const { openInKhervePaint } = await import('../drawing/khervepaintLink.ts')
       return openInKhervePaint(pngPath, false)
     },
+
+    async referencesBib() {
+      const refs = await import('../app/actions/refs.ts')
+      await refs.refreshKherverefBib(appStore().get().doc).catch(() => '')
+      return refs.getExtraBibliography()
+    },
+    async addReferences(bibtex: string) {
+      const refs = await import('../app/actions/refs.ts')
+      return refs.addDocumentReferences(bibtex)
+    },
+    async exportDocx(path: string) {
+      const { writeDocxTo } = await import('../app/actions/wordPdf.ts')
+      await writeDocxTo(path)
+    },
+    async exportLatex(path: string) {
+      const file = await import('../app/actions/file.ts')
+      if (path.toLowerCase().endsWith('.zip')) {
+        await file.writeLatexZipTo(path)
+        return [path]
+      }
+      await file.writeTexTo(path)
+      const bib = join(dirname(path), 'kherveref.bib')
+      return (await p.exists(bib)) ? [path, bib] : [path]
+    },
   }
 }

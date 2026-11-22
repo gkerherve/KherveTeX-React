@@ -96,6 +96,17 @@ class FakeWindow implements ToolHost {
   latexSource = () => this.latexSourceOn
   setLatexSource = (on: boolean) => { this.latexSourceOn = on }
   refreshFigureImage = (p: string) => { this.refreshed.push(p) }
+  bib = ''
+  exported: string[] = []
+  referencesBib = async () => this.bib
+  addReferences = async (bibtex: string) => {
+    const have = new Set([...this.bib.matchAll(/@\w+\s*\{\s*([^,\s]+)/g)].map(m => m[1]))
+    const added = [...bibtex.matchAll(/@\w+\s*\{\s*([^,\s]+)/g)].map(m => m[1]).filter(k => !have.has(k))
+    this.bib += '\n' + bibtex
+    return added
+  }
+  exportDocx = async (p: string) => { this.exported.push(p) }
+  exportLatex = async (p: string) => { this.exported.push(p); return [p] }
   editInKhervePaint = async (png: string): Promise<[boolean, string]> => {
     if (this.khervePaint === null) {
       return [false, 'KhervePaint could not be found. Install it, or point kherveDOC at it with Locate KhervePaint.']
@@ -122,7 +133,8 @@ describe('tool table', () => {
       'get_compile_log', 'render_page', 'insert_latex', 'replace_blocks', 'delete_blocks', 'replace_text',
       'set_metadata', 'compile_document', 'save_document', 'open_document', 'new_document', 'insert_equation',
       'insert_chemistry', 'list_drawing_symbols', 'insert_drawing', 'get_drawing', 'update_drawing',
-      'open_in_khervepaint', 'set_latex_display', 'export_pdf',
+      'open_in_khervepaint', 'set_latex_display', 'export_pdf', 'how_to', 'check_import', 'read_source_file',
+      'export_word', 'export_latex', 'add_references', 'insert_figure',
     ])
     const read = TOOLS.find(t => t.name === 'read_blocks')!
     expect(read.input_schema).toEqual({ type: 'object', properties: { start: { type: 'integer' }, end: { type: 'integer' } },
@@ -255,7 +267,8 @@ describe('document tools', () => {
     await writeFile(f, 'x')
     w.dirty = true
     expect((await run(w, 'open_document', { path: f })).error).toContain('unsaved changes')
-    expect(await run(w, 'open_document', { path: f, discard_unsaved_changes: true })).toEqual({ opened: f, blocks: 1 })
+    expect(await run(w, 'open_document', { path: f, discard_unsaved_changes: true })).toMatchObject({ opened: f, blocks: 1,
+      import_check: expect.objectContaining({ blocks: 1 }) })
     expect((await run(w, 'nope')).error).toBe('Unknown tool: nope')
   })
 })
@@ -478,7 +491,7 @@ describe('bridge', () => {
     const res = (await b.handle('call_tool', { name: 'save_document', input: { path: '/tmp/x.ktexz' } })) as { result: ToolResult }
     expect(String(res.result.error)).toContain('Full')
     expect(String(res.result.error)).toBe("Refused: save_document reads or writes a file path you chose, which needs "
-      + "MCP access set to 'Full'. The user can change this in AI ▸ Connect to Claude.")
+      + "MCP access set to 'Full'. The user can change this in Tools ▸ Connect to Claude or ChatGPT.")
   })
 
   it('refuses a second call while one runs', async () => {
@@ -510,4 +523,82 @@ it('drawing files are a PDF and an SVG', () => {
   const f = drawingFiles(s)!
   expect(new TextDecoder().decode(f.pdf.slice(0, 5))).toBe('%PDF-')
   expect(f.svg).toContain('<svg')
+})
+
+// ── importing, checking and exporting (Word to kTeX) ──────────────
+
+describe('import tools', () => {
+  it('how_to gives the Word guide, and names the topics on a wrong one', async () => {
+    const r = await run(new FakeWindow(), 'how_to', { topic: 'word_to_ktex' })
+    expect(String(r.guide)).toContain('read_source_file')
+    expect(String((await run(new FakeWindow(), 'how_to', { topic: 'x' })).error)).toContain('word_to_ktex')
+  })
+
+  it('check_import finds what imports get wrong', async () => {
+    const w = new FakeWindow('\\textbf{Introduction}\n\n• first point\n\nThe energy E = mc^2 here.\n\n'
+      + '\\begin{tikzpicture}\\end{tikzpicture}\n\n\\begin{figure}\\includegraphics{nothere.png}\\end{figure}\n\nSee \\cite{ghost}.')
+    const r = await run(w, 'check_import')
+    expect(r.paragraphs_like_headings).toEqual([0])
+    expect(r.paragraphs_like_list_items).toEqual([1])
+    expect(r.paragraphs_with_typed_math).toEqual([2])
+    expect((r.raw_latex_blocks as unknown[]).length).toBe(1)
+    expect(r.figures_missing_picture).toEqual([expect.objectContaining({ path: 'nothere.png' })])
+    expect(r.citations_without_reference).toEqual(['ghost'])
+    expect((r.findings as string[]).join(' ')).toContain('No headings')
+  })
+
+  it('read_source_file reads a Word file without the importer', async () => {
+    const path = join(__dirname, '..', 'examples', 'word', 'docx', '07-academic-article.docx')
+    const r = await run(new FakeWindow(), 'read_source_file', { path })
+    expect(String(r.text)).toContain('[Heading 1] Introduction')
+    expect(String(r.text)).toContain('$Q=\\frac{\\omega_{0}}{2\\gamma}')
+    expect(String(r.text)).toContain('| Parameter | Value | Uncertainty |')
+    const piece = await run(new FakeWindow(), 'read_source_file', { path, max_chars: 1000 })
+    expect(piece.next_offset).toBe(1000)
+  })
+
+  it('add_references takes BibTeX or a RIS export and says what to cite', async () => {
+    const w = new FakeWindow()
+    const r = await run(w, 'add_references', { bibtex: '@article{smith2020, author={Smith, J.}, title={T}, year={2020}}' })
+    expect(r.added).toEqual(['smith2020'])
+    expect(r.cite_with).toBe('\\cite{smith2020}')
+    const dir = mkdtempSync(join(tmpdir(), 'kt-ris-'))
+    const ris = join(dir, 'x.ris')
+    await writeFile(ris, 'TY  - JOUR\nAU  - Doe, Jane\nTI  - Thin films\nPY  - 2019\nER  - \n')
+    const r2 = await run(w, 'add_references', { path: ris })
+    expect((r2.added as string[])[0]).toMatch(/^doe2019/)
+    expect(String((await run(w, 'list_references')).citations)).toBeDefined()
+  })
+
+  it('list_references includes the document\'s own references', async () => {
+    const w = new FakeWindow()
+    w.bib = '@book{doe2019, author={Doe, Jane}, title={Book}, year={2019}}'
+    const r = await run(w, 'list_references')
+    expect(r.citations).toEqual([{ key: 'doe2019', author: 'Doe, Jane', year: '2019', title: 'Book' }])
+  })
+
+  it('exports check their extension', async () => {
+    const w = new FakeWindow()
+    expect((await run(w, 'export_word', { path: '/tmp/x.pdf' })).error).toMatch(/\.docx/)
+    expect((await run(w, 'export_latex', { path: '/tmp/x.doc' })).error).toMatch(/\.tex or \.zip/)
+    const out = join(mkdtempSync(join(tmpdir(), 'kt-exp-')), 'a.docx')
+    expect(await run(w, 'export_word', { path: out })).toEqual({ exported: out })
+    expect(w.exported).toEqual([out])
+  })
+
+  it('insert_figure copies the picture beside the document\'s figures', async () => {
+    const w = new FakeWindow('Text.')
+    const src = join(mkdtempSync(join(tmpdir(), 'kt-fig-')), 'plot.png')
+    await writeFile(src, new Uint8Array([137, 80, 78, 71]))
+    const r = await run(w, 'insert_figure', { path: src, caption: 'A plot', label: 'fig:plot' })
+    const fig = w.doc().children[r.inserted_at as number]
+    expect(fig).toMatchObject({ type: 'Figure', caption: 'A plot', label: 'fig:plot', path: join(w.images, 'plot.png') })
+    expect(existsSync(join(w.images, 'plot.png'))).toBe(true)
+  })
+
+  it('the new path tools need Full access', () => {
+    for (const t of ['read_source_file', 'export_word', 'export_latex', 'insert_figure']) expect(toolAllowed(t, 'edit')).toBe(false)
+    expect(toolAllowed('check_import', 'read')).toBe(true)
+    expect(toolAllowed('add_references', 'edit')).toBe(true)
+  })
 })

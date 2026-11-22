@@ -183,7 +183,7 @@ async function exportDocxAction(): Promise<void> {
 }
 registerSaveAsExport('.docx', writeDocxTo)
 
-async function writeDocxTo(path: string): Promise<void> {
+export async function writeDocxTo(path: string): Promise<void> {
   const doc = appStore().get().doc
   appStore().set({ status: 'Exporting…' })
   // Relative figure paths resolve where the document's files are.

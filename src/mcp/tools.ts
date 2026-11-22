@@ -17,16 +17,20 @@ import { nextDrawingPath } from '../core/drawingFiles.ts'
 import { importBodyFragment, parseInlines, splitAuthorLines } from '../core/importers.ts'
 import {
   author, classSupportsChapter, figure, mathBlock, mathInline, paragraph, title, type Block, type DocMeta, type Document as KDocument,
+  type Inline,
 } from '../core/model.ts'
 import type { Scene } from '../core/paintModel.ts'
 import { itemToDict, loadSvg } from '../core/paintSvg.ts'
 import { dirname, suffix, withSuffix } from '../core/paths.ts'
 import { splitlines } from '../core/py.ts'
-import { ReferenceResolver } from '../core/references.ts'
+import { parseBibtex, ReferenceResolver } from '../core/references.ts'
 import { escapeText, serializeBlock, serializeDocument } from '../core/serializer.ts'
 import { wrapCe } from '../math/chemistry.ts'
 import { parseLatex, Raw, Row, type Node as MathNode } from '../math/mathbox.ts'
 import { vectorItems } from '../core/paintModel.ts'
+import { GUIDES, GUIDE_TOPICS } from './guides.ts'
+import { docxText, odtText } from '../core/sourceText.ts'
+import { importToBibtex } from '../core/refImport.ts'
 import {
   addShapes, authoringScene, LIBRARIES, listSymbols, sceneToShapes, ShapeError,
 } from './authoring.ts'
@@ -158,10 +162,10 @@ export const TOOLS: ToolSpec[] = [
       + 'access.',
     input_schema: obj({ path: STR }) },
   { name: 'open_document',
-    description: 'Open or import a file (.ktex, .ktex.json, .tex, '
-      + '.md, .docx, .pdf). Refuses to discard unsaved '
-      + 'changes unless discard_unsaved_changes is true — '
-      + 'prefer saving first. Needs Full access.',
+    description: 'Open or import a file: .ktex; Word .docx; .odt (LibreOffice, OpenOffice); .rtf; .pdf; .md; '
+      + '.tex; a LaTeX package (.zip, .tar, .tar.gz, .tar.bz2: unpacked beside it, main .tex imported); '
+      + 'a .gdoc. An import answers with check_import\'s findings. Refuses to discard unsaved changes '
+      + 'unless discard_unsaved_changes is true — prefer saving first. Needs Full access.',
     input_schema: obj({ path: STR, discard_unsaved_changes: BOOL }, ['path']) },
   { name: 'new_document',
     description: 'Start a blank document. Refuses to discard unsaved '
@@ -239,12 +243,48 @@ export const TOOLS: ToolSpec[] = [
     description: 'Compile and write the PDF to `path`. Needs Full '
       + 'access.',
     input_schema: obj({ path: STR }, ['path']) },
+  // ── importing, checking, exporting ──────────────────────────
+  { name: 'how_to',
+    description: 'Step-by-step guides for multi-step jobs. Read the guide before starting one: '
+      + `word_to_ktex (put a Word document into kTeX and fix what the import got wrong), latex_package, `
+      + 'references, figures, export.',
+    input_schema: obj({ topic: { type: 'string', enum: GUIDE_TOPICS } }, ['topic']) },
+  { name: 'check_import',
+    description: 'Check the open document for what imports usually get wrong: raw LaTeX blocks the importer '
+      + 'could not convert, figures whose picture is missing, paragraphs that look like headings or list items, '
+      + 'equations typed as text, citations with no reference, empty paragraphs. Each finding gives block '
+      + 'indices to read_blocks and fix.',
+    input_schema: obj({}) },
+  { name: 'read_source_file',
+    description: 'The ORIGINAL of an imported file as text, read without kTeX\'s importer, to compare with '
+      + 'get_outline. A .docx shows Word style names in [brackets], list items, tables as | cells |, '
+      + 'equations as $LaTeX$, [picture: ...], footnotes and comments; .odt likewise; .tex, .md, .bib, .txt, '
+      + '.rtf as written. Long files come in pieces: pass `offset` (characters) to read on. Needs Full access.',
+    input_schema: obj({ path: STR, offset: INT, max_chars: INT }, ['path']) },
+  { name: 'export_word',
+    description: 'Write the document as a Word .docx at `path`: Word equations, footnotes, comments, numbered '
+      + 'citations and the reference list. Needs Full access.',
+    input_schema: obj({ path: STR }, ['path']) },
+  { name: 'export_latex',
+    description: 'Write the LaTeX: a `path` ending in .tex writes the .tex (and its references .bib beside it); '
+      + 'ending in .zip writes a package with the figures, equations, styles and references (for Overleaf or '
+      + 'a journal). Needs Full access.',
+    input_schema: obj({ path: STR }, ['path']) },
+  { name: 'add_references',
+    description: 'Add references to the document\'s own reference list: `bibtex` text, or the `path` of a '
+      + '.bib, .ris, .enw or EndNote .xml export (Zotero, Mendeley, EndNote, Web of Science...; a path needs '
+      + 'Full access). Returns the keys to \\cite. Never invent entries.',
+    input_schema: obj({ bibtex: STR, path: STR }) },
+  { name: 'insert_figure',
+    description: 'Insert a picture file (png, jpg, pdf, svg) as a figure with an optional caption, label and '
+      + 'LaTeX width (default 0.8\\textwidth), after block `after` (default: at the end). Needs Full access.',
+    input_schema: obj({ path: STR, caption: STR, label: STR, width: STR, after: INT }, ['path']) },
 ]
 
 export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'get_document_info', 'get_outline', 'read_blocks', 'get_latex',
   'search_text', 'list_references', 'get_compile_log', 'render_page',
-  'list_drawing_symbols', 'get_drawing', 'set_latex_display',
+  'list_drawing_symbols', 'get_drawing', 'set_latex_display', 'how_to', 'check_import',
 ])
 // Tools that manage files, the compile or the undo stack themselves;
 // wrapping them in an edit block would record an empty undo step.
@@ -252,9 +292,11 @@ export const NO_UNDO_BLOCK_TOOLS: ReadonlySet<string> = new Set([
   ...READ_ONLY_TOOLS,
   'compile_document', 'save_document', 'open_document',
   'new_document', 'export_pdf', 'set_metadata', 'open_in_khervepaint',
+  'read_source_file', 'export_word', 'export_latex', 'add_references',
 ])
 // Tools that touch a client-chosen filesystem path.
-export const PATH_TOOLS: ReadonlySet<string> = new Set(['open_document', 'export_pdf'])
+export const PATH_TOOLS: ReadonlySet<string> = new Set(['open_document', 'export_pdf', 'read_source_file',
+  'export_word', 'export_latex', 'insert_figure'])
 
 // A tool failed in a way worth telling the model about.
 export class ToolError extends Error {}
@@ -317,6 +359,14 @@ export interface ToolHost {
   // or as the PDF shows it (false).
   latexSource(): boolean
   setLatexSource(on: boolean): void
+  // The .bib text of the document's references (its own list or its
+  // KherveRef library), as the page view and the PDF use it.
+  referencesBib(): Promise<string>
+  // Merge BibTeX into the document's own reference list; the keys added.
+  addReferences(bibtex: string): Promise<string[]>
+  exportDocx(path: string): Promise<void>
+  // .tex (with its .bib beside it) or a .zip package; the files written.
+  exportLatex(path: string): Promise<string[]>
 }
 
 // str.split() / " ".join(...)
@@ -557,7 +607,7 @@ export class ToolExecutor {
 
   async t_list_references(): Promise<ToolResult> {
     const fs = { exists: this.host.exists, read: this.host.readFile, write: this.host.writeFile }
-    const r = await ReferenceResolver.load(this.doc(), this.host.docDir(), '', fs)
+    const r = await ReferenceResolver.load(this.doc(), this.host.docDir(), await this.host.referencesBib(), fs)
     const cites = [...r.entries].map(([k, e]) => ({
       key: k, author: e.author ?? '', year: e.year ?? '', title: e.title ?? '',
     }))
@@ -706,7 +756,11 @@ export class ToolExecutor {
     if (!(await this.host.isFile(p))) throw new ToolError(`No such file: ${p}`)
     this.refuseDiscard(args)
     await this.host.openPath(p)
-    return { opened: p, blocks: this.blocks().length }
+    const imported = !hasNativeSuffix(p)
+    return imported
+      ? { opened: p, blocks: this.blocks().length, import_check: await this.t_check_import(),
+        next: 'Compare with read_source_file and fix what differs (how_to word_to_ktex).' }
+      : { opened: p, blocks: this.blocks().length }
   }
 
   async t_new_document(args: Args): Promise<ToolResult> {
@@ -914,6 +968,151 @@ export class ToolExecutor {
     await this.host.mkdir(dirname(target))
     await this.host.writeFile(target, last.pdf)
     return { exported: target, pages: res.pages }
+  }
+
+  // importing, checking, exporting -----------------------------
+
+  t_how_to(args: Args): ToolResult {
+    const g = GUIDES[String(args.topic ?? '')]
+    if (!g) throw new ToolError(`Unknown topic. Topics: ${GUIDE_TOPICS.join(', ')}.`)
+    return { topic: args.topic, title: g.title, guide: g.text }
+  }
+
+  async t_check_import(): Promise<ToolResult> {
+    const blocks = this.blocks()
+    const counts: Record<string, number> = {}
+    const raw: ToolResult[] = []
+    const missing: ToolResult[] = []
+    const headingLike: number[] = []
+    const listLike: number[] = []
+    const mathText: number[] = []
+    const empty: number[] = []
+    const textOf = (inl: Inline[]): string => inl.map(x => (x.type === 'Text' ? x.text
+      : 'children' in x ? textOf(x.children) : '')).join('')
+    const allBold = (inl: Inline[]) => inl.length > 0 && inl.every(x => x.type !== 'Text' || !x.text.trim() || x.marks.includes('bold'))
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i]
+      counts[b.type] = (counts[b.type] ?? 0) + 1
+      if (b.type === 'RawLatex') raw.push({ index: i, preview: preview(b, 120) })
+      else if (b.type === 'Figure') {
+        for (const path of [b.path, ...(b.extra ?? []).map(e => e.path)]) {
+          if (path && (await this.host.resolveImagePath(path)) === null) missing.push({ index: i, path })
+        }
+      } else if (b.type === 'Paragraph') {
+        const t = textOf(b.children).trim()
+        if (!t && !b.children.some(x => x.type === 'MathInline')) empty.push(i)
+        else if (t.length < 90 && !/[.:;,]$/.test(t) && allBold(b.children)) headingLike.push(i)
+        else if (/^(\u2022|[-–•▪◦*]|\(?\d{1,2}[.)]|[a-z][.)])\s+\S/.test(t)) listLike.push(i)
+        if (/[∑∫√≤≥≠±∞∂∇]|\b[a-zA-Z]\s*=\s*[-\w(]+\s*[\^/]|\^\d/.test(t) && !b.children.some(x => x.type === 'MathInline')) mathText.push(i)
+      }
+    }
+    const refs = await this.t_list_references()
+    const known = new Set((refs.citations as { key: string }[]).map(c => c.key))
+    const cited = new Set<string>()
+    const walk = (inl: Inline[]) => {
+      for (const x of inl) {
+        if (x.type === 'Citation') x.keys.forEach(k => cited.add(k))
+        else if ('children' in x) walk(x.children)
+      }
+    }
+    for (const b of blocks) if ('children' in b && Array.isArray(b.children)) walk(b.children as Inline[])
+    const unknownCites = [...cited].filter(k => !known.has(k))
+    const findings: string[] = []
+    if (!counts.Section) findings.push('No headings at all: Word headings may have come in as bold paragraphs (see paragraphs_like_headings).')
+    if (raw.length) findings.push(`${raw.length} raw LaTeX block(s): read them; ordinary text or a table here was not converted.`)
+    if (missing.length) findings.push(`${missing.length} figure(s) without their picture file.`)
+    if (headingLike.length) findings.push(`${headingLike.length} short bold paragraph(s) that may be headings.`)
+    if (listLike.length) findings.push(`${listLike.length} paragraph(s) that start like list items.`)
+    if (mathText.length) findings.push(`${mathText.length} paragraph(s) with what looks like math typed as text.`)
+    if (unknownCites.length) findings.push(`Citations with no reference: ${unknownCites.slice(0, 20).join(', ')}.`)
+    if (empty.length > 3) findings.push(`${empty.length} empty paragraphs (blank lines from Word); delete the ones that only add space.`)
+    if (!findings.length) findings.push('Nothing obvious. Still compare with read_source_file and look at the pages (render_page).')
+    const cap = (a: unknown[]) => a.slice(0, 40)
+    return {
+      blocks: blocks.length, counts, findings,
+      raw_latex_blocks: cap(raw), figures_missing_picture: cap(missing),
+      paragraphs_like_headings: cap(headingLike), paragraphs_like_list_items: cap(listLike),
+      paragraphs_with_typed_math: cap(mathText), empty_paragraphs: cap(empty),
+      citations_without_reference: cap(unknownCites),
+    }
+  }
+
+  async t_read_source_file(args: Args): Promise<ToolResult> {
+    const p = expandUser(String(args.path ?? ''), this.host.home())
+    if (!(await this.host.isFile(p))) throw new ToolError(`No such file: ${p}`)
+    const sfx = suffix(p).toLowerCase()
+    let text: string
+    if (sfx === '.docx' || sfx === '.docm' || sfx === '.dotx') text = docxText(await this.host.readFile(p))
+    else if (sfx === '.odt') text = odtText(await this.host.readFile(p))
+    else if (['.tex', '.md', '.markdown', '.txt', '.bib', '.ris', '.enw', '.rtf', '.sty', '.cls', '.csv', '.xml', '.html', '.htm'].includes(sfx)) {
+      text = await this.host.readText(p)
+    } else if (sfx === '.doc') {
+      throw new ToolError('A .doc (Word 97-2003) cannot be read. Ask the user to save it as .docx in Word.')
+    } else {
+      throw new ToolError(`read_source_file reads .docx, .odt and text files, not ${sfx || 'this file'}. `
+        + 'For a PDF, compare the pages with render_page after importing.')
+    }
+    const chars = cp(text)
+    const offset = Math.max(0, args.offset ? pyInt(args.offset) : 0)
+    const max = Math.max(1000, Math.min(60000, args.max_chars ? pyInt(args.max_chars) : 20000))
+    const piece = chars.slice(offset, offset + max).join('')
+    const next = offset + max < chars.length ? offset + max : null
+    return { path: p, total_chars: chars.length, offset, text: piece, next_offset: next }
+  }
+
+  async t_export_word(args: Args): Promise<ToolResult> {
+    const target = expandUser(String(args.path ?? ''), this.host.home())
+    if (suffix(target).toLowerCase() !== '.docx') throw new ToolError('`path` must end in .docx')
+    await this.host.mkdir(dirname(target))
+    await this.host.exportDocx(target)
+    return { exported: target }
+  }
+
+  async t_export_latex(args: Args): Promise<ToolResult> {
+    const target = expandUser(String(args.path ?? ''), this.host.home())
+    const sfx = suffix(target).toLowerCase()
+    if (sfx !== '.tex' && sfx !== '.zip') throw new ToolError('`path` must end in .tex or .zip')
+    await this.host.mkdir(dirname(target))
+    return { exported: await this.host.exportLatex(target) }
+  }
+
+  async t_add_references(args: Args): Promise<ToolResult> {
+    let text = typeof args.bibtex === 'string' ? args.bibtex : ''
+    let name = 'references.bib'
+    if (args.path) {
+      const p = expandUser(String(args.path), this.host.home())
+      if (!(await this.host.isFile(p))) throw new ToolError(`No such file: ${p}`)
+      text += '\n' + await this.host.readText(p)
+      name = p
+    }
+    if (!text.trim()) throw new ToolError('Pass `bibtex` text or the `path` of a reference file.')
+    const have = new Set(parseBibtex(await this.host.referencesBib()).keys())
+    let bib: string
+    try {
+      bib = /@\w+\s*\{/.test(text) ? text : importToBibtex(text, name, have)
+    } catch (e) {
+      throw new ToolError(e instanceof Error ? e.message : String(e))
+    }
+    const added = await this.host.addReferences(bib)
+    const all = [...parseBibtex(await this.host.referencesBib()).keys()]
+    return { added, already_there: [...parseBibtex(bib).keys()].filter(k => !added.includes(k)), references: all.length,
+      cite_with: added.length ? `\\cite{${added.join(',')}}` : null }
+  }
+
+  async t_insert_figure(args: Args): Promise<ToolResult> {
+    const p = expandUser(String(args.path ?? ''), this.host.home())
+    if (!(await this.host.isFile(p))) throw new ToolError(`No such file: ${p}`)
+    if (!/\.(png|jpe?g|gif|pdf|svg|eps|bmp|tiff?|webp)$/i.test(p)) throw new ToolError('Not a picture file (png, jpg, pdf, svg...).')
+    const dir = await this.host.imagesDir()
+    await this.host.mkdir(dir)
+    const name = p.split(/[\\/]/).pop()!
+    const dest = `${dir.replace(/[\\/]+$/, '')}/${name}`
+    if (dest !== p) await this.host.writeFile(dest, await this.host.readFile(p))
+    const fig = figure({ path: dest, caption: typeof args.caption === 'string' ? args.caption : '',
+      label: typeof args.label === 'string' && args.label ? args.label : null,
+      width: typeof args.width === 'string' && args.width ? args.width : '0.8\\textwidth' })
+    const at = this.insertAt([fig], args.after)
+    return { inserted_at: at, path: dest }
   }
 }
 

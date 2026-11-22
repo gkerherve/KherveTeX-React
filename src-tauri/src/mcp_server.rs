@@ -74,11 +74,11 @@ pub fn read_endpoint(path: Option<&PathBuf>) -> Option<J> {
     Some(info)
 }
 
-pub const NOT_RUNNING: &str = "KherveTeX is not reachable.\n\n\
-The MCP server drives a live KherveTeX window, so the \
-application must be running with its bridge enabled:\n  \
-1. Start KherveTeX.\n  \
-2. Enable AI ▸ Connect to Claude.\n\
+pub const NOT_RUNNING: &str = "kTeX (KherveTeX) is not reachable.\n\n\
+The MCP server drives a live kTeX window, so the \
+application must be running with its connection on:\n  \
+1. Start kTeX.\n  \
+2. Tools ▸ Connect to Claude or ChatGPT: tick \"Let assistants connect\".\n\
 Then retry — no need to restart this MCP connection.";
 
 /// Raised when the running application cannot be reached.
@@ -89,9 +89,13 @@ pub struct BridgeError(pub String);
 /// so anything a model must know before touching someone's open document
 /// has to travel with the connection.
 pub const INSTRUCTIONS: &str = "\
-These tools drive a LIVE KherveTeX window — a WYSIWYG editor whose \
+These tools drive a LIVE kTeX (KherveTeX) window — a WYSIWYG editor whose \
 document is compiled to PDF with LaTeX. Everything you do lands in the \
 document the user has open in front of them, immediately.
+
+For a multi-step job, read its guide first with how_to: word_to_ktex \
+(the user asks to put a Word document into kTeX), latex_package, \
+references, figures, export.
 
 Working rules:
 - Call get_document_info, then get_outline, before changing anything. \
@@ -126,7 +130,12 @@ the user wants to edit it by hand.
 can Ctrl+Z it — but their unsaved work is real. open_document and \
 new_document refuse to discard it unless you pass \
 discard_unsaved_changes; save instead of discarding.
-- The user controls what you may do (AI > Connect to Claude). A \
+- Importing (Word .docx, .odt, .rtf, PDF, Markdown, .tex, a LaTeX \
+.zip/.tar.gz/.tar.bz2): open_document, then check_import and \
+read_source_file (the original, read without the importer) to find what \
+the import got wrong, and fix it block by block. Exports: export_pdf, \
+export_word, export_latex.
+- The user controls what you may do (Tools > Connect to Claude or ChatGPT). A \
 refusal naming an access level is their setting, not a bug — tell \
 them what you needed rather than working around it.
 ";

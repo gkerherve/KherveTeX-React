@@ -718,7 +718,7 @@ async function exportTex(): Promise<void> {
   }
 }
 
-async function writeTexTo(path: string): Promise<void> {
+export async function writeTexTo(path: string): Promise<void> {
   const doc = appStore().get().doc
   await platform().writeText(path, serializeDocument(doc))
   // The references the .tex cites (\bibliography{kherveref}) go beside it.
@@ -729,12 +729,17 @@ async function writeTexTo(path: string): Promise<void> {
 registerSaveAsExport('.tex', writeTexTo)
 
 async function exportLatexPackage(): Promise<void> {
-  const cur = appStore().get().path
-  const stem = cur ? docStem(cur) : 'document'
   const picked = await platform().saveFileDialog({ title: 'Export LaTeX package', defaultName: defaultTarget('.zip'),
     filters: [{ name: 'Zip archive', extensions: ['zip'] }] })
   if (!picked) return
-  const path = suffix(picked).toLowerCase() === '.zip' ? picked : withSuffix(picked, '.zip')
+  await writeLatexZipTo(suffix(picked).toLowerCase() === '.zip' ? picked : withSuffix(picked, '.zip'))
+}
+
+// The LaTeX package (.zip): the .tex, figures, equations, styles and
+// references.
+export async function writeLatexZipTo(path: string): Promise<void> {
+  const cur = appStore().get().path
+  const stem = cur ? docStem(cur) : 'document'
   const base = resolvedSourceDir() ?? '.'
   const doc = appStore().get().doc
   await platform().writeFile(path, await exportLatexZip(doc, base, fileAccess(), stem, await latexPackageExtras(doc)))

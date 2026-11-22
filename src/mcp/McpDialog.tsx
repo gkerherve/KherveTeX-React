@@ -24,7 +24,7 @@ import { platform } from '../platform'
 import { information, question, warning } from '../platform/MessageBox.tsx'
 import { setSetting } from '../platform/settings.ts'
 import { ACCESS_LEVELS, type Access, type McpBridge } from './bridge.ts'
-import { cliCommand, Host, HOSTS, hostConfig, type HostReport, type HostStatus } from './hosts.ts'
+import { cliCommand, Host, HOSTS, hostConfig, tomlEntry, type HostReport, type HostStatus } from './hosts.ts'
 import { hostIoReady, mcpBridge, startBridge } from './service.ts'
 import '../ui/dialogs/dialogs.css'
 import './mcp.css'
@@ -33,12 +33,12 @@ import './mcp.css'
 const ACCESS_LABELS: [string, string][] = [
   ['Read only', 'Read the document, its LaTeX and the compiled PDF.'],
   ['Edit', 'Also write and restructure the document, compile, save in place.'],
-  ['Full (recommended)', 'Also open, save-as and export to files Claude chooses.'],
+  ['Full (recommended)', 'Also open, import, save-as and export to files the assistant chooses.'],
 ]
 
-const FLAVOURS = ['Claude Desktop / Cursor / Zed (JSON)', 'Claude Code (command line)']
+const FLAVOURS = ['Claude Desktop / Cursor / Zed (JSON)', 'Claude Code (command line)', 'ChatGPT / Codex (~/.codex/config.toml)']
 
-const TITLE = 'Connect to Claude'
+const TITLE = 'Connect to Claude or ChatGPT'
 
 interface HostRow { status: HostStatus; connected: boolean; upToDate: boolean; path: string | null }
 
@@ -90,7 +90,7 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
 
   // _refresh_snippet
   useEffect(() => {
-    void hostIoReady().then(() => setSnippet(flavour === 0 ? hostConfig() : cliCommand()))
+    void hostIoReady().then(() => setSnippet(flavour === 0 ? hostConfig() : flavour === 1 ? cliCommand() : tomlEntry()))
   }, [flavour])
 
   const onToggled = async (on: boolean) => {
@@ -133,28 +133,58 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
       void refreshHosts()
       return
     }
-    const lines = [`${name}: KherveTeX ${result.action ?? 'updated'}.`, `File: ${result.path ?? ''}`]
+    const lines = [`${name}: kTeX ${result.action ?? 'updated'}.`, `File: ${result.path ?? ''}`]
     if (result.backup) lines.push(`Previous version saved as ${result.backup}`)
     if (result.restart) lines.push(`\nRestart ${name} for it to take effect.`)
     if (result.action !== 'removed') {
       // The step with no visible cue: a correctly connected assistant sits
       // there doing nothing until a chat names this application.
-      lines.push(`\nThen mention KherveTeX in your chat with ${name} `
-        + '— say "in KherveTeX, proofread section 2" — '
+      lines.push(`\nThen mention kTeX in your chat with ${name} `
+        + '— say "in kTeX, proofread section 2" or "put my Word file ~/Documents/report.docx into kTeX" — '
         + 'and it will work in the open document.')
     }
     await information(TITLE, lines.join('\n'))
     void refreshHosts()
   }
 
-  const nudgeToEnable = () => information(TITLE,
-    "Tick 'Let assistants connect to this document' first — "
-    + 'the entry is only useful while KherveTeX is listening.')
+  // Connecting an application turns the connection on: the entry is only
+  // useful while kTeX is listening.
+  const ensureRunning = async (): Promise<boolean> => {
+    if (bridge.isRunning()) return true
+    await onToggled(true)
+    if (bridge.isRunning()) return true
+    await warning(TITLE, 'kTeX could not open its local connection (another program may hold the port).')
+    return false
+  }
 
   const onConnect = async () => {
     if (!selected) return
-    if (!bridge.isRunning()) { await nudgeToEnable(); return }
+    if (!(await ensureRunning())) return
     await report(await selected.connect())
+  }
+
+  // Every application found on this computer, in one go.
+  const onConnectAll = async () => {
+    if (!(await ensureRunning())) return
+    await hostIoReady()
+    const done: string[] = []
+    const failed: string[] = []
+    for (const h of HOSTS) {
+      if (h.manual || !(await h.exists()) || (await h.upToDate())) continue
+      const r = await h.connect()
+      if (r.ok) done.push(h.label)
+      else failed.push(`${h.label}: ${r.error ?? 'failed'}`)
+    }
+    void refreshHosts()
+    if (!done.length && !failed.length) {
+      await information(TITLE, 'Every application found on this computer is already connected.')
+      return
+    }
+    const lines: string[] = []
+    if (done.length) lines.push(`Connected: ${done.join(', ')}.`, 'Quit and reopen each of them so they load kTeX.')
+    if (failed.length) lines.push('', 'Not connected:', ...failed)
+    lines.push('', 'Then say "kTeX" in the chat, e.g. "in kTeX, put my Word file ~/Documents/report.docx into kTeX".')
+    await (failed.length ? warning : information)(TITLE, lines.join('\n'))
   }
 
   // Add KherveTeX to a config file the user points us at.
@@ -162,7 +192,7 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
   // The named entries cannot cover every MCP client, and guessing a path
   // wrongly is worse than asking.
   const onOtherHost = async () => {
-    if (!bridge.isRunning()) { await nudgeToEnable(); return }
+    if (!(await ensureRunning())) return
     const picked = await platform().openFileDialog({
       title: "Choose the client's MCP config file",
       filters: [{ name: 'JSON config', extensions: ['json'] }, { name: 'All files', extensions: [] }],
@@ -203,10 +233,11 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
       <div className='dlg-title'>{TITLE}</div>
       <div className='dlg-body mcp-body'>
         <div>
-          Let Claude read and edit this document directly — no API key, it uses the login you already
-          have. Works with <b>Claude Desktop</b> and <b>Claude Code</b>, and with Cursor, Cline, VS Code
-          and LM Studio.<br /><br />
-          It gets the same tools as the built-in chat box, and every change it makes is undoable with Ctrl+Z.
+          Let Claude or ChatGPT read and edit this document directly — no API key, it uses the login you
+          already have. Works with <b>Claude Desktop</b>, <b>Claude Code</b>, the <b>ChatGPT</b> desktop app
+          and Codex, and with Cursor, Cline, VS Code and LM Studio.<br /><br />
+          It can import a Word, LibreOffice, PDF or LaTeX file, check the import against the original and fix
+          it, edit, compile, and export to PDF, Word or LaTeX. Every change it makes is undoable with Ctrl+Z.
         </div>
         <label className='mcp-check'>
           <input type='checkbox' checked={running} onChange={e => { void onToggled(e.target.checked) }} />
@@ -230,8 +261,8 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
         <fieldset className='mcp-group'>
           <legend>Connect an application</legend>
           <div>
-            Pick yours and press Connect — KherveTeX writes itself into that application's own settings, so
-            there is no config file to edit by hand.
+            Press <b>Connect all</b> to set up every application found on this computer, or pick one and press
+            Connect — kTeX writes itself into that application's own settings, so there is no file to edit.
           </div>
           <div className='mcp-list mcp-hosts' role='listbox'>
             {HOSTS.map((h, i) => {
@@ -246,13 +277,15 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
             })}
           </div>
           <div className='mcp-buttons'>
+            <button onClick={() => { void onConnectAll() }}
+              title='Connect every application found on this computer'><b>Connect all</b></button>
             <button disabled={!selected || selected.manual} onClick={() => { void onConnect() }}>
               {sel && sel.connected && !sel.upToDate ? 'Update entry' : 'Connect'}
             </button>
             <button disabled={!selected || !sel?.connected || selected.manual} onClick={() => { void onDisconnect() }}>
               Disconnect
             </button>
-            <button title="Pick any MCP client's JSON config file and add KherveTeX to it."
+            <button title="Pick any MCP client's JSON config file and add kTeX to it."
               onClick={() => { void onOtherHost() }}>Other application…</button>
           </div>
           <div className='mcp-hint mcp-select'>
@@ -269,11 +302,12 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
         <textarea className='mcp-snippet' readOnly value={snippet} spellCheck={false} />
 
         <div>
-          <b>Then say &quot;KherveTeX&quot; in the chat.</b> Claude only reaches for this document when you
-          point it here &mdash; <i>&quot;in KherveTeX, tighten the introduction and add a results
-          table&quot;</i>. After that it carries on in the open document.<br /><br />
-          Restart the application after connecting &mdash; it reads its tool list once at startup &mdash;
-          and leave KherveTeX running with the box above ticked.
+          <b>Then say &quot;kTeX&quot; in the chat.</b> The assistant only reaches for this document when you
+          point it here &mdash; <i>&quot;in kTeX, tighten the introduction and add a results table&quot;</i>, or
+          <i> &quot;put my Word document ~/Documents/report.docx into kTeX and fix what the import got
+          wrong&quot;</i>. After that it carries on in the open document.<br /><br />
+          Quit and reopen the application after connecting &mdash; it reads its tool list once at startup
+          &mdash; and leave kTeX running with the box above ticked.
         </div>
 
         <fieldset className='mcp-group'>
