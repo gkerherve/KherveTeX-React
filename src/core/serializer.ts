@@ -10,7 +10,7 @@ import type {
   Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, Project, Table,
 } from './model.ts'
 import { byCode } from './pageSizes.ts'
-import { capitalize, lstrip, pyFloat, rstrip, splitlines, strip } from './py.ts'
+import { capitalize, lstrip, pyFixed, pyFloat, rstrip, splitlines, strip } from './py.ts'
 
 const LATEX_ESCAPES: Record<string, string> = {
   '\\': '\\textbackslash{}',
@@ -429,7 +429,19 @@ function gridRule(i: number, cols: number, covered: Covered): string {
   return parts.join(' ')
 }
 
-const spanAlign = (grid: boolean, c: number) => (grid ? (c === 0 ? '|c|' : 'c|') : 'c')
+// A span's column type: centred, or for columns of a set width (a form's
+// p{\dimexpr<share>\linewidth-2\tabcolsep\relax}) a p{} as wide as the
+// columns it covers, so its text still wraps.
+const DIMEXPR_RE = /^[pm]\{\\dimexpr([0-9.]+)\\linewidth-2\\tabcolsep\\relax\}$/
+function spanAlign(grid: boolean, c: number, cs = 1, tokens: string[] = []): string {
+  const shares = tokens.slice(c, c + cs).map((t) => DIMEXPR_RE.exec(t))
+  if (cs > 0 && shares.length === cs && shares.every((m) => m)) {
+    const sum = shares.reduce((a, m) => a + parseFloat(m![1]), 0)
+    const p = `p{\\dimexpr${pyFixed(sum, 4)}\\linewidth-2\\tabcolsep\\relax}`
+    return grid ? (c === 0 ? `|${p}|` : `${p}|`) : p
+  }
+  return grid ? (c === 0 ? '|c|' : 'c|') : 'c'
+}
 
 function serializeTable(node: Table, floatH = true): string {
   if (!node.rows.length) return ''
@@ -448,6 +460,7 @@ function serializeTable(node: Table, floatH = true): string {
   let align = strip(node.alignment) || autoTableAlignment(node.rows, cols)
   if (grid && !align.includes('|')) align = '|' + (align.match(COL_TOKEN_RE) ?? []).join('|') + '|'
   const [anchors, covered] = mergeMaps(node)
+  const tokens = align.match(COL_TOKEN_RE) ?? []
   const bodyRows: string[] = []
   node.rows.forEach((r, i) => {
     const cells = [...r, ...Array.from({ length: Math.max(0, cols - r.length) }, () => '')]
@@ -464,14 +477,17 @@ function serializeTable(node: Table, floatH = true): string {
         }
         // Below a multirow: empty cells, spanning like the anchor.
         const t = cellLatex(node, i, c, '')
-        out.push(cs > 1 ? `\\multicolumn{${cs}}{${spanAlign(grid, c)}}{${t}}` : t)
+        out.push(cs > 1 ? `\\multicolumn{${cs}}{${spanAlign(grid, c, cs, tokens)}}{${t}}` : t)
         c += cs
         continue
       }
       let t = cellLatex(node, i, c, cells[c])
       const [rs, cs] = anchors.get(key(i, c)) ?? [1, 1]
-      if (rs > 1) t = `\\multirow{${rs}}{*}{${t}}`
-      if (cs > 1) t = `\\multicolumn{${cs}}{${spanAlign(grid, c)}}{${t}}`
+      // In a column of set width (a Word form) the text stays at the top of
+      // the merged cells and its row grows, as Word does: a \multirow
+      // cannot grow and its text ran out below the table.
+      if (rs > 1 && !spanAlign(false, c, cs, tokens).startsWith('p')) t = `\\multirow{${rs}}{*}{${t}}`
+      if (cs > 1) t = `\\multicolumn{${cs}}{${spanAlign(grid, c, cs, tokens)}}{${t}}`
       out.push(t)
       c += cs
     }
@@ -539,6 +555,9 @@ function tablePackages(doc: Document): string[] {
 
 // A cell holds a picture (\includegraphics).
 export function tableHasPictures(node: Table): boolean {
+  // A form imported from Word (columns of set width): in place, breaking
+  // across pages, as Word lays it out.
+  if (node.alignment.includes('\\dimexpr')) return true
   return node.rows.some((row) => row.some((c) => c.includes('\\includegraphics')))
 }
 

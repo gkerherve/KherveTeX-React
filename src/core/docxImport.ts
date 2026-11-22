@@ -245,6 +245,7 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
   // each body paragraph.
   const paraStats: [boolean, boolean, number, number | null][] = []
 
+  let usesCheckBoxes = false
   const walk = async (elems: Iterable<XElement>): Promise<void> => {
   for (const childElem of elems) {
     // The paragraph before ended a Word section (its w:sectPr).
@@ -267,6 +268,11 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
           (p) => { const st = paragraphStyle(styles(), pStyleId(p)); return _classifyStyle(st ? (st.name || '') : '', st)[0] })
         imageCounter = next
         if (tblNode !== null) children.push(tblNode)
+        continue
+      }
+      if (is(childElem, NS.w, 'tbl') && _isFormTable(childElem)) {
+        children.push(_importFormTable(childElem, src, textEmu))
+        if (descendants(childElem, NS.w, 'checkBox').length) usesCheckBoxes = true
         continue
       }
       if (is(childElem, NS.w, 'tbl')) {
@@ -424,6 +430,8 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
       meta.line_spacing = ls < 1.25 ? 1.0 : ls < 1.75 ? 1.5 : 2.0
     }
   }
+  // Form tables draw their tick boxes with amssymb's \square and \boxtimes.
+  if (usesCheckBoxes && !meta.packages.includes('amssymb')) meta.packages.push('amssymb')
   // Figures float, as in a journal: one too tall for the rest of a page goes
   // to the top of the next and the text fills the gap (KherveTeX's own
   // documents keep the float package and pin theirs with [H]).
@@ -949,6 +957,136 @@ function _importTable(tbl: XElement): Table | null {
   }
   if (!rows.length) return null
   return table({ rows, caption: '', label: null })
+}
+
+// A table laid out as a form (merged cells, coloured header bars, tick
+// boxes): kept as Word draws it rather than flattened to text.
+function _isFormTable(tbl: XElement): boolean {
+  for (const tc of descendants(tbl, NS.w, 'tc')) {
+    const pr = find(tc, NS.w, 'tcPr')
+    if (pr === null) continue
+    const span = find(pr, NS.w, 'gridSpan')
+    if (span !== null && (_twips(get(span, NS.w, 'val')) ?? 1) > 1) return true
+    if (find(pr, NS.w, 'vMerge') !== null) return true
+    const shd = find(pr, NS.w, 'shd')
+    const fill = shd === null ? '' : (get(shd, NS.w, 'fill') || '').toLowerCase()
+    if (/^[0-9a-f]{6}$/.test(fill) && fill !== 'ffffff') return true
+  }
+  return descendants(tbl, NS.w, 'checkBox').length > 0
+}
+
+const _isHex = (v: string) => /^[0-9A-Fa-f]{6}$/.test(v)
+
+// One cell paragraph as LaTeX: its runs in their colour, a form field's tick
+// box as \square or \boxtimes, a typed-in form field's text as shown.
+function _formParagraphLatex(p: XElement): [string, number[]] {
+  let out = ''
+  const sizes: number[] = []
+  let inInstr = false  // between a field's begin and separate: its code, not its text
+  const runs = descendants(p, NS.w, 'r')
+  for (const r of runs) {
+    const fc = find(r, NS.w, 'fldChar')
+    if (fc !== null) {
+      const t = get(fc, NS.w, 'fldCharType')
+      if (t === 'begin') {
+        inInstr = true
+        const cb = descendants(fc, NS.w, 'checkBox')[0]
+        if (cb !== undefined) {
+          const ch = find(cb, NS.w, 'checked'), def = find(cb, NS.w, 'default')
+          const on = ch !== null ? (get(ch, NS.w, 'val') ?? '1') !== '0' && get(ch, NS.w, 'val') !== 'false'
+            : def !== null && ['1', 'true'].includes(get(def, NS.w, 'val') ?? '')
+          out += on ? '$\\boxtimes$' : '$\\square$'
+        }
+      } else if (t === 'separate' || t === 'end') inInstr = false
+      continue
+    }
+    if (inInstr) continue
+    const inline = _runElementToInline(r)
+    if (inline === null) continue
+    inline.text = inline.text.replace(/[\t   ]/g, ' ')
+    let latex = serializeInlines([inline])
+    if (!latex) continue
+    const rpr = find(r, NS.w, 'rPr')
+    const col = rpr === null ? null : find(rpr, NS.w, 'color')
+    const cv = col === null ? '' : (get(col, NS.w, 'val') || '')
+    // Spaces outside the colour: \color swallows a space just after it.
+    if (_isHex(cv) && cv !== '000000' && latex.trim()) {
+      const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(latex)!
+      latex = `${m[1]}\\textcolor[HTML]{${cv.toUpperCase()}}{${m[2]}}${m[3]}`
+    }
+    const sz = rpr === null ? null : find(rpr, NS.w, 'sz')
+    if (sz !== null) sizes.push(pyInt(get(sz, NS.w, 'val')))
+    out += latex
+  }
+  return [out.replace(/ {2,}/g, ' ').trim(), sizes]
+}
+
+// A form table: every cell's paragraphs, merged cells (across and down),
+// cell colours and the columns at their Word widths.
+function _importFormTable(tbl: XElement, _src: Src, textEmu: number | null): Table {
+  const gridEl = find(tbl, NS.w, 'tblGrid')
+  const grid = gridEl === null ? [] : findall(gridEl, NS.w, 'gridCol').map((g) => _twips(get(g, NS.w, 'w')) ?? 0)
+  const rows: string[][] = []
+  const merges: number[][] = []
+  const shading: Record<string, string> = {}
+  // grid column -> [row, merge index] of the vertical merge open there.
+  const openV = new Map<number, [number, number]>()
+  const trs = findall(tbl, NS.w, 'tr')
+  trs.forEach((tr, r) => {
+    const row: string[] = []
+    const gb = find(tr, NS.w, 'trPr')
+    const before = gb === null ? null : find(gb, NS.w, 'gridBefore')
+    for (let k = 0; k < (before === null ? 0 : _twips(get(before, NS.w, 'val')) ?? 0); k++) row.push('')
+    for (const tc of findall(tr, NS.w, 'tc')) {
+      const pr = find(tc, NS.w, 'tcPr')
+      const spanEl = pr === null ? null : find(pr, NS.w, 'gridSpan')
+      const span = Math.max(1, spanEl === null ? 1 : _twips(get(spanEl, NS.w, 'val')) ?? 1)
+      const vm = pr === null ? null : find(pr, NS.w, 'vMerge')
+      const vmVal = vm === null ? null : (get(vm, NS.w, 'val') || 'continue')
+      const c = row.length
+      if (vmVal === 'continue' && openV.has(c)) {
+        merges[openV.get(c)![1]][2] += 1
+        for (let k = 0; k < span; k++) row.push('')
+        continue
+      }
+      for (let k = 0; k < span; k++) openV.delete(c + k)
+      const paras = findall(tc, NS.w, 'p').map(_formParagraphLatex)
+      const sizes = paras.flatMap((x) => x[1])
+      let body = paras.map((x) => x[0])
+      while (body.length && !body[body.length - 1]) body.pop()
+      let cell = body.map((t) => t || '~').join(' \\par ')
+      if (cell && sizes.length) {
+        const hp = _mostCommon(sizes)
+        if (hp <= 17) cell = `\\footnotesize ${cell}`
+        else if (hp <= 20) cell = `\\small ${cell}`
+      }
+      if (span > 1 || vmVal === 'restart') {
+        merges.push([r, c, 1, span])
+        if (vmVal === 'restart') openV.set(c, [r, merges.length - 1])
+      }
+      const shd = pr === null ? null : find(pr, NS.w, 'shd')
+      const fill = shd === null ? '' : (get(shd, NS.w, 'fill') || '')
+      if (_isHex(fill) && fill.toLowerCase() !== 'ffffff') shading[`${r},${c}`] = '#' + fill.toUpperCase()
+      row.push(cell)
+      for (let k = 1; k < span; k++) row.push('')
+    }
+    rows.push(row)
+  })
+  const ncols = Math.max(grid.length, ...rows.map((x) => x.length))
+  for (const x of rows) while (x.length < ncols) x.push('')
+  // Colour of covered cells: as their merge's first cell.
+  for (const [r0, c0, rs, cs] of merges) {
+    const col = shading[`${r0},${c0}`]
+    if (!col) continue
+    for (let dr = 0; dr < rs; dr++) for (let dc = 0; dc < cs; dc++) shading[`${r0 + dr},${c0 + dc}`] = col
+  }
+  // Columns as wide as in Word, a share of the text width less the padding.
+  const total = grid.reduce((a, b) => a + b, 0)
+  const base = textEmu && total ? Math.min(1, total * 635 / textEmu) : 1
+  const fracs = grid.length === ncols && total > 0
+    ? grid.map((g) => g / total * base) : Array.from({ length: ncols }, () => 1 / ncols)
+  const spec = fracs.map((f) => `p{\\dimexpr${pyFixed(f, 4)}\\linewidth-2\\tabcolsep\\relax}`).join('')
+  return table({ rows, caption: '', label: null, alignment: spec, style: 'grid', merges, shading })
 }
 
 // (text size in half-points, space before, space after, first-line indent in
