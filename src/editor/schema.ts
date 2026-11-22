@@ -97,7 +97,8 @@ const nodes: Record<string, NodeSpec> = {
   table_cell: {
     // Cells hold the LaTeX of the model as `raw`; the text shown is
     // editor._cell_display_text(raw) until the user edits it.
-    content: 'text*', marks: '', isolating: true, tableRole: 'cell',
+    // Comments may sit on a cell's text (\kcomment in its LaTeX).
+    content: 'text*', marks: 'comment', isolating: true, tableRole: 'cell',
     attrs: {
       colspan: { default: 1 }, rowspan: { default: 1 }, colwidth: { default: null },
       raw: { default: null }, shade: { default: null },

@@ -768,10 +768,14 @@ export const REVIEW_PREAMBLE = String.raw`\usepackage{xcolor}
   \put(\dimexpr\paperwidth-\kRevPaneW\relax,-\paperheight){\color{black!12}\rule{0.4pt}{\paperheight}}}
 \newcommand\kRevBadge{\tikz[baseline=-0.6ex]\node[circle,fill=kRevBar,text=white,inner sep=0.8pt,minimum size=1.15em,font=\sffamily\bfseries\tiny]{\thekcomment};}
 \newcommand\kRevMark[1]{\bgroup\markoverwith{\textcolor{kRevLine}{\rule[-0.45ex]{2pt}{0.9pt}}}\ULon{#1}}
-% In a footnote, a table, a caption or a box there is no margin: the note
-% prints inline.
+% In a footnote, a table, a caption or a box there is no \marginpar: the
+% note is drawn in the review column all the same, level with its line.
+\newcommand\kRevNote[3]{{\sffamily\footnotesize{\color{kRevBar}\vrule width 1.8pt}\hspace{6pt}%
+  \parbox[t]{\dimexpr\kRevPaneW-0.9cm-9pt}{\raggedright\kRevBadge\enspace{\bfseries #1}\hfill{\scriptsize\color{black!45}#2}\par\vspace{2pt}#3}}}
 \newcommand\kcomment[5][]{\refstepcounter{kcomment}\kRevMark{#5}\,\raisebox{0.6ex}{\kRevBadge}%
-  \ifinner\kRevInlinetrue\fi\ifkRevInline{\sffamily\footnotesize\color{kRevBar}\,[#2: #4]}\else
+  \ifinner\kRevInlinetrue\fi\ifkRevInline\begin{tikzpicture}[remember picture,overlay]%
+  \node[anchor=north west,inner sep=0pt] at ([xshift=-\kRevPaneW+0.45cm]current page.east |- 0,0.75em) {\kRevNote{#2}{#3}{#4}};%
+  \end{tikzpicture}\else
   \marginpar{\sffamily\footnotesize{\color{kRevBar}\vrule width 1.8pt}\hspace{6pt}%
   \parbox[t]{\dimexpr\marginparwidth-9pt}{\raggedright\kRevBadge\enspace{\bfseries #2}\hfill{\scriptsize\color{black!45}#3}\par\vspace{2pt}#4}}\fi}
 \fi`

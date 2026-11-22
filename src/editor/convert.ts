@@ -8,7 +8,7 @@
 import type { Mark as PMMark, Node as PMNode } from 'prosemirror-model'
 import { TableMap } from 'prosemirror-tables'
 import * as M from '../core/model.ts'
-import { escapeText } from '../core/serializer.ts'
+import { escapeText, serializeInlines } from '../core/serializer.ts'
 import { schema, TEXT_MARKS } from './schema.ts'
 
 let gidCounter = 1
@@ -85,8 +85,72 @@ export function cellDisplayText(raw: string): string {
 // colour and alignment commands (\footnotesize, \textcolor, \centering) are
 // the cell's look, drawn by tableCellStyles, and its tick boxes are the
 // characters ☐ and ☒.
+// \kcomment[timestamp]{author}{date}{note}{text} in a cell's LaTeX.
+const G = String.raw`((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)`
+const KCOMMENT_RE = new RegExp(String.raw`\\kcomment(?:\[([^\]]*)\])?\{` + G + String.raw`\}\{` + G + String.raw`\}\{` + G + String.raw`\}\{` + G + String.raw`\}`, 'g')
+
+interface CellComment { text: string; note: string; author: string; timestamp: string }
+
+// The comments in a cell's LaTeX, their text as shown.
+function cellComments(raw: string): CellComment[] {
+  return [...(raw || '').matchAll(KCOMMENT_RE)].map((m) => ({
+    text: cellPlain(m[5]), note: cellPlain(m[4].replace(/\\par\s*/g, '\n')).replace(/ ?\n ?/g, '\n'),
+    author: cellPlain(m[2]), timestamp: m[1] ?? '',
+  }))
+}
+
+// A cell's shown text with its comments as marks.
+export function cellContent(raw: string): PMNode[] {
+  const shown = cellDisplayText(raw)
+  if (!shown) return []
+  const marks: { from: number; to: number; c: CellComment }[] = []
+  let at = 0
+  for (const c of cellComments(raw)) {
+    const i = c.text ? shown.indexOf(c.text, at) : -1
+    if (i < 0) continue
+    marks.push({ from: i, to: i + c.text.length, c })
+    at = i + c.text.length
+  }
+  const out: PMNode[] = []
+  let pos = 0
+  for (const m of marks) {
+    if (m.from > pos) out.push(schema.text(shown.slice(pos, m.from)))
+    out.push(schema.text(shown.slice(m.from, m.to), [schema.marks.comment.create({
+      gid: newGid(), depth: 0, note: m.c.note, author: m.c.author, timestamp: m.c.timestamp, resolved: false,
+    })]))
+    pos = m.to
+  }
+  if (pos < shown.length) out.push(schema.text(shown.slice(pos)))
+  return out
+}
+
+// A cell's LaTeX with the comments marked on its text: those put in the
+// editor wrap the LaTeX of the text they cover.
+function withCellComments(cell: PMNode, base: string): string {
+  const wanted: CellComment[] = []
+  cell.forEach((child) => {
+    const m = child.marks.find((x) => x.type === schema.marks.comment)
+    const last = wanted[wanted.length - 1]
+    if (m && last && (last as unknown as { mark: PMMark }).mark === m) { last.text += child.text ?? ''; return }
+    if (m) wanted.push(Object.assign({ text: child.text ?? '', note: m.attrs.note, author: m.attrs.author, timestamp: m.attrs.timestamp }, { mark: m }))
+  })
+  let out = base.replace(KCOMMENT_RE, (...g: string[]) => g[5])
+  let at = 0
+  for (const w of wanted) {
+    const esc = escapeText(w.text)
+    let i = out.indexOf(esc, at), sub = esc
+    if (i < 0) { i = out.indexOf(w.text, at); sub = w.text }
+    if (i < 0) continue
+    const kc = serializeInlines([M.comment([M.text('\u0000')], { note: w.note, author: w.author, timestamp: w.timestamp })])
+    const wrapped = kc.replace('\u0000', sub)
+    out = out.slice(0, i) + wrapped + out.slice(i + sub.length)
+    at = i + wrapped.length
+  }
+  return out
+}
+
 function cellPlain(raw: string): string {
-  let s = raw
+  let s = raw.replace(KCOMMENT_RE, (...g: string[]) => g[5])
     .replace(/\$\\boxtimes\$/g, '☒').replace(/\$\\square\$/g, '☐')
     .replace(/\\textbullet~?/g, '• ')
     .replace(/\\quad\s*/g, ' ').replace(/\\newline\s*/g, ' ')
@@ -251,10 +315,9 @@ function tableNode(t: M.Table): PMNode {
     for (let c = 0; c < ncols; c++) {
       const s = span[r][c]
       if (!s) continue
-      const shown = cellDisplayText(raw[r][c])
       cells.push(schema.nodes.table_cell.create(
         { rowspan: s[0], colspan: s[1], raw: raw[r][c], shade: shade[r][c] },
-        shown ? schema.text(shown) : null))
+        cellContent(raw[r][c])))
     }
     // A row whose cells are all covered by merges above: ProseMirror
     // needs at least one cell, so it keeps an empty one.
@@ -400,9 +463,15 @@ function tableFromPM(node: PMNode): M.Table {
       // survive; an edited cell takes the new text.
       // A structured cell (paragraphs, lists, pictures) keeps its pictures
       // and turns its lines back into LaTeX.
-      if (raw !== null && raw !== undefined && cellDisplayText(raw) === shown.trim()) row.push(raw)
-      else if (raw && isStructuredCell(raw)) row.push(displayToCellLatex(shown, raw))
-      else row.push(shown)
+      let latex: string
+      if (raw !== null && raw !== undefined && cellDisplayText(raw) === shown.trim()) latex = raw
+      else if (raw && isStructuredCell(raw)) latex = displayToCellLatex(shown, raw)
+      else latex = shown
+      // Comments on the cell's text, as the editor has them now.
+      let commented = false
+      cell.forEach((ch) => { if (ch.marks.length) commented = true })
+      if (commented || /\\kcomment/.test(latex)) latex = withCellComments(cell, latex)
+      row.push(latex)
       const rs = Math.min(cell.attrs.rowspan, map.height - r)
       if (rs > 1 || cell.attrs.colspan > 1) merges.push([r, c, rs, cell.attrs.colspan])
       if (cell.attrs.shade) shading[`${r},${c}`] = cell.attrs.shade
