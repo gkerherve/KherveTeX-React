@@ -16,6 +16,8 @@ import { promptText } from '../../ui/dialogs/EditorDialogs'
 import { registerActions } from '../actions'
 import { buildDir, docStem, resolvedSourceDir } from '../compile'
 import { appStore } from '../store'
+import { userName } from './editor'
+import { getExtraBibliography, refreshKherverefBib } from './refs'
 import { defaultTarget, fileAccess, finishImport, offerSaveBefore, registerSaveAsExport } from './file'
 
 let statusTimer: ReturnType<typeof setTimeout> | null = null
@@ -186,8 +188,11 @@ async function writeDocxTo(path: string): Promise<void> {
   appStore().set({ status: 'Exporting…' })
   // Relative figure paths resolve where the document's files are.
   const base = resolvedSourceDir() ?? '.'
+  // The references, so citations print numbered with their list, and the
+  // name that signs comments without one.
+  try { await refreshKherverefBib(doc) } catch { /* the references as last read */ }
   const bytes = await exportDocx(doc, base, fileAccess(), (i, total) =>
-    appStore().set({ status: `Exporting… ${i}/${total}` }))
+    appStore().set({ status: `Exporting… ${i}/${total}` }), { bibText: getExtraBibliography(), author: userName() })
   await platform().writeFile(path, bytes)
   showMessage(`Exported ${path}`, 4000)
 }

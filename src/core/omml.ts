@@ -15,7 +15,7 @@ export const M_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
 // Unicode characters to their LaTeX math commands.
-const SYMBOLS: Record<string, string> = {
+export const SYMBOLS: Record<string, string> = {
   // Greek
   'α': '\\alpha', 'β': '\\beta', 'γ': '\\gamma', 'δ': '\\delta',
   'ε': '\\epsilon', 'ϵ': '\\epsilon', 'ζ': '\\zeta', 'η': '\\eta',
@@ -62,21 +62,21 @@ const SYMBOLS: Record<string, string> = {
 const INVISIBLE = new Set(['⁡', '⁢', '⁣', '⁤', '​', '‌', '‍', '﻿'])
 
 // Function names LaTeX has a command for.
-const FUNCTIONS = new Set([
+export const FUNCTIONS = new Set([
   'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'arcsin', 'arccos', 'arctan',
   'sinh', 'cosh', 'tanh', 'coth', 'log', 'ln', 'lg', 'exp', 'det', 'dim',
   'ker', 'max', 'min', 'sup', 'inf', 'lim', 'liminf', 'limsup', 'gcd',
   'deg', 'arg', 'hom', 'Pr',
 ])
 
-const NARY: Record<string, string> = {
+export const NARY: Record<string, string> = {
   '∑': '\\sum', '∏': '\\prod', '∐': '\\coprod', '∫': '\\int',
   '∬': '\\iint', '∭': '\\iiint', '∮': '\\oint', '⋃': '\\bigcup',
   '⋂': '\\bigcap', '⋁': '\\bigvee', '⋀': '\\bigwedge',
   '⨁': '\\bigoplus', '⨂': '\\bigotimes',
 }
 
-const ACCENTS: Record<string, string> = {
+export const ACCENTS: Record<string, string> = {
   '̂': '\\hat', '̃': '\\tilde', '̄': '\\bar',
   '̅': '\\bar', '̇': '\\dot', '̈': '\\ddot',
   '⃗': '\\vec', '⃑': '\\vec', '́': '\\acute',
@@ -304,6 +304,9 @@ function node(el: XElement, eqArr = false): string {
     }
     case 'eqArr': {
       const rows = kids(el).filter((c) => ns(c) === M_NS && local(c) === 'e').map((c) => arg(c, true))
+      // Word's numbered equation: one row, "#(1)" after it.
+      const numbered = rows.length === 1 ? /^([\s\S]*?)\s*\\#\s*(\([^()]*\))\s*$/.exec(rows[0]) : null
+      if (numbered) return `${numbered[1]} ${numbered[2]}`
       return '\\begin{aligned}' + rows.join(' \\\\ ') + '\\end{aligned}'
     }
     case 't': return mathText(textOf(el))

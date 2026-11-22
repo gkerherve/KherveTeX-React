@@ -22,9 +22,25 @@ import type { ImageHeader } from './docxImage.ts'
 import { PyError, pyIndex } from './docxPackage.ts'
 import { basename, join } from './paths.ts'
 import { pyIntParse, pyRound, pyTitle, strip } from './py.ts'
+import { ReferenceResolver } from './references.ts'
+import { autoBibliography, citeMode, texText } from './autoBibliography.ts'
+import type { Run as BibRun } from './autoBibliography.ts'
+import { parseTheBibliography } from './bibliography.ts'
+import { referables } from './labels.ts'
+import { ommlDisplay, ommlInline } from './latexOmml.ts'
 
 // Optional progress callback: (current_block, total_blocks).
 export type ProgressCallback = ((current: number, total: number) => void) | null
+
+// What the export needs beyond the document.
+export interface DocxOptions {
+  // The .bib text of the document's references (its KherveRef library or
+  // own list): citations are numbered and the reference list written
+  // from it, as the PDF prints them.
+  bibText?: string
+  // Who signs comments that carry no author (Review > Your name).
+  author?: string
+}
 
 // ---------------------------------------------------------------- lxml tree
 
@@ -275,10 +291,6 @@ function setFontName(r: El, name: string): void {
   setAttr(getOrAdd(rPr, 'w:rFonts', RPR_SEQ), 'w:hAnsi', name)
 }
 
-// font.size = Pt(8): ST_HpsMeasure writes half-points.
-function setSize8(r: El): void {
-  setAttr(getOrAdd(getOrAddRPr(r), 'w:sz', RPR_SEQ), 'w:val', '16')
-}
 
 // repr() of a model node, which Python's str() of a dataclass gives.
 function pyRepr(v: unknown): string {
@@ -330,8 +342,25 @@ class Builder {
   pageWidth = 0
   leftMargin = 0
   rightMargin = 0
+  // Word footnotes (word/footnotes.xml) and comments (word/comments.xml),
+  // each serialised; their hyperlinks go in their own parts' relationships.
+  footnotes: string[] = []
+  comments: string[] = []
+  noteRels: NewRel[] = []
+  commentRels: NewRel[] = []
+  // Inside a footnote or a comment (no notes within notes).
+  inNote: 'footnotes' | 'comments' | null = null
+  resolver: ReferenceResolver | null = null
+  author = ''
   constructor(templateRIds: string[]) {
     this.rIds = new Set(templateRIds)
+  }
+
+  // The relationships of the part being written.
+  private relsOf(): { rels: NewRel[]; ids: Set<string> } {
+    if (this.inNote === null) return { rels: this.rels, ids: this.rIds }
+    const rels = this.inNote === 'footnotes' ? this.noteRels : this.commentRels
+    return { rels, ids: new Set(rels.map((r) => r.rId)) }
   }
 
   // Relationships._next_rId: the first free rIdN.
@@ -341,11 +370,13 @@ class Builder {
 
   // part.relate_to(url, RT.HYPERLINK, is_external=True)
   relateExternal(reltype: string, target: string): string {
-    const hit = this.rels.find((r) => r.external && r.reltype === reltype && r.target === target)
+    const { rels, ids } = this.relsOf()
+    const hit = rels.find((r) => r.external && r.reltype === reltype && r.target === target)
     if (hit) return hit.rId
-    const rId = this.nextRId()
-    this.rIds.add(rId)
-    this.rels.push({ rId, reltype, target, external: true })
+    let rId = this.nextRId()
+    if (this.inNote !== null) for (let n = 1; ids.has(rId = `rId${n}`); n++);
+    else this.rIds.add(rId)
+    rels.push({ rId, reltype, target, external: true })
     return rId
   }
 
@@ -419,19 +450,20 @@ function _addInlines(b: Builder, para: El, inlines: Inline[]): void {
         else if (mark === 'code') setFontName(run, 'Courier New')
       }
     } else if (inline.type === 'MathInline') {
-      const run = addRun(para, inline.latex)
-      setItalic(run, true)
+      // A Word equation the reader can edit.
+      append(para, rawEl(ommlInline(inline.latex)))
     } else if (inline.type === 'Link') {
       _addHyperlink(b, para, inline.url, inline.children)
     } else if (inline.type === 'Footnote') {
-      const t = inline.children.map((i) => (i.type === 'Text' ? i.text : '')).join('')
-      const run = addRun(para, `[${t}]`)
-      setVertAlign(run, 'superscript')
-      setSize8(run)
+      if (b.inNote !== null) {
+        addRun(para, ` (${plainText(inline.children)})`)
+      } else {
+        _addFootnote(b, para, inline.children)
+      }
     } else if (inline.type === 'Citation') {
-      addRun(para, `[${inline.keys.join(', ')}]`)
+      addRun(para, b.resolver ? b.resolver.citeText(inline.keys, inline.style) : `[${inline.keys.join(', ')}]`)
     } else if (inline.type === 'CrossRef') {
-      addRun(para, `[${inline.kind}:${inline.label}]`)
+      addRun(para, b.resolver ? b.resolver.refText(inline.label, inline.kind) : `[${inline.kind}:${inline.label}]`)
     } else if (inline.type === 'InlineRaw') {
       const run = addRun(para, inline.latex)
       setFontName(run, 'Courier New')
@@ -454,14 +486,74 @@ function _addInlines(b: Builder, para: El, inlines: Inline[]): void {
         append(rpr, hi)
       }
     } else if (inline.type === 'Comment') {
-      _addInlines(b, para, inline.children)
-      if (inline.note) {
-        const run = addRun(para, ` [${inline.note}]`)
-        setItalic(run, true)
-        setSize8(run)
+      if (b.inNote === 'comments' || !inline.note) {
+        _addInlines(b, para, inline.children)
+      } else {
+        _addComment(b, para, inline)
       }
     }
   }
+}
+
+// An element written as given (OMML built as text).
+function rawEl(xml: string): El {
+  const e = new El('raw')
+  e.raw = xml
+  return e
+}
+
+const plainText = (inl: Inline[]): string => inl.map((i) => (i.type === 'Text' ? i.text
+  : i.type === 'MathInline' ? i.latex : 'children' in i ? plainText(i.children) : '')).join('')
+
+// A real Word footnote: the number in the text, the note at the foot of
+// the page (word/footnotes.xml).
+function _addFootnote(b: Builder, para: El, children: Inline[]): void {
+  const id = b.footnotes.length + 1
+  const ref = addRun(para)
+  setVertAlign(ref, 'superscript')
+  append(ref, new El('w:footnoteReference', [['w:id', String(id)]]))
+  const p = new El('w:p')
+  append(getOrAddPPr(p), new El('w:spacing', [['w:after', '0'], ['w:line', '240'], ['w:lineRule', 'auto']]))
+  const mark = addRun(p)
+  setVertAlign(mark, 'superscript')
+  append(mark, new El('w:footnoteRef'))
+  addRun(p, ' ')
+  b.inNote = 'footnotes'
+  try { _addInlines(b, p, children) } finally { b.inNote = null }
+  for (const r of paraRuns(p)) setAttr(getOrAdd(getOrAddRPr(r), 'w:sz', RPR_SEQ), 'w:val', '20')
+  b.footnotes.push(`<w:footnote w:id="${id}">${serialize(p)}</w:footnote>`)
+}
+
+// A Word comment on the text it covers, signed with its author's name
+// (word/comments.xml).
+function _addComment(b: Builder, para: El, c: Extract<Inline, { type: 'Comment' }>): void {
+  const id = String(b.comments.length)
+  append(para, new El('w:commentRangeStart', [['w:id', id]]))
+  _addInlines(b, para, c.children)
+  append(para, new El('w:commentRangeEnd', [['w:id', id]]))
+  const ref = addRun(para)
+  append(ref, new El('w:commentReference', [['w:id', id]]))
+  const author = c.author || b.author || 'KherveTeX'
+  const initials = author.split(/[\s-]+/).filter(Boolean).map((w) => [...w][0].toUpperCase()).join('').slice(0, 4)
+  const attrs: [string, string][] = [['w:id', id], ['w:author', author], ['w:initials', initials]]
+  const date = wordDate(c.timestamp)
+  if (date) attrs.push(['w:date', date])
+  const comment = new El('w:comment', attrs)
+  const p = append(comment, new El('w:p'))
+  const mark = addRun(p)
+  append(mark, new El('w:annotationRef'))
+  b.inNote = 'comments'
+  try {
+    addRun(p, (c.resolved ? '[Resolved] ' : '') + c.note)
+  } finally { b.inNote = null }
+  b.comments.push(serialize(comment))
+}
+
+// A comment's timestamp as Word's xsd:dateTime ("2026-11-22T10:15:00Z").
+function wordDate(ts: string): string {
+  if (!ts) return ''
+  const t = Date.parse(/^\d{4}-\d\d-\d\d \d/.test(ts) ? ts.replace(' ', 'T') : ts)
+  return Number.isNaN(t) ? '' : new Date(t).toISOString().replace(/\.\d+Z$/, 'Z')
 }
 
 // Add inlines as runs (used for nested groups like Highlight children).
@@ -831,7 +923,7 @@ function setTableStyle(tbl: El, style: string): void {
   setAttr(ts, 'w:val', TABLE_STYLE_IDS[style])
 }
 
-function exportTable(b: Builder, block: Table): void {
+function exportTable(b: Builder, block: Table, number?: string): void {
   // Document._block_width: the page width between the margins (a zero
   // margin counts as python-docx's 1 inch fallback).
   const width = (b.pageWidth || Inches(8.5)) - (b.leftMargin || Inches(1)) - (b.rightMargin || Inches(1))
@@ -876,11 +968,7 @@ function exportTable(b: Builder, block: Table): void {
       }
     }
   }
-  if (block.caption) {
-    const cap = b.addParagraph(block.caption)
-    setAlignment(cap, 'center')
-    for (const run of paraRuns(cap)) setItalic(run, true)
-  }
+  if (block.caption) captionPara(b, 'Table', number, block.caption, 'center')
 }
 
 // ---------------------------------------------------------------- the template package
@@ -899,6 +987,38 @@ function template() {
 }
 
 const XML_DECL = "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n"
+const PKG_RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+const OFFICE_RELS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+const WML_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml'
+const NOTE_NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+  + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+  + 'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"'
+
+// "Figure 2: caption" under a figure, "Table 1: caption" under a table.
+function captionPara(b: Builder, name: string, number: string | undefined, caption: string, align: Jc): void {
+  const cap = b.addParagraph()
+  setAlignment(cap, align)
+  if (number) setBold(addRun(cap, `${name} ${number}: `), true)
+  addRun(cap, caption)
+  for (const run of paraRuns(cap)) setItalic(run, true)
+}
+
+// A reference list: a "References" heading and one paragraph per entry,
+// its label ("[1]") hanging in the margin.
+function referenceList(b: Builder, items: { label: string; runs: BibRun[] }[]): void {
+  if (!items.length) return
+  b.addParagraph('References', 'Heading 1')
+  for (const it of items) {
+    const p = b.addParagraph()
+    const pPr = getOrAddPPr(p)
+    append(pPr, new El('w:ind', [['w:left', '567'], ['w:hanging', '567']]))
+    if (it.label) addRun(p, `${it.label}\t`)
+    for (const r of it.runs) {
+      const run = addRun(p, r.text)
+      if (r.italic) setItalic(run, true)
+    }
+  }
+}
 
 // sorted() of str keys: by code point.
 const byCodePoint = (a: string, b: string) => {
@@ -951,11 +1071,31 @@ function coreXml(templateXml: string, title: string, author: string): string {
 // `progress`, if given, is called as progress(i, total) after each block is
 // written so the UI can update a progress bar.
 export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
-  progress: ProgressCallback = null): Promise<Uint8Array> {
+  progress: ProgressCallback = null, options: DocxOptions = {}): Promise<Uint8Array> {
   const tpl = template()
   const docXml = strFromU8(tpl.files['word/document.xml'])
   const relsXml = strFromU8(tpl.files['word/_rels/document.xml.rels'])
   const b = new Builder([...relsXml.matchAll(/ Id="([^"]*)"/g)].map((m) => m[1]))
+
+  // Citations and cross-references print as in the PDF: "[1]", "Smith et
+  // al. [2020]", "Figure 2", "(3)".
+  const bibText = options.bibText ?? ''
+  const autoBib = autoBibliography(doc, bibText)
+  let resolver: ReferenceResolver | null = null
+  // The number each figure, table, numbered equation and heading prints.
+  let numbers = new Map<number, string>()
+  try {
+    resolver = await ReferenceResolver.load(doc, baseDir || null, bibText, fs)
+    resolver.citeMode = citeMode(doc)
+    if (resolver.citeMode && !resolver.citeMode.authorYear) resolver.listNumbers = autoBib?.numbers ?? null
+    numbers = new Map(referables(doc).map((r) => [r.index, r.number]))
+  } catch {
+    // A heading level the numbering does not know: unnumbered, as before.
+  }
+  b.resolver = resolver
+  b.author = options.author ?? ''
+  const secnumdepth = /\\setcounter\{secnumdepth\}\{(-?\d+)\}/.exec(`${doc.meta.preamble_extras ?? ''}`)
+  const numberDepth = secnumdepth ? Number(secnumdepth[1]) : 3
 
   const meta = doc.meta
 
@@ -1012,6 +1152,10 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
     } else if (block.type === 'Section') {
       const style = has(_HEADING_STYLES, block.level) ? _HEADING_STYLES[block.level] : 'Heading 5'
       const para = b.addParagraph('', style)
+      // Its number, as LaTeX prints it ("2.1 Methods"), so "Section 2.1"
+      // in the text points somewhere.
+      const n = numbers.get(i)
+      if (n && block.numbered && Math.max(block.level, 1) <= numberDepth) addRun(para, `${n}\u2003`)
       _addInlines(b, para, block.children)
     } else if (block.type === 'Theorem') {
       const para = b.addParagraph()
@@ -1035,11 +1179,9 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
         _addInlines(b, para, item.children)
       }
     } else if (block.type === 'MathBlock') {
+      // A Word equation, numbered as in the PDF.
       const para = b.addParagraph()
-      setAlignment(para, 'center')
-      const run = addRun(para, block.latex)
-      setItalic(run, true)
-      setFontName(run, 'Cambria Math')
+      append(para, rawEl(ommlDisplay(block.latex.trim(), block.numbered ? (numbers.get(i) ?? null) : null)))
     } else if (block.type === 'Figure') {
       const align = has(_ALIGN_MAP, block.align) ? _ALIGN_MAP[block.align] : 'center'
       const para = b.addParagraph()
@@ -1072,17 +1214,28 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
       } else {
         addRun(para, `[Image: ${block.path}]`)
       }
-      if (block.caption) {
-        const cap = b.addParagraph(block.caption)
-        setAlignment(cap, align)
-        for (const run of paraRuns(cap)) setItalic(run, true)
-      }
+      if (block.caption) captionPara(b, 'Figure', numbers.get(i), block.caption, align)
     } else if (block.type === 'Table') {
-      if (block.rows.length) exportTable(b, block)
+      if (block.rows.length) exportTable(b, block, numbers.get(i))
     } else if (block.type === 'RawLatex') {
-      const para = b.addParagraph()
-      const run = addRun(para, block.text)
-      setFontName(run, 'Courier New')
+      // A reference list written in the LaTeX prints as one.
+      const listed = parseTheBibliography(block.text)
+      if (listed) {
+        referenceList(b, listed.items.map((it, n) => ({
+          label: `[${it.label || (resolver?.cite_numbers.get(it.key) ?? n + 1)}]`,
+          runs: [{ text: texText(it.text.replace(/\\newblock\s*/g, ' ')) }],
+        })))
+      } else if (resolver && /\\bibliography\{|\\printbibliography/.test(block.text) && !autoBib) {
+        referenceList(b, [...resolver.cite_numbers.keys()].filter((k) => resolver.entries.has(k)).map((k) => {
+          const e = resolver.entries.get(k)!
+          const text = [e.author, e.title, e.year].map((x) => texText(x ?? '')).filter(Boolean).join('. ')
+          return { label: resolver.citeMode?.authorYear ? '' : `[${resolver.cite_numbers.get(k)}]`, runs: [{ text: text ? `${text}.` : k }] }
+        }))
+      } else {
+        const para = b.addParagraph()
+        const run = addRun(para, block.text)
+        setFontName(run, 'Courier New')
+      }
     } else if (block.type === 'Frame') {
       const para = b.addParagraph('', 'Heading 1')
       _addInlines(b, para, block.children)
@@ -1095,6 +1248,9 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
     if (progress !== null) progress(i + 1, total)
   }
 
+  // The reference list BibTeX writes at the end of the PDF.
+  if (autoBib && autoBib.items.length) referenceList(b, autoBib.items)
+
   // Package.save: the parts in python-docx's walk order, each followed by
   // its relationships; the new media parts belong to the document part,
   // whose relationships are walked before the package's thumbnail.
@@ -1105,8 +1261,36 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
     rels += `<Relationship Id="${r.rId}" Type="${r.reltype}" Target="${escAttr(checkXml(r.target))}"` +
       (r.external ? ' TargetMode="External"/>' : '/>')
   }
+  // Footnotes and comments: their parts, only when the document has some.
+  const extra: Record<string, string> = {}
+  const extraTypes: [string, string][] = []
+  const relsFor = (list: NewRel[]) => XML_DECL + `<Relationships xmlns="${PKG_RELS_NS}">` + list.map((r) =>
+    `<Relationship Id="${r.rId}" Type="${r.reltype}" Target="${escAttr(checkXml(r.target))}" TargetMode="External"/>`).join('') + '</Relationships>'
+  const addPart = (name: string, type: string, rel: string, xml: string, partRels: NewRel[]) => {
+    extra[`word/${name}`] = xml
+    if (partRels.length) extra[`word/_rels/${name}.rels`] = relsFor(partRels)
+    extraTypes.push([`/word/${name}`, type])
+    let rId = ''
+    for (let n = 1; b.rIds.has(rId = `rId${n}`); n++);
+    b.rIds.add(rId)
+    rels += `<Relationship Id="${rId}" Type="${OFFICE_RELS}/${rel}" Target="${name}"/>`
+  }
+  if (b.footnotes.length) {
+    addPart('footnotes.xml', `${WML_TYPE}.footnotes+xml`, 'footnotes', XML_DECL + `<w:footnotes ${NOTE_NS}>`
+      + '<w:footnote w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>'
+      + '<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>'
+      + b.footnotes.join('') + '</w:footnotes>', b.noteRels)
+  }
+  if (b.comments.length) {
+    addPart('comments.xml', `${WML_TYPE}.comments+xml`, 'comments',
+      XML_DECL + `<w:comments ${NOTE_NS}>` + b.comments.join('') + '</w:comments>', b.commentRels)
+  }
+  let types = contentTypesXml(strFromU8(tpl.files['[Content_Types].xml']), b.images)
+  if (extraTypes.length) {
+    types = types.replace('</Types>', extraTypes.map(([n, t]) => `<Override PartName="${n}" ContentType="${t}"/>`).join('') + '</Types>')
+  }
   const generated: Record<string, string> = {
-    '[Content_Types].xml': contentTypesXml(strFromU8(tpl.files['[Content_Types].xml']), b.images),
+    '[Content_Types].xml': types,
     'docProps/core.xml': core,
     'word/document.xml': bodyXml,
     'word/_rels/document.xml.rels': relsXml.replace('</Relationships>', rels + '</Relationships>'),
@@ -1118,6 +1302,7 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
     }
     files[name] = name in generated ? strToU8(generated[name]) : tpl.files[name]
   }
+  for (const [name, xml] of Object.entries(extra)) files[name] = strToU8(xml)
   return zipSync(files, { level: 6 })
 }
 

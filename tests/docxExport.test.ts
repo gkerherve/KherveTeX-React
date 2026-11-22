@@ -1,6 +1,8 @@
 // Port of tests/test_docx_exporter.py — model → .docx round-trip verification.
 import { describe, expect, it } from 'vitest'
+import { strFromU8, unzipSync } from 'fflate'
 import { exportDocx } from '../src/core/docxExport.ts'
+import type { DocxOptions } from '../src/core/docxExport.ts'
 import {
   abstract, author, docMeta, document, keywords, list, listItem, mathBlock, mathInline,
   paragraph, section, table, text, title,
@@ -11,6 +13,8 @@ import { readDocx } from './docxRead.ts'
 
 // Export and re-open it, as docx.Document(path) does.
 const exportAndRead = async (doc: Document) => readDocx(await exportDocx(doc, '', memFs()))
+const part = async (doc: Document, name: string, opts: DocxOptions = {}) =>
+  strFromU8(unzipSync(await exportDocx(doc, '', memFs(), null, opts))[name] ?? new Uint8Array())
 
 const Cm = (x: number) => Math.trunc(x * 360000)
 
@@ -71,15 +75,17 @@ describe('test_docx_exporter.py', () => {
     expect(tbl.rows[1].cells[1].text).toBe('30')
   })
 
+  // Equations are Word equations (OMML), not their LaTeX as text.
   it('test_math_block', async () => {
-    const out = await exportAndRead(document([mathBlock('E = mc^2')]))
-    expect(out.paragraphs[0].text).toContain('E = mc^2')
+    const xml = await part(document([mathBlock('E = mc^2')]), 'word/document.xml')
+    expect(xml).toContain('<m:oMathPara><m:oMath>')
+    expect(xml).toContain('<m:r><m:t>E=m</m:t></m:r><m:sSup><m:e><m:r><m:t>c</m:t></m:r></m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup>')
   })
 
   it('test_inline_math', async () => {
     const doc = document([paragraph([text('Energy is '), mathInline('E=mc^2')])])
-    const out = await exportAndRead(doc)
-    expect(out.paragraphs[0].text).toContain('E=mc^2')
+    const xml = await part(doc, 'word/document.xml')
+    expect(xml).toMatch(/Energy is <\/w:t><\/w:r><m:oMath>/)
   })
 
   it('test_page_margins', async () => {
