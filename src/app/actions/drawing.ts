@@ -21,6 +21,10 @@ registerActions({
     await insertScreenshot()
   },
   shapes: () => {},
+  smartart: async () => {
+    const { insertSmartArt } = await import('../../drawing/insert')
+    await insertSmartArt()
+  },
   flowchart: async () => {
     const { insertFlowchart } = await import('../../drawing/insert')
     await insertFlowchart()

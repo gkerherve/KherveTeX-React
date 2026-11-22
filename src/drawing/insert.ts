@@ -181,3 +181,15 @@ export async function insertScreenshot(): Promise<void> {
   if (!det) return
   insertFigure(figure({ path, caption: escapeText(det.caption), label: det.label || null, width: '0.8\\textwidth' }))
 }
+
+// Insert ▸ SmartArt: the layout and text, then the diagram as a drawing
+// to adjust before it goes in.
+export async function insertSmartArt(): Promise<void> {
+  const { openSmartArtDialog } = await import('./SmartArtDialog')
+  const choice = await openSmartArtDialog()
+  if (!choice) return
+  const { parseSmartText, smartArtScene } = await import('../core/smartart')
+  const nodes = parseSmartText(choice.text)
+  if (!nodes.length) return
+  await insertDrawing({ scene: smartArtScene(choice.kind, nodes) }, 'SmartArt')
+}

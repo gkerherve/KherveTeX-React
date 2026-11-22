@@ -329,6 +329,7 @@ const cmds: Command[] = [
       { text: 'Block Arrows', items: [{ text: 'Right arrow', command: 'shape:block_arrow' }, { text: 'Chevron', command: 'shape:chevron' }] },
       { text: 'Stars', items: [{ text: '5-point star', command: 'shape:star' }, { text: '6-point star', command: 'shape:star6' }] },
     ] },
+  { id: 'smartart', text: 'SmartArt', icon: 'smartart' },
   { id: 'chart', text: 'Chart', icon: 'chart' },
   { id: 'screenshot', text: 'Screenshot', icon: 'screenshot' },
   { id: 'flowchart', text: 'Fl&owchart builder…', icon: 'flowchart_builder', shortcut: 'Ctrl+Shift+F' },
@@ -635,7 +636,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Tables', large: ['table_menu'] },
-    { label: 'Illustrations', large: ['figure', 'shapes', 'chart', 'screenshot'], rows: [['drawing'], ['flowchart']], text: true },
+    { label: 'Illustrations', large: ['figure', 'shapes', 'smartart', 'chart', 'screenshot'], rows: [['drawing'], ['flowchart']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
       rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },

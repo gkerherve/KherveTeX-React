@@ -265,6 +265,11 @@ export function Shapes(p: IconProps) {
   return <Svg {...p}><circle cx={14.5} cy={14.5} r={7} fill={PAPER} stroke={INK} strokeWidth={1.4} />
     {F(3, 3, 10, 10, '#4a86d4')}</Svg>
 }
+// SmartArt: Word's green chevron with a list beside it.
+export function SmartArt(p: IconProps) {
+  return <Svg {...p}>{P([[2, 6], [11, 6], [15, 11], [11, 16], [2, 16], [6, 11]], { fill: '#8fd19e', color: '#2e7d32', lw: 1 })}
+    {R(12, 9, 10, 11, { fill: PAPER, lw: 1.1, r: 1 })}{L(14, 12.5, 20, 12.5, INK, 1)}{L(14, 15, 20, 15, INK, 1)}{L(14, 17.5, 18, 17.5, INK, 1)}</Svg>
+}
 export function Chart(p: IconProps) {
   return <Svg {...p}>{F(4, 11, 4, 10, '#9aa0a6')}{F(10, 4, 4, 17, INK)}{F(16, 8, 4, 13, '#4a86d4')}{L(2.5, 21.5, 21.5, 21.5, INK, 1)}</Svg>
 }
@@ -1622,7 +1627,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,
-  shapes: Shapes, chart: Chart, screenshot: Screenshot,
+  shapes: Shapes, chart: Chart, smartart: SmartArt, screenshot: Screenshot,
   track_changes: TrackChanges, markup_view: MarkupView, markup_options: MarkupOptions,
   grow_font: GrowFont, shrink_font: ShrinkFont, change_case: ChangeCase, clear_format: ClearFormat,
   font_color: FontColor, underline_style: UnderlineStyle,
