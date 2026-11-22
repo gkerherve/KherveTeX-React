@@ -610,3 +610,7 @@ div.kt-box {
 .kt-review-btns button:first-child:hover { background: #e3f5ea; border-color: #00aa66; }
 .kt-review-btns button:last-child:hover { background: #fde8e8; border-color: #cc3333; }
 .kt-comment-hot { background: #ffc56e; }
+/* A ruled table (grid, a Word form) continued on the next sheet: its first
+   row there gets the rule along its top, as longtable's \hline draws it in
+   the PDF. */
+.kt-page-gap-row + tr > td[style*="border-bottom:0.8px solid #000"] { border-top: 0.8px solid #000 !important; }
