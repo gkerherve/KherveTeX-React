@@ -27,6 +27,9 @@ interface Unit {
   gap: number
   // Columns of the table a row spacer sits in.
   cols?: number
+  // The table has a rule between rows (grid): its continued part opens
+  // with one, as longtable's \hline in the PDF.
+  ruled?: boolean
   // A figure that floats (the document's figures float in its PDF).
   float?: boolean
 }
@@ -160,7 +163,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
         units.push({
           top: y(i === 0 ? r.top : rr.top), bottom: y(last ? r.bottom : rr.bottom),
           pos: i === 0 ? offset : rowStart, kind: i === 0 ? 'block' : 'row', forced: false,
-          gap: i === 0 ? cssGap(dom) : 0, cols,
+          gap: i === 0 ? cssGap(dom) : 0, cols, ruled: node.attrs.style === 'grid',
         })
         rowStart += row.nodeSize
       })
@@ -320,7 +323,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       want += placePending(k + 1 + skip)
       // A spacer before a block sits above its margin.
       const h = want - t
-      spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols })
+      spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols, ruled: u.ruled })
       shift += h
       k += 1 + skip
     }

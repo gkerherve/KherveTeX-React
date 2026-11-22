@@ -181,6 +181,8 @@ export interface Spacer {
   dy?: number
   // A row spacer's table width in cells.
   cols?: number
+  // A row spacer in a table ruled between rows: the line on the next sheet.
+  ruled?: boolean
   // A span spacer inside a paragraph.
   inline?: boolean
 }
@@ -196,6 +198,7 @@ function spacerEl(s: Spacer): HTMLElement {
     const td = document.createElement('td')
     td.colSpan = Math.max(1, s.cols ?? 1)
     td.style.cssText = `height:${Math.max(0, s.height)}px;padding:0;border:none;background:none`
+      + (s.ruled ? ';border-bottom:0.8px solid #000' : '')
     el.appendChild(td)
   } else {
     el = document.createElement(s.kind === 'inline' ? 'span' : 'div')
@@ -224,7 +227,7 @@ function spacerDecos(doc: PMNode, spacers: Spacer[]): DecorationSet {
       continue
     }
     decos.push(Decoration.widget(s.pos, () => spacerEl(s),
-      { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}` }))
+      { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}-${s.ruled ? 1 : 0}` }))
   }
   return DecorationSet.create(doc, decos)
 }
