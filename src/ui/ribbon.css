@@ -406,3 +406,14 @@
 .rb-combo-font { width: 120px; }
 .rb-combo-value { flex: 1; min-width: 0; text-align: left; padding: 0 4px; border: none; background: none;
   font: inherit; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text); }
+
+/* Insert ▸ Table: Word's grid. */
+.rb-tablegrid { position: fixed; z-index: 1000; padding: 8px 10px; width: 236px; box-sizing: border-box; }
+.rb-tablegrid-title { font-size: 13px; margin: 0 0 6px 2px; }
+.rb-tablegrid-cells { display: grid; grid-template-columns: repeat(10, 19px); gap: 3px; }
+.rb-tg-cell { width: 19px; height: 19px; box-sizing: border-box; border: 1px solid #8a8a8a; background: #fff; cursor: pointer; }
+.rb-tg-cell.on { background: #dce9f9; border-color: #4a86d4; }
+.rb-tablegrid-sep { height: 1px; background: var(--border, #ddd); margin: 8px 0 4px; }
+.rb-tablegrid-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 2px; border: none; background: none;
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer; color: var(--text); }
+.rb-tablegrid-item:hover { background: var(--hover, #e8eef7); }

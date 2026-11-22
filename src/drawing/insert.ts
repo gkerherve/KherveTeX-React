@@ -18,7 +18,7 @@ import { askFigureDetails } from './modal'
 
 // Put a block at the caret; without a mounted editor, at the end of the
 // document.
-function insertFigure(fig: Figure): void {
+export function insertFigure(fig: Figure): void {
   const api = editorApi()
   if (api) {
     api.insertBlock(fig)
@@ -93,11 +93,11 @@ async function editExistingFlowchart(pngPath: string): Promise<boolean> {
 
 // ------------------------------------------------------------ drawings
 
-export async function insertDrawing(): Promise<void> {
+export async function insertDrawing(start?: import('./DrawingDialog').DrawingStart, what = 'Drawing'): Promise<void> {
   const { openDrawingDialog } = await import('./DrawingDialog')
-  const res = await openDrawingDialog(await imagesDir(), null)
+  const res = await openDrawingDialog(await imagesDir(), null, start)
   if (!res) return
-  const det = await askFigureDetails(res.path, 'Drawing details')
+  const det = await askFigureDetails(res.path, `${what} details`)
   if (!det) return
   insertFigure(figure({
     path: res.path, caption: escapeText(det.caption), label: det.label || null,
@@ -149,4 +149,35 @@ export async function editFigure(fig: { path: string; source?: string }): Promis
   announceFigureUpdated(resolved)
   if (res.handoff) await editInKhervePaint(resolved)
   return 'drawing'
+}
+
+// Insert ▸ Chart: the chart dialog, then the chart as a drawing to adjust
+// before it goes in.
+export async function insertChart(): Promise<void> {
+  const { openChartDialog } = await import('./ChartDialog')
+  const choice = await openChartDialog()
+  if (!choice) return
+  const { chartScene, parseChartData } = await import('../core/chart')
+  const data = parseChartData(choice.data)
+  if (!data) return
+  await insertDrawing({ scene: chartScene(choice.kind, data, choice.title) }, 'Chart')
+}
+
+// Insert ▸ Screenshot: macOS's own capture (drag over the part of the
+// screen to take, Space for a window), saved beside the document.
+export async function insertScreenshot(): Promise<void> {
+  const { platform } = await import('../platform')
+  const dir = await imagesDir()
+  let n = 1
+  while (await exists(join(dir, `screenshot_${n}.png`))) n++
+  const path = join(dir, `screenshot_${n}.png`)
+  const r = await platform().run('/usr/sbin/screencapture', ['-i', '-x', path], { timeoutSecs: 300 })
+  if (r.code === null && !r.timedOut) {
+    await information('Screenshot', 'Screenshots are taken in the kTeX app (macOS), not in the browser.')
+    return
+  }
+  if (!(await exists(path))) return   // Escape: nothing taken
+  const det = await askFigureDetails(path, 'Screenshot details')
+  if (!det) return
+  insertFigure(figure({ path, caption: escapeText(det.caption), label: det.label || null, width: '0.8\\textwidth' }))
 }

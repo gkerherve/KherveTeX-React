@@ -34,7 +34,7 @@ interface OpenMenu {
   rect: DOMRect
   entries?: MenuEntry[]
   iconSize?: number
-  kind?: 'classGrid'
+  kind?: 'classGrid' | 'tableGrid'
 }
 
 interface Ctx {
@@ -472,6 +472,42 @@ function ClassGrid({ rect, current, onPick, onClose }: {
   )
 }
 
+// Insert ▸ Table, as Word's: a 10 x 8 grid of cells lit up to the mouse
+// ("3x4 Table"); a click inserts that table. Insert Table… opens the
+// dialog, Convert Text to Table… turns the selected lines into rows.
+function TableGrid({ rect, onClose }: { rect: DOMRect, onClose: () => void }) {
+  const [hover, setHover] = useState<[number, number]>([0, 0])
+  useEffect(() => {
+    const down = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest('.rb-tablegrid, [data-menu-owner]')) return
+      onClose()
+    }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', down)
+    document.addEventListener('keydown', key)
+    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key) }
+  }, [onClose])
+  const [r, c] = hover
+  const pick = (rows: number, cols: number) => { onClose(); void runAction('table_grid', `${rows}x${cols}`) }
+  return (
+    <div className='qmenu rb-tablegrid' style={{ left: Math.max(4, Math.min(rect.left, innerWidth - 250)), top: rect.bottom }}
+      onMouseLeave={() => setHover([0, 0])}>
+      <div className='rb-tablegrid-title'>{r && c ? `${c}x${r} Table` : 'Insert Table'}</div>
+      <div className='rb-tablegrid-cells'>
+        {Array.from({ length: 8 }, (_, i) => Array.from({ length: 10 }, (_, j) => (
+          <div key={`${i}-${j}`} className={'rb-tg-cell' + (i < r && j < c ? ' on' : '')}
+            onMouseEnter={() => setHover([i + 1, j + 1])} onMouseDown={e => { e.preventDefault(); pick(i + 1, j + 1) }} />
+        )))}
+      </div>
+      <div className='rb-tablegrid-sep' />
+      <button type='button' className='rb-tablegrid-item' onMouseDown={e => { e.preventDefault(); onClose(); void runAction('table') }}>
+        <Icon name='table' size={16} /> Insert Table…</button>
+      <button type='button' className='rb-tablegrid-item' onMouseDown={e => { e.preventDefault(); onClose(); void runAction('text_to_table') }}>
+        <Icon name='table' size={16} /> Convert Text to Table…</button>
+    </div>
+  )
+}
+
 function TabBar({ tabs, current, onPick }: {
   tabs: typeof RIBBON_TABS, current: string, onPick: (name: string) => void
 }) {
@@ -581,6 +617,7 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
           {shown.groups.map((g, i) => <Group key={`${shown.name}-${i}`} g={g} ctx={ctx} />)}
         </div>
       )}
+      {menu?.kind === 'tableGrid' && <TableGrid rect={menu.rect} onClose={closeMenu} />}
       {menu?.kind === 'classGrid' && (
         <ClassGrid rect={menu.rect} current={docClass} onClose={closeMenu}
           onPick={cls => { void runAction('doc_class', cls); closeMenu() }} />

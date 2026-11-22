@@ -259,6 +259,21 @@ export function Code(p: IconProps) {
   </Svg>
 }
 
+// Insert ▸ Illustrations: Shapes (a square over a circle), Chart (bars),
+// Screenshot (a camera in a dashed frame).
+export function Shapes(p: IconProps) {
+  return <Svg {...p}><circle cx={14.5} cy={14.5} r={7} fill={PAPER} stroke={INK} strokeWidth={1.4} />
+    {F(3, 3, 10, 10, '#4a86d4')}</Svg>
+}
+export function Chart(p: IconProps) {
+  return <Svg {...p}>{F(4, 11, 4, 10, '#9aa0a6')}{F(10, 4, 4, 17, INK)}{F(16, 8, 4, 13, '#4a86d4')}{L(2.5, 21.5, 21.5, 21.5, INK, 1)}</Svg>
+}
+export function Screenshot(p: IconProps) {
+  return <Svg {...p}>{R(2, 2, 16, 14, { dash: '2 1.6', lw: 1.1 })}
+    {R(5, 9, 12, 9, { fill: PAPER, lw: 1.3, r: 1.5 })}<circle cx={11} cy={13.5} r={2.4} fill='none' stroke={INK} strokeWidth={1.2} />
+    {L(19.5, 17, 19.5, 23, '#2e9e4a', 1.6)}{L(16.5, 20, 22.5, 20, '#2e9e4a', 1.6)}</Svg>
+}
+
 // Review ▸ Tracking: a page with red and black lines and a pencil;
 // the markup views as a small page.
 export function TrackChanges(p: IconProps) {
@@ -1607,6 +1622,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,
+  shapes: Shapes, chart: Chart, screenshot: Screenshot,
   track_changes: TrackChanges, markup_view: MarkupView, markup_options: MarkupOptions,
   grow_font: GrowFont, shrink_font: ShrinkFont, change_case: ChangeCase, clear_format: ClearFormat,
   font_color: FontColor, underline_style: UnderlineStyle,

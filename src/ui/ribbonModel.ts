@@ -41,7 +41,7 @@ export interface Command {
   popup?: 'split' | 'instant'
   menu?: MenuEntry[]
   // The class picker opens a grid of page previews, not a list.
-  menuKind?: 'classGrid'
+  menuKind?: 'classGrid' | 'tableGrid'
   // Big-button icon size when it is not 32 x 32 (page previews: 26 x 33).
   iconW?: number
   iconH?: number
@@ -316,7 +316,21 @@ const cmds: Command[] = [
   { id: 'crossref', text: 'Cross-&reference...', icon: 'cross_ref' },
   { id: 'figure', text: 'F&igure...', icon: 'figure' },
   { id: 'table', text: '&Table...', icon: 'table' },
+  { id: 'table_menu', text: 'Table', icon: 'table', popup: 'instant', menuKind: 'tableGrid' },
   { id: 'drawing', text: '&Drawing…', icon: 'drawing' },
+  { id: 'shapes', text: 'Shapes', icon: 'shapes', popup: 'instant',
+    menu: [
+      { text: 'Lines', items: [{ text: 'Line', command: 'shape:line' }, { text: 'Arrow', command: 'shape:arrow' }] },
+      { text: 'Rectangles', items: [{ text: 'Rectangle', command: 'shape:rect' }, { text: 'Rounded rectangle', command: 'shape:roundrect' }] },
+      { text: 'Basic Shapes', items: ([['ellipse', 'Oval'], ['circle', 'Circle'], ['triangle', 'Triangle'], ['right_triangle', 'Right triangle'],
+        ['diamond', 'Diamond'], ['parallelogram', 'Parallelogram'], ['trapezoid', 'Trapezoid'], ['pentagon', 'Pentagon'],
+        ['hexagon', 'Hexagon'], ['octagon', 'Octagon'], ['halfcircle', 'Half circle'], ['plus', 'Cross'], ['house', 'House'],
+        ['lightning', 'Lightning bolt'], ['text', 'Text box']] as const).map(([k, t]): MenuItem => ({ text: t, command: `shape:${k}` })) },
+      { text: 'Block Arrows', items: [{ text: 'Right arrow', command: 'shape:block_arrow' }, { text: 'Chevron', command: 'shape:chevron' }] },
+      { text: 'Stars', items: [{ text: '5-point star', command: 'shape:star' }, { text: '6-point star', command: 'shape:star6' }] },
+    ] },
+  { id: 'chart', text: 'Chart', icon: 'chart' },
+  { id: 'screenshot', text: 'Screenshot', icon: 'screenshot' },
   { id: 'flowchart', text: 'Fl&owchart builder…', icon: 'flowchart_builder', shortcut: 'Ctrl+Shift+F' },
   { id: 'raw', text: 'Raw LaTeX...' },
   { id: 'compile_start', text: 'Compile start marker' },
@@ -620,8 +634,8 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak'], rows: [['hrule'], ['show_date']], text: true },
-    { label: 'Tables', large: ['table'] },
-    { label: 'Illustrations', large: ['figure'], rows: [['drawing'], ['flowchart']], text: true },
+    { label: 'Tables', large: ['table_menu'] },
+    { label: 'Illustrations', large: ['figure', 'shapes', 'chart', 'screenshot'], rows: [['drawing'], ['flowchart']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
       rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },

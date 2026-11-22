@@ -195,18 +195,21 @@ function handlesFor(it: Item, kind: HandleKind): Handle[] {
 }
 
 // ------------------------------------------------------------ the dialog
-interface Props { imagesDir: string; existing: string | null; close: Close<DrawingResult> }
+// Insert ▸ Shapes opens on its shape's tool; Insert ▸ Chart on a chart
+// already drawn (a scene), to adjust before inserting.
+export interface DrawingStart { tool?: string; scene?: Scene }
+interface Props { imagesDir: string; existing: string | null; close: Close<DrawingResult>; start?: DrawingStart }
 
-function DrawingDialog({ imagesDir, existing, close }: Props) {
+function DrawingDialog({ imagesDir, existing, close, start }: Props) {
   useBrowserMetrics()
-  const sceneRef = useRef<Scene>(newScene(900, 600))
+  const sceneRef = useRef<Scene>(start?.scene ?? newScene(900, 600))
   const scene = sceneRef.current
   const [, setTick] = useState(0)
   const redraw = () => setTick(t => t + 1)
   const [sel, setSelState] = useState<Item[]>([])
   const selRef = useRef<Item[]>([])
   const setSel = (s: Item[]) => { selRef.current = s; setSelState(s) }
-  const [tool, setToolState] = useState(PENCIL)
+  const [tool, setToolState] = useState(start?.tool ?? (start?.scene ? POINTER : PENCIL))
   const [groupPick, setGroupPick] = useState<Record<string, string>>({})
   const [rotateTarget, setRotateTarget] = useState<Item | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -290,9 +293,10 @@ function DrawingDialog({ imagesDir, existing, close }: Props) {
       if (!alive) return
       history.current = [snapshot()]
       histI.current = 0
-      setToolState(existing === null ? PENCIL : POINTER)
+      setToolState(start?.tool ?? (existing === null && !start?.scene ? PENCIL : POINTER))
       setLoaded(true)
-      setTimeout(() => (existing !== null ? zoomToContent() : centerOn({ x: 450, y: 300 }, 1)), 0)
+      // A chart (start.scene) shown whole, as a drawing opened again.
+      setTimeout(() => (existing !== null || start?.scene ? zoomToContent() : centerOn({ x: 450, y: 300 }, 1)), 0)
     })()
     return () => { alive = false }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -1512,7 +1516,7 @@ function mergeRuns(runs: [number, number, number][]): [[number, number], number,
 // DrawingDialog(images_dir, parent, existing_path).exec(): the PNG path of
 // the saved drawing (siblings .svg and .pdf written next to it) and
 // whether "Open in KhervePaint" closed it; null on Cancel / nothing drawn.
-export function openDrawingDialog(imagesDir: string, existing: string | null): Promise<DrawingResult | null> {
+export function openDrawingDialog(imagesDir: string, existing: string | null, start?: DrawingStart): Promise<DrawingResult | null> {
   void platform
-  return openModal<DrawingResult>(close => <DrawingDialog imagesDir={imagesDir} existing={existing} close={close} />)
+  return openModal<DrawingResult>(close => <DrawingDialog imagesDir={imagesDir} existing={existing} close={close} start={start} />)
 }

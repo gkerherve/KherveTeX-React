@@ -1254,3 +1254,37 @@ export function addMarkCmd(mark: string): Command {
     return true
   }
 }
+
+// Insert ▸ Table grid: an empty table with Word's borders, the caret in
+// its first cell.
+export function insertGridTable(rows: number, cols: number): Command {
+  return insertModelBlocks([M.table({
+    rows: Array.from({ length: rows }, () => Array(cols).fill('')),
+    // The full line, columns of equal width, as Word's.
+    caption: '', label: null, style: 'grid',
+    alignment: Array(cols).fill(`p{\\dimexpr${(1 / cols).toFixed(4)}\\linewidth-2\\tabcolsep\\relax}`).join(''),
+  })], { select: 0, trailingParagraph: true })
+}
+
+// Convert Text to Table: the selected paragraphs become the rows, split
+// at tabs (else semicolons, else commas), as Word's.
+export const textToTable: Command = (state, dispatch) => {
+  const { from, to } = state.selection
+  const paras: { node: PMNode; pos: number }[] = []
+  state.doc.forEach((node, pos) => {
+    if (node.type === N.paragraph && pos + node.nodeSize > from && pos < to) paras.push({ node, pos })
+  })
+  if (!paras.length) return false
+  const texts = paras.map(p => p.node.textContent)
+  const sep = texts.some(t => t.includes('\t')) ? '\t' : texts.some(t => t.includes(';')) ? ';' : ','
+  const rows = texts.map(t => t.split(sep).map(c => escapeCell(c.trim())))
+  const cols = Math.max(...rows.map(r => r.length))
+  for (const r of rows) while (r.length < cols) r.push('')
+  if (dispatch) {
+    const start = paras[0].pos, end = paras[paras.length - 1].pos + paras[paras.length - 1].node.nodeSize
+    const table = blockToPM(M.table({ rows, caption: '', label: null, alignment: '', style: 'grid' }))
+    dispatch(state.tr.replaceWith(start, end, table).scrollIntoView())
+  }
+  return true
+}
+const escapeCell = (s: string) => s.replace(/([%&_#$])/g, '\\$1')

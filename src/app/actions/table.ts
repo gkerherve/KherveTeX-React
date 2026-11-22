@@ -49,6 +49,16 @@ const actions: Record<string, Handler> = {
     run(C.insertTable(r.rows, r.cols, escapeText(r.caption), r.label))
     sync()
   },
+  table_menu: () => {},
+  // Insert ▸ Table grid: "<rows>x<columns>" (the grid shows columns x rows, as Word).
+  table_grid: (v?: unknown) => {
+    const [r, c] = String(v ?? '').split('x').map(Number)
+    if (r > 0 && c > 0) { run(C.insertGridTable(r, c)); sync() }
+  },
+  text_to_table: () => {
+    if (!run(C.textToTable)) appStore().set({ status: 'Select the lines to turn into a table (cells separated by tabs, semicolons or commas).' })
+    sync()
+  },
   tbl_row_above: act(C.tableInsertRow(false)),
   tbl_row_below: act(C.tableInsertRow(true)),
   tbl_col_left: act(C.tableInsertColumn(false)),
