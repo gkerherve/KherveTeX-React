@@ -467,6 +467,11 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
           onClick={() => { void runAction('send_feedback') }}>
           <span className='beta-tag'>beta</span> Send feedback
         </button>
+        <button type='button' className='rb-coffee' aria-label='Buy me a coffee'
+          title='Buy me a coffee: support kTeX (shows a QR code)'
+          onClick={() => { void runAction('buy_coffee') }}>
+          <Icon name='coffee' size={18} />
+        </button>
         <Corner ids={CORNER_RIGHT} ctx={ctx} side='right' />
       </div>
       <div className='rb-body' role='tabpanel' aria-label={shown.name}>

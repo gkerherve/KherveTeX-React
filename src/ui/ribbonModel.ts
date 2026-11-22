@@ -342,6 +342,8 @@ const cmds: Command[] = [
   { id: 'help_guide', text: '&User guide', icon: 'help_icon', shortcut: 'F1' },
   { id: 'shortcuts', text: '&Keyboard shortcuts', icon: 'keyboard_icon' },
   { id: 'send_feedback', text: 'Send &feedback (beta)…' },
+  { id: 'buy_coffee', text: 'Buy me a &coffee…', icon: 'coffee',
+    tooltip: 'Support kTeX: a QR code and a link to buymeacoffee.com' },
   { id: 'about', text: '&About KherveTeX', icon: 'about_icon' },
   { id: 'welcome', text: '&Welcome page…', icon: 'welcome_icon' },
   { id: 'check_updates', text: 'Check for Updates', icon: 'update_icon' },

@@ -11,6 +11,8 @@ export const APP_NAME = 'KherveTeX'
 export const SHORT_NAME = 'kTeX'
 // Where beta feedback goes (the About box, the Welcome page, Help > Send feedback).
 export const FEEDBACK_EMAIL = 'g.kerherve@ic.ac.uk'
+// Help ▸ Buy me a coffee (as in KherveFitting); its QR code is public/buymeacoffee_qr.png.
+export const COFFEE_URL = 'https://buymeacoffee.com/gkerherve'
 
 export function shortVersion(v: string): string {
   const [major, minor] = v.replace(/^v/, '').split('.')

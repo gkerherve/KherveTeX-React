@@ -518,6 +518,16 @@ export function Footnote(p: IconProps) {
     {L(3, 17, 11, 17, INK, 1)}{L(3, 20.5, 20, 20.5, BLUE, 1.2)}</Svg>
 }
 
+// Help ▸ Buy me a coffee: a take-away cup with steam.
+export function Coffee(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M6,9 L18,9 L16.5,21 L7.5,21 Z' stroke={INK} strokeWidth={1.4} fill='#ffdd00' />
+    {R(5, 6.5, 14, 2.5, { fill: PAPER, color: INK, r: 1, lw: 1.3 })}
+    <path d='M9.5,5 C8.5,3.8 10.5,3 9.5,1.5 M13.5,5 C12.5,3.8 14.5,3 13.5,1.5' stroke={INK} strokeWidth={1} fill='none' />
+    {L(7.8, 13, 16.2, 13, INK, 1)}{L(7.5, 16.5, 16.5, 16.5, INK, 1)}
+  </Svg>
+}
+
 // References ▸ Insert citation: a line of text with a blue citation
 // mark "[1]" being put in at the caret, and a green plus.
 export function Citation(p: IconProps) {
@@ -1466,7 +1476,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, coffee: Coffee, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,

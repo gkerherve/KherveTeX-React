@@ -5,7 +5,7 @@
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import { platform } from '../../platform'
 import { messageBox } from '../../platform/MessageBox'
-import { FEEDBACK_EMAIL } from '../../version'
+import { COFFEE_URL, FEEDBACK_EMAIL } from '../../version'
 import { Icon } from '../icons'
 import { Mnemonic } from '../Menu'
 import { openDialog } from './dialogHost'
@@ -158,3 +158,27 @@ export function showAboutDialog(version: string, html: string): Promise<void> {
     .then(() => undefined)
 }
 
+
+// Help ▸ Buy me a coffee (KherveFitting's Help menu and About box): the QR
+// code to scan with a phone, and the link.
+function Coffee({ close }: { close: () => void }) {
+  return (
+    <Frame title='Buy me a coffee' className='dlg-coffee' onClose={close}>
+      <div className='coffee-body'>
+        <p>kTeX is free. If it helps you, you can buy me a coffee — thank you!</p>
+        <img src={`${import.meta.env.BASE_URL}buymeacoffee_qr.png`} width={200} height={200}
+          alt='QR code for buymeacoffee.com/gkerherve' />
+        <p>Scan the code with your phone, or open
+          {' '}<a href={COFFEE_URL} onClick={(e) => { e.preventDefault(); void platform().openUrl(COFFEE_URL).catch(() => {}) }}>
+            buymeacoffee.com/gkerherve</a>.</p>
+      </div>
+      <div className='dlg-buttons'>
+        <button type='button' autoFocus onClick={close}>Close</button>
+      </div>
+    </Frame>
+  )
+}
+
+export function showCoffeeDialog(): Promise<void> {
+  return openDialog<void>(close => <Coffee close={() => close(null)} />).then(() => undefined)
+}

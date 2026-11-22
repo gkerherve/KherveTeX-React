@@ -96,6 +96,6 @@ export const MENU_BAR: MenuBarMenu[] = [
   { text: '&Help', items: [
     'welcome', 'tour', 'help_guide', 'shortcuts', '-',
     'check_updates_menu', 'update_automatically', '-',
-    'send_feedback', 'about',
+    'send_feedback', 'buy_coffee', 'about',
   ] },
 ]

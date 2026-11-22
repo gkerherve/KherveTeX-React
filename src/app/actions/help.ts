@@ -3,7 +3,7 @@
 import { version as reactVersion } from 'react'
 import pkg from '../../../package.json'
 import { isTauri, platform } from '../../platform'
-import { aboutHtml, showAboutDialog, showHelpGuide, showShortcuts, type Library } from '../../ui/dialogs/HelpDialogs'
+import { aboutHtml, showAboutDialog, showCoffeeDialog, showHelpGuide, showShortcuts, type Library } from '../../ui/dialogs/HelpDialogs'
 import { registerActions } from '../actions'
 import { FEEDBACK_EMAIL, VERSION } from '../../version'
 
@@ -70,5 +70,6 @@ registerActions({
   help_guide: () => showHelpGuide(),
   shortcuts: () => showShortcuts(),
   about: () => about(),
+  buy_coffee: () => showCoffeeDialog(),
   send_feedback: () => platform().openUrl(`mailto:${FEEDBACK_EMAIL}?subject=kTeX%20feedback`).catch(() => {}),
 })
