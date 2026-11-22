@@ -401,3 +401,8 @@
 .rb-split-small { display: inline-flex; align-items: stretch; }
 .rb-split-arrow-small { width: 11px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .rb-split-arrow-small svg { width: 8px; height: 8px; }
+
+/* The font box: wider, the font's name in it. */
+.rb-combo-font { width: 120px; }
+.rb-combo-value { flex: 1; min-width: 0; text-align: left; padding: 0 4px; border: none; background: none;
+  font: inherit; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text); }

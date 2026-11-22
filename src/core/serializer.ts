@@ -97,6 +97,57 @@ const MARK_WRAPPERS: Record<string, [string, string]> = {
   strikethrough: ['\\sout{', '}'],
 }
 
+// Word's Font group marks with a value, around a Text's LaTeX: underline
+// style (ulem), font family, size, colour (outermost).
+export const FONT_FAMILIES: Record<string, [string, string]> = {
+  // name: [NFSS family, CSS font in the editor]
+  helvetica: ['phv', 'Helvetica, Arial, sans-serif'], arial: ['phv', 'Arial, Helvetica, sans-serif'],
+  times: ['ptm', '"Times New Roman", Times, serif'], palatino: ['ppl', 'Palatino, "Palatino Linotype", serif'],
+  courier: ['pcr', '"Courier New", Courier, monospace'], bookman: ['pbk', '"Bookman Old Style", serif'],
+  avantgarde: ['pag', '"Century Gothic", "Avant Garde", sans-serif'], charter: ['bch', 'Charter, serif'],
+  sans: ['cmss', 'sans-serif'], serif: ['cmr', 'serif'], mono: ['cmtt', 'monospace'],
+}
+const ULINE_CMDS: Record<string, string> = { double: '\\uuline', wave: '\\uwave', dotted: '\\dotuline', dashed: '\\dashuline' }
+function valueMarks(marks: string[], body: string): string {
+  let s = body
+  for (const m of marks) {
+    const [k, v] = [m.slice(0, m.indexOf(':')), m.slice(m.indexOf(':') + 1)]
+    if (k === 'uline' && ULINE_CMDS[v]) s = `${ULINE_CMDS[v]}{${s}}`
+  }
+  for (const m of marks) {
+    const [k, v] = [m.slice(0, m.indexOf(':')), m.slice(m.indexOf(':') + 1)]
+    // T1: XeTeX's TU encoding has no PostScript fonts (phv, ptm...).
+    if (k === 'font' && FONT_FAMILIES[v]) s = `{\\fontencoding{T1}\\fontfamily{${FONT_FAMILIES[v][0]}}\\selectfont ${s}}`
+  }
+  for (const m of marks) {
+    const [k, v] = [m.slice(0, m.indexOf(':')), m.slice(m.indexOf(':') + 1)]
+    const pt = Number(v)
+    if (k === 'size' && pt > 0) s = `{\\fontsize{${pt}}{${pyFloat(Math.round(pt * 12) / 10)}}\\selectfont ${s}}`
+  }
+  for (const m of marks) {
+    const [k, v] = [m.slice(0, m.indexOf(':')), m.slice(m.indexOf(':') + 1)]
+    if (k === 'color' && /^[0-9A-Fa-f]{6}$/.test(v)) s = `\\textcolor[HTML]{${v.toUpperCase()}}{${s}}`
+  }
+  return s
+}
+
+// Packages the Font group marks need (xcolor, ulem).
+function fontMarkPackages(doc: Document): string[] {
+  let color = false, uline = false
+  const walk = (ins: Inline[]): void => {
+    for (const n of ins) {
+      if (n.type === 'Text') {
+        for (const m of n.marks as string[]) { if (m.startsWith('color:')) color = true; if (m.startsWith('uline:')) uline = true }
+      } else if ('children' in n && Array.isArray(n.children)) walk(n.children as Inline[])
+    }
+  }
+  for (const b of doc.children) {
+    if ('children' in b && Array.isArray(b.children)) walk(b.children as Inline[])
+    if (b.type === 'List') for (const it of b.items) walk(it.children)
+  }
+  return [...(color ? ['xcolor'] : []), ...(uline ? ['ulem'] : [])]
+}
+
 // Outermost-first; iteration reverses so the first mark here wraps last.
 const MARK_ORDER = ['bold', 'italic', 'underline', 'smallcaps',
   'subscript', 'superscript', 'strikethrough', 'code']
@@ -139,7 +190,7 @@ export function serializeInline(node: Inline): string {
           s = `${open}${s}${close}`
         }
       }
-      return s
+      return valueMarks(node.marks as string[], s)
     }
     case 'MathInline':
       return `$${node.latex}$`
@@ -320,7 +371,8 @@ function listLabelCommands(node: List): string {
 // (a breakable tcolorbox).
 function paraWrap(node: Paragraph, body: string): string {
   let out = body
-  if (node.spacing) out = `\\begin{spacing}{${pyFloat(node.spacing)}}\n${out}\\end{spacing}\n`
+  // \setstretch in a group: no space added above or below, as \begin{spacing} does.
+  if (node.spacing) out = `{\\setstretch{${pyFloat(node.spacing)}}\n${out.replace(/\n$/, '')}\\par}\n`
   if (node.shade || node.border) {
     const b = node.border ?? ''
     const w = (on: boolean) => (on ? '0.5pt' : '0pt')
@@ -1176,6 +1228,8 @@ export function serializeDocument(doc: Document): string {
   }
   const [paraPkgs, paraDefs] = paraFormatPreamble(doc)
   for (const p of paraPkgs) if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
+  const fontPkgs = fontMarkPackages(doc)
+  if (fontPkgs.includes('xcolor') && !pkgList.includes('xcolor')) pkgList.push('xcolor')
   for (const p of tablePackages(doc)) {
     if (p === 'colortbl' && !pkgList.includes('xcolor')) pkgList.push('xcolor')  // \cellcolor[HTML]
     if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
@@ -1184,6 +1238,8 @@ export function serializeDocument(doc: Document): string {
   let packages = geometry ? strip(geometry + '\n' + pkgLines) : pkgLines
   if (preambleExtras) packages += '\n' + preambleExtras
   if (paraDefs) packages += '\n' + paraDefs
+  // ulem with normalem, so \emph stays italic.
+  if (fontPkgs.includes('ulem') && !m.preamble_extras.includes('{ulem}')) packages += '\n\\usepackage[normalem]{ulem}'
   // User preamble (\lstset, \definecolor, \hypersetup, \newcommand...),
   // preserved verbatim from the imported .tex.
   if (m.preamble_extras && strip(m.preamble_extras)) packages += '\n' + strip(m.preamble_extras)

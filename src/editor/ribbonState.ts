@@ -7,6 +7,8 @@ import { useSyncExternalStore } from 'react'
 export interface RibbonWidgets {
   docClass: string
   fontSize: string
+  // The font at the caret: its font mark, or the body font.
+  fontFamily: string
   styleLevel: number
   numbered: boolean
   numberedEnabled: boolean
@@ -18,7 +20,7 @@ export interface RibbonWidgets {
 }
 
 let state: RibbonWidgets = {
-  docClass: 'article', fontSize: '12', styleLevel: 0, numbered: true, numberedEnabled: false,
+  docClass: 'article', fontSize: '12', fontFamily: 'default', styleLevel: 0, numbered: true, numberedEnabled: false,
   disabledStyles: {}, para: null,
 }
 const listeners = new Set<() => void>()

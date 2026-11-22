@@ -145,6 +145,33 @@ function SmallButton({ c, ctx, text }: { c: Command, ctx: Ctx, text: boolean }) 
   )
 }
 
+// Word's font box: the font of the selected text, or (nothing selected)
+// the document's body font.
+const FONT_CHOICES: [string, string][] = [
+  ['default', 'Computer Modern'], ['times', 'Times'], ['helvetica', 'Helvetica'], ['arial', 'Arial'],
+  ['palatino', 'Palatino'], ['courier', 'Courier'], ['charter', 'Charter'], ['bookman', 'Bookman'],
+  ['avantgarde', 'Avant Garde'], ['sans', 'Sans serif (CM)'], ['mono', 'Typewriter (CM)'],
+]
+function FontFamilyCombo({ ctx }: { ctx: Ctx }) {
+  const w = useRibbonWidgets()
+  const isOpen = ctx.menu?.owner === 'fontfamily'
+  const name = FONT_CHOICES.find(([k]) => k === w.fontFamily)?.[1] ?? 'Computer Modern'
+  return (
+    <div className='rb-combo rb-combo-font' data-menu-owner title='Font'>
+      <button type='button' className='rb-combo-value' aria-label='Font'
+        onClick={e => ctx.openMenu(isOpen ? null : {
+          owner: 'fontfamily', rect: e.currentTarget.parentElement!.getBoundingClientRect(),
+          entries: FONT_CHOICES.map(([k, label]) => ({ text: label, checkable: true, checked: k === w.fontFamily, command: `fontfamily:${k}` })),
+        })}>{name}</button>
+      <button type='button' className='rb-combo-arrow' aria-label='Fonts'
+        onClick={e => ctx.openMenu(isOpen ? null : {
+          owner: 'fontfamily', rect: e.currentTarget.parentElement!.getBoundingClientRect(),
+          entries: FONT_CHOICES.map(([k, label]) => ({ text: label, checkable: true, checked: k === w.fontFamily, command: `fontfamily:${k}` })),
+        })}><Chevron /></button>
+    </div>
+  )
+}
+
 function FontSizeCombo({ ctx }: { ctx: Ctx }) {
   const [value, setValue] = useState(ctx.fontSize)
   useEffect(() => setValue(ctx.fontSize), [ctx.fontSize])
@@ -352,6 +379,7 @@ function Item({ it, ctx, large, text }: {
 }) {
   if (typeof it !== 'string') {
     if (it.widget === 'fontsize') return <FontSizeCombo ctx={ctx} />
+    if (it.widget === 'fontfamily') return <FontFamilyCombo ctx={ctx} />
     if (it.widget === 'parafield') return <ParaField field={it.field} />
     if (it.widget === 'styles') return <StyleGallery ctx={ctx} />
     if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
@@ -507,6 +535,7 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
     trigger: id => {
       if (COMMANDS[id]) cmd.trigger(id)
       else if (id.startsWith('fontsize:')) setFontSize(id.slice(9))
+      else if (id.startsWith('fontfamily:')) void runAction('fontfamily', id.slice(11))
       else if (id.startsWith('style:')) setStyleLevel(Number(id.slice(6)))
       else void runAction(id)
     },

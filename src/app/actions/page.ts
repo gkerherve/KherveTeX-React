@@ -4,6 +4,7 @@
 // _on_template_changed, _on_fontsize_changed, _edit_props, _manage_styles).
 import type { DocMeta } from '../../core/model.ts'
 import { editor, MARGIN_PRESETS } from '../../editor/controller.ts'
+import * as C from '../../editor/commands.ts'
 import { platform } from '../../platform/index.ts'
 import { docSettingsDialog, styleDialog, type StyleFile } from '../../ui/dialogs/EditorDialogs.tsx'
 import { setCommandChecked } from '../../ui/commands.ts'
@@ -73,11 +74,34 @@ const actions: Record<string, Handler> = {
     setMeta({ documentclass: cls })
   },
   // set_body_font_pt: 6..72, whole points.
+  // With text selected, Word's font size: that text's size; without, the
+  // document's body size.
   fontsize: v => {
-    const pt = Math.trunc(parseFloat(String(v ?? '').trim().replace(/pt$/, '')))
-    if (!Number.isFinite(pt)) return
-    const clamped = Math.max(6, Math.min(72, pt))
+    const raw = parseFloat(String(v ?? '').trim().replace(/pt$/, ''))
+    if (!Number.isFinite(raw)) return
+    const e = editor()
+    if (e && !e.view.state.selection.empty) {
+      const pt = Math.max(1, Math.min(400, Math.round(raw * 2) / 2))
+      C.setValueMark('fontsize', pt === meta().body_font_pt ? null : { pt })(e.view.state, tr => e.view.dispatch(tr))
+      e.view.focus()
+      return
+    }
+    const clamped = Math.max(6, Math.min(72, Math.trunc(raw)))
     if (clamped !== meta().body_font_pt) setMeta({ body_font_pt: clamped })
+  },
+  // The font: on selected text, that text's; without a selection, the
+  // document's body font (Document settings).
+  fontfamily: v => {
+    const name = String(v ?? '')
+    const e = editor()
+    if (e && !e.view.state.selection.empty) {
+      C.setValueMark('fontfamily', name && name !== 'default' ? { name } : null)(e.view.state, tr => e.view.dispatch(tr))
+      e.view.focus()
+      return
+    }
+    if (['default', 'times', 'palatino', 'helvetica', 'courier', 'charter'].includes(name) && meta().body_font_family !== name) {
+      setMeta({ body_font_family: name })
+    }
   },
   doc_props: async () => {
     const m = await docSettingsDialog(meta())

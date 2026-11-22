@@ -259,6 +259,38 @@ export function Code(p: IconProps) {
   </Svg>
 }
 
+// Word's Font group: grow / shrink font, change case, clear formatting,
+// font colour (the bar takes the chosen colour).
+export function GrowFont(p: IconProps) {
+  return <Svg {...p}>{T([0, 3, 17, 21], 'A', { size: 19 })}
+    {P([[16, 7], [19, 3.5], [22, 7]], { closed: false, lw: 1.3, color: BLUE })}</Svg>
+}
+export function ShrinkFont(p: IconProps) {
+  return <Svg {...p}>{T([0, 5, 16, 19], 'A', { size: 15 })}
+    {P([[16, 4], [19, 7.5], [22, 4]], { closed: false, lw: 1.3, color: BLUE })}</Svg>
+}
+export function ChangeCase(p: IconProps) {
+  return <Svg {...p}>{T([0, 2, 13, 20], 'A', { size: 16 })}{T([11, 5, 13, 18], 'a', { size: 14 })}</Svg>
+}
+export function ClearFormat(p: IconProps) {
+  return <Svg {...p}>{T([0, 0, 18, 20], 'A', { size: 18 })}
+    {P([[13, 15], [18, 10.5], [22, 14.5], [17, 19]], { fill: '#c879d6', color: '#8e3fa0', lw: 1 })}</Svg>
+}
+export function FontColor({ arg = '#c00000', ...p }: IconProps) {
+  const c = arg.startsWith('#') ? arg : `#${arg}`
+  return <Svg {...p}>{T([0, 0, 24, 19], 'A', { size: 17 })}{F(3, 19.5, 18, 3.5, c)}</Svg>
+}
+export function UnderlineStyle({ arg = 'double', ...p }: IconProps) {
+  const y = 12
+  return <Svg {...p}>
+    {arg === 'double' && <>{L(2, y - 1.5, 22, y - 1.5, INK, 1.2)}{L(2, y + 1.5, 22, y + 1.5, INK, 1.2)}</>}
+    {arg === 'single' && L(2, y, 22, y, INK, 1.4)}
+    {arg === 'dotted' && L(2, y, 22, y, INK, 1.6, '0.1 2.6')}
+    {arg === 'dashed' && L(2, y, 22, y, INK, 1.4, '3.5 2.2')}
+    {arg === 'wave' && <path d='M2 12 q2.5 -3 5 0 t5 0 t5 0 t5 0' fill='none' stroke={INK} strokeWidth={1.3} />}
+  </Svg>
+}
+
 export function Highlight(p: IconProps) {
   const yellow = '#ffe600'
   return <Svg {...p}>
@@ -1560,6 +1592,8 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,
+  grow_font: GrowFont, shrink_font: ShrinkFont, change_case: ChangeCase, clear_format: ClearFormat,
+  font_color: FontColor, underline_style: UnderlineStyle,
   multilevel_list: MultilevelList, indent_dec: IndentDec, indent_inc: IndentInc, line_spacing: LineSpacing,
   para_borders: ParaBorders,
   numbered_list: NumberedList, align_left: AlignLeft,

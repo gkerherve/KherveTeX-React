@@ -9,7 +9,7 @@ import type { Mark as PMMark, Node as PMNode } from 'prosemirror-model'
 import { TableMap } from 'prosemirror-tables'
 import * as M from '../core/model.ts'
 import { escapeText, serializeInlines } from '../core/serializer.ts'
-import { schema, TEXT_MARKS } from './schema.ts'
+import { schema, TEXT_MARKS, VALUE_MARKS } from './schema.ts'
 
 let gidCounter = 1
 export function newGid(): number {
@@ -222,6 +222,13 @@ function inlineNodes(nodes: M.Inline[], wrappers: PMMark[]): PMNode[] {
         if (!n.text) break
         const marks = [...wrappers]
         for (const m of n.marks) {
+          const i = m.indexOf(':')
+          if (i > 0 && VALUE_MARKS[m.slice(0, i)]) {
+            const [name, attr] = VALUE_MARKS[m.slice(0, i)]
+            const v = m.slice(i + 1)
+            marks.push(schema.marks[name].create({ [attr]: name === 'fontsize' ? Number(v) : v }))
+            continue
+          }
           const t = schema.marks[m]
           if (t && !marks.some(x => x.type === t)) marks.push(t.create())
         }
@@ -391,8 +398,15 @@ export function docToPM(doc: M.Document): PMNode {
 type Container = { gid: number; children: M.Inline[] }
 
 function textMarks(marks: readonly PMMark[]): M.Mark[] {
-  return marks.map(m => m.type.name).filter(n => MARK_ORDER.includes(n))
+  const plain = marks.map(m => m.type.name).filter(n => MARK_ORDER.includes(n))
     .sort((a, b) => MARK_ORDER.indexOf(a) - MARK_ORDER.indexOf(b)) as M.Mark[]
+  // Value marks after, in a fixed order, so equal runs merge.
+  const values: string[] = []
+  for (const [key, [name, attr]] of Object.entries(VALUE_MARKS)) {
+    const m = marks.find(x => x.type.name === name)
+    if (m) values.push(`${key}:${m.attrs[attr]}`)
+  }
+  return [...plain, ...values] as M.Mark[]
 }
 
 function wrapperChain(marks: readonly PMMark[]): PMMark[] {

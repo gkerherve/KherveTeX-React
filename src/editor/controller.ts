@@ -630,6 +630,8 @@ export class EditorController implements ViewHost {
     const g = this.layout.geometry
     const st = this.root.style
     st.width = `${g.widthPx}px`
+    // Text set to a size (Home ▸ font size on a selection) scales from it.
+    st.setProperty('--kt-body-pt', String(this.meta.body_font_pt || 12))
     st.setProperty('--kt-page-h', `${g.heightPx}px`)
     const f = this.flowEl.style
     f.paddingTop = `${g.topPx}px`
@@ -911,7 +913,13 @@ export class EditorController implements ViewHost {
     }
     setRibbonWidgets({
       styleLevel: level, numberedEnabled: isHeading, numbered: isHeading ? C.isHeadingNumbered(s) : true,
-      docClass: meta.documentclass, fontSize: String(meta.body_font_pt), disabledStyles: disabled,
+      docClass: meta.documentclass, disabledStyles: disabled,
+      // The size and font at the caret (a mark), or the body's.
+      fontSize: String(C.sizeAt(s, meta.body_font_pt)),
+      fontFamily: (() => {
+        const m = C.marksHere(s).find(x => x.type.name === 'fontfamily')
+        return m ? String(m.attrs.name) : (meta.body_font_family || 'default')
+      })(),
       para: s.selection.$from.parent.type.name === 'paragraph' ? {
         left_cm: s.selection.$from.parent.attrs.left_cm || 0, right_cm: s.selection.$from.parent.attrs.right_cm || 0,
         before_pt: s.selection.$from.parent.attrs.before_pt || 0, after_pt: s.selection.$from.parent.attrs.after_pt || 0,

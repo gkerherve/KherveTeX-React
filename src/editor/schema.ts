@@ -1,3 +1,4 @@
+import { FONT_FAMILIES } from '../core/serializer.ts'
 // The ProseMirror schema: one node type per model node (src/core/model.ts),
 // so a document converts losslessly both ways (convert.ts). What
 // editor.py keeps in QTextBlock user states and format properties lives
@@ -169,6 +170,25 @@ const marks: Record<string, MarkSpec> = {
   code: { toDOM: () => ['code', { class: 'kt-code' }, 0], parseDOM: [{ tag: 'code' }] },
   subscript: { ...simple('sub'), parseDOM: [{ tag: 'sub' }] },
   superscript: { ...simple('sup'), parseDOM: [{ tag: 'sup' }] },
+  // Word's Font group (model marks 'color:', 'size:', 'font:', 'uline:').
+  textcolor: { attrs: { color: { default: '000000' } }, toDOM: m => ['span', { style: `color:#${m.attrs.color}` }, 0] },
+  fontsize: {
+    attrs: { pt: { default: 12 } },
+    toDOM: m => ['span', { style: `font-size:calc(1em * ${m.attrs.pt} / var(--kt-body-pt, 12))` }, 0],
+  },
+  fontfamily: {
+    attrs: { name: { default: 'helvetica' } },
+    toDOM: m => ['span', { 'data-font': m.attrs.name, style: `font-family:${FONT_FAMILIES[m.attrs.name]?.[1] ?? 'inherit'}` }, 0],
+  },
+  ulinestyle: {
+    attrs: { style: { default: 'double' } },
+    toDOM: m => ['span', { style: `text-decoration:underline ${({ double: 'double', wave: 'wavy', dotted: 'dotted', dashed: 'dashed' } as Record<string, string>)[m.attrs.style] ?? 'solid'}` }, 0],
+  },
+}
+
+// Model value marks ('color:FF0000') <-> the editor's marks with an attribute.
+export const VALUE_MARKS: Record<string, [string, string]> = {
+  color: ['textcolor', 'color'], size: ['fontsize', 'pt'], font: ['fontfamily', 'name'], uline: ['ulinestyle', 'style'],
 }
 
 export const schema = new Schema({ nodes, marks })

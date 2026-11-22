@@ -49,6 +49,7 @@ export interface Command {
 
 export type Widget =
   | { widget: 'fontsize' }
+  | { widget: 'fontfamily' }
   | { widget: 'styles' }
   | { widget: 'classes' }
   | { widget: 'numbered' }
@@ -191,7 +192,7 @@ const cmds: Command[] = [
     ] },
   { id: 'paste_special', text: 'Paste Special…', icon: 'paste', shortcut: 'Ctrl+Alt+V' },
   { id: 'select_all', text: 'Select &All', shortcut: 'Ctrl+A' },
-  { id: 'clear_fmt', text: 'Clear &formatting' },
+  { id: 'clear_fmt', text: 'Clear &formatting', icon: 'clear_format' },
   { id: 'find', text: '&Find...', shortcut: 'Ctrl+F' },
   { id: 'replace', text: '&Replace...', shortcut: 'Ctrl+H' },
 
@@ -209,7 +210,27 @@ const cmds: Command[] = [
   // Format
   { id: 'bold', text: '&Bold', icon: 'bold', shortcut: 'Ctrl+B', checkable: true },
   { id: 'italic', text: '&Italic', icon: 'italic', shortcut: 'Ctrl+I', checkable: true },
-  { id: 'underline', text: '&Underline', icon: 'underline', shortcut: 'Ctrl+U', checkable: true },
+  { id: 'underline', text: '&Underline', icon: 'underline', shortcut: 'Ctrl+U', checkable: true, popup: 'split',
+    menu: (['single', 'double', 'wave', 'dotted', 'dashed'] as const).map((st): MenuItem => ({
+      text: { single: 'Single', double: 'Double', wave: 'Wave', dotted: 'Dotted', dashed: 'Dashed' }[st],
+      icon: 'underline_style', iconArg: st, command: `uline:${st}` })) },
+  { id: 'grow_font', text: 'Grow Font', icon: 'grow_font', shortcut: 'Ctrl+Shift+>' },
+  { id: 'shrink_font', text: 'Shrink Font', icon: 'shrink_font', shortcut: 'Ctrl+Shift+<' },
+  { id: 'change_case', text: 'Change Case', icon: 'change_case', popup: 'instant',
+    menu: [
+      { text: 'Sentence case.', command: 'case:sentence' }, { text: 'lowercase', command: 'case:lower' },
+      { text: 'UPPERCASE', command: 'case:upper' }, { text: 'Capitalize Each Word', command: 'case:capitalize' },
+      { text: 'tOGGLE cASE', command: 'case:toggle' },
+    ] },
+  { id: 'font_color', text: 'Font Color', icon: 'font_color', iconArg: '#c00000', popup: 'split',
+    menu: [
+      { text: 'Automatic', command: 'fcolor:auto', icon: 'color_swatch', iconArg: '#000000' },
+      ...([['000000', 'Black'], ['C00000', 'Dark red'], ['FF0000', 'Red'], ['FFC000', 'Orange'],
+        ['FFFF00', 'Yellow'], ['92D050', 'Light green'], ['00B050', 'Green'], ['00B0F0', 'Light blue'], ['0070C0', 'Blue'],
+        ['002060', 'Dark blue'], ['7030A0', 'Purple'], ['7F7F7F', 'Grey']] as const)
+        .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: `#${c}`, command: `fcolor:${c}` })),
+      '-', { text: 'More Colors…', command: 'fcolor_more' },
+    ] },
   { id: 'strike', text: '&Strikethrough', icon: 'strike', checkable: true },
   { id: 'code', text: '&Code (monospace)', icon: 'code', checkable: true },
   { id: 'smallcaps', text: 'Small caps', icon: 'smallcaps', checkable: true },
@@ -362,7 +383,12 @@ const cmds: Command[] = [
   { id: 'branches', text: '&Branches…', icon: 'branch' },
 
   // Review
-  { id: 'highlight', text: '&Highlight', icon: 'highlight', shortcut: 'Ctrl+Shift+H' },
+  { id: 'highlight', text: '&Highlight', icon: 'highlight', shortcut: 'Ctrl+Shift+H', popup: 'split',
+    menu: [
+      ...([['yellow', '#FFFF00'], ['green', '#90EE90'], ['blue', '#ADD8E6'], ['pink', '#FFB6C1'], ['orange', '#FFD700']] as const)
+        .map(([n, c]): MenuItem => ({ text: n[0].toUpperCase() + n.slice(1), icon: 'color_swatch', iconArg: c, command: `hl:${n}` })),
+      '-', { text: 'No Color', command: 'remove_highlight' },
+    ] },
   { id: 'remove_highlight', text: 'Remove highlight' },
   { id: 'comment', text: 'New &comment', icon: 'comment', shortcut: 'Ctrl+Alt+M' },
   { id: 'your_name', text: 'Your &name…', icon: 'your_name',
@@ -561,8 +587,8 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Export', large: ['export_docx', 'export_pdf'] },
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
     { label: 'Font', rows: [
-      [{ widget: 'fontsize' }, 'smallcaps', 'code'],
-      ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'highlight']] },
+      [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
+      ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'smallcaps', 'code', 'highlight', 'font_color']] },
     { label: 'Paragraph', rows: [
       ['bullet', 'numbered', 'multilevel', 'indent_dec', 'indent_inc', 'sort_paras', 'show_marks'],
       ['align_left', 'align_center', 'align_right', 'align_justify', 'line_spacing', 'para_shading', 'para_borders']] },

@@ -1160,3 +1160,97 @@ export function sortParagraphs(desc: boolean): Command {
     return true
   }
 }
+
+// ---------- Word's Font group ----------
+
+// A value mark (font colour, size, family, underline style) on the
+// selection, or on what is typed next; null takes it off.
+export function setValueMark(name: 'textcolor' | 'fontsize' | 'fontfamily' | 'ulinestyle', attrs: Record<string, unknown> | null): Command {
+  return (state, dispatch) => {
+    const type = schema.marks[name]
+    const { from, to, empty } = state.selection
+    if (!dispatch) return true
+    const tr = state.tr
+    if (empty) {
+      const stored = (state.storedMarks ?? state.selection.$from.marks()).filter(m => m.type !== type)
+      tr.setStoredMarks(attrs ? [...stored, type.create(attrs)] : stored)
+    } else {
+      tr.removeMark(from, to, type)
+      if (attrs) tr.addMark(from, to, type.create(attrs))
+      // A plain underline goes when a styled one comes, and back.
+      if (name === 'ulinestyle' && attrs) tr.removeMark(from, to, schema.marks.underline)
+    }
+    dispatch(tr)
+    return true
+  }
+}
+
+// The size at the caret: its fontsize mark, or the body size.
+// The marks of the selected text (its first character), or at the caret.
+export function marksHere(state: EditorState): readonly import('prosemirror-model').Mark[] {
+  const sel = state.selection
+  if (!sel.empty && sel.$from.nodeAfter) return sel.$from.nodeAfter.marks
+  return state.storedMarks ?? sel.$from.marks()
+}
+
+export function sizeAt(state: EditorState, body: number): number {
+  const m = marksHere(state).find(x => x.type === schema.marks.fontsize)
+  return m ? Number(m.attrs.pt) : body
+}
+
+// Grow / Shrink Font: Word's size steps.
+const SIZE_STEPS = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72]
+export function growFont(up: boolean, body: number): Command {
+  return (state, dispatch) => {
+    const cur = sizeAt(state, body)
+    const next = up ? SIZE_STEPS.find(s => s > cur) ?? cur : [...SIZE_STEPS].reverse().find(s => s < cur) ?? cur
+    if (next === cur) return false
+    return setValueMark('fontsize', next === body ? null : { pt: next })(state, dispatch)
+  }
+}
+
+// Change Case: Sentence case., lowercase, UPPERCASE, Capitalize Each
+// Word, tOGGLE cASE on the selected text, its formatting kept.
+export function changeCase(kind: 'sentence' | 'lower' | 'upper' | 'capitalize' | 'toggle'): Command {
+  return (state, dispatch) => {
+    const { from, to, empty } = state.selection
+    if (empty) return false
+    if (dispatch) {
+      const tr = state.tr
+      let atStart = true
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (!node.isText) return true
+        const a = Math.max(from, pos), b = Math.min(to, pos + node.nodeSize)
+        const t = node.text!.slice(a - pos, b - pos)
+        let out = t
+        if (kind === 'lower') out = t.toLowerCase()
+        else if (kind === 'upper') out = t.toUpperCase()
+        else if (kind === 'toggle') out = [...t].map(c => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join('')
+        else if (kind === 'capitalize') out = t.toLowerCase().replace(/(^|[\s\-(])(\p{L})/gu, (_m, p, c) => p + c.toUpperCase())
+        else {
+          out = ''
+          for (const c of t.toLowerCase()) {
+            if (atStart && /\p{L}/u.test(c)) { out += c.toUpperCase(); atStart = false } else out += c
+            if (/[.!?]/.test(c)) atStart = true
+          }
+        }
+        if (kind !== 'sentence' && /\S/.test(t)) atStart = false
+        if (out !== t) tr.replaceWith(tr.mapping.map(a), tr.mapping.map(b), schema.text(out, node.marks))
+        return false
+      })
+      tr.setSelection(TextSelection.create(tr.doc, from, tr.mapping.map(to)))
+      dispatch(tr)
+    }
+    return true
+  }
+}
+
+// A plain mark on the selection (not toggled off when already there).
+export function addMarkCmd(mark: string): Command {
+  return (state, dispatch) => {
+    const { from, to, empty } = state.selection
+    if (empty) return false
+    if (dispatch) dispatch(state.tr.addMark(from, to, schema.marks[mark].create()))
+    return true
+  }
+}

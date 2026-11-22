@@ -286,6 +286,17 @@ const actions: Record<string, Handler> = {
   numbered: () => { run(C.toggleList(true)); sync() },
   // Word's Paragraph group: list styles, indent, sort, spacing, shading, borders.
   multilevel: () => { run(C.setListStyle(true, 'legal')); sync() },
+  // Word's Font group.
+  grow_font: () => { run(C.growFont(true, ed()?.meta.body_font_pt ?? 12)); sync() },
+  shrink_font: () => { run(C.growFont(false, ed()?.meta.body_font_pt ?? 12)); sync() },
+  change_case: () => {},
+  font_color: () => { run(C.setValueMark('textcolor', { color: lastFontColor })); sync() },
+  'fcolor:auto': () => { run(C.setValueMark('textcolor', null)); sync() },
+  fcolor_more: async () => {
+    const c = await pickColor('#' + lastFontColor)
+    if (c) { lastFontColor = c.replace('#', '').toUpperCase(); run(C.setValueMark('textcolor', { color: lastFontColor })); sync() }
+  },
+  'uline:single': () => { run(C.setValueMark('ulinestyle', null)); run(C.addMarkCmd('underline')); sync() },
   indent_dec: () => { run(C.changeIndent(-1)); sync() },
   indent_inc: () => { run(C.changeIndent(1)); sync() },
   sort_paras: () => { if (!run(C.sortParagraphs(false))) status('Put the caret in a list, or select two or more paragraphs, to sort them.') },
@@ -359,6 +370,16 @@ for (const [k] of [['theorem'], ['lemma'], ['proposition'], ['corollary'], ['def
   actions[`thm_kind_${k}`] = () => { run(C.setTheoremKind(k)); sync() }
 }
 
+let lastFontColor = 'C00000'
+export const FONT_COLORS: [string, string][] = [['000000', 'Black'], ['C00000', 'Dark red'], ['FF0000', 'Red'], ['FFC000', 'Orange'],
+  ['FFFF00', 'Yellow'], ['92D050', 'Light green'], ['00B050', 'Green'], ['00B0F0', 'Light blue'], ['0070C0', 'Blue'],
+  ['002060', 'Dark blue'], ['7030A0', 'Purple'], ['7F7F7F', 'Grey']]
+for (const [c] of FONT_COLORS) actions[`fcolor:${c}`] = () => { lastFontColor = c; run(C.setValueMark('textcolor', { color: c })); sync() }
+for (const st of ['double', 'wave', 'dotted', 'dashed']) actions[`uline:${st}`] = () => { run(C.setValueMark('ulinestyle', { style: st })); sync() }
+for (const k of ['sentence', 'lower', 'upper', 'capitalize', 'toggle'] as const) {
+  actions[`case:${k}`] = () => { if (!run(C.changeCase(k))) status('Select the text to change first.') }
+}
+for (const name of Object.keys(M.HIGHLIGHT_COLORS)) actions[`hl:${name}`] = () => { if (!run(C.addHighlight(name))) status('Select the text to highlight first.') }
 let lastParaShade = '#FFEB3B'
 let lastBorder = 'bottom'
 for (const st of ['disc', 'circle', 'square', 'dash', 'arrow', 'check', 'diamond']) {

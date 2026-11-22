@@ -6,6 +6,9 @@ import { pyFloatOf, pyInt, pyJson, pyStr, strip, truthy } from './py.ts'
 
 export type Mark = 'bold' | 'italic' | 'underline' | 'code' | 'smallcaps'
   | 'subscript' | 'superscript' | 'strikethrough'
+  // Word's Font group, a mark with its value: font colour (hex), size in
+  // pt, font family, underline style (double, wave, dotted, dashed).
+  | `color:${string}` | `size:${string}` | `font:${string}` | `uline:${string}`
 
 // ---------------- Inline nodes ----------------
 
