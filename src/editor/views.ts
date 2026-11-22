@@ -6,7 +6,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView } from 'prosemirror-view'
 import type { Inline } from '../core/model.ts'
 import { renderMath } from '../math/render.ts'
-import { cellDisplayText, cellPictures } from './convert.ts'
+import { cellDisplayText, cellLook, cellPictures } from './convert.ts'
 import type { ReferenceResolver } from '../core/references.ts'
 import { inlineRawLook, lengthEm } from './inlineRawLook.ts'
 
@@ -376,7 +376,9 @@ export function columnFractions(spec: string): (number | null)[] {
   for (const tok of (spec || '').match(COL_SPEC_RE) ?? []) {
     if (tok === '|' || '@!<>'.includes(tok[0])) continue
     const m = /^[pmb]\{\s*([\d.]*)\s*\\(?:textwidth|linewidth|columnwidth|hsize)\s*\}$/.exec(tok)
-    out.push(m ? parseFloat(m[1] || '1') : null)
+    // A Word form's column: p{\dimexpr<share>\linewidth-2\tabcolsep\relax}.
+    const d = /^[pmb]\{\\dimexpr\s*([\d.]+)\\(?:textwidth|linewidth)\b/.exec(tok)
+    out.push(m ? parseFloat(m[1] || '1') : d ? parseFloat(d[1]) : null)
   }
   return out
 }
@@ -446,6 +448,18 @@ class TableCellView implements NodeView {
   }
 }
 
+// Is all the text of a cell's LaTeX inside \<cmd>{...}?
+function allIn(raw: string, cmd: string): boolean {
+  if (!raw.includes(`\\${cmd}{`)) return false
+  let s = raw
+  const re = new RegExp(`\\\\${cmd}\\{[^{}]*\\}`, 'g')
+  for (let prev = ''; prev !== s;) {
+    prev = s
+    s = s.replace(re, '').replace(/\\textcolor\[HTML\]\{[0-9A-Fa-f]{6}\}\{([^{}]*)\}/g, '$1')
+  }
+  return !cellDisplayText(s).replace(/[\s~]/g, '')
+}
+
 // Each cell's borders, alignment, shading and weight, in document order.
 export function tableCellStyles(node: PMNode): { offset: number; style: string }[] {
   const out: { offset: number; style: string }[] = []
@@ -498,8 +512,11 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
         + (tok[0] === 'm' ? 'vertical-align:middle;' : tok[0] === 'b' ? 'vertical-align:bottom;' : '')
         + (fixed && cell.attrs.colspan === 1 ? `width:${(fr[c]! / frTotal) * 100}%;` : '')
       // Header row bold; unedited cells show their LaTeX's bold / italic.
-      if ((r === 0 && header) || (unedited && raw.includes('\\textbf{'))) css += 'font-weight:700;'
-      if (unedited && (raw.includes('\\textit{') || raw.includes('\\emph{'))) css += 'font-style:italic;'
+      // Bold or italic only when all of the cell's text is (a Word form's
+      // cell with a bold heading over plain text is not bold).
+      if ((r === 0 && header) || (unedited && allIn(raw, 'textbf'))) css += 'font-weight:700;'
+      if (unedited && (allIn(raw, 'textit') || allIn(raw, 'emph'))) css += 'font-style:italic;'
+      if (unedited) css += cellLook(raw)
       out.push({ offset: 1 + rowOffset + 1 + cellOffset, style: css })
       c += cell.attrs.colspan
     })

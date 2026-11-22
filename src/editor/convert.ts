@@ -78,7 +78,41 @@ export function cellDisplayText(raw: string): string {
       .replace(/\\text(?:super|sub)script\{([^}]*)\}/g, '$1')
       .replace(/\\([%&_#$])/g, '$1')
   }
-  return s.replace(/\\(?:textbf|textit|emph|texttt)\{([^}]*)\}/g, '$1').trim()
+  return cellPlain(s)
+}
+
+// The text of a cell's LaTeX as the page prints it: a Word form's size,
+// colour and alignment commands (\footnotesize, \textcolor, \centering) are
+// the cell's look, drawn by tableCellStyles, and its tick boxes are the
+// characters ☐ and ☒.
+function cellPlain(raw: string): string {
+  let s = raw
+    .replace(/\$\\boxtimes\$/g, '☒').replace(/\$\\square\$/g, '☐')
+    .replace(/\\textbullet~?/g, '• ')
+    .replace(/\\(?:centering|raggedleft|raggedright)\\arraybackslash\s*/g, '')
+    .replace(/\\(?:footnotesize|small|scriptsize|large)\b\s*/g, '')
+    .replace(/\\cellcolor\[HTML\]\{[0-9A-Fa-f]{6}\}/g, '')
+  // Innermost groups first, until none is left.
+  const GROUP = /\\(?:textbf|textit|emph|texttt|underline|textsuperscript|textsubscript)\{([^{}]*)\}|\\textcolor\[HTML\]\{[0-9A-Fa-f]{6}\}\{([^{}]*)\}/g
+  for (let prev = ''; prev !== s;) {
+    prev = s
+    s = s.replace(GROUP, (_m, a: string | undefined, b: string | undefined) => a ?? b ?? '')
+  }
+  return s.replace(/\\([%&_#$])/g, '$1').replace(/(?<!\\)~/g, ' ').replace(/[ \t]{2,}/g, ' ').trim()
+}
+
+// The look a Word form gives a cell (its LaTeX's first \textcolor, size and
+// alignment), as CSS for the editor.
+export function cellLook(raw: string): string {
+  let css = ''
+  const col = /\\textcolor\[HTML\]\{([0-9A-Fa-f]{6})\}/.exec(raw || '')
+  if (col) css += `color:#${col[1]};`
+  // The size set at the start of the cell (after its alignment).
+  const lead = /^\s*(?:\\cellcolor\[HTML\]\{\w+\}|\\(?:centering|raggedleft)\\arraybackslash|\s)*\\(footnotesize|small)\b/.exec(raw || '')
+  if (lead) css += lead[1] === 'small' ? 'font-size:0.9em;' : 'font-size:0.8em;'
+  if (/\\centering\\arraybackslash/.test(raw || '')) css += 'text-align:center;'
+  else if (/\\raggedleft\\arraybackslash/.test(raw || '')) css += 'text-align:right;'
+  return css
 }
 
 // An edited structured cell back to LaTeX: its lines as paragraphs, "• "
