@@ -7,6 +7,7 @@ import { isImageName } from '../../core/pictures'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { importMd, importTex, type ImportFs } from '../../core/importers'
+import { findMainTex, isArchiveName, readArchive } from '../../core/archive'
 import {
   exportLatexZip, isKdoczPath, isLegacyBundle, loadKdocz, NATIVE_SUFFIX, readBundledBib,
   readProjectJson, saveKdocz, type FileAccess,
@@ -36,7 +37,8 @@ const RECENT_FILES_MAX = 8
 const WORK_DIR = '.kherve'
 const BIB_FILE = 'kherveref.bib'
 
-const OPENABLE_SUFFIXES = new Set(['.ktex', '.ktexz', '.kdocz', '.tex', '.md', '.markdown', '.docx', '.pdf', '.json'])
+const OPENABLE_SUFFIXES = new Set(['.ktex', '.ktexz', '.kdocz', '.tex', '.md', '.markdown', '.docx', '.pdf', '.json',
+  '.zip', '.tar', '.gz', '.tgz', '.bz2', '.tbz', '.tbz2'])
 const IMAGE_SUFFIXES = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff', '.webp', '.svg'])
 
 // Cited KherveRef entries carried by the open document (from its .ktex),
@@ -224,11 +226,15 @@ export async function offerSaveBefore(reason: string): Promise<boolean> {
 
 // ---- opening ----
 
+const ARCHIVE_EXTENSIONS = ['zip', 'tar', 'gz', 'tgz', 'bz2', 'tbz', 'tbz2']
+
 const OPEN_FILTERS: FileFilter[] = [
-  { name: 'All supported', extensions: ['ktex', 'ktexz', 'kdocz', 'json', 'tex', 'md', 'markdown', 'docx', 'pdf'] },
+  { name: 'All supported', extensions: ['ktex', 'ktexz', 'kdocz', 'json', 'tex', 'md', 'markdown', 'docx', 'pdf',
+    ...ARCHIVE_EXTENSIONS] },
   { name: 'KherveTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
   { name: 'JSON', extensions: ['json'] },
   { name: 'LaTeX', extensions: ['tex'] },
+  { name: 'LaTeX package (.zip, .tar.gz, .tar.bz2)', extensions: ARCHIVE_EXTENSIONS },
   { name: 'Markdown', extensions: ['md', 'markdown'] },
   { name: 'Word', extensions: ['docx'] },
   { name: 'PDF', extensions: ['pdf'] },
@@ -317,6 +323,7 @@ export async function openPath(path: string): Promise<void> {
     return
   }
   await projectHooks?.leave()
+  if (isArchiveName(path)) { await importLatexPackage(path); return }
   const sfx = suffix(path).toLowerCase()
   const isImport = ['.tex', '.md', '.markdown', '.docx', '.pdf'].includes(sfx)
   appStore().set({ status: isImport ? 'Importing…' : 'Opening…' })
@@ -465,6 +472,55 @@ export async function openDropped(paths: string[]): Promise<void> {
   if (await offerSaveBefore(`opening ${basename(first)}`)) await openPath(first)
   const { openWindow } = await import('./window')
   for (const path of rest) await openWindow({ kind: 'open', path })
+}
+
+// A free folder beside *path* for its unpacked package: "paper" for
+// paper.tar.bz2, else "paper (2)"...
+async function unpackFolder(path: string): Promise<string> {
+  const stem = basename(path).replace(/(\.tar)?\.(zip|tar|gz|tgz|bz2|tbz2?)$/i, '') || 'package'
+  let folder = join(dirname(path), stem)
+  for (let n = 2; await platform().exists(folder); n++) folder = join(dirname(path), `${stem} (${n})`)
+  return folder
+}
+
+// File ▸ Import ▸ LaTeX package: a .zip / .tar.gz / .tar.bz2 of a LaTeX
+// project (arXiv source, Overleaf download, a journal template). Its files
+// (figures folders, .sty, .cls, .bib) are unpacked into a folder beside it,
+// so figures show and compile; its main .tex becomes the document.
+export async function importLatexPackage(path: string): Promise<void> {
+  const p = platform()
+  appStore().set({ status: 'Unpacking…' })
+  let doc: KDocument
+  let mainPath: string
+  let folder: string
+  let count: number
+  try {
+    const files = readArchive(await p.readFile(path), basename(path))
+    const main = findMainTex(files)
+    if (!main) {
+      throw new Error(`${basename(path)} has no main LaTeX file (a .tex with \\documentclass). `
+        + `It holds: ${[...files.keys()].slice(0, 12).join(', ')}${files.size > 12 ? '…' : ''}`)
+    }
+    folder = await unpackFolder(path)
+    for (const [rel, data] of files) {
+      const target = join(folder, rel)
+      await p.mkdir(dirname(target))
+      await p.writeFile(target, data)
+    }
+    count = files.size
+    mainPath = join(folder, main)
+    appStore().set({ status: 'Importing…' })
+    doc = await importTexFile(mainPath)
+  } catch (exc) {
+    appStore().set({ status: '' })
+    await critical('Import LaTeX package', exc instanceof Error ? exc.message : String(exc))
+    return
+  }
+  appStore().set({ status: '' })
+  bundledBib = ''
+  setBundledBib('')
+  finishImport(doc, mainPath, { sourceDir: dirname(mainPath),
+    message: `Imported ${basename(path)}: ${count} files unpacked into “${basename(folder)}” beside it — Save As to keep the document` })
 }
 
 async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 'md'): Promise<void> {
@@ -809,6 +865,14 @@ registerActions({
   save: () => save(),
   save_as: () => saveAs(),
   import_tex: () => importAction('Import LaTeX', [{ name: 'LaTeX', extensions: ['tex'] }, { name: 'All files', extensions: [] }], 'tex'),
+  import_package: async () => {
+    const picked = await platform().openFileDialog({ title: 'Import a LaTeX package',
+      filters: [{ name: 'LaTeX package (.zip, .tar.gz, .tar.bz2)', extensions: ARCHIVE_EXTENSIONS },
+        { name: 'All files', extensions: [] }] })
+    if (!picked?.length) return
+    if (!(await offerSaveBefore(`importing ${basename(picked[0])}`))) return
+    await importLatexPackage(picked[0])
+  },
   import_md: () => importAction('Import Markdown', [{ name: 'Markdown', extensions: ['md', 'markdown'] }, { name: 'All files', extensions: [] }], 'md'),
   export_tex: () => exportTex(),
   export_latex_zip: () => exportLatexPackage(),

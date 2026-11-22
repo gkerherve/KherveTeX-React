@@ -155,6 +155,8 @@ const cmds: Command[] = [
   { id: 'save_project', text: 'Save projec&t' },
   { id: 'close_project', text: 'Close project' },
   { id: 'import_tex', text: 'Import .&tex...' },
+  { id: 'import_package', text: 'Import LaTeX &package (.zip, .tar.gz, .tar.bz2)...',
+    tooltip: 'A LaTeX project in an archive, with its figures folders, .sty, .cls and .bib files' },
   { id: 'import_docx', text: 'Import .&docx...' },
   { id: 'import_pdf', text: 'Import .&pdf...' },
   { id: 'import_md', text: 'Import .&md...' },
