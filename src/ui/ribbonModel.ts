@@ -319,6 +319,8 @@ const cmds: Command[] = [
   { id: 'highlight', text: '&Highlight', icon: 'highlight', shortcut: 'Ctrl+Shift+H' },
   { id: 'remove_highlight', text: 'Remove highlight' },
   { id: 'comment', text: 'New &comment', icon: 'comment', shortcut: 'Ctrl+Alt+M' },
+  { id: 'your_name', text: 'Your &name…', icon: 'your_name',
+    tooltip: 'Your name, shown on your comments and reviews (in the margin, the PDF and Word)' },
   { id: 'accept_comment', text: '&Accept', icon: 'accept_change' },
   { id: 'reject_comment', text: '&Reject', icon: 'reject_change' },
   { id: 'prev_comment', text: '← &Previous comment', icon: 'prev_comment', shortcut: 'Ctrl+Shift+[' },
@@ -535,7 +537,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Review', groups: [
     { label: 'Proofing', large: ['spell_check', 'spelling_list'] },
-    { label: 'Comments', large: ['comment'], rows: [['accept_comment'], ['reject_comment']], text: true },
+    { label: 'Comments', large: ['comment'], rows: [['accept_comment'], ['reject_comment'], ['your_name']], text: true },
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'],
       rows: [['overleaf_open'], ['overleaf_link']], text: true },
   ] },

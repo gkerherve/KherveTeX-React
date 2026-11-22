@@ -17,6 +17,7 @@ import { documentLabels } from '../../core/labels.ts'
 import { setCommandChecked } from '../../ui/commands.ts'
 import { hasAction, registerActions, type Handler } from '../actions.ts'
 import { appStore } from '../store.ts'
+import { setSetting, setting } from '../../platform/settings'
 
 const ed = () => editor()
 
@@ -184,7 +185,33 @@ async function comment(): Promise<void> {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-  run(C.addComment(note.trim(), commentAuthor ?? await gitAuthor(), ts))
+  run(C.addComment(note.trim(), commentAuthor ?? await yourNameOrAsk(), ts))
+}
+
+// The name comments and reviews are signed with (Review ▸ Your name),
+// kept in the settings. Asked once, on the first comment, with the git
+// user name offered.
+export const USER_NAME_KEY = 'user/name'
+
+export function userName(): string {
+  return String(setting(USER_NAME_KEY, '') ?? '').trim()
+}
+
+async function askYourName(first: boolean): Promise<string | null> {
+  const current = userName() || await gitAuthor()
+  const r = await promptText('Your name',
+    first ? 'Your name, shown on your comments and reviews (you can change it later in Review ▸ Your name):'
+      : 'Your name, shown on your comments and reviews:', current)
+  if (r === null) return null
+  setSetting(USER_NAME_KEY, r.trim())
+  status(r.trim() ? `Comments are now signed “${r.trim()}”.` : 'Comments are now unsigned.')
+  return r.trim()
+}
+
+async function yourNameOrAsk(): Promise<string> {
+  const name = userName()
+  if (name) return name
+  return (await askYourName(true)) ?? await gitAuthor()
 }
 
 let commentAuthor: string | null = null
@@ -295,6 +322,7 @@ const actions: Record<string, Handler> = {
   highlight,
   remove_highlight: () => { run(C.removeHighlight) },
   comment,
+  your_name: () => { void askYourName(false) },
   accept_comment: () => { run(C.acceptComment) },
   reject_comment: () => { run(C.rejectComment) },
   next_comment: () => { if (!run(C.findComment(true))) status('No more comments.') },

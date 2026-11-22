@@ -518,6 +518,16 @@ export function Footnote(p: IconProps) {
     {L(3, 17, 11, 17, INK, 1)}{L(3, 20.5, 20, 20.5, BLUE, 1.2)}</Svg>
 }
 
+// Review ▸ Your name: a person with a name tag.
+export function YourName(p: IconProps) {
+  return <Svg {...p}>
+    {C(9, 7, 3.5, INK, 1.4, TINT)}
+    <path d='M2.5,20 C2.5,14.5 15.5,14.5 15.5,20 Z' stroke={INK} strokeWidth={1.4} fill={TINT} />
+    {R(13, 11, 9, 6, { fill: PAPER, color: BLUE, r: 1, lw: 1.3 })}
+    {L(15, 14, 20, 14, BLUE, 1.2)}
+  </Svg>
+}
+
 // Help ▸ Buy me a coffee: a take-away cup with steam.
 export function Coffee(p: IconProps) {
   return <Svg {...p}>
@@ -1476,7 +1486,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, coffee: Coffee, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,
