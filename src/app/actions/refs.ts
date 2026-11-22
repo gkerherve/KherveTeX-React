@@ -14,11 +14,11 @@ import type { Citation, Document } from '../../core/model'
 import { dirname } from '../../core/paths'
 import { platform } from '../../platform'
 import { readKherverefSettings, type SettingsValues } from '../../platform/kherverefSettings'
-import { information, question, warning } from '../../platform/MessageBox'
+import { information, messageBox, question, warning } from '../../platform/MessageBox'
 import { ZOTERO_HELP, zoteroLibrary, zoteroPick, zoteroState } from '../../core/zotero'
 import { askCitation } from '../../ui/dialogs/CitationPicker'
 import { askBibliography, askInsertReference } from '../../ui/dialogs/BibliographyDialog'
-import { askReferences } from '../../ui/dialogs/ReferenceManager'
+import { askReferences, type ImportKind } from '../../ui/dialogs/ReferenceManager'
 import { parseTheBibliography, writeTheBibliography } from '../../core/bibliography'
 import { registerActions } from '../actions'
 import { setBibStager } from '../compile'
@@ -193,7 +193,7 @@ async function insertReference(): Promise<void> {
 // document's own list. It starts from the list the document has (for a
 // document citing from a KherveRef library, its cited entries); a changed
 // list becomes the document's own (DOCUMENT_LIBRARY), bundled in its .ktex.
-async function manageReferences(importNow?: 'zotero' | 'endnote' | 'file'): Promise<void> {
+async function manageReferences(importNow?: 'zotero' | ImportKind): Promise<void> {
   await reloadKherverefSettings()
   const doc = appStore().get().doc
   const meta = doc.meta
@@ -214,12 +214,18 @@ async function manageReferences(importNow?: 'zotero' | 'endnote' | 'file'): Prom
     start: importNow,
     style: meta.bib_style || '',
     inform: (title, text) => information(title, text),
-    importFile: async (endnote) => {
+    importFile: async (kind) => {
+      if (kind === 'mendeley') {
+        const go = await messageBox({ title: 'From Mendeley', icon: 'information', text: MENDELEY_HELP,
+          buttons: [{ label: 'Choose file…', default: true }, { label: 'Cancel' }] })
+        if (go !== 'Choose file…') return null
+      }
+      const endnote = kind === 'endnote'
       const bib = { name: 'BibTeX (.bib)', extensions: ['bib'] }
       const en = { name: 'EndNote (.xml, .ris, .enw)', extensions: ['xml', 'ris', 'enw', 'txt'] }
       const all = { name: 'Reference files (.bib, .ris, .enw, .xml)', extensions: ['bib', 'ris', 'enw', 'xml', 'txt'] }
       const paths = await platform().openFileDialog({
-        title: endnote ? 'Import an EndNote export' : 'Import references',
+        title: endnote ? 'Import an EndNote export' : kind === 'mendeley' ? 'Import a Mendeley export' : 'Import references',
         filters: endnote ? [en, bib, { name: 'All files', extensions: [] }]
           : [all, bib, en, { name: 'All files', extensions: [] }],
       })
@@ -258,6 +264,14 @@ async function manageReferences(importNow?: 'zotero' | 'endnote' | 'file'): Prom
   if (r.cite.length) editorApi()?.insertInline(citation(r.cite, 'cite'))
   await refreshKherverefBib(appStore().get().doc)
 }
+
+// Mendeley has no connection on the computer that other programs can use
+// (Mendeley Cite talks to its web service), so its references come in as
+// an export file.
+const MENDELEY_HELP = 'In Mendeley Reference Manager, select the references (or press Ctrl/Cmd+A '
+  + 'for all), then File ▸ Export… and choose BibTeX (.bib), RIS (.ris) or EndNote XML (.xml). '
+  + 'In the older Mendeley Desktop: File ▸ Export…, or Tools ▸ Options ▸ BibTeX, which keeps '
+  + 'a .bib file up to date.\n\nThen choose that file here.'
 
 // References ▸ From Zotero (in the reference list): the references picked
 // in Zotero with Better BibTeX, else (after asking) the whole library via
@@ -313,7 +327,7 @@ async function references(): Promise<void> {
 // References ▸ Import (From Zotero, From EndNote, Import file): the
 // reference library, the import started in it. A document with a
 // hand-written \bibitem list keeps that list; it is said so instead.
-async function importReferences(start: 'zotero' | 'endnote' | 'file'): Promise<void> {
+async function importReferences(start: 'zotero' | ImportKind): Promise<void> {
   if (handWrittenList()) {
     await information('Import references',
       'This document keeps a hand-written reference list (\\bibitem entries), which kTeX does not fill '
@@ -340,6 +354,7 @@ registerActions({
   manage_references: references,
   refs_zotero: () => importReferences('zotero'),
   refs_endnote: () => importReferences('endnote'),
+  refs_mendeley: () => importReferences('mendeley'),
   refs_import: () => importReferences('file'),
   insert_reference: insertReference,
   bibliography: editBibliography,

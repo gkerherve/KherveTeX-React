@@ -575,6 +575,14 @@ export function RefsZotero(p: IconProps) {
   </Svg>
 }
 
+// References ▸ From Mendeley: a red tile with an M.
+export function RefsMendeley(p: IconProps) {
+  return <Svg {...p}>
+    {R(3, 3, 18, 18, { fill: '#9d1620', color: '#7a1018', r: 9, lw: 1 })}
+    {P([[7, 16.5], [7, 8], [12, 13], [17, 8], [17, 16.5]], { color: '#ffffff', closed: false, lw: 2 })}
+  </Svg>
+}
+
 // References ▸ From EndNote: a page marked EN, with an arrow in.
 export function RefsEndNote(p: IconProps) {
   return <Svg {...p}>
@@ -1486,7 +1494,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,

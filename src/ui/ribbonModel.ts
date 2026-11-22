@@ -230,8 +230,10 @@ const cmds: Command[] = [
     tooltip: 'Add references from Zotero: pick them in Zotero (with the Better BibTeX add-on), or take the library' },
   { id: 'refs_endnote', text: 'From &EndNote…', icon: 'refs_endnote',
     tooltip: 'Add references from an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw)' },
+  { id: 'refs_mendeley', text: 'From &Mendeley…', icon: 'refs_mendeley',
+    tooltip: 'Add references exported from Mendeley: BibTeX (.bib), RIS (.ris) or EndNote XML (.xml)' },
   { id: 'refs_import', text: 'Import &file…', icon: 'refs_import',
-    tooltip: 'Add references from a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml)' },
+    tooltip: 'Add references from a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml), from any reference manager' },
   // The bibliography style: how citations and the reference list print.
   { id: 'reference_style', text: 'Style', icon: 'reference_style', popup: 'instant',
     tooltip: 'How the citations and the reference list print: author–year or numbered',
@@ -531,7 +533,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'References', groups: [
     { label: 'Citations', large: ['citation', 'manage_references', 'reference_style'] },
-    { label: 'Import', rows: [['refs_zotero'], ['refs_endnote'], ['refs_import']], text: true },
+    { label: 'Import', rows: [['refs_zotero', 'refs_mendeley'], ['refs_endnote', 'refs_import']], text: true },
     { label: 'Footnotes', large: ['footnote'] },
     { label: 'Captions', large: ['caption', 'crossref', 'captions'] },
   ] },

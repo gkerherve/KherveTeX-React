@@ -19,11 +19,13 @@ export interface ReferenceChoice {
   style: string
 }
 
+export type ImportKind = 'file' | 'endnote' | 'mendeley'
+
 export interface ReferenceEnv {
   // Import file…: a reference export's name and text (a .bib, RIS,
-  // EndNote .enw or EndNote XML; *endnote* offers EndNote's kinds first),
-  // or null.
-  importFile: (endnote: boolean) => Promise<{ name: string; text: string } | null>
+  // EndNote .enw or EndNote XML; *kind* says which program it comes
+  // from, for the file dialog's filters and help), or null.
+  importFile: (kind: ImportKind) => Promise<{ name: string; text: string } | null>
   // From Zotero…: the .bib source of references taken from Zotero, or null.
   fromZotero: () => Promise<string | null>
   // From KherveRef…: the .bib source of references picked in a library.
@@ -35,7 +37,7 @@ export interface ReferenceEnv {
   // The document's bibliography style ('' for the default).
   style: string
   // An import to start as the dialog opens (the ribbon's Import buttons).
-  start?: 'zotero' | 'endnote' | 'file'
+  start?: 'zotero' | ImportKind
 }
 
 function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEnv; close: Close<ReferenceChoice> }) {
@@ -66,9 +68,9 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
 
   const report = (title: string, added: string[]) =>
     env.inform(title, `${added.length} reference${added.length !== 1 ? 's' : ''} added.`)
-  const importFile = async (endnote: boolean) => {
-    const title = endnote ? 'Import from EndNote' : 'Import references'
-    const file = await env.importFile(endnote)
+  const importFile = async (kind: ImportKind) => {
+    const title = kind === 'endnote' ? 'From EndNote' : kind === 'mendeley' ? 'From Mendeley' : 'Import references'
+    const file = await env.importFile(kind)
     if (file === null) return
     let bib: string
     try {
@@ -88,7 +90,7 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     if (started.current || !env.start) return
     started.current = true
     if (env.start === 'zotero') void fromZotero()
-    else void importFile(env.start === 'endnote')
+    else void importFile(env.start)
   })
   const fromKherveRef = async () => {
     const text = await env.fromKherveRef()
@@ -161,9 +163,11 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
           <button type="button" title="Pick references in Zotero (with the Better BibTeX add-on), or take the Zotero library"
             onClick={() => void fromZotero()}>From Zotero…</button>
           <button type="button" title="Add the references of an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw)"
-            onClick={() => void importFile(true)}>From EndNote…</button>
+            onClick={() => void importFile('endnote')}>From EndNote…</button>
+          <button type="button" title="Add the references exported from Mendeley (BibTeX, RIS or EndNote XML)"
+            onClick={() => void importFile('mendeley')}>From Mendeley…</button>
           <button type="button" title="Add the references of a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml), from Zotero, Mendeley, Google Scholar, a journal..."
-            onClick={() => void importFile(false)}>Import file…</button>
+            onClick={() => void importFile('file')}>Import file…</button>
           <button type="button" title="Add references from a KherveRef library"
             onClick={() => void fromKherveRef()}>From KherveRef…</button>
           <span className="dlg-refs-summary">{m.summaryText}</span>
