@@ -5,7 +5,7 @@
 import { dropCursor } from 'prosemirror-dropcursor'
 import { gapCursor } from 'prosemirror-gapcursor'
 import { history } from 'prosemirror-history'
-import { EditorState, NodeSelection, Selection, TextSelection, type Plugin, type Transaction } from 'prosemirror-state'
+import { AllSelection, EditorState, NodeSelection, Selection, TextSelection, type Plugin, type Transaction } from 'prosemirror-state'
 import { tableEditing } from 'prosemirror-tables'
 import { EditorView } from 'prosemirror-view'
 import { runAction } from '../app/actions.ts'
@@ -220,7 +220,28 @@ export class EditorController implements ViewHost {
       let end = Infinity
       try { end = this.view.coordsAtPos(st.doc.content.size).bottom } catch { /* keep Infinity */ }
       const hit = this.view.posAtCoords({ left: x, top: y })
-      if (hit && e.clientY <= end) {
+      // In the left margin, as in Word: a click selects the line beside
+      // it, a double-click its paragraph, a triple-click everything.
+      if (hit && e.clientY <= end && e.clientX < flow.left) {
+        if (e.detail >= 3) {
+          this.view.dispatch(st.tr.setSelection(new AllSelection(st.doc)))
+        } else {
+          const $h = st.doc.resolve(hit.pos)
+          let from: number, to: number
+          if (e.detail === 2 && $h.parent.isTextblock) {
+            from = $h.start(); to = $h.end()
+          } else {
+            const a = this.view.posAtCoords({ left: flow.left + 1, top: y })
+            const b = this.view.posAtCoords({ left: flow.right - 1, top: y })
+            from = Math.min(a?.pos ?? hit.pos, b?.pos ?? hit.pos)
+            to = Math.max(a?.pos ?? hit.pos, b?.pos ?? hit.pos)
+            // The line's own text, in its own paragraph.
+            if ($h.parent.isTextblock) { from = Math.max(from, $h.start()); to = Math.min(to, $h.end()) }
+          }
+          if (to > from) this.view.dispatch(st.tr.setSelection(TextSelection.create(st.doc, from, to)))
+          else this.view.dispatch(st.tr.setSelection(Selection.near($h, 1)))
+        }
+      } else if (hit && e.clientY <= end) {
         this.view.dispatch(st.tr.setSelection(Selection.near(st.doc.resolve(hit.pos), 1)))
       } else if (e.clientY > end) {
         this.view.dispatch(st.tr.setSelection(Selection.atEnd(st.doc)))
