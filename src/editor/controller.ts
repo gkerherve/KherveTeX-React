@@ -5,6 +5,7 @@
 import { dropCursor } from 'prosemirror-dropcursor'
 import { gapCursor } from 'prosemirror-gapcursor'
 import { history } from 'prosemirror-history'
+import { setTracking, trackPlugin } from './track.ts'
 import { AllSelection, EditorState, NodeSelection, Selection, TextSelection, type Plugin, type Transaction } from 'prosemirror-state'
 import { tableEditing } from 'prosemirror-tables'
 import { EditorView } from 'prosemirror-view'
@@ -290,7 +291,7 @@ export class EditorController implements ViewHost {
       layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
-      history(), tableEditing(), gapCursor(), dropCursor(),
+      history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(),
     ]
   }
 
@@ -632,6 +633,9 @@ export class EditorController implements ViewHost {
     st.width = `${g.widthPx}px`
     // Text set to a size (Home ▸ font size on a selection) scales from it.
     st.setProperty('--kt-body-pt', String(this.meta.body_font_pt || 12))
+    // Review ▸ Track Changes and the markup shown (All, Simple, None, Original).
+    setTracking(!!this.meta.track_changes)
+    for (const k of ['simple', 'none', 'original']) this.root.classList.toggle(`kt-markup-${k}`, this.meta.markup === k)
     st.setProperty('--kt-page-h', `${g.heightPx}px`)
     const f = this.flowEl.style
     f.paddingTop = `${g.topPx}px`
@@ -928,6 +932,9 @@ export class EditorController implements ViewHost {
     for (const code of ['A4', 'Letter', 'Legal']) setCommandChecked(`pagesize_${code}`, meta.page_size === code)
     setCommandChecked('orient_portrait', !meta.landscape)
     setCommandChecked('orient_landscape', !!meta.landscape)
+    setCommandChecked('track_changes', !!meta.track_changes)
+    for (const k of ['all', 'simple', 'none', 'original']) setCommandChecked(`markup:${k}`, (meta.markup ?? 'all') === k)
+    setCommandChecked('markup_insdel', !meta.markup)
     for (const [code] of BIB_STYLES) setCommandChecked(`bib_style_${code}`, (meta.bib_style || 'plainnat') === code)
     for (const [name, m] of MARGIN_PRESETS) {
       const cur = [meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm]

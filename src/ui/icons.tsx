@@ -259,6 +259,21 @@ export function Code(p: IconProps) {
   </Svg>
 }
 
+// Review ▸ Tracking: a page with red and black lines and a pencil;
+// the markup views as a small page.
+export function TrackChanges(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 14, 19, 3)}
+    {L(6, 8, 13, 8, '#d32f2f', 1.2)}{L(6, 11, 11, 11, '#d32f2f', 1.2)}{L(6, 14, 12, 14, INK, 1.2)}
+    {P([[20.5, 9], [22.5, 11], [13, 20.5], [10.5, 21], [11, 18.5]], { fill: '#9ec5f8', color: BLUE, lw: 1 })}</Svg>
+}
+export function MarkupView(p: IconProps) {
+  return <Svg {...p}>{Page(4, 3, 10, 13, 2.5)}{L(6, 8, 11, 8, '#d32f2f', 1.1)}{L(6, 11, 10, 11, INK, 1.1)}
+    {Page(11, 9, 10, 13, 2.5)}{P([[13, 15], [16, 18], [19, 15]], { closed: false, lw: 1.2, color: BLUE })}</Svg>
+}
+export function MarkupOptions(p: IconProps) {
+  return <Svg {...p}>{Page(5, 3, 13, 18, 3)}{L(8, 9, 14, 9, '#d32f2f', 1.2)}{L(8, 12, 12, 12, '#d32f2f', 1.2)}{L(8, 15, 14, 15, INK, 1.2)}</Svg>
+}
+
 // Word's Font group: grow / shrink font, change case, clear formatting,
 // font colour (the bar takes the chosen colour).
 export function GrowFont(p: IconProps) {
@@ -1592,6 +1607,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,
+  track_changes: TrackChanges, markup_view: MarkupView, markup_options: MarkupOptions,
   grow_font: GrowFont, shrink_font: ShrinkFont, change_case: ChangeCase, clear_format: ClearFormat,
   font_color: FontColor, underline_style: UnderlineStyle,
   multilevel_list: MultilevelList, indent_dec: IndentDec, indent_inc: IndentInc, line_spacing: LineSpacing,

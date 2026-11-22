@@ -125,9 +125,10 @@ function SmallButton({ c, ctx, text }: { c: Command, ctx: Ctx, text: boolean }) 
     })
     return (
       <div className={'rb-split rb-split-small' + (isOpen ? ' open' : '')} data-menu-owner {...tip}>
-        <button type='button' className={'rb-btn rb-small' + (on ? ' on' : '')} aria-label={shortText(c.text)}
+        <button type='button' className={'rb-btn rb-small' + (text ? ' rb-text' : '') + (on ? ' on' : '')} aria-label={shortText(c.text)}
           onClick={e => (c.popup === 'split' ? ctx.cmd.trigger(c.id) : open(e.currentTarget.parentElement!))}>
           {c.icon && <Icon name={c.icon} arg={c.iconArg} size={18} />}
+          {text && <span>{shortText(c.text)}</span>}
         </button>
         <button type='button' className='rb-btn rb-split-arrow-small' aria-label={`${shortText(c.text)} options`}
           onClick={e => open(e.currentTarget.parentElement!)}><Chevron /></button>

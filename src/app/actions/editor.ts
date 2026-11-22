@@ -10,6 +10,7 @@ import { COMPILE_END, COMPILE_START, NOT_COMPILE_END, NOT_COMPILE_START } from '
 import { importBodyFragment } from '../../core/importers.ts'
 import { dirname } from '../../core/paths.ts'
 import * as C from '../../editor/commands.ts'
+import * as T from '../../editor/track.ts'
 import { editor } from '../../editor/controller.ts'
 import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
 import { askCrossRef, promptItem, promptText, type CrossRefEntry } from '../../ui/dialogs/EditorDialogs.tsx'
@@ -350,8 +351,36 @@ const actions: Record<string, Handler> = {
   remove_highlight: () => { run(C.removeHighlight) },
   comment,
   your_name: () => { void askYourName(false) },
-  accept_comment: () => { run(C.acceptComment) },
-  reject_comment: () => { run(C.rejectComment) },
+  // Accept / Reject: the tracked change at the caret (or in the
+  // selection), else the comment there, as Word's Accept does both.
+  accept_comment: () => { if (!run(T.acceptChange)) run(C.acceptComment) },
+  reject_comment: () => { if (!run(T.rejectChange)) run(C.rejectComment) },
+  accept_all: () => { if (!run(T.acceptAllChanges)) status('No tracked changes.') },
+  reject_all: () => { if (!run(T.rejectAllChanges)) status('No tracked changes.') },
+  next_change: () => { if (!run(T.gotoChange(true))) status('No tracked changes.') },
+  prev_change: () => { if (!run(T.gotoChange(false))) status('No tracked changes.') },
+  track_changes: async on => {
+    const e = ed()
+    if (!e) return
+    const want = typeof on === 'boolean' ? on : !e.meta.track_changes
+    if (want) T.setTrackAuthor(userName() || await gitAuthor())
+    e.setMeta({ ...e.meta, track_changes: want || undefined })
+    setCommandChecked('track_changes', want)
+    status(want ? 'Track Changes is on: what you type and delete is marked.' : 'Track Changes is off.')
+  },
+  markup_view: () => {},
+  markup_comments: on => {
+    const show = on !== false
+    for (const el of document.querySelectorAll('.ProseMirror')) el.classList.toggle('kt-hide-comments', !show)
+    setCommandChecked('markup_comments', show)
+  },
+  markup_insdel: on => {
+    const e = ed()
+    if (!e) return
+    const show = on !== false
+    e.setMeta({ ...e.meta, markup: show ? undefined : 'simple' })
+    setCommandChecked('markup_insdel', show)
+  },
   next_comment: () => { if (!run(C.findComment(true))) status('No more comments.') },
   prev_comment: () => { if (!run(C.findComment(false))) status('No more comments.') },
 
@@ -370,6 +399,15 @@ for (const [k] of [['theorem'], ['lemma'], ['proposition'], ['corollary'], ['def
   actions[`thm_kind_${k}`] = () => { run(C.setTheoremKind(k)); sync() }
 }
 
+for (const [k, mode] of [['all', undefined], ['simple', 'simple'], ['none', 'none'], ['original', 'original']] as const) {
+  actions[`markup:${k}`] = () => {
+    const e = ed()
+    if (!e) return
+    e.setMeta({ ...e.meta, markup: mode })
+    for (const x of ['all', 'simple', 'none', 'original']) setCommandChecked(`markup:${x}`, x === k)
+    setCommandChecked('markup_insdel', k === 'all')
+  }
+}
 let lastFontColor = 'C00000'
 export const FONT_COLORS: [string, string][] = [['000000', 'Black'], ['C00000', 'Dark red'], ['FF0000', 'Red'], ['FFC000', 'Orange'],
   ['FFFF00', 'Yellow'], ['92D050', 'Light green'], ['00B050', 'Green'], ['00B0F0', 'Light blue'], ['0070C0', 'Blue'],
@@ -403,6 +441,7 @@ for (const f of ['left_cm', 'right_cm', 'before_pt', 'after_pt']) {
 }
 actions['border:none'] = () => { run(C.setParagraphAttrs({ border: null })); sync() }
 
+T.setTrackAuthorSource(() => userName())
 registerActions(actions)
 
 // Equation entry points belong to src/app/actions/math.ts; until it has

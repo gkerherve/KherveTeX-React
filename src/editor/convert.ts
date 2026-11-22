@@ -223,6 +223,11 @@ function inlineNodes(nodes: M.Inline[], wrappers: PMMark[]): PMNode[] {
         const marks = [...wrappers]
         for (const m of n.marks) {
           const i = m.indexOf(':')
+          if (m.startsWith('ins:') || m.startsWith('del:')) {
+            const [who, time] = m.slice(4).split('|')
+            marks.push(schema.marks[m.startsWith('ins:') ? 'trackins' : 'trackdel'].create({ author: decodeURIComponent(who ?? ''), time: time ?? '' }))
+            continue
+          }
           if (i > 0 && VALUE_MARKS[m.slice(0, i)]) {
             const [name, attr] = VALUE_MARKS[m.slice(0, i)]
             const v = m.slice(i + 1)
@@ -405,6 +410,10 @@ function textMarks(marks: readonly PMMark[]): M.Mark[] {
   for (const [key, [name, attr]] of Object.entries(VALUE_MARKS)) {
     const m = marks.find(x => x.type.name === name)
     if (m) values.push(`${key}:${m.attrs[attr]}`)
+  }
+  for (const [name, key] of [['trackins', 'ins'], ['trackdel', 'del']]) {
+    const m = marks.find(x => x.type.name === name)
+    if (m) values.push(`${key}:${encodeURIComponent(m.attrs.author)}|${m.attrs.time}`)
   }
   return [...plain, ...values] as M.Mark[]
 }

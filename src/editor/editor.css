@@ -610,3 +610,14 @@ div.kt-box {
 .kt-review-btns button:first-child:hover { background: #e3f5ea; border-color: #00aa66; }
 .kt-review-btns button:last-child:hover { background: #fde8e8; border-color: #cc3333; }
 .kt-comment-hot { background: #ffc56e; }
+
+/* Track Changes: insertions underlined, deletions struck through, in the
+   reviewer's colour; the markup shown as Review ▸ All Markup chooses. */
+.kt-ins { text-decoration: underline; text-decoration-color: currentColor; color: #1a5fd0; }
+.kt-del { text-decoration: line-through; color: #c62828; }
+.kt-markup-simple .kt-del, .kt-markup-none .kt-del { display: none; }
+.kt-markup-simple .kt-ins, .kt-markup-none .kt-ins { text-decoration: none; color: inherit; }
+.kt-markup-simple .kt-ins { box-shadow: -2px 0 0 #c62828; }
+.kt-markup-original .kt-ins { display: none; }
+.kt-markup-original .kt-del { text-decoration: none; color: inherit; }
+.kt-hide-comments .kt-comment { background: none !important; border-bottom: none !important; }

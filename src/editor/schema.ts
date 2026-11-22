@@ -180,6 +180,15 @@ const marks: Record<string, MarkSpec> = {
     attrs: { name: { default: 'helvetica' } },
     toDOM: m => ['span', { 'data-font': m.attrs.name, style: `font-family:${FONT_FAMILIES[m.attrs.name]?.[1] ?? 'inherit'}` }, 0],
   },
+  // Track Changes: an insertion and a deletion, with author and time.
+  trackins: {
+    attrs: { author: { default: '' }, time: { default: '' } }, inclusive: false,
+    toDOM: m => ['ins', { class: 'kt-ins', title: `${m.attrs.author} inserted` }, 0],
+  },
+  trackdel: {
+    attrs: { author: { default: '' }, time: { default: '' } }, inclusive: false,
+    toDOM: m => ['del', { class: 'kt-del', title: `${m.attrs.author} deleted` }, 0],
+  },
   ulinestyle: {
     attrs: { style: { default: 'double' } },
     toDOM: m => ['span', { style: `text-decoration:underline ${({ double: 'double', wave: 'wavy', dotted: 'dotted', dashed: 'dashed' } as Record<string, string>)[m.attrs.style] ?? 'solid'}` }, 0],

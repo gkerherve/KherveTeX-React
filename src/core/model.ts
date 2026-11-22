@@ -9,6 +9,8 @@ export type Mark = 'bold' | 'italic' | 'underline' | 'code' | 'smallcaps'
   // Word's Font group, a mark with its value: font colour (hex), size in
   // pt, font family, underline style (double, wave, dotted, dashed).
   | `color:${string}` | `size:${string}` | `font:${string}` | `uline:${string}`
+  // Track Changes: inserted / deleted text, 'ins:<author, URI-encoded>|<time>'.
+  | `ins:${string}` | `del:${string}`
 
 // ---------------- Inline nodes ----------------
 
@@ -257,6 +259,10 @@ export interface DocMeta {
   show_date?: boolean
   // dateFormat.ts key; absent = the class's \\today.
   date_format?: string
+  // Review ▸ Track Changes on, and the markup shown (absent = All Markup);
+  // stored only when set.
+  track_changes?: boolean
+  markup?: 'simple' | 'none' | 'original'
   // Pages turned sideways (geometry's landscape). Stored only when on.
   landscape?: boolean
 }
@@ -289,6 +295,8 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   bib_style: o.bib_style ?? 'plainnat',
   ...(o.show_date === false ? { show_date: false } : {}),
   ...(o.landscape ? { landscape: true } : {}),
+  ...(o.track_changes ? { track_changes: true } : {}),
+  ...(o.markup ? { markup: o.markup } : {}),
   ...(o.date_format ? { date_format: o.date_format } : {}),
 })
 
@@ -411,6 +419,8 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     preamble_extras: pyStr(get(m, 'preamble_extras', '')),
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
     ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
+    ...(truthy(get(m, 'track_changes', false)) ? { track_changes: true } : {}),
+    ...(['simple', 'none', 'original'].includes(get(m, 'markup', '')) ? { markup: get(m, 'markup', '') as 'simple' } : {}),
     ...(get(m, 'date_format', '') ? { date_format: pyStr(get(m, 'date_format', '')) } : {}),
     ...(withRefs ? {
       ref_library: pyStr(get(m, 'ref_library', '')),

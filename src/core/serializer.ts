@@ -108,6 +108,25 @@ export const FONT_FAMILIES: Record<string, [string, string]> = {
   sans: ['cmss', 'sans-serif'], serif: ['cmr', 'serif'], mono: ['cmtt', 'monospace'],
 }
 const ULINE_CMDS: Record<string, string> = { double: '\\uuline', wave: '\\uwave', dotted: '\\dotuline', dashed: '\\dashuline' }
+// Track Changes as the changes package writes them; the markup the
+// document shows (Review ▸ All Markup...) decides how (set per document by
+// serializeDocument).
+let markupMode = ''
+export function changeAuthorId(author: string): string {
+  return (author.normalize('NFD').replace(/[^A-Za-z]/g, '') || 'anon').slice(0, 24)
+}
+function trackMarks(marks: string[], body: string): string {
+  const ins = marks.find(m => m.startsWith('ins:'))
+  const del = marks.find(m => m.startsWith('del:'))
+  if (!ins && !del) return body
+  // Original: the text as it was, the insertions not yet made.
+  if (markupMode === 'original') return ins ? '' : body
+  if (markupMode === 'simple' || markupMode === 'none') return del ? '' : body
+  const id = (m: string) => changeAuthorId(decodeURIComponent(m.slice(4).split('|')[0] ?? ''))
+  if (del) return `\\deleted[id=${id(del)}]{${body}}`
+  return `\\added[id=${id(ins!)}]{${body}}`
+}
+
 function valueMarks(marks: string[], body: string): string {
   let s = body
   for (const m of marks) {
@@ -128,16 +147,24 @@ function valueMarks(marks: string[], body: string): string {
     const [k, v] = [m.slice(0, m.indexOf(':')), m.slice(m.indexOf(':') + 1)]
     if (k === 'color' && /^[0-9A-Fa-f]{6}$/.test(v)) s = `\\textcolor[HTML]{${v.toUpperCase()}}{${s}}`
   }
-  return s
+  return trackMarks(marks, s)
 }
 
 // Packages the Font group marks need (xcolor, ulem).
 function fontMarkPackages(doc: Document): string[] {
   let color = false, uline = false
+  const authors: string[] = []
   const walk = (ins: Inline[]): void => {
     for (const n of ins) {
       if (n.type === 'Text') {
-        for (const m of n.marks as string[]) { if (m.startsWith('color:')) color = true; if (m.startsWith('uline:')) uline = true }
+        for (const m of n.marks as string[]) {
+          if (m.startsWith('color:')) color = true
+          if (m.startsWith('uline:')) uline = true
+          if (m.startsWith('ins:') || m.startsWith('del:')) {
+            const a = decodeURIComponent(m.slice(4).split('|')[0] ?? '')
+            if (!authors.includes(a)) authors.push(a)
+          }
+        }
       } else if ('children' in n && Array.isArray(n.children)) walk(n.children as Inline[])
     }
   }
@@ -145,7 +172,22 @@ function fontMarkPackages(doc: Document): string[] {
     if ('children' in b && Array.isArray(b.children)) walk(b.children as Inline[])
     if (b.type === 'List') for (const it of b.items) walk(it.children)
   }
-  return [...(color ? ['xcolor'] : []), ...(uline ? ['ulem'] : [])]
+  return [...(color ? ['xcolor'] : []), ...(uline ? ['ulem'] : []), ...authors.map(a => `author:${a}`)]
+}
+
+// The changes package and its authors, as the markup shown asks.
+const CHANGE_COLORS = ['blue', 'red!80!black', 'green!50!black', 'orange', 'violet', 'teal']
+function changesPreamble(authors: string[], mode: string): string {
+  if (!authors.length || mode === 'original') return ''
+  const lines = [mode === 'simple' || mode === 'none' ? '\\usepackage[final]{changes}' : '\\usepackage[markup=underlined,authormarkup=none]{changes}']
+  const seen = new Set<string>()
+  authors.forEach((a, k) => {
+    const id = changeAuthorId(a)
+    if (seen.has(id)) return
+    seen.add(id)
+    lines.push(`\\definechangesauthor[name={${escapeText(a || 'Author')}}, color=${CHANGE_COLORS[k % CHANGE_COLORS.length]}]{${id}}`)
+  })
+  return lines.join('\n')
 }
 
 // Outermost-first; iteration reverses so the first mark here wraps last.
@@ -1206,6 +1248,7 @@ const DATE_ONLY_RE = /^(?:\s*\\date\{[^{}]*\}\s*)+$/
 
 export function serializeDocument(doc: Document): string {
   const m = doc.meta
+  markupMode = m.markup ?? ''
   const isElsarticle = (m.documentclass || '').toLowerCase().startsWith('elsarticle')
   const isBeamer = (m.documentclass || '').toLowerCase() === 'beamer'
   const hasChapters = classSupportsChapter(m.documentclass || '')
@@ -1240,6 +1283,8 @@ export function serializeDocument(doc: Document): string {
   if (paraDefs) packages += '\n' + paraDefs
   // ulem with normalem, so \emph stays italic.
   if (fontPkgs.includes('ulem') && !m.preamble_extras.includes('{ulem}')) packages += '\n\\usepackage[normalem]{ulem}'
+  const changes = changesPreamble(fontPkgs.filter(p => p.startsWith('author:')).map(p => p.slice(7)), m.markup ?? '')
+  if (changes) packages += '\n' + changes
   // User preamble (\lstset, \definecolor, \hypersetup, \newcommand...),
   // preserved verbatim from the imported .tex.
   if (m.preamble_extras && strip(m.preamble_extras)) packages += '\n' + strip(m.preamble_extras)

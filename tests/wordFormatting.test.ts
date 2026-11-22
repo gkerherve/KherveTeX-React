@@ -2,7 +2,7 @@
 // formatting reach the LaTeX, and survive a save and load.
 import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { document, fromJson, list, listItem, paragraph, paraFormat, text, toJson } from '../src/core/model.ts'
+import { docMeta, document, fromJson, list, listItem, paragraph, paraFormat, text, toJson } from '../src/core/model.ts'
 import type { Mark } from '../src/core/model.ts'
 import { serializeDocument } from '../src/core/serializer.ts'
 
@@ -40,5 +40,16 @@ describe('Word formatting', () => {
     expect(Object.keys(d.children[0]).sort()).toEqual(['alignment', 'children', 'type'])
     expect(Object.keys(d.children[1]).sort()).toEqual(['items', 'ordered', 'type'])
     expect(Object.keys(d.children[1].items[0]).sort()).toEqual(['children', 'type'])
+  })
+  it('writes tracked changes with the changes package', () => {
+    const tracked = (markup?: 'original' | 'simple') => serializeDocument(document([paragraph([text('was '),
+      text('heated', ['del:Ann%20Lee|2026-11-22T10:00:00'] as Mark[]), text('annealed', ['ins:Ann%20Lee|2026-11-22T10:00:00'] as Mark[])])],
+      docMeta(markup ? { markup } : {})))
+    const all = tracked()
+    expect(all).toContain('\\usepackage[markup=underlined,authormarkup=none]{changes}')
+    expect(all).toContain('\\definechangesauthor[name={Ann Lee}, color=blue]{AnnLee}')
+    expect(all).toContain('was \\deleted[id=AnnLee]{heated}\\added[id=AnnLee]{annealed}')
+    expect(tracked('original')).toContain('was heated\n')
+    expect(tracked('simple')).toContain('was annealed\n')
   })
 })
