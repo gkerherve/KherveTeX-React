@@ -238,8 +238,11 @@ function spacerDecos(doc: PMNode, spacers: Spacer[]): DecorationSet {
       }))
       continue
     }
+    // marks: [] keeps the gap outside bold, links, tracked changes...: a
+    // page break inside an inline element (<strong>) cannot span the
+    // columns, and the text ran on across the gap between sheets.
     decos.push(Decoration.widget(s.pos, () => spacerEl(s),
-      { side: -1, ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}-${s.ruled ? 1 : 0}` }))
+      { side: -1, marks: [], ignoreSelection: true, key: `gap-${s.pos}-${s.kind}-${s.height.toFixed(2)}-${s.ruled ? 1 : 0}` }))
   }
   return DecorationSet.create(doc, decos)
 }
