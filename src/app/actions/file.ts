@@ -3,6 +3,7 @@
 // khervedoc/mainwindow.py (_new, _open_path, _save, _save_as, _write_to,
 // _import_tex, _import_md, _export_tex, _export_latex_zip, _export_pdf,
 // _show_in_explorer, _remember_recent, _update_title, offer_save_before).
+import { locateFigures } from '../../core/texFigures'
 import { isImageName } from '../../core/pictures'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -256,6 +257,16 @@ export async function openAction(): Promise<void> {
 // and the import re-run until it asks for nothing new.
 export async function importTexFile(path: string): Promise<KDocument> {
   const p = platform()
+  const doc = await readTexFile(path)
+  // Its pictures: in the \graphicspath folders, without an extension, or
+  // in a figures/ or images/ folder beside it.
+  const text = await p.readText(path).catch(() => '')
+  await locateFigures(doc, text, dirname(path), (f) => p.exists(f).catch(() => false))
+  return doc
+}
+
+async function readTexFile(path: string): Promise<KDocument> {
+  const p = platform()
   const text = (await p.readText(path)).replace(/\r\n?/g, '\n')
   const known = new Map<string, string | null>()
   for (let round = 0; round < 30; round++) {
@@ -474,15 +485,46 @@ async function splitIntoDocuments(): Promise<void> {
 // TODO(visual editor): pictures go into the document as figures
 // (editor.drop_image_file).
 export async function openDropped(paths: string[]): Promise<void> {
-  const docs = paths.filter(f => {
+  const docs: string[] = []
+  const refused: string[] = []
+  for (const f of paths) {
     const s = suffix(f).toLowerCase()
-    return OPENABLE_SUFFIXES.has(s) && !IMAGE_SUFFIXES.has(s)
-  })
+    if (IMAGE_SUFFIXES.has(s)) continue
+    if (OPENABLE_SUFFIXES.has(s)) { docs.push(f); continue }
+    // A LaTeX project folder (an unzipped Overleaf download): its main .tex.
+    const st = await platform().stat(f).catch(() => null)
+    const main = st?.isDir ? await mainTexIn(f) : null
+    if (main) docs.push(main)
+    else refused.push(basename(f))
+  }
+  if (refused.length) {
+    showMessage(`kTeX cannot open ${refused.join(', ')}: drop a .ktex, .tex, LaTeX package (.zip, .tar.gz, .tar.bz2), `
+      + 'Word, PDF, RTF, OpenDocument or Markdown file', 8000)
+  }
   if (!docs.length) return
   const [first, ...rest] = docs
   if (await offerSaveBefore(`opening ${basename(first)}`)) await openPath(first)
   const { openWindow } = await import('./window')
   for (const path of rest) await openWindow({ kind: 'open', path })
+}
+
+// The main .tex of a folder (its own files and one level of subfolders),
+// as for a package: the one with \documentclass and \begin{document}.
+async function mainTexIn(dir: string): Promise<string | null> {
+  const p = platform()
+  const files = new Map<string, Uint8Array>()
+  const scan = async (d: string, rel: string, depth: number) => {
+    for (const e of await p.listDir(d).catch(() => [])) {
+      if (e.name.startsWith('.')) continue
+      if (e.isDir && depth > 0) await scan(e.path, `${rel}${e.name}/`, depth - 1)
+      else if (e.isFile && e.name.toLowerCase().endsWith('.tex') && e.size < 4_000_000) {
+        files.set(`${rel}${e.name}`, await p.readFile(e.path).catch(() => new Uint8Array()))
+      }
+    }
+  }
+  await scan(dir, '', 1)
+  const main = findMainTex(files)
+  return main ? join(dir, main) : null
 }
 
 // A free folder beside *path* for its unpacked package: "paper" for
