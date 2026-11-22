@@ -11,7 +11,7 @@ import * as kr from '../../core/kherveref'
 import type { RefFileAccess, RefreshedBib } from '../../core/kherveref'
 import { citation } from '../../core/model'
 import type { Citation, Document } from '../../core/model'
-import { dirname } from '../../core/paths'
+import { dirname, join } from '../../core/paths'
 import { platform } from '../../platform'
 import { readKherverefSettings, type SettingsValues } from '../../platform/kherverefSettings'
 import { information, messageBox, question, warning } from '../../platform/MessageBox'
@@ -21,7 +21,7 @@ import { askBibliography, askInsertReference } from '../../ui/dialogs/Bibliograp
 import { askReferences, type ImportKind } from '../../ui/dialogs/ReferenceManager'
 import { parseTheBibliography, writeTheBibliography } from '../../core/bibliography'
 import { registerActions } from '../actions'
-import { setBibStager } from '../compile'
+import { resolvedSourceDir, setBibStager } from '../compile'
 import { editorApi } from '../editorApi'
 import { appStore, editDoc } from '../store'
 import { editor, setEditorBibliography } from '../../editor/controller'
@@ -120,6 +120,26 @@ export async function refreshKherverefBib(doc: Document): Promise<string> {
 export async function stageKherverefBib(doc: Document, ...workdirs: string[]): Promise<void> {
   const r = await kr.stageKherverefBib(doc, bundledBib, workdirs, refsFs())
   if (r) apply(r)
+}
+
+// The files a LaTeX package export (File ▸ Export, Download for Overleaf)
+// carries beside main.tex so it compiles anywhere: the references
+// (kherveref.bib) and the .sty / .cls / .bst / .bib files in the
+// document's folder (an imported package's own).
+export async function latexPackageExtras(doc: Document): Promise<Record<string, Uint8Array>> {
+  const out: Record<string, Uint8Array> = {}
+  const p = platform()
+  const dir = resolvedSourceDir()
+  if (dir) {
+    try {
+      for (const e of await p.listDir(dir)) {
+        if (e.isFile && /\.(sty|cls|bst|bib)$/i.test(e.name)) out[e.name] = await p.readFile(join(dir, e.name))
+      }
+    } catch { /* no folder: nothing to add */ }
+  }
+  const bib = await refreshKherverefBib(doc).catch(() => '')
+  if (bib) out[kr.BIB_FILE] = new TextEncoder().encode(bib)
+  return out
 }
 
 // _resolved_source_dir: the saved document's folder.

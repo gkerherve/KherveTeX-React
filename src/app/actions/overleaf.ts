@@ -19,7 +19,7 @@ import { askOverleaf } from '../../ui/dialogs/OverleafDialog'
 import { registerActions } from '../actions'
 import { appStore, replaceDoc } from '../store'
 import { toJson } from '../../core/model'
-import { refreshKherverefBib } from './refs'
+import { latexPackageExtras, refreshKherverefBib } from './refs'
 import { openWindow } from './window'
 
 // The Overleaf git token, for this run only: never written to disk.
@@ -355,7 +355,7 @@ export async function exportLatexZipAction(): Promise<void> {
     { name: 'Zip archive', extensions: ['zip'] })
   if (!path) return
   if (suffix(path).toLowerCase() !== '.zip') path = withSuffix(path, '.zip')
-  await h.fs.write(path, await exportLatexZip(doc, sourceDir(), h.fs, stem))
+  await h.fs.write(path, await exportLatexZip(doc, sourceDir(), h.fs, stem, await latexPackageExtras(doc)))
   appStore().set({ status: `Saved ${path}` })
   if (await question('Download for Overleaf',
     `Saved ${basename(path)}.\n\nOpen Overleaf to upload it? On Overleaf choose New Project › Upload Project and pick this zip.`)) {

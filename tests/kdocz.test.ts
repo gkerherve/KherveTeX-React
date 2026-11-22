@@ -138,6 +138,14 @@ describe('kdocz', () => {
     expect(dec('paper.tex')).toContain('figures/figure_001.png')
   })
 
+  it('the LaTeX package carries the references and the document\'s own styles', async () => {
+    const doc = document([mathBlock('x')])
+    const extra = { 'kherveref.bib': strToU8('@article{a, title={T}}'), 'mystyle.sty': strToU8('%') }
+    const z = unzipSync(await exportLatexZip(doc, tmp(), nodeFs, 'main', extra))
+    expect(Object.keys(z)).toEqual(expect.arrayContaining(['main.tex', 'kherveref.bib', 'mystyle.sty']))
+    expect(new TextDecoder().decode(z['kherveref.bib'])).toContain('@article{a')
+  })
+
   it('test_old_archive_with_images_dir_still_loads', async () => {
     const dir = tmp()
     const old = join(dir, 'old.ktexz')

@@ -29,7 +29,7 @@ import { setCommandChecked } from '../../ui/commands'
 import { GALLERY } from '../../ui/ribbonModel'
 import { showWelcomeDialog } from '../../ui/WelcomeDialog'
 import { SHORT_NAME, VERSION } from '../../version'
-import { getBundledBib, refreshKherverefBib, setBundledBib } from './refs'
+import { getBundledBib, latexPackageExtras, refreshKherverefBib, setBundledBib } from './refs'
 
 const RECENT_FILES_MAX = 8
 // project_store.WORK_DIR: working files live in .kherve/ so the folder
@@ -677,8 +677,12 @@ async function exportTex(): Promise<void> {
 }
 
 async function writeTexTo(path: string): Promise<void> {
-  await platform().writeText(path, serializeDocument(appStore().get().doc))
-  showMessage(`Exported ${path}`, 4000)
+  const doc = appStore().get().doc
+  await platform().writeText(path, serializeDocument(doc))
+  // The references the .tex cites (\bibliography{kherveref}) go beside it.
+  const bib = await refreshKherverefBib(doc).catch(() => '')
+  if (bib) await platform().writeText(join(dirname(path), BIB_FILE), bib)
+  showMessage(bib ? `Exported ${path} and its references (${BIB_FILE})` : `Exported ${path}`, 4000)
 }
 registerSaveAsExport('.tex', writeTexTo)
 
@@ -690,7 +694,8 @@ async function exportLatexPackage(): Promise<void> {
   if (!picked) return
   const path = suffix(picked).toLowerCase() === '.zip' ? picked : withSuffix(picked, '.zip')
   const base = resolvedSourceDir() ?? '.'
-  await platform().writeFile(path, await exportLatexZip(appStore().get().doc, base, fileAccess(), stem))
+  const doc = appStore().get().doc
+  await platform().writeFile(path, await exportLatexZip(doc, base, fileAccess(), stem, await latexPackageExtras(doc)))
   showMessage(`Exported ${path}`, 4000)
 }
 

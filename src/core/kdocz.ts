@@ -166,10 +166,14 @@ export async function writeProjectJson(path: string, projectJson: string, fs: Fi
 // A ready-to-compile LaTeX package (Overleaf, journal upload): main.tex,
 // figures/ and equations/ — one .tex per display equation, so they can be
 // reused or submitted separately.
-export async function exportLatexZip(doc: Document, baseDir: string, fs: FileAccess, mainName = 'main'): Promise<Uint8Array> {
+// *extra*: more files beside main.tex (the references, kherveref.bib, and
+// the document's own .sty / .cls / .bib), so the package compiles anywhere.
+export async function exportLatexZip(doc: Document, baseDir: string, fs: FileAccess, mainName = 'main',
+  extra: Record<string, Uint8Array> = {}): Promise<Uint8Array> {
   const [texDoc, images] = await bundleFigures(doc, baseDir, fs)
   const files: Zippable = {}
   files[`${mainName}.tex`] = strToU8(serializeDocument(texDoc))
+  for (const [name, data] of Object.entries(extra)) files[name] = data
   for (const [srcPath, arcName] of images) files[arcName] = await fs.read(srcPath)
   let n = 0
   for (const block of doc.children) {
