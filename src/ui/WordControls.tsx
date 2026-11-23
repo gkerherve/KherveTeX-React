@@ -20,7 +20,8 @@ const SHARES: [string, string, string][] = [
   ['share:outlook', 'Email the PDF (Outlook)', 'Compile, then a new Outlook message with the PDF attached'],
   ['share:teams', 'Send the PDF in Teams', 'Compile, then the PDF is shown ready to drag into a Teams chat'],
   ['share:whatsapp', 'Send the PDF with WhatsApp', 'Compile, then share the PDF in WhatsApp'],
-  ['share:email_ktex', 'Email the document (.ktex)', 'A new mail with the kTeX file attached, to edit in kTeX'],
+  ['share:email_ktex', 'Email the document (.ktex, Mail)', 'A new mail with the kTeX file attached, to edit in kTeX'],
+  ['share:outlook_ktex', 'Email the document (.ktex, Outlook)', 'A new Outlook message with the kTeX file attached'],
   ['share:reveal_pdf', 'Show the PDF in the Finder', 'To drop it into any other app'],
 ]
 

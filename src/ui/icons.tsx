@@ -258,6 +258,21 @@ function ShareIcon(p: IconProps) {
     <path d='M12,14 V3.5 M8.5,7 L12,3.5 L15.5,7' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinecap='round' strokeLinejoin='round' />
   </Svg>
 }
+// Export on the title bar: a page with a W / PDF tag, in white.
+function TbDocx(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M7,3.5 H15 L19,7.5 V20.5 H7 Z' stroke='currentColor' strokeWidth={1.5} fill='none' strokeLinejoin='round' />
+    <rect x='2.5' y='9' width='10' height='8' rx='1.5' fill='#fff' />
+    <path d='M4.2,10.8 L5.4,15.3 L7.5,11.6 L9.6,15.3 L10.8,10.8' stroke='#2b579a' strokeWidth={1.3} fill='none' strokeLinejoin='round' />
+  </Svg>
+}
+function TbPdf(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M7,3.5 H15 L19,7.5 V20.5 H7 Z' stroke='currentColor' strokeWidth={1.5} fill='none' strokeLinejoin='round' />
+    <rect x='2' y='9' width='12' height='8' rx='1.5' fill='#fff' />
+    <text x='8' y='15.4' textAnchor='middle' fontSize='5.6' fontWeight='700' fill='#c43e1c' fontFamily='Arial, sans-serif'>PDF</text>
+  </Svg>
+}
 function TbNew(p: IconProps) {
   return <Svg {...p}>
     <path d='M6,3.5 H14 L18.5,8 V20.5 H6 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
@@ -1696,7 +1711,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   file_new: FileNew, file_open: FileOpen, file_save: FileSave,
   export_pdf: ExportPdf, export_docx_icon: ExportDocx, printer: Printer, print_preview: PrintPreview,
   project_open: ProjectOpen, undo: Undo, redo: Redo,
-  tb_save: TbSave, tb_print: TbPrint, tb_new: TbNew, tb_open: TbOpen,
+  tb_save: TbSave, tb_print: TbPrint, tb_new: TbNew, tb_open: TbOpen, tb_docx: TbDocx, tb_pdf: TbPdf,
   repaginate: Repaginate, mode_editing: ModeEditing, mode_reviewing: ModeReviewing, mode_viewing: ModeViewing, share: ShareIcon, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
   tb_redo: (p: IconProps) => <TbUndoArrow {...p} mirror />,
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,

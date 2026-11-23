@@ -30,3 +30,6 @@
 .tb-autosave.on .tb-switch { background: #fff; }
 .tb-autosave.on .tb-switch i { left: 16px; background: #2b579a; }
 .tb-state { font-weight: 400; opacity: .85; min-width: 18px; text-align: left; }
+.tb-export { display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 7px; margin-left: 2px; border: none; border-radius: 5px;
+  background: transparent; color: #fff; font: inherit; font-weight: 600; cursor: default; }
+.tb-export:hover { background: rgba(255, 255, 255, .18); }

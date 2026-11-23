@@ -78,6 +78,14 @@ const actions: Record<string, Handler> = {
     if (!(await openWith('Mail', pdf))) await information('Share', DESKTOP_ONLY)
     else await information('Share', 'Microsoft Outlook is not installed: the PDF was put in a new mail in Mail.')
   },
+  'share:outlook_ktex': async () => {
+    if (!appStore().get().path) await runAction('save')
+    const path = appStore().get().path
+    if (!path) return
+    await runAction('save')
+    if (await openWith('Microsoft Outlook', path)) return
+    if (!(await openWith('Mail', path))) await information('Share', DESKTOP_ONLY)
+  },
   // Teams has no way for another app to attach a file to a chat: the PDF
   // is shown in the Finder, ready to drag into the chat, and Teams opens.
   'share:teams': async () => {

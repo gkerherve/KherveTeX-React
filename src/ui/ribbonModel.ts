@@ -710,7 +710,6 @@ const thmKinds = THEOREM_KINDS.map(([k]) => `thm_kind_${k}`)
 
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
-    { label: 'Export', large: ['export_docx', 'export_pdf'] },
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
     { label: 'Font', rows: [
       [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
