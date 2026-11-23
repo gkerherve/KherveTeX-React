@@ -2,6 +2,7 @@
 // frames, tables with LaTeX's rules, citations and references as the PDF
 // numbers them, footnotes, raw LaTeX. The looks follow editor.py's char
 // and block formats (_link_format, _citation_format, _figure_block_format...).
+import { autoTableAlignment } from '../core/serializer.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView } from 'prosemirror-view'
 import type { Inline } from '../core/model.ts'
@@ -472,7 +473,10 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
   node.firstChild?.forEach(c => { ncols += c.attrs.colspan })
   const last = nrows - 1
   let [aligns, vrules] = parseColumnSpec(a.alignment || '', ncols)
-  const colTokens = (a.alignment || '').match(COL_SPEC_RE)?.filter((t: string) => t !== '|' && !'@!<>'.includes(t[0])) ?? []
+  // No spec: the one the LaTeX gets (l columns, or p{} for long text).
+  const spec: string = a.alignment || autoTableAlignment(
+    (() => { const rows: string[][] = []; node.forEach(r => { const cells: string[] = []; r.forEach(c => cells.push(c.attrs.raw ?? c.textContent)); rows.push(cells) }); return rows })(), ncols)
+  const colTokens = spec.match(COL_SPEC_RE)?.filter((t: string) => t !== '|' && !'@!<>'.includes(t[0])) ?? []
   const fr = columnFractions(a.alignment || '')
   const fixed = fr.length === ncols && fr.every((f) => f !== null)
   const frTotal = fixed ? fr.reduce((x: number, y) => x + y!, 0) || 1 : 1
@@ -511,6 +515,10 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
         + (bg ? `background:${bg};` : '')
         + (tok[0] === 'm' ? 'vertical-align:middle;' : tok[0] === 'b' ? 'vertical-align:bottom;' : '')
         + (fixed && cell.attrs.colspan === 1 ? `width:${(fr[c]! / frTotal) * 100}%;` : '')
+        // An l, c or r column never wraps in LaTeX (the table grows wider,
+        // into the margin or the next column): nor does it here, so the
+        // table is as tall as the PDF's.
+        + (cell.attrs.colspan === 1 && /^[lcr]$/.test(tok) ? 'white-space:nowrap;--kt-cell-ws:pre;' : '')
       // Header row bold; unedited cells show their LaTeX's bold / italic.
       // Bold or italic only when all of the cell's text is (a Word form's
       // cell with a bold heading over plain text is not bold).

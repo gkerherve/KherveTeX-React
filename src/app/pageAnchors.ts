@@ -89,6 +89,10 @@ export function pageStartSnippets(page: PdfTextDict, maxLines = 10, maxChars = 2
   for (const raw of lines) {
     const s = one(raw)
     if (!s) continue
+    // A list item's line: its marker ("1.", "a)", "•") is painted by the
+    // editor, not stored, so the line is looked for without it first.
+    const item = /^(?:\d{1,3}[.)]|[a-z][.)]|[ivx]{1,5}[.)]|[•·◦▪∙–-])\s+(\S.*)$/i.exec(raw.trim())
+    if (item) add(one(item[1]))
     add(s)
     const label = /^[^\s:]{2,20}:\s*(.+)$/.exec(raw.trim())
     if (label) add(one(label[1]))
@@ -130,7 +134,45 @@ export function pageFurniture(page: PdfTextDict): PageFurniture {
 // the page), so the page view can set its text as the PDF did when the
 // class or its options print otherwise than the class look measured
 // ([11pt]amsart, [sigconf]acmart).
-export interface PdfTypography { bodyPt: number; cols: number; colGapPt: number }
+export interface PdfTypography {
+  bodyPt: number; cols: number; colGapPt: number
+  // In columns: where each column after a page's first starts, as
+  // [page + column / 10, candidate first lines] (1.1 = page 1's second
+  // column), for the editor to break its columns where the PDF's do.
+  columnStarts?: [number, string][]
+}
+
+// Each page's columns after the first: the lines whose left edge falls in
+// that column (lines spanning the columns, as a title, left out), first by
+// height, and their candidate first lines.
+export function columnStarts(pages: PdfTextDict[], cols: number): [number, string][] {
+  const out: [number, string][] = []
+  pages.forEach((page, pi) => {
+    type L = { x0: number; x1: number; y: number; line: PdfTextDict['blocks'][number]['lines'][number] }
+    const lines: L[] = []
+    for (const b of page.blocks) {
+      if (b.type !== 0) continue
+      for (const l of b.lines) {
+        if (!l.spans.map(s => s.text).join('').trim()) continue
+        lines.push({ x0: l.bbox[0], x1: l.bbox[2], y: l.bbox[1], line: l })
+      }
+    }
+    const body = lines.filter(l => l.y > page.height * 0.06 && l.y < page.height * 0.93)
+    if (body.length < 6) return
+    const left = Math.min(...body.map(l => l.x0)), right = Math.max(...body.map(l => l.x1))
+    const pitch = (right - left) / cols
+    const inCol = (l: L) => (l.x1 - l.x0 > pitch * 1.15 ? -1 : Math.min(cols - 1, Math.floor((l.x0 - left + pitch * 0.08) / pitch)))
+    for (let c = 1; c < cols; c++) {
+      const mine = body.filter(l => inCol(l) === c).sort((a, b) => a.y - b.y || a.x0 - b.x0)
+      if (!mine.length) continue
+      const sub: PdfTextDict = { width: page.width, height: page.height,
+        blocks: [{ type: 0, bbox: [0, 0, 0, 0], lines: mine.map(m => m.line) }] }
+      const snippets = pageStartSnippets(sub)
+      if (snippets.length) out.push([pi + 1 + c / 10, snippets.join('\n')])
+    }
+  })
+  return out
+}
 
 export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
   const chars = new Map<number, number>()
@@ -189,7 +231,9 @@ export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, st
       const snippets = pageStartSnippets(dict)
       if (snippets.length) anchors.push([i + 1, snippets.join('\n')])
     }
-    return [src.pageCount, anchors, furniture, pdfTypography(dicts)]
+    const typo = pdfTypography(dicts)
+    if (typo.cols > 1) typo.columnStarts = columnStarts(dicts, typo.cols)
+    return [src.pageCount, anchors, furniture, typo]
   } finally {
     await src.close()
   }

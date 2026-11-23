@@ -212,7 +212,7 @@ function pyRound2(x: number): number {
 
 // Short tables get bare l columns; wider ones get proportional p{} columns
 // so LaTeX can wrap long cell text instead of overflowing the margins.
-function autoTableAlignment(rows: string[][], cols: number): string {
+export function autoTableAlignment(rows: string[][], cols: number): string {
   const maxLens: number[] = Array.from({ length: cols }, () => 0)
   for (const r of rows) {
     for (let j = 0; j < Math.min(r.length, cols); j++) maxLens[j] = Math.max(maxLens[j], pyLen(r[j]))

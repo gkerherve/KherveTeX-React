@@ -1038,7 +1038,21 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
         if (blocks[i].isTable) continue
         const idx = anchorOffset(blocks[i].text, keyNorm)
         if (idx > 0 && !confirms(i, idx, k)) continue
-        if (idx >= 0 && !tooFar(i, idx)) { hit(i, idx); break search }
+        if (idx >= 0 && !tooFar(i, idx)) {
+          // Found by a later line of the page (its first ones did not
+          // match) at a block's start, right after displayed maths: the
+          // page starts with that maths (an equation's lines are not text).
+          let j = i
+          if (k > 0 && idx === 0) {
+            while (j - 1 > at && blocks[j - 1].node.type.name === 'math_block') j--
+          }
+          // Found by a later line close to the block's start: the page's
+          // first line(s) were that block's opening ("Home:" in bold came
+          // out as a line too short to match), so it starts the block.
+          const near = k > 0 && idx > 0 && idx <= 40
+          hit(j, j === i && !near ? idx : 0)
+          break search
+        }
       }
     }
   }

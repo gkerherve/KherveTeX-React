@@ -783,13 +783,23 @@ export class EditorController implements ViewHost {
     })
   }
 
+  // Where the compiled PDF starts each column after a page's first (in a
+  // document set in columns), as page starts are found.
+  private pdfColumnStarts(): PageStart[] {
+    const typo = layoutKey.getState(this.view.state)!.typography as { columnStarts?: [number, string][] } | null
+    const cs = typo?.columnStarts
+    if (!cs?.length) return []
+    return anchorTargets(this.view.state.doc, cs).map(t =>
+      t.offset > 0 ? { pos: t.pos + 1 + t.offset, inline: true, blanks: 0 } : { pos: t.pos, inline: false, blanks: 0 })
+  }
+
   private paginate(): void {
     if (this.destroyed || !this.view.dom.isConnected) return
     const geo = this.layout.geometry
     const old = pagesKey.getState(this.view.state)!.spacers
     const { spacers, measure } = geo.cols > 1
       ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, this.pdfPageStarts(),
-        layoutKey.getState(this.view.state)!.anchors.length > 0)
+        layoutKey.getState(this.view.state)!.anchors.length > 0, this.pdfColumnStarts())
       : computeSpacers(this.view, geo, this.flowEl, this.pdfPageStarts(),
         layoutKey.getState(this.view.state)!.anchors.length > 0, figuresFloat(this.meta))
     if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {

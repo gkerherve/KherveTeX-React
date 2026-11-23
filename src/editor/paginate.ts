@@ -32,6 +32,9 @@ interface Unit {
   ruled?: boolean
   // A figure that floats (the document's figures float in its PDF).
   float?: boolean
+  // The heading block a line belongs to (its position): in columns a
+  // heading is never split, nor left at a column's foot.
+  heading?: number
 }
 
 export interface PageMeasure {
@@ -108,7 +111,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
   const y = (clientY: number) => y0(clientY) + lifted
   let spanEnd: number | null = null
   let spanning = true
-  const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number) => {
+  const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number, heading?: number) => {
     lineBands(el).forEach((l, i) => {
       let pos = start
       if (i > 0) {
@@ -123,7 +126,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
         const hit = owner ? { pos: Number(owner.dataset.ktPos) } : view.posAtCoords(at)
         pos = hit ? hit.pos : start
       }
-      units.push({ top: y(l.top), bottom: y(l.bottom), pos, kind: i === 0 ? 'block' : 'inline', forced: forced && i === 0, gap })
+      units.push({ top: y(l.top), bottom: y(l.bottom), pos, kind: i === 0 ? 'block' : 'inline', forced: forced && i === 0, gap, heading })
     })
   }
   view.state.doc.forEach((node, offset) => {
@@ -144,7 +147,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
       return
     }
     if (node.isTextblock) {
-      textUnits(dom, offset, dom.dataset.break === '1', cssGap(dom))
+      textUnits(dom, offset, dom.dataset.break === '1', cssGap(dom), node.type.name === 'section' ? offset : undefined)
       return
     }
     const r = dom.getBoundingClientRect()
@@ -350,23 +353,37 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
 // keeps its text rather than moving it on.
 export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement,
   old: readonly Spacer[], shrink: number[], pageStarts: readonly PageStart[] = [],
-  pdfPaged = false): { spacers: Spacer[]; measure: PageMeasure } {
+  pdfPaged = false, columnStarts: readonly PageStart[] = []): { spacers: Spacer[]; measure: PageMeasure } {
   const z = zoomOf(page) || 1
   const yOf = (clientY: number) => (clientY - page.getBoundingClientRect().top) / z
   const H = geo.heightPx
   const top = geo.topPx
   const limit = H - geo.bottomPx
 
-  // One column wide, spacers hidden: Qt's flow.
+  // One column wide, spacers hidden: Qt's flow. Measured with the columns
+  // off altogether: inside a column layout WebKit kept the title spanning
+  // the columns at a stale place (after all the text), the text measured
+  // a title's height too high, and every sheet ran that far past its foot.
+  page.classList.remove('kt-cols')
   page.classList.add('kt-col-measure')
   let measured: ReturnType<typeof collectUnits>
   try {
+    void page.offsetHeight
     measured = collectUnits(view, yOf)
   } finally {
     page.classList.remove('kt-col-measure')
+    page.classList.add('kt-cols')
+    void page.offsetHeight
     refreshColumns(page)
   }
-  const { spanEnd } = measured
+  // The title spanning the columns ends before the first line under it:
+  // WebKit placed that block's box wrongly (far down the flow) while the
+  // columns were measured, and the first sheet started past its own text.
+  const firstTop = measured.units.length ? measured.units[0].top : null
+  let spanEnd = measured.spanEnd !== null && firstTop !== null && measured.spanEnd > firstTop ? firstTop : measured.spanEnd
+  // No title spanning the columns: they start where the first text does
+  // (under whatever stands above it), not at the top margin.
+  if (spanEnd === null && firstTop !== null) spanEnd = firstTop - (measured.units[0].gap ?? 0)
   // A table that fits in one column moves whole to the next column, as in
   // the PDF (a column break cannot go between two rows of the page).
   const colRoom = limit - top
@@ -375,17 +392,46 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     const u = measured.units[i]
     let j = i
     while (j + 1 < measured.units.length && measured.units[j + 1].kind === 'row') j++
+    // A heading is one unit with the first line after it (LaTeX keeps a
+    // heading whole and with its text; WebKit moved a split heading's
+    // lines to the next column on its own).
+    if (u.heading !== undefined) {
+      while (j + 1 < measured.units.length && measured.units[j + 1].heading === u.heading) j++
+      if (j + 1 < measured.units.length && !measured.units[j + 1].forced) j++
+    }
     if (j > i && measured.units[j].bottom - u.top <= colRoom) {
       units.push({ ...u, bottom: measured.units[j].bottom })
       i = j
     } else units.push(u)
   }
   forcePageStarts(units, pageStarts)
+  // The PDF's own column starts (a document set in columns, compiled):
+  // the editor's columns break exactly there, as LaTeX's do.
+  const colForced = new Set<Unit>()
+  for (const s of columnStarts) {
+    let hit = -1
+    if (s.inline) {
+      // The line it falls in: its block's first line breaks before the
+      // block (a PDF column starting with "• Home: the clipboard, ...").
+      for (let i = 0; i < units.length && units[i].pos <= s.pos; i++) hit = i
+    } else hit = units.findIndex(u => u.kind === 'block' && u.pos === s.pos)
+    if (hit > 0 && !units[hit].forced) colForced.add(units[hit])
+  }
+  const followPdf = colForced.size > 0
+  // Following the PDF, its breaks are kept: a column the editor sets a
+  // little taller than TeX runs on into the margin's slack; only one that
+  // would leave the page breaks early (and the PDF's next column start is
+  // then passed over, so the sheets stay the PDF's pages).
+  if (followPdf) shrink.length = 0
+  // Following the PDF's columns, a column may use its whole bottom margin
+  // before a break of the editor's own: an extra sheet the PDF does not
+  // have is worse than a few lines low (narrow columns set looser than
+  // TeX's).
   const slack = pdfPaged ? geo.bottomPx * 0.6 : 0
   // How far each rendered sheet's text runs past its bottom margin: from
   // the lines themselves (the last sheet too, which has no spanner after
   // it; WebKit also placed a spanner's box wrongly).
-  if (old.length && old.every(s => s.kind === 'span' || s.kind === 'col' || s.kind === 'fill')) {
+  if (!followPdf && old.length && old.every(s => s.kind === 'span' || s.kind === 'col' || s.kind === 'fill')) {
     const lowest: number[] = []
     const walk = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT)
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
@@ -398,9 +444,12 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
         if (i >= 0 && y1 > (lowest[i] ?? -Infinity)) lowest[i] = y1
       }
     }
+    // Against what a sheet may use (its margin's slack when it follows the
+    // PDF), and never more than a quarter of a column: the correction
+    // added up round after round and once left a sheet almost empty.
     lowest.forEach((y, i) => {
-      const over = y - (i * H + limit)
-      if (over > 1) shrink[i] = (shrink[i] ?? 0) + over
+      const over = y - (i * H + limit + slack)
+      if (over > 1) shrink[i] = Math.min((shrink[i] ?? 0) + over, (limit - top) * 0.25)
     })
   }
   const starts: Unit[] = []
@@ -419,9 +468,18 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
   let atStart = true
   let prevBottom = span
   const target = () => limit - (shrink[sheet] ?? 0)
+  // Where each sheet's row of columns ends (sheet coordinates): its
+  // spanner then reaches exactly the next sheet's top margin.
+  const rowEnds: number[] = []
+  let rowEnd = 0
+  // A filler's height is set once its row's end is known (all the
+  // row's columns end at the same height, or WebKit balances again).
+  const pending: { sp: Spacer; endY: number; sheet: number }[] = []
   const fill = (pos: number, inline: boolean, endY: number) => {
-    const h = target() - endY
-    if (h > 0.5) extra.push({ pos, height: h, kind: 'fill', inline })
+    rowEnd = Math.max(rowEnd, endY, target())
+    const sp: Spacer = { pos, height: 0, kind: 'fill', inline }
+    pending.push({ sp, endY, sheet })
+    extra.push(sp)
   }
   // The empty columns left on a sheet: a break and a full filler each.
   const fillRest = (pos: number, inline: boolean) => {
@@ -430,16 +488,26 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
       fill(pos, inline, colTop())
     }
   }
-  for (const u of units) {
+  // The top of the next unit the PDF starts a page with, for each unit.
+  const nextForced: number[] = new Array(units.length).fill(Infinity)
+  for (let i = units.length - 2; i >= 0; i--) nextForced[i] = units[i + 1].forced ? units[i + 1].top : nextForced[i + 1]
+  for (const [ui, u] of units.entries()) {
     // The last column of a PDF-paged sheet may run into the margin's slack.
-    const room = target() + (col === geo.cols - 1 ? slack : 0)
-    const over = vy + (u.bottom - usedFrom) > room
-    if (atStart || !(over || u.forced)) { atStart = false; prevBottom = u.bottom; continue }
+    const room = target() + (col === geo.cols - 1 || followPdf ? slack : 0)
+    let over = vy + (u.bottom - usedFrom) > room
+    // A line or two before the PDF's next page: kept on this sheet, low in
+    // its margin, rather than alone on a sheet the PDF does not have.
+    if (over && pdfPaged && !u.forced && col === geo.cols - 1 && nextForced[ui] - u.top <= geo.bottomPx * 0.35
+      && vy + (nextForced[ui] - usedFrom) <= limit + geo.bottomPx * 0.95) over = false
+    const colBreak = colForced.has(u) && col < geo.cols - 1
+    if (atStart || !(over || u.forced || colBreak)) { atStart = false; prevBottom = u.bottom; continue }
     const inline = u.kind === 'inline'
     // This column ends here: padded down to the bottom margin.
     fill(u.pos, inline, vy + (prevBottom - usedFrom))
     if (u.forced || col === geo.cols - 1) {
       fillRest(u.pos, inline)
+      rowEnds.push(rowEnd)
+      rowEnd = 0
       // A row break needs a block for the spanner: never inside a table.
       starts.push(u.kind === 'row' ? { ...u, kind: 'block' } : u)
       col = 0
@@ -460,6 +528,10 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     fill(end, false, vy + (prevBottom - usedFrom))
     fillRest(end, false)
   }
+  rowEnds.push(rowEnd)
+  for (const f of pending) f.sp.height = Math.max(0, (rowEnds[f.sheet] ?? 0) - f.endY)
+  // Fillers of no height are left out.
+  for (let i = extra.length - 1; i >= 0; i--) if (extra[i].kind === 'fill' && extra[i].height < 0.5) extra.splice(i, 1)
 
   // Each spanner ends where the next sheet's text begins. Every column is
   // filled down to its sheet's bottom margin (less its shrink), so the
@@ -467,7 +539,7 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
   // and the next one's top margin (not measured: WebKit reported a
   // spanner's place wrongly and the next sheet's text began too early).
   let spacers: Spacer[] = starts.map((u, i) => ({
-    pos: u.pos, height: H - (limit - (shrink[i] ?? 0)) + top, kind: 'span' as const, inline: u.kind === 'inline',
+    pos: u.pos, height: H - Math.max(rowEnds[i] ?? 0, limit - (shrink[i] ?? 0)) + top, kind: 'span' as const, inline: u.kind === 'inline',
   }))
   // At one place: the filler ending a column, then the break (column or
   // sheet), then the next column's breaks and fillers, in that order.
