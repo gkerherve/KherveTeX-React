@@ -111,11 +111,33 @@ export function designPreamble(d: Design | undefined, cls: string): string {
   if (standard && (set !== 'default' || D.heading_font || D.colors)) {
     out.push('\\usepackage[explicit]{titlesec}')
     const color = set === 'default' && !D.colors ? '' : '\\color{kAccent}'
+    // A class with chapters (report, book): the chapter is the top level,
+    // as the page shows it (Heading 1), set as the class does ("Chapter 2"
+    // on its own line over the title) in the style's look.
+    const chapters = ['report', 'book', 'extreport', 'extbook'].includes(cls)
+    if (chapters) {
+      const label = '\\chaptertitlename\\ \\thechapter'
+      const box = (t: string) => `\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut ${t}}}`
+      let lab = `{${label}}`, title = '{\\Huge #1}', after = '', shape = `${fam}\\bfseries\\huge${color}`
+      switch (set) {
+        case 'shaded': shape = `${fam}\\bfseries\\huge\\color{kAccent}`; title = `{\\Huge${box('#1')}}`; break
+        case 'lines': after = '[\\vspace{-0.6ex}\\titlerule]'; break
+        case 'lines_accent': shape = `${fam}\\huge\\color{kAccent}`; title = '{\\Huge #1}'; after = '[{\\color{kSecond}\\vspace{-0.4ex}\\titlerule[1.2pt]}]'; break
+        case 'elegant': shape = `${fam}\\huge${color}`; title = '{\\Huge\\MakeUppercase{#1}}'; break
+        case 'centered': shape += '\\centering'; break
+        case 'casual': lab = `{{\\color{kSecond}${label}}}`; break
+      }
+      out.push(`\\titleformat{\\chapter}[display]{${shape}}${lab}{20pt}${title}${after}`)
+      out.push(`\\titleformat{name=\\chapter,numberless}[display]{${shape}}{}{0pt}${title}${after}`)
+      out.push('\\titlespacing*{\\chapter}{0pt}{50pt}{40pt}')
+    }
     const lvls: [string, string, string][] = [
       ['section', '\\Large', '\\thesection'], ['subsection', '\\large', '\\thesubsection'], ['subsubsection', '\\normalsize', '\\thesubsubsection'],
     ]
     for (const [name, size, num] of lvls) {
-      const top = name === 'section'
+      // The top level's look (a box, a rule) goes to the chapter when there
+      // is one; sections then take the lower levels' look.
+      const top = name === 'section' && !chapters
       switch (set) {
         case 'shaded':
           out.push(...(top
@@ -198,6 +220,15 @@ export function designCss(d: Design | undefined): string {
     if (r) css.push(`${sel(lv)} { ${r} }`)
     if (set === 'casual') css.push(`${sel(lv)}::before { color: ${second}; }`)
     if (set === 'shaded' && top) css.push(`${sel(lv)}::before { color: #fff !important; }`)
+    // A chapter keeps its "Chapter 2" line and space above in its padding:
+    // the box only behind the title, as the PDF's \\colorbox.
+    if (set === 'shaded' && top) css.push(`${sel(lv)}:has(> .kt-labels) { background-clip: content-box; padding-left: 0 !important; padding-right: 0 !important; text-indent: 6px !important; }`)
+    // The "Chapter 2" line over a chapter (a label above the heading, on
+    // the page): in the accent, never white on the page, nor uppercased.
+    if (top) {
+      const lab = set === 'casual' ? second : set === 'default' && !D.colors ? 'inherit' : accent
+      css.push(`${sel(lv)} .kt-label { color: ${lab} !important; text-transform: none; letter-spacing: normal; }`)
+    }
   }
   return css.join('\n')
 }
