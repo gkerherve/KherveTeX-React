@@ -1241,6 +1241,12 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   // appear as a stray paragraph in the imported document.
   texSource = stripTexComments(texSource)
   if (baseDir !== null && baseDir !== undefined) texSource = expandIncludes(texSource, baseDir, fs)
+  // \addcontentsline{toc}{section}{T} right after \section*{T} is how the
+  // serializer lists an unnumbered heading in the table of contents: it is
+  // written again on export, so it is not a block of its own.
+  texSource = texSource.replace(
+    /(\\(chapter|section|subsection|subsubsection|paragraph|subparagraph)\*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}[ \t]*\n?(?:\\label\{[^}]*\}[ \t]*\n?)?)[ \t]*\\addcontentsline\{toc\}\{\2\}\{\3\}[ \t]*\n?/g,
+    '$1')
 
   const docclassM = reSearch(DOCCLASS_RE, texSource)
   // Use balanced-brace extraction for title/author so Elsevier-style
