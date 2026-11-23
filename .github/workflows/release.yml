@@ -35,6 +35,8 @@ on:
 
 permissions:
   contents: write
+  # To start the kTeX online workflow once the release is published.
+  actions: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -280,3 +282,9 @@ jobs:
           # Published and marked latest: releases/latest/download/ serves only that one.
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
             -F draft=false -f make_latest=true --jq '.html_url'
+
+      - name: Put this release online (kTeX online, deployed from dev)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+        run: gh workflow run online.yml --repo "$GITHUB_REPOSITORY" --ref dev -f tag="$TAG"

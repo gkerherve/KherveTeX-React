@@ -3,15 +3,19 @@ name: kTeX online
 # Builds the browser version (npm run build:web: the editor plus the
 # SwiftLaTeX engines) and publishes it with GitHub Pages at
 # https://gkerherve.github.io/KherveTeX-React/; khervetools.com/try/ sends
-# visitors there. Runs with each release tag, so the online version is the
-# released one, or by hand from the Actions tab. Its TeX files come from
-# gkerherve/ktex-texlive (scripts/texlive_tree.mjs).
+# visitors there. The release workflow starts it when a release is
+# published, with that release's tag, so the online version is the released
+# one; or by hand from the Actions tab (a tag, or dev's latest). It always
+# runs on dev: the github-pages environment only deploys from dev (a run on
+# a tag was refused). Its TeX files come from gkerherve/ktex-texlive
+# (scripts/texlive_tree.mjs).
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to put online (empty: dev's latest)"
+        default: ""
 
 permissions:
   contents: read
@@ -27,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
