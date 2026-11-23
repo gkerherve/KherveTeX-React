@@ -1,6 +1,6 @@
 // The window's blue title bar, as Word's on a Mac: the system title bar is
 // hidden (tauri.conf.json titleBarStyle "Overlay") and the three window
-// buttons sit over this bar. On it: AutoSave, Save, Undo, Redo and Print on
+// buttons sit over this bar. On it: AutoSave, New, Open, Save, Undo, Redo and Print on
 // the left, the document's name in the middle. The bar moves the window
 // (data-tauri-drag-region) and a double-click on it zooms it, as the
 // system's does. Shown in the macOS app only (or with ?titlebar in a
@@ -60,6 +60,8 @@ export function TitleBar() {
           <span className='tb-switch'><i /></span>
           <span className='tb-state'>{autosave ? 'On' : 'Off'}</span>
         </button>
+        {btn('new', 'tb_new', 'New document (⌘N)')}
+        {btn('open', 'tb_open', 'Open (⌘O)')}
         {btn('save', 'tb_save', 'Save (⌘S)')}
         {btn('undo', 'tb_undo', 'Undo (⌘Z)')}
         {btn('redo', 'tb_redo', 'Redo (⇧⌘Z)')}

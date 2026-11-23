@@ -226,6 +226,18 @@ function TbSave(p: IconProps) {
     <rect x='7.5' y='13' width='9' height='6.5' stroke='currentColor' strokeWidth={1.6} fill='none' />
   </Svg>
 }
+function TbNew(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M6,3.5 H14 L18.5,8 V20.5 H6 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <path d='M13.5,3.5 V8.5 H18.5' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+  </Svg>
+}
+function TbOpen(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M3.5,18.5 V6 H9 L11,8 H17.5 V10.5' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <path d='M3.5,18.5 L6.5,10.5 H21 L18,18.5 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+  </Svg>
+}
 function TbPrint(p: IconProps) {
   return <Svg {...p}>
     <path d='M7,9 V4.5 H17 V9' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
@@ -1652,7 +1664,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   file_new: FileNew, file_open: FileOpen, file_save: FileSave,
   export_pdf: ExportPdf, export_docx_icon: ExportDocx, printer: Printer, print_preview: PrintPreview,
   project_open: ProjectOpen, undo: Undo, redo: Redo,
-  tb_save: TbSave, tb_print: TbPrint, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
+  tb_save: TbSave, tb_print: TbPrint, tb_new: TbNew, tb_open: TbOpen, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
   tb_redo: (p: IconProps) => <TbUndoArrow {...p} mirror />,
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,

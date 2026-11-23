@@ -535,9 +535,9 @@ function CornerButton({ id, ctx }: { id: string, ctx: Ctx }) {
 }
 
 // The quick-access buttons left of the tabs; with the blue title bar
-// (macOS) Save, Print, Undo and Redo live on it instead, as in Word.
+// (macOS) New, Open, Save, Print, Undo and Redo live on it instead, as in Word.
 function leftCorner(hidden: string[]): (string | null)[] {
-  const onBar = titleBarShown() ? ['save', 'print', 'undo', 'redo'] : []
+  const onBar = titleBarShown() ? ['new', 'open', 'save', 'print', 'undo', 'redo'] : []
   const ids = CORNER_LEFT.filter(id => id === null || (!hidden.includes(id) && !onBar.includes(id)))
   while (ids.length && ids[ids.length - 1] === null) ids.pop()
   return ids
