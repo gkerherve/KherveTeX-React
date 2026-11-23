@@ -245,6 +245,13 @@ function ModeViewing(p: IconProps) {
     <circle cx='12' cy='12' r='3.2' stroke='currentColor' strokeWidth={1.6} fill='none' />
   </Svg>
 }
+function Repaginate(p: IconProps) {
+  return <Svg {...p}>
+    {Page(4, 3, 10, 13, 2)}{Page(10, 8, 10, 13, 2)}
+    <path d='M19.5,5.5 A6,6 0 0 0 14,2.5' stroke='#107c41' strokeWidth={1.6} fill='none' />
+    <path d='M19.8,2.8 L19.6,5.8 L16.6,5.4' stroke='#107c41' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+  </Svg>
+}
 function ShareIcon(p: IconProps) {
   return <Svg {...p}>
     <path d='M8,9 H6 V20 H18 V9 H16' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
@@ -1690,7 +1697,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   export_pdf: ExportPdf, export_docx_icon: ExportDocx, printer: Printer, print_preview: PrintPreview,
   project_open: ProjectOpen, undo: Undo, redo: Redo,
   tb_save: TbSave, tb_print: TbPrint, tb_new: TbNew, tb_open: TbOpen,
-  mode_editing: ModeEditing, mode_reviewing: ModeReviewing, mode_viewing: ModeViewing, share: ShareIcon, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
+  repaginate: Repaginate, mode_editing: ModeEditing, mode_reviewing: ModeReviewing, mode_viewing: ModeViewing, share: ShareIcon, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
   tb_redo: (p: IconProps) => <TbUndoArrow {...p} mirror />,
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,

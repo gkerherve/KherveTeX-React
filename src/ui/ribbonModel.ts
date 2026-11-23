@@ -449,6 +449,8 @@ const cmds: Command[] = [
   { id: 'pdf_window', text: 'PDF in its own &window', checkable: true, group: 'layout',
     tooltip: 'Show the PDF in a separate window, e.g. on a second screen' },
   { id: 'documents_dock', text: 'Documents', icon: 'documents_panel', shortcut: 'Ctrl+5', checkable: true },
+  { id: 'repaginate', text: 'Fix page layout', icon: 'repaginate',
+    tooltip: 'Lay the pages and columns out again from scratch: use it if text looks cut, overlapping or on the wrong page' },
   { id: 'fit_page_width', text: '&Fit page width', icon: 'fit_width', shortcut: 'Ctrl+0',
     checkable: true, checked: true },
   { id: 'show_latex_source', text: 'Show LaTeX &source', icon: 'code', checkable: true,
@@ -748,6 +750,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },
     { label: 'PDF', large: ['pdf_panel', 'pdf_detach'] },
     { label: 'Zoom', large: ['fit_page_width'] },
+    { label: 'Pages', large: ['repaginate'] },
     { label: 'Show', large: ['show_latex_source'] },
     // A long document as a project of smaller ones, and their list.
     { label: 'Documents', large: ['split_documents', 'documents_dock'] },

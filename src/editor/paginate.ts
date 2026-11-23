@@ -366,57 +366,114 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     page.classList.remove('kt-col-measure')
     refreshColumns(page)
   }
-  const { units, spanEnd } = measured
+  const { spanEnd } = measured
+  // A table that fits in one column moves whole to the next column, as in
+  // the PDF (a column break cannot go between two rows of the page).
+  const colRoom = limit - top
+  const units: Unit[] = []
+  for (let i = 0; i < measured.units.length; i++) {
+    const u = measured.units[i]
+    let j = i
+    while (j + 1 < measured.units.length && measured.units[j + 1].kind === 'row') j++
+    if (j > i && measured.units[j].bottom - u.top <= colRoom) {
+      units.push({ ...u, bottom: measured.units[j].bottom })
+      i = j
+    } else units.push(u)
+  }
   forcePageStarts(units, pageStarts)
   const slack = pdfPaged ? geo.bottomPx * 0.6 : 0
-  // How far each rendered row runs past its sheet's bottom margin.
-  if (old.length && old.every(s => s.kind === 'span')) {
-    const els = [...(view.dom as HTMLElement).querySelectorAll<HTMLElement>('.kt-page-gap-span')]
-    els.forEach((el, i) => {
-      const over = yOf(el.getBoundingClientRect().top) - ((i + 1) * H - geo.bottomPx)
+  // How far each rendered sheet's text runs past its bottom margin: from
+  // the lines themselves (the last sheet too, which has no spanner after
+  // it; WebKit also placed a spanner's box wrongly).
+  if (old.length && old.every(s => s.kind === 'span' || s.kind === 'col' || s.kind === 'fill')) {
+    const lowest: number[] = []
+    const walk = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT)
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      if (!n.nodeValue?.trim() || (n.parentElement?.closest('.kt-page-gap, .kt-labels'))) continue
+      const r = document.createRange()
+      r.selectNodeContents(n)
+      for (const b of r.getClientRects()) {
+        const y0 = yOf(b.top), y1 = yOf(b.bottom)
+        const i = Math.floor(y0 / H)
+        if (i >= 0 && y1 > (lowest[i] ?? -Infinity)) lowest[i] = y1
+      }
+    }
+    lowest.forEach((y, i) => {
+      const over = y - (i * H + limit)
       if (over > 1) shrink[i] = (shrink[i] ?? 0) + over
     })
   }
   const starts: Unit[] = []
+  // Column breaks and fillers: every column of every sheet is padded to
+  // the sheet's bottom margin and each next column is a forced break, so
+  // the browser has nothing left to balance (WebKit balanced a row too
+  // short and ran its text into a third column off the page).
+  const extra: Spacer[] = []
   let sheet = 0
   const flowTop = units.length ? units[0].top : top
   const span = spanEnd ?? flowTop
+  const colTop = () => (sheet === 0 ? (spanEnd ?? top) : top)
   let usedFrom = span
   let vy = spanEnd ?? top
   let col = 0
   let atStart = true
+  let prevBottom = span
+  const target = () => limit - (shrink[sheet] ?? 0)
+  const fill = (pos: number, inline: boolean, endY: number) => {
+    const h = target() - endY
+    if (h > 0.5) extra.push({ pos, height: h, kind: 'fill', inline })
+  }
+  // The empty columns left on a sheet: a break and a full filler each.
+  const fillRest = (pos: number, inline: boolean) => {
+    for (let c = col + 1; c < geo.cols; c++) {
+      extra.push({ pos, height: 0, kind: 'col', inline })
+      fill(pos, inline, colTop())
+    }
+  }
   for (const u of units) {
     // The last column of a PDF-paged sheet may run into the margin's slack.
-    const room = limit - (shrink[sheet] ?? 0) + (col === geo.cols - 1 ? slack : 0)
+    const room = target() + (col === geo.cols - 1 ? slack : 0)
     const over = vy + (u.bottom - usedFrom) > room
-    if (atStart || !(over || u.forced)) { atStart = false; continue }
-    const start = u.top
+    if (atStart || !(over || u.forced)) { atStart = false; prevBottom = u.bottom; continue }
+    const inline = u.kind === 'inline'
+    // This column ends here: padded down to the bottom margin.
+    fill(u.pos, inline, vy + (prevBottom - usedFrom))
     if (u.forced || col === geo.cols - 1) {
+      fillRest(u.pos, inline)
       // A row break needs a block for the spanner: never inside a table.
       starts.push(u.kind === 'row' ? { ...u, kind: 'block' } : u)
       col = 0
       sheet += 1
     } else {
+      // A column break inside a table goes before the table's block.
+      extra.push({ pos: u.pos, height: 0, kind: 'col', inline })
       col += 1
     }
-    vy = top
-    usedFrom = start
+    vy = colTop()
+    usedFrom = u.top
+    prevBottom = u.bottom
+  }
+  // The last sheet: its columns filled too (the text stays in the first
+  // ones, as LaTeX fills the left column first).
+  if (units.length) {
+    const end = view.state.doc.content.size
+    fill(end, false, vy + (prevBottom - usedFrom))
+    fillRest(end, false)
   }
 
-  // Each spanner ends where the next sheet's text begins.
-  const sameAt = old.length === starts.length && old.every((s, i) => s.pos === starts[i].pos && s.kind === 'span')
-  let spacers: Spacer[]
-  if (sameAt) {
-    const els = [...(view.dom as HTMLElement).querySelectorAll<HTMLElement>('.kt-page-gap-span')]
-    spacers = old.map((s, i) => {
-      const el = els[i]
-      if (!el) return s
-      const t = yOf(el.getBoundingClientRect().top)
-      return { ...s, height: Math.max(0, (i + 1) * H + top - t) }
-    })
-  } else {
-    spacers = starts.map(u => ({ pos: u.pos, height: H - limit + top, kind: 'span' as const, inline: u.kind === 'inline' }))
-  }
+  // Each spanner ends where the next sheet's text begins. Every column is
+  // filled down to its sheet's bottom margin (less its shrink), so the
+  // spanner starts there and its height is known: the rest of the sheet
+  // and the next one's top margin (not measured: WebKit reported a
+  // spanner's place wrongly and the next sheet's text began too early).
+  let spacers: Spacer[] = starts.map((u, i) => ({
+    pos: u.pos, height: H - (limit - (shrink[i] ?? 0)) + top, kind: 'span' as const, inline: u.kind === 'inline',
+  }))
+  // At one place: the filler ending a column, then the break (column or
+  // sheet), then the next column's breaks and fillers, in that order.
+  const order = (sp: Spacer) => (sp.kind === 'span' ? 1 : 0)
+  spacers = [...extra.map((e, i) => ({ e, i })), ...spacers.map((e, i) => ({ e, i: 1e6 + i }))]
+    .sort((a, b) => a.e.pos - b.e.pos || order(a.e) - order(b.e) || a.i - b.i).map(x => x.e)
   return { spacers, measure: { sheets: starts.length + 1 } }
 }
 

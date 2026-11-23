@@ -219,7 +219,9 @@ export interface Spacer {
   // 'float': not a gap but a floating figure (at `pos`) taken out of the
   // flow (`height`, the space it gave up) and drawn `dy` lower, at the top
   // of the next sheet, as LaTeX places a figure that does not fit.
-  kind: 'block' | 'inline' | 'row' | 'span' | 'float'
+  // 'col': (columns) where the next column of a sheet starts, a forced
+  // column break, so the browser does not balance the columns its own way.
+  kind: 'block' | 'inline' | 'row' | 'span' | 'float' | 'col' | 'fill'
   // How far a floating figure is drawn below its place in the flow.
   dy?: number
   // A row spacer's table width in cells.
@@ -244,8 +246,12 @@ function spacerEl(s: Spacer): HTMLElement {
       + (s.ruled ? ';border-bottom:0.8px solid #000' : '')
     el.appendChild(td)
   } else {
-    el = document.createElement(s.kind === 'inline' ? 'span' : 'div')
-    if (s.kind === 'block' || s.kind === 'span') {
+    el = document.createElement(s.kind === 'inline' || ((s.kind === 'col' || s.kind === 'fill') && s.inline) ? 'span' : 'div')
+    if (s.kind === 'col') {
+      el.style.height = '0px'
+    } else if (s.kind === 'fill') {
+      el.style.height = `${s.height}px`
+    } else if (s.kind === 'block' || s.kind === 'span') {
       if (s.height >= 0) el.style.height = `${s.height}px`
       else { el.style.height = '0px'; el.style.marginBottom = `${s.height}px` }
     } else {

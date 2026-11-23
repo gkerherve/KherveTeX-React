@@ -353,6 +353,9 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
 .kt-cols > .kt-flow > .kt-figure, .kt-cols > .kt-flow > .kt-math-block,
 .kt-cols > .kt-flow > .kt-raw-float { break-inside: avoid-column; }
 .kt-page-gap-span { display: block; column-span: all; }
+/* A sheet's next column starts here (paginate.ts): forced, not balanced. */
+.kt-page-gap-fill { display: block; margin: 0; padding: 0; break-inside: avoid; }
+.kt-page-gap-col { display: block; height: 0; margin: 0; padding: 0; break-before: column; -webkit-column-break-before: always; }
 .kt-col-measure > .kt-flow { column-count: auto; columns: auto; width: var(--kt-colw); }
 .kt-col-measure .kt-page-gap { display: none; }
 .kt-col-measure > .kt-flow > [data-span='1'] { width: var(--kt-fullw); max-width: none; }

@@ -470,6 +470,13 @@ export class EditorController implements ViewHost {
   }
 
   // set_meta: page size, class, fonts, margins... changed.
+  // View ▸ Fix page layout: every page and column break dropped and the
+  // pages laid out again from the start.
+  repaginate(): void {
+    this.view.dispatch(this.view.state.tr.setMeta(pagesKey, []).setMeta('addToHistory', false))
+    this.schedulePages(0)
+  }
+
   // Viewing (true) or Editing / Reviewing (false), as Word's mode menu.
   readOnly = false
   setReadOnly(on: boolean): void {
@@ -785,7 +792,7 @@ export class EditorController implements ViewHost {
         layoutKey.getState(this.view.state)!.anchors.length > 0)
       : computeSpacers(this.view, geo, this.flowEl, this.pdfPageStarts(),
         layoutKey.getState(this.view.state)!.anchors.length > 0, figuresFloat(this.meta))
-    if (!sameSpacers(old, spacers) && this.pageIter < 6) {
+    if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))
       return

@@ -59,6 +59,7 @@ async function openWith(app: string, file: string): Promise<boolean> {
 const DESKTOP_ONLY = 'Sharing by email or WhatsApp works in the kTeX app (macOS), not in the browser.'
 
 const actions: Record<string, Handler> = {
+  repaginate: () => { editor()?.repaginate() },
   'mode:editing': () => setMode('editing'),
   'mode:reviewing': () => setMode('reviewing'),
   'mode:viewing': () => setMode('viewing'),
