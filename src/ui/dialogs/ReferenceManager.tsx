@@ -21,7 +21,7 @@ export interface ReferenceChoice {
   style: string
 }
 
-export type ImportKind = 'file' | 'endnote' | 'mendeley'
+export type ImportKind = 'file' | 'bib' | 'endnote' | 'mendeley'
 
 export interface ReferenceEnv {
   // Import file…: a reference export's name and text (a .bib, RIS,
@@ -72,7 +72,7 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     env.inform(title, `${added.length} reference${added.length !== 1 ? 's' : ''} added.`
       + (clash.length ? `\n\nThese keys are already in the list for a different reference, so the imported ones were not added: ${clash.join(', ')}. Rename the key in the file (or in the list) to keep both.` : ''))
   const importFile = async (kind: ImportKind) => {
-    const title = kind === 'endnote' ? 'From EndNote' : kind === 'mendeley' ? 'From Mendeley' : 'Import references'
+    const title = kind === 'endnote' ? 'From EndNote' : kind === 'mendeley' ? 'From Mendeley' : kind === 'bib' ? 'Import .bib' : 'Import references'
     const file = await env.importFile(kind)
     if (file === null) return
     let bib: string
@@ -84,6 +84,31 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     }
     const clash = conflicts(m.text(), bib)
     await report(title, m.addBib(bib), clash)
+  }
+  // Paste BibTeX: entries copied from Google Scholar, a journal's "Cite"
+  // or another .bib (RIS text works too).
+  const [pasting, setPasting] = useState(false)
+  const [pasted, setPasted] = useState('')
+  const addPasted = async () => {
+    const text = pasted.trim()
+    if (!text) return
+    const name = /^\s*@/.test(text) || !/^TY {2}- /m.test(text) ? 'pasted.bib' : 'pasted.ris'
+    let bib: string
+    try {
+      bib = importToBibtex(text, name, splitBib(m.text()).keys())
+    } catch (e) {
+      await env.inform('Paste BibTeX', e instanceof Error ? e.message : String(e))
+      return
+    }
+    const clash = conflicts(m.text(), bib)
+    const added = m.addBib(bib)
+    if (!added.length && !clash.length) {
+      await env.inform('Paste BibTeX', 'No reference was found in the text. Paste BibTeX entries, each starting with @article{, @book{...')
+      return
+    }
+    setPasted('')
+    setPasting(false)
+    await report('Paste BibTeX', added, clash)
   }
   const fromZotero = async () => {
     const bib = await env.fromZotero()
@@ -165,6 +190,10 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
           <button type="button" title="Add a reference to the list" onClick={() => m.newEntry()}>New</button>
           <button type="button" title="Take the selected references out of the list"
             onClick={() => m.deleteSelected()}>Delete</button>
+          <button type="button" title="Add the references of a BibTeX file (.bib): from Zotero, Mendeley, JabRef, BibDesk, Overleaf, a co-author..."
+            onClick={() => void importFile('bib')}>Import .bib…</button>
+          <button type="button" aria-pressed={pasting} title="Paste BibTeX entries (from Google Scholar, a journal's Cite button, a .bib) and add them"
+            onClick={() => setPasting(v => !v)}>Paste BibTeX…</button>
           <button type="button" title="Pick references in Zotero (with the Better BibTeX add-on), or take the Zotero library"
             onClick={() => void fromZotero()}>From Zotero…</button>
           <button type="button" title="Add the references of an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw)"
@@ -177,6 +206,17 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
             onClick={() => void fromKherveRef()}>From KherveRef…</button>
           <span className="dlg-refs-summary">{m.summaryText}</span>
         </div>
+        {pasting && (
+          <div className="dlg-refs-paste">
+            <textarea value={pasted} autoFocus spellCheck={false} rows={6}
+              placeholder={'Paste BibTeX here, e.g.\n@article{smith2020,\n  author = {Smith, Jane},\n  title = {A title},\n  journal = {A journal},\n  year = {2020}\n}'}
+              onChange={(e) => setPasted(e.target.value)} />
+            <div>
+              <button type="button" onClick={() => void addPasted()} disabled={!pasted.trim()}>Add references</button>
+              <button type="button" onClick={() => { setPasting(false); setPasted('') }}>Cancel</button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="dlg-buttons">
         <button type="submit">Done</button>

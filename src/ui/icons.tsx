@@ -799,6 +799,16 @@ export function RefsImport(p: IconProps) {
   </Svg>
 }
 
+// References ▸ Import ▸ BibTeX: a page marked ".bib", a green arrow in.
+export function RefsBib(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2.5, 13, 19)}
+    {T([3.5, 9, 12, 7], 'bib', { size: 6, bold: true, color: BLUE })}
+    {L(6, 17, 12, 17, INK, 1)}
+    {L(21.5, 8, 21.5, 17, GREEN, 1.8)}
+    {P([[18.5, 14], [21.5, 17], [24, 14]], { color: GREEN, closed: false, lw: 1.8 })}
+  </Svg>
+}
+
 // References ▸ Bibliography: a page of numbered entries.
 export function Bibliography(p: IconProps) {
   return <Svg {...p}>
@@ -1793,7 +1803,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, refs_kherveref: RefsKherveRef, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, refs_bib: RefsBib, refs_kherveref: RefsKherveRef, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,

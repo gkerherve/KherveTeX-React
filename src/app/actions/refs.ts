@@ -246,12 +246,15 @@ async function manageReferences(importNow?: 'zotero' | 'kherveref' | ImportKind)
         if (go !== 'Choose file…') return null
       }
       const endnote = kind === 'endnote'
+      const onlyBib = kind === 'bib'
       const bib = { name: 'BibTeX (.bib)', extensions: ['bib'] }
       const en = { name: 'EndNote (.xml, .ris, .enw)', extensions: ['xml', 'ris', 'enw', 'txt'] }
       const all = { name: 'Reference files (.bib, .ris, .enw, .xml)', extensions: ['bib', 'ris', 'enw', 'xml', 'txt'] }
       const paths = await platform().openFileDialog({
-        title: endnote ? 'Import an EndNote export' : kind === 'mendeley' ? 'Import a Mendeley export' : 'Import references',
-        filters: endnote ? [en, bib, { name: 'All files', extensions: [] }]
+        title: endnote ? 'Import an EndNote export' : kind === 'mendeley' ? 'Import a Mendeley export'
+          : onlyBib ? 'Import a BibTeX file (.bib)' : 'Import references',
+        filters: onlyBib ? [bib, { name: 'All files', extensions: [] }]
+          : endnote ? [en, bib, { name: 'All files', extensions: [] }]
           : [all, bib, en, { name: 'All files', extensions: [] }],
       })
       if (!paths?.length) return null
@@ -411,6 +414,7 @@ registerActions({
   refs_endnote: () => importReferences('endnote'),
   refs_mendeley: () => importReferences('mendeley'),
   refs_import: () => importReferences('file'),
+  refs_bib: () => importReferences('bib'),
   refs_kherveref: () => importReferences('kherveref'),
   insert_reference: insertReference,
   bibliography: editBibliography,

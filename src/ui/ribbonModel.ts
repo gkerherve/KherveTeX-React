@@ -304,6 +304,8 @@ const cmds: Command[] = [
     tooltip: 'Add references exported from Mendeley: BibTeX (.bib), RIS (.ris) or EndNote XML (.xml). BETA: not yet tested with real Mendeley exports - please send feedback (Send feedback, top right) if something is missing or wrong.' },
   { id: 'refs_kherveref', text: '&KherveRef…', icon: 'refs_kherveref',
     tooltip: 'Add references from a KherveRef (kRef) library: pick them in the library, they join this document\'s list' },
+  { id: 'refs_bib', text: '&BibTeX (.bib)…', icon: 'refs_bib',
+    tooltip: 'Add the references of a BibTeX file (.bib) to this document\'s reference library: from Zotero, Mendeley, JabRef, BibDesk, Overleaf or a co-author' },
   { id: 'refs_import', text: 'Import &file…', icon: 'refs_import',
     tooltip: 'Add references from a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml), from any reference manager' },
   // The bibliography style: how citations and the reference list print.
@@ -784,7 +786,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'References', groups: [
     { label: 'Citations', large: ['citation', 'manage_references', 'reference_style'] },
-    { label: 'Import', rows: [['refs_zotero', 'refs_mendeley'], ['refs_kherveref', 'refs_endnote'], ['refs_import']], text: true },
+    { label: 'Import', rows: [['refs_bib', 'refs_zotero', 'refs_mendeley'], ['refs_import', 'refs_kherveref', 'refs_endnote']], text: true },
     { label: 'Footnotes', large: ['footnote'] },
     { label: 'Captions', large: ['caption', 'crossref', 'captions'] },
   ] },

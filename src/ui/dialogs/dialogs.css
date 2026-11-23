@@ -58,7 +58,10 @@
 .dlg-refs .dlg-refs-form { flex: 2 1 0; min-width: 0; overflow: auto; display: grid;
   grid-template-columns: auto 1fr; gap: 4px 8px; align-content: start; align-items: center; }
 .dlg-refs .dlg-refs-form input { min-width: 0; }
-.dlg-refs .dlg-refs-tools { display: flex; gap: 6px; align-items: center; }
+.dlg-refs .dlg-refs-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.dlg-refs .dlg-refs-paste { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.dlg-refs .dlg-refs-paste textarea { width: 100%; box-sizing: border-box; font: 12px ui-monospace, Menlo, monospace; resize: vertical; }
+.dlg-refs .dlg-refs-paste > div { display: flex; gap: 6px; justify-content: flex-end; }
 .dlg-refs .dlg-refs-summary { margin-left: auto; }
 
 /* References ▸ Bibliography */
