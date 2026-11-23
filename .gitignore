@@ -29,3 +29,4 @@ dist-ssr
 examples/word/web/
 scripts/guide-shots/out/
 scripts/guide-shots/node_modules/
+web/texlive-local/

@@ -1,7 +1,8 @@
 // The browser fallback: an in-memory file system. Opening a file copies the
 // picked file into it under /browser/; saving into /downloads/ hands the
-// file to the browser as a download. Nothing can be compiled here.
-import type { DirEntry, FileFilter, Platform } from './types'
+// file to the browser as a download. Compiling runs SwiftLaTeX in the
+// browser (swiftlatex.ts), loaded on the first compile only.
+import type { DirEntry, FileFilter, Platform, RunOptions, RunResult } from './types'
 
 interface MemFile { data: Uint8Array; mtime: number }
 
@@ -14,6 +15,10 @@ const browserSecrets = new Map<string, string>()
 export const DOWNLOADS = '/downloads'
 export const COMPILE_UNAVAILABLE =
   'Compiling needs the kTeX desktop app — the browser version cannot run tectonic.'
+
+// What findTectonic reports online: compileTex runs it like tectonic, and
+// run() hands it to SwiftLaTeX.
+export const ONLINE_ENGINE = 'swiftlatex'
 
 const norm = (p: string) => '/' + p.replaceAll('\\', '/').split('/').filter(Boolean).join('/')
 const parentOf = (p: string) => norm(p).replace(/\/[^/]*$/, '') || '/'
@@ -129,9 +134,10 @@ export const browserPlatform: Platform = {
   },
   saveFileDialog: async ({ defaultName }) => `${DOWNLOADS}/${defaultName.split('/').pop()}`,
 
-  run: async () => ({ code: null, stdout: '', stderr: '', timedOut: false, error: COMPILE_UNAVAILABLE }),
-  cancelRunning: async () => {},
-  findTectonic: async () => null,
+  run: (program, args, opts) => program === ONLINE_ENGINE ? runOnline(args, opts)
+    : Promise.resolve({ code: null, stdout: '', stderr: '', timedOut: false, error: COMPILE_UNAVAILABLE }),
+  cancelRunning: async () => { (await import('./swiftlatex')).cancelOnline() },
+  findTectonic: async () => ({ path: ONLINE_ENGINE, bundled: true }),
   findTypst: async () => null,
   defaultTectonicCacheDir: async () => '',
   queryTectonicCacheDir: async () => null,
@@ -163,4 +169,41 @@ export const browserPlatform: Platform = {
       localStorage.setItem(SETTINGS_KEY, text)
     } catch { /* private window: settings last for this session */ }
   },
+}
+
+// tectonic's command line as compileTex gives it (--outdir <dir> ... <file>.tex),
+// run with SwiftLaTeX on the files of the build folder. Pictures named by
+// an absolute path elsewhere in memory are copied in beside them.
+async function runOnline(args: string[], _opts: RunOptions): Promise<RunResult> {
+  const { compileOnline, ONLINE_ENGINE_NOTE } = await import('./swiftlatex')
+  if (args.includes('--version')) return { code: 0, stdout: `SwiftLaTeX XeTeX (online)\n`, stderr: '', timedOut: false, error: null }
+  const texPath = norm(args[args.length - 1])
+  const o = args.indexOf('--outdir')
+  const outdir = o >= 0 ? norm(args[o + 1]) : parentOf(texPath)
+  const staged = []
+  for (const [p, v] of files) {
+    if (p.startsWith(outdir + '/') && p !== texPath && !/\.(pdf|log|xdv|synctex\.gz)$/.test(p)) {
+      staged.push({ path: p.slice(outdir.length + 1), data: v.data })
+    }
+  }
+  let tex = new TextDecoder().decode(files.get(texPath)?.data ?? new Uint8Array())
+  let n = 0
+  tex = tex.replace(/\{(\/[^{}]+)\}/g, (whole, path: string) => {
+    const f = files.get(norm(path))
+    if (!f) return whole
+    const name = `ext/${++n}-${nameOf(path)}`
+    staged.push({ path: name, data: f.data })
+    return `{${name}}`
+  })
+  const main = nameOf(texPath)
+  staged.push({ path: main, data: new TextEncoder().encode(tex) })
+  try {
+    const r = await compileOnline(main, staged)
+    const log = ONLINE_ENGINE_NOTE + '\n\n' + r.log
+    put(texPath.replace(/\.tex$/, '.log'), new TextEncoder().encode(log))
+    if (r.pdf) put(texPath.replace(/\.tex$/, '.pdf'), r.pdf)
+    return { code: r.pdf ? 0 : 1, stdout: log, stderr: '', timedOut: false, error: null }
+  } catch (e) {
+    return { code: null, stdout: '', stderr: '', timedOut: false, error: `SwiftLaTeX: ${(e as Error).message}` }
+  }
 }

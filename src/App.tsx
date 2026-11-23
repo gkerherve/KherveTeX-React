@@ -2,6 +2,7 @@
 // the PDF side panel and the status bar, laid out as KherveTeX's
 // MainWindow in its default "PDF side panel" mode.
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
+import { OnlineStrip } from './ui/OnlineStrip'
 import { useCommandState } from './ui/commands'
 import { MenuBar } from './ui/MenuBar'
 import { TitleBar, titleBarShown } from './ui/TitleBar'
@@ -180,6 +181,7 @@ export default function App() {
         {titleBarShown() && <TitleBar />}
         <MenuBar cmd={cmd} />
         <Ribbon cmd={cmd} context={context} />
+        <OnlineStrip />
         <div className='workspace'>
           <ProjectSidebar />
           <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}

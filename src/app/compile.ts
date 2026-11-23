@@ -148,6 +148,7 @@ async function refreshStatusText(): Promise<void> {
   setUi({
     statusText: ui.engine === 'typst'
       ? (ok ? 'Typst: OK' : 'Typst: NOT FOUND')
+      : platform().kind === 'browser' ? 'LaTeX online (SwiftLaTeX)'
       : (ok ? 'LaTeX (tectonic): OK' : 'tectonic: NOT FOUND'),
   })
 }
@@ -226,9 +227,10 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
   const log = consoleText(result, engine)
   if (pdf !== null) {
     setUi({ message: null, pdfPath: result.pdfPath, consoleError: false })
-    // Cache the PDF next to the document for instant loading.
+    // Cache the PDF next to the document for instant loading (not online,
+    // where a file saved beside the document is a browser download).
     const path = appStore().get().path
-    if (path !== null) {
+    if (path !== null && platform().kind !== 'browser') {
       void platform().writeFile(join(dirname(path), `${docStem(path)}.pdf`), pdf).catch(() => {})
     }
     // Tell the editor how many pages the PDF has and the first text of

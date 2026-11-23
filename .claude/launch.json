@@ -4,8 +4,21 @@
     {
       "name": "khervetex-react",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5174
+    },
+    {
+      "name": "ktex-online",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "5181"
+      ],
+      "port": 5181
     }
   ]
 }
