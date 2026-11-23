@@ -448,7 +448,7 @@
    open; a line under the bar separates it from the page. */
 .ribbon.rb-folded .rb-tab.on { font-weight: 400; border-bottom-color: transparent; }
 .ribbon.rb-folded .rb-tab.on:hover { background: var(--hover-blue); }
-.ribbon.rb-folded { border-bottom: 1px solid #d6d6d6; }
+.ribbon.rb-folded { height: auto; border-bottom: 1px solid #d6d6d6; }
 .ribbon.rb-folded .rb-corner, .ribbon.rb-folded .rb-feedback, .ribbon.rb-folded .rb-coffee { display: none; }
 .ribbon.rb-folded .rb-bar { padding-left: 10px; }
 
