@@ -3,6 +3,7 @@
 // document.json written here is byte-identical to the Python app's.
 
 import type { Design } from './design.ts'
+import type { InkStroke } from './ink.ts'
 import { pyFloatOf, pyInt, pyJson, pyStr, strip, truthy } from './py.ts'
 
 export type Mark = 'bold' | 'italic' | 'underline' | 'code' | 'smallcaps'
@@ -268,6 +269,8 @@ export interface DocMeta {
   landscape?: boolean
   // The Design tab (design.ts); stored only when set.
   design?: Design
+  // Draw tab: pen strokes on the pages (ink.ts); stored only when any.
+  ink?: InkStroke[]
 }
 
 // Python stores these as floats: JSON and f-strings print "2.0", not "2".
@@ -299,6 +302,7 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   ...(o.show_date === false ? { show_date: false } : {}),
   ...(o.landscape ? { landscape: true } : {}),
   ...(o.design && Object.keys(o.design).length ? { design: { ...o.design } } : {}),
+  ...(o.ink && o.ink.length ? { ink: o.ink.map(s => ({ ...s, pts: [...s.pts] })) } : {}),
   ...(o.track_changes ? { track_changes: true } : {}),
   ...(o.markup ? { markup: o.markup } : {}),
   ...(o.date_format ? { date_format: o.date_format } : {}),
@@ -424,6 +428,7 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
     ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
     ...(get(m, 'design', null) && typeof get(m, 'design', null) === 'object' ? { design: { ...get<Design>(m, 'design', {}) } } : {}),
+    ...(Array.isArray(get(m, 'ink', null)) && get<InkStroke[]>(m, 'ink', []).length ? { ink: get<InkStroke[]>(m, 'ink', []).map(s => ({ ...s, pts: [...s.pts] })) } : {}),
     ...(truthy(get(m, 'track_changes', false)) ? { track_changes: true } : {}),
     ...(['simple', 'none', 'original'].includes(get(m, 'markup', '')) ? { markup: get(m, 'markup', '') as 'simple' } : {}),
     ...(get(m, 'date_format', '') ? { date_format: pyStr(get(m, 'date_format', '')) } : {}),

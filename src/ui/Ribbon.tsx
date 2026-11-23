@@ -21,6 +21,10 @@ import { FEEDBACK_EMAIL, SHORT_NAME } from '../version'
 import { accentOf, secondOf, STYLE_SETS } from '../core/design'
 import { searchTools, type ToolHit } from './ribbonSearch'
 import { PREFS_EVENT, pref } from '../app/prefs'
+import { PENS_EVENT, penIndex, pens, setPen, usePen } from '../app/actions/draw'
+import { pickColor } from '../app/actions/table'
+import { inkTool } from '../editor/ink'
+import { PEN_WIDTHS } from '../core/ink'
 import './ribbon.css'
 
 const TILE_W = 70
@@ -146,6 +150,7 @@ function SmallButton({ c, ctx, text }: { c: Command, ctx: Ctx, text: boolean }) 
       onClick={() => ctx.cmd.trigger(c.id)}>
       {c.icon && <Icon name={c.icon} arg={c.iconArg} size={18} />}
       {text && <span>{shortText(c.text)}</span>}
+      {c.beta && <span className='beta-tag rb-small-beta'>beta</span>}
     </button>
   )
 }
@@ -331,6 +336,54 @@ function ClassCell({ cls, on, onPick }: { cls: string, on: boolean, onPick: (cls
   )
 }
 
+// Draw ▸ Pens: Word's pen gallery. A click picks a pen and draws with it
+// (the chosen one stands out); a click on the chosen pen opens its
+// thickness and colour.
+function PenGallery() {
+  const [, tick] = useState(0)
+  const [pop, setPop] = useState<DOMRect | null>(null)
+  useEffect(() => {
+    const on = () => tick(n => n + 1)
+    window.addEventListener(PENS_EVENT, on)
+    return () => window.removeEventListener(PENS_EVENT, on)
+  }, [])
+  const list = pens()
+  const cur = penIndex()
+  const drawing = inkTool()?.kind === 'pen'
+  const pen = list[cur]
+  return (
+    <div className='rb-pens'>
+      {list.map((p, i) => (
+        <button key={i} type='button' className={'rb-pen' + (i === cur && drawing ? ' on' : '')}
+          title={`${p.kind === 'highlighter' ? 'Highlighter' : p.kind === 'pencil' ? 'Pencil' : 'Pen'}: ${p.color}, ${p.width} pt`}
+          onClick={e => {
+            if (i === cur && drawing) setPop(pop ? null : e.currentTarget.getBoundingClientRect())
+            else { setPop(null); usePen(i) }
+          }}>
+          <Icon name='ink_pen' arg={`${p.kind}|${p.color}`} width={22} height={46} />
+        </button>
+      ))}
+      {pop && pen && (
+        <div className='rb-pen-pop' style={{ left: pop.left - 40, top: pop.bottom + 4 }} onMouseLeave={() => setPop(null)}>
+          <div className='rb-pen-pop-title'>Thickness</div>
+          <div className='rb-pen-widths'>
+            {PEN_WIDTHS.filter(w => pen.kind === 'highlighter' ? w >= 3.5 : w <= 6).map(w => (
+              <button key={w} type='button' className={w === pen.width ? 'on' : ''} title={`${w} pt`}
+                onClick={() => { setPen(cur, { ...pen, width: w }); setPop(null) }}>
+                <span style={{ width: Math.max(2, w * 1.6), height: Math.max(2, w * 1.6), background: pen.color, opacity: pen.alpha ?? 1 }} />
+              </button>
+            ))}
+          </div>
+          <button type='button' className='rb-pen-colour' onClick={() => {
+            setPop(null)
+            void pickColor(pen.color).then(c => { if (c) setPen(cur, { ...pen, color: c }) })
+          }}>Colour…</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Design ▸ Document Formatting: Word's style-set gallery, each tile a
 // page in that heading look with the document's colours.
 function StyleSetGallery({ ctx }: { ctx: Ctx }) {
@@ -423,6 +476,7 @@ function Item({ it, ctx, large, text }: {
     if (it.widget === 'styles') return <StyleGallery ctx={ctx} />
     if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
     if (it.widget === 'stylesets') return <StyleSetGallery ctx={ctx} />
+    if (it.widget === 'pens') return <PenGallery />
     return <NumberedTile />
   }
   const c = COMMANDS[it]

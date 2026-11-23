@@ -673,3 +673,10 @@ body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-pagebreak { font-size: 13.33px
 .kt-del-double .kt-del { text-decoration: line-through double; }
 .kt-del-hidden .kt-del { display: none; }
 .kt-track-fixed .kt-ins, .kt-track-fixed .kt-del { color: var(--kt-track-colour); }
+
+/* Draw tab: ink over the pages; it takes the pointer only while a pen or
+   the eraser is chosen. */
+.kt-ink { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 3; }
+.kt-ink.drawing, .kt-ink.erasing { pointer-events: auto; touch-action: none; }
+.kt-ink.drawing { cursor: crosshair; }
+.kt-ink.erasing { cursor: cell; }

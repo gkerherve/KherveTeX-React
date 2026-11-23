@@ -37,7 +37,7 @@ export interface ReferenceEnv {
   // The document's bibliography style ('' for the default).
   style: string
   // An import to start as the dialog opens (the ribbon's Import buttons).
-  start?: 'zotero' | ImportKind
+  start?: 'zotero' | 'kherveref' | ImportKind
 }
 
 function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEnv; close: Close<ReferenceChoice> }) {
@@ -90,6 +90,7 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     if (started.current || !env.start) return
     started.current = true
     if (env.start === 'zotero') void fromZotero()
+    else if (env.start === 'kherveref') void fromKherveRef()
     else void importFile(env.start)
   })
   const fromKherveRef = async () => {

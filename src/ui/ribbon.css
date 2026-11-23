@@ -455,3 +455,22 @@
 /* Preferences ▸ View ▸ Show group titles off; Accessibility ▸ Larger controls. */
 .ribbon.rb-no-titles .rb-caption { display: none; }
 body.kt-larger-controls .ribbon { zoom: 1.18; }
+
+.rb-small-beta { margin-left: 4px; font-size: 8.5px; padding: 0 3px; line-height: 12px; }
+
+/* Draw ▸ Pens: Word's pen gallery in a frame; the chosen pen stands up. */
+.rb-pens { display: flex; align-items: flex-end; gap: 2px; padding: 2px 8px 0; height: 62px; box-sizing: border-box;
+  border: 1px solid #cfcfcf; border-radius: 4px; background: #fff; overflow: hidden; align-self: center; }
+.rb-pen { border: none; background: transparent; padding: 0 3px; height: 58px; display: flex; align-items: flex-end;
+  transform: translateY(10px); transition: transform .12s; }
+.rb-pen:hover { transform: translateY(6px); }
+.rb-pen.on { transform: translateY(0); }
+.rb-pen-pop { position: fixed; z-index: 2000; background: #fff; border: 1px solid #c8c8c8; border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 8px 10px; width: 210px; font-size: 12px; }
+.rb-pen-pop-title { font-weight: 600; margin-bottom: 6px; }
+.rb-pen-widths { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.rb-pen-widths button { width: 30px; height: 30px; border: 1px solid #ddd; border-radius: 4px; background: #fff;
+  display: flex; align-items: center; justify-content: center; }
+.rb-pen-widths button.on { border-color: #2b579a; background: #dce8f7; }
+.rb-pen-widths span { border-radius: 50%; display: block; }
+.rb-pen-colour { border: 1px solid #c8c8c8; background: #f6f6f6; border-radius: 4px; padding: 3px 10px; }

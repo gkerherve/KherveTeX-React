@@ -46,6 +46,8 @@ export interface Command {
   // Big-button icon size when it is not 32 x 32 (page previews: 26 x 33).
   iconW?: number
   iconH?: number
+  // A beta tag beside it: works, but not yet tested by users.
+  beta?: boolean
 }
 
 export type Widget =
@@ -54,6 +56,7 @@ export type Widget =
   | { widget: 'styles' }
   | { widget: 'classes' }
   | { widget: 'stylesets' }
+  | { widget: 'pens' }
   | { widget: 'numbered' }
   // Layout ▸ Indent / Spacing: a number box for the caret's paragraph.
   | { widget: 'parafield', field: 'left_cm' | 'right_cm' | 'before_pt' | 'after_pt' }
@@ -295,10 +298,12 @@ const cmds: Command[] = [
     tooltip: 'Reference library: add, edit, import and delete the references this document can cite (its bibliography)' },
   { id: 'refs_zotero', text: '&Zotero…', icon: 'refs_zotero',
     tooltip: 'Add references from Zotero: pick them in Zotero (with the Better BibTeX add-on), or take the library' },
-  { id: 'refs_endnote', text: '&EndNote…', icon: 'refs_endnote',
-    tooltip: 'Add references from an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw)' },
-  { id: 'refs_mendeley', text: '&Mendeley…', icon: 'refs_mendeley',
-    tooltip: 'Add references exported from Mendeley: BibTeX (.bib), RIS (.ris) or EndNote XML (.xml)' },
+  { id: 'refs_endnote', text: '&EndNote…', icon: 'refs_endnote', beta: true,
+    tooltip: 'Add references from an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw). BETA: not yet tested with real EndNote exports - please send feedback (Send feedback, top right) if something is missing or wrong.' },
+  { id: 'refs_mendeley', text: '&Mendeley…', icon: 'refs_mendeley', beta: true,
+    tooltip: 'Add references exported from Mendeley: BibTeX (.bib), RIS (.ris) or EndNote XML (.xml). BETA: not yet tested with real Mendeley exports - please send feedback (Send feedback, top right) if something is missing or wrong.' },
+  { id: 'refs_kherveref', text: '&KherveRef…', icon: 'refs_kherveref',
+    tooltip: 'Add references from a KherveRef (kRef) library: pick them in the library, they join this document\'s list' },
   { id: 'refs_import', text: 'Import &file…', icon: 'refs_import',
     tooltip: 'Add references from a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml), from any reference manager' },
   // The bibliography style: how citations and the reference list print.
@@ -332,6 +337,25 @@ const cmds: Command[] = [
       { text: 'Stars', items: [{ text: '5-point star', command: 'shape:star' }, { text: '6-point star', command: 'shape:star6' }] },
     ] },
   { id: 'smartart', text: 'SmartArt', icon: 'smartart' },
+  // Draw tab (Word's): ink on the page.
+  { id: 'draw_tool', text: 'Draw', icon: 'draw_tool', checkable: true,
+    tooltip: 'Draw: write and draw on the page with the chosen pen; click again (or Esc) to go back to typing. The ink prints in the PDF at the same place.' },
+  { id: 'eraser_tool', text: 'Eraser', icon: 'eraser_tool', checkable: true, popup: 'split',
+    tooltip: 'Eraser: drag over ink to remove the strokes it touches',
+    menu: [
+      { text: 'Stroke Eraser', icon: 'eraser_tool', command: 'eraser:stroke' },
+      '-',
+      { text: 'Erase All Ink', command: 'eraser:all' },
+    ] },
+  { id: 'add_pen', text: 'Add', icon: 'add_pen', popup: 'split',
+    tooltip: 'Add a pen to the gallery (pick its colour)',
+    menu: [
+      { text: 'Add Pen', icon: 'ink_pen', iconArg: 'pen|#0063B1', command: 'add_pen:pen' },
+      { text: 'Add Pencil', icon: 'ink_pen', iconArg: 'pencil|#7A7A7A', command: 'add_pen:pencil' },
+      { text: 'Add Highlighter', icon: 'ink_pen', iconArg: 'highlighter|#FFFF00', command: 'add_pen:highlighter' },
+      '-',
+      { text: 'Reset Pens', command: 'pens:reset' },
+    ] },
   // Insert ▸ Contents, as Word's References ▸ Table of Contents.
   { id: 'toc', text: 'Table of Contents', icon: 'toc', popup: 'instant',
     tooltip: 'Table of Contents: an automatic table built from the headings (Heading 1–3), kept up to date at each compile',
@@ -705,6 +729,10 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Theorems', large: ['theorem'] },
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig']], text: true },
   ] },
+  { name: 'Draw', groups: [
+    { label: 'Drawing Tools', large: ['draw_tool', 'eraser_tool'] },
+    { label: 'Pens', large: [{ widget: 'pens' }, 'add_pen'] },
+  ] },
   { name: 'Design', groups: [
     { label: 'Document Formatting', large: ['design_themes', { widget: 'stylesets' }] },
     { label: 'Formatting', large: ['design_colors', 'design_fonts'], rows: [['para_spacing'], ['set_default']], text: true },
@@ -726,7 +754,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'References', groups: [
     { label: 'Citations', large: ['citation', 'manage_references', 'reference_style'] },
-    { label: 'Import', rows: [['refs_zotero', 'refs_mendeley'], ['refs_endnote', 'refs_import']], text: true },
+    { label: 'Import', rows: [['refs_zotero', 'refs_mendeley'], ['refs_kherveref', 'refs_endnote'], ['refs_import']], text: true },
     { label: 'Footnotes', large: ['footnote'] },
     { label: 'Captions', large: ['caption', 'crossref', 'captions'] },
   ] },

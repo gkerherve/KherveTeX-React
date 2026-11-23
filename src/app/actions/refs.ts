@@ -8,6 +8,7 @@
 // lookup as QSettings would; "Other library folder…" uses the platform's
 // folder chooser.
 import * as kr from '../../core/kherveref'
+import { runAction } from '../actions'
 import * as docRefs from '../../core/docReferences'
 import type { RefFileAccess, RefreshedBib } from '../../core/kherveref'
 import { citation } from '../../core/model'
@@ -214,7 +215,7 @@ async function insertReference(): Promise<void> {
 // document's own list. It starts from the list the document has (for a
 // document citing from a KherveRef library, its cited entries); a changed
 // list becomes the document's own (DOCUMENT_LIBRARY), bundled in its .ktex.
-async function manageReferences(importNow?: 'zotero' | ImportKind): Promise<void> {
+async function manageReferences(importNow?: 'zotero' | 'kherveref' | ImportKind): Promise<void> {
   await reloadKherverefSettings()
   const doc = appStore().get().doc
   const meta = doc.meta
@@ -236,9 +237,12 @@ async function manageReferences(importNow?: 'zotero' | ImportKind): Promise<void
     style: meta.bib_style || '',
     inform: (title, text) => information(title, text),
     importFile: async (kind) => {
-      if (kind === 'mendeley') {
-        const go = await messageBox({ title: 'From Mendeley', icon: 'information', text: MENDELEY_HELP,
-          buttons: [{ label: 'Choose file…', default: true }, { label: 'Cancel' }] })
+      if (kind === 'mendeley' || kind === 'endnote') {
+        const name = kind === 'mendeley' ? 'Mendeley' : 'EndNote'
+        const go = await messageBox({ title: `From ${name} (beta)`, icon: 'information',
+          text: (kind === 'mendeley' ? MENDELEY_HELP : ENDNOTE_HELP) + BETA_REFS(name),
+          buttons: [{ label: 'Choose file…', default: true }, { label: 'Send feedback' }, { label: 'Cancel' }] })
+        if (go === 'Send feedback') { void runAction('send_feedback'); return null }
         if (go !== 'Choose file…') return null
       }
       const endnote = kind === 'endnote'
@@ -312,6 +316,13 @@ export async function addDocumentReferences(bibtex: string): Promise<string[]> {
 // Mendeley has no connection on the computer that other programs can use
 // (Mendeley Cite talks to its web service), so its references come in as
 // an export file.
+const ENDNOTE_HELP = 'In EndNote, select the references, then File ▸ Export… and choose XML, RIS or '
+  + 'EndNote tagged (.enw) as the output style.\n\nThen choose that file here.'
+// Mendeley and EndNote imports are written from their file formats, not
+// yet tried on users' own exports.
+const BETA_REFS = (name: string) => `\n\nThis import is in BETA: it has not yet been tested with real ${name} `
+  + `libraries. If a reference comes in wrong or incomplete, please send feedback (with the exported file if you can) so it can be fixed.`
+
 const MENDELEY_HELP = 'In Mendeley Reference Manager, select the references (or press Ctrl/Cmd+A '
   + 'for all), then File ▸ Export… and choose BibTeX (.bib), RIS (.ris) or EndNote XML (.xml). '
   + 'In the older Mendeley Desktop: File ▸ Export…, or Tools ▸ Options ▸ BibTeX, which keeps '
@@ -371,7 +382,7 @@ async function references(): Promise<void> {
 // References ▸ Import (From Zotero, From EndNote, Import file): the
 // reference library, the import started in it. A document with a
 // hand-written \bibitem list keeps that list; it is said so instead.
-async function importReferences(start: 'zotero' | ImportKind): Promise<void> {
+async function importReferences(start: 'zotero' | 'kherveref' | ImportKind): Promise<void> {
   if (handWrittenList()) {
     await information('Import references',
       'This document keeps a hand-written reference list (\\bibitem entries), which kTeX does not fill '
@@ -400,6 +411,7 @@ registerActions({
   refs_endnote: () => importReferences('endnote'),
   refs_mendeley: () => importReferences('mendeley'),
   refs_import: () => importReferences('file'),
+  refs_kherveref: () => importReferences('kherveref'),
   insert_reference: insertReference,
   bibliography: editBibliography,
   check_citations: checkCitations,

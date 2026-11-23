@@ -4,6 +4,7 @@
 // headers, footers and footnotes, and offers the EditorApi.
 import { designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
+import { InkLayer } from './ink.ts'
 import { PREFS_EVENT, pref } from '../app/prefs.ts'
 import { syncDesignChecks } from '../app/actions/design.ts'
 const PX_PER_CM_C = 96 / 2.54
@@ -109,6 +110,7 @@ export class EditorController implements ViewHost {
   view: EditorView
   private root: HTMLElement
   private sheetsEl: HTMLElement
+  private inkLayer: InkLayer
   private flowEl: HTMLElement
   private overlayEl: HTMLElement
   private onContext: (k: ContextKind | null) => void
@@ -154,7 +156,19 @@ export class EditorController implements ViewHost {
     this.flowEl.appendChild(pmEl)
     this.overlayEl = document.createElement('div')
     this.overlayEl.className = 'kt-overlay'
-    mount.replaceChildren(this.sheetsEl, this.flowEl, this.overlayEl)
+    // Draw tab: the pen strokes over the pages.
+    this.inkLayer = new InkLayer({
+      ink: () => this.meta.ink ?? [],
+      setInk: ink => {
+        const { ink: _old, ...rest } = this.meta
+        void _old
+        this.setMeta(ink.length ? { ...rest, ink } : rest)
+      },
+      pageHeightPx: () => this.layout.geometry.heightPx,
+      pageWidthPx: () => this.layout.geometry.widthPx,
+      zoom: () => this.zoom(),
+    })
+    mount.replaceChildren(this.sheetsEl, this.flowEl, this.overlayEl, this.inkLayer.el)
 
     const s = appStore().get()
     this.lastDoc = s.doc
@@ -295,6 +309,7 @@ export class EditorController implements ViewHost {
     clearTimeout(this.resolverTimer)
     if (current === this) { setCurrent(null); setEditorApi(null) }
     this.review.destroy()
+    this.inkLayer.destroy()
     this.view.destroy()
   }
 
@@ -760,6 +775,7 @@ export class EditorController implements ViewHost {
       }
     }
     this.sheetsEl.innerHTML = parts.join('')
+    this.inkLayer.render(n)
     this.paintOverlay(geo, n)
   }
 

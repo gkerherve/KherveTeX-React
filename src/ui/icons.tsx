@@ -704,6 +704,11 @@ export function RefsEndNote(p: IconProps) {
 }
 
 // References ▸ Import file: a page with a green arrow coming in.
+// References ▸ Import ▸ KherveRef: a library book marked k.
+export function RefsKherveRef(p: IconProps) {
+  return <Svg {...p}>{R(4, 3, 15, 18, { fill: '#2b5797', color: '#1d3d6b', lw: 1.2, r: 1.5 })}{F(6, 3.6, 1.2, 16.8, '#9ec5f8')}
+    {T([7, 5, 12, 13], 'k', { size: 13, bold: true, color: '#fff', family: 'Georgia, serif' })}</Svg>
+}
 export function RefsImport(p: IconProps) {
   return <Svg {...p}>{Page(3, 2.5, 13, 19)}
     {L(6, 10, 12, 10, INK, 1)}{L(6, 13, 12, 13, INK, 1)}{L(6, 16, 10, 16, INK, 1)}
@@ -1632,6 +1637,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   themes: Themes, design_colors: DesignColors, design_fonts: DesignFonts, para_spacing: ParaSpacing,
   set_default: SetDefault, watermark: Watermark, page_color: PageColor, page_borders: PageBorders,
   style_set_tile: StyleSetTile,
+  draw_tool: DrawTool, eraser_tool: EraserTool, add_pen: AddPen, ink_pen: InkPen,
   pref_general: PrefGeneral, pref_ribbon: PrefRibbon, pref_edit: PrefEdit, pref_autocorrect: PrefAutoCorrect,
   pref_access: PrefAccess, pref_user: PrefUser, pref_files: PrefFiles,
   track_changes: TrackChanges, markup_view: MarkupView, markup_options: MarkupOptions,
@@ -1651,7 +1657,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
-  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
+  citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, refs_kherveref: RefsKherveRef, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,
   math_block: MathBlock, symbol: Symbol, equation_builder: EquationBuilder,
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,
@@ -1799,6 +1805,37 @@ export function PrefUser(p: IconProps) {
 export function PrefFiles(p: IconProps) {
   return <Svg {...p}><path d='M2.5 7.5V18.5H18V9.5H10L8.5 7.5Z' fill='#c3d6ea' stroke={INK} strokeWidth={1.2} strokeLinejoin='round' />
     {C(17, 15, 3.2, INK, 1.4, '#fff')}{L(19.3, 17.3, 22, 20, INK, 1.8)}</Svg>
+}
+
+
+// Draw tab.
+export function DrawTool(p: IconProps) {
+  return <Svg {...p}>{P([[19, 2.5], [21.5, 5], [10, 16.5], [6.5, 17.5], [7.5, 14]], { fill: PAPER, lw: 1.1 })}{L(16.5, 5, 19, 7.5, INK, 1)}
+    <path d='M3 21c2-3 4 0 6-1.5s1-3 3-2.5 2 2 4 1' fill='none' stroke={RED} strokeWidth={1.3} /></Svg>
+}
+export function EraserTool(p: IconProps) {
+  return <Svg {...p}>{P([[13, 3], [21, 11], [14, 18], [6, 10]], { fill: '#e8b8f0', color: '#8e44ad', lw: 1.1 })}
+    {P([[6, 10], [14, 18], [11, 21], [3, 13]], { fill: '#fff', color: '#8e44ad', lw: 1.1 })}
+    <path d='M13 21.5c2-1.5 3 0 5-1s2-1 3 0' fill='none' stroke={INK} strokeWidth={1} /></Svg>
+}
+export function AddPen(p: IconProps) {
+  return <Svg {...p}>{L(12, 4, 12, 20, GREEN, 1.6)}{L(4, 12, 20, 12, GREEN, 1.6)}</Svg>
+}
+// A pen of the gallery (arg "kind|#colour"), drawn as Word's: body, collar, tip.
+export function InkPen({ arg = 'pen|#000000', width = 26, height = 52 }: IconProps) {
+  const [kind, color] = arg.split('|')
+  const hl = kind === 'highlighter', pencil = kind === 'pencil'
+  const light = /^#?f{6}$/i.test(color.replace('#', '')) || color.toUpperCase() === '#FFFFFF'
+  return (
+    <svg className='kicon' width={width} height={height} viewBox='0 0 26 52' aria-hidden='true'>
+      <rect x={4} y={2} width={18} height={hl ? 30 : 32} rx={hl ? 1 : 2} fill={pencil ? '#8a8a8a' : color} stroke='#222' strokeWidth={1.2} />
+      {pencil && <><line x1={10} y1={2} x2={10} y2={34} stroke='#555' /><line x1={16} y1={2} x2={16} y2={34} stroke='#555' /></>}
+      {hl
+        ? <><path d='M4 32 L22 32 L20 42 L6 42 Z' fill='#fff' stroke='#222' strokeWidth={1.2} /><path d='M7 42 L19 42 L19 47 L7 49 Z' fill={color} stroke='#222' strokeWidth={1} /></>
+        : <><path d={`M4 34 L22 34 L14.5 47 L11.5 47 Z`} fill={pencil ? '#f5deb3' : '#fff'} stroke='#222' strokeWidth={1.2} />
+          <path d='M11.5 47 L14.5 47 L13 50.5 Z' fill={pencil ? '#555' : light ? '#ddd' : color} stroke='#222' strokeWidth={0.8} /></>}
+    </svg>
+  )
 }
 
 export function Icon({ name, ...p }: IconProps & { name: string }) {
