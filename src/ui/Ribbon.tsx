@@ -590,7 +590,7 @@ function TabBar({ tabs, current, onPick, onFold }: {
 
 // Word's Search box: type what you want to do; each tool shows where it
 // lives (Tab ▸ Group). Enter or a click goes there and runs it.
-function ToolSearch({ onGo }: { onGo: (h: ToolHit) => void }) {
+export function ToolSearch({ onGo = h => window.dispatchEvent(new CustomEvent('kt-tool-go', { detail: h })) }: { onGo?: (h: ToolHit) => void }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [sel, setSel] = useState(0)
@@ -678,13 +678,8 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   const ctx: Ctx = { cmd, menu, openMenu: setMenu, docClass, fontSize, setFontSize,
     styleLevel, setStyleLevel }
 
-  return (
-    <div className={'ribbon' + (folded ? ' rb-folded' : '')}>
-      <div className='rb-bar'>
-        <Corner ids={CORNER_LEFT} ctx={ctx} side='left' />
-        <TabBar tabs={visible} current={shown.name} onPick={pick} onFold={toggleFold} />
-        <div className='rb-bar-fill' />
-        <ToolSearch onGo={h => {
+  // The Search box (in the menu bar) sends the tool picked here.
+  const goTool = (h: ToolHit) => {
           setCurrent(h.tab)
           if (folded) { setFolded(false); setSetting('ribbon_folded', false) }
           // Show where it is: the group flashes.
@@ -693,7 +688,21 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
             if (el) { el.classList.remove('rb-flash'); void (el as HTMLElement).offsetWidth; el.classList.add('rb-flash') }
           }, 30)
           if (h.command) menuCmd.trigger(h.command)
-        }} />
+  }
+  const goRef = useRef(goTool)
+  goRef.current = goTool
+  useEffect(() => {
+    const on = (e: Event) => goRef.current((e as CustomEvent<ToolHit>).detail)
+    window.addEventListener('kt-tool-go', on)
+    return () => window.removeEventListener('kt-tool-go', on)
+  }, [])
+
+  return (
+    <div className={'ribbon' + (folded ? ' rb-folded' : '')}>
+      <div className='rb-bar'>
+        <Corner ids={CORNER_LEFT} ctx={ctx} side='left' />
+        <TabBar tabs={visible} current={shown.name} onPick={pick} onFold={toggleFold} />
+        <div className='rb-bar-fill' />
         <button type='button' className='rb-feedback'
           title={`${SHORT_NAME} is in beta - some parts are still new. Click to email your feedback to ${FEEDBACK_EMAIL}`}
           onClick={() => { void runAction('send_feedback') }}>

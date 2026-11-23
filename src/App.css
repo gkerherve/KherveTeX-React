@@ -451,3 +451,6 @@
    A4 page, never on it: the desk makes room for it so the page and its
    comments are centred together. */
 .page-scale:has(.kt-has-review) { padding-right: calc(275px * var(--kt-zoom, 1)); }
+.menubar-fill { flex: 1; }
+.menubar .rb-search { margin: 0 4px 0 8px; }
+.menubar .rb-search input { height: 20px; }

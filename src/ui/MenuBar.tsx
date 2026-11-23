@@ -3,6 +3,7 @@ import type { CommandState } from './commands'
 import { aboutToShow, useLiveMenus, withLiveMenus } from './liveMenus'
 import { Mnemonic, Popup } from './Menu'
 import { MENU_BAR } from './menuModel'
+import { ToolSearch } from './Ribbon'
 
 export function MenuBar({ cmd }: { cmd: CommandState }) {
   const [open, setOpen] = useState<{ index: number, rect: DOMRect } | null>(null)
@@ -28,6 +29,8 @@ export function MenuBar({ cmd }: { cmd: CommandState }) {
           <Mnemonic text={m.text} />
         </div>
       ))}
+      <div className='menubar-fill' />
+      <ToolSearch />
       {open && (
         <Popup key={open.index}
           entries={withLiveMenus(MENU_BAR[open.index].text, MENU_BAR[open.index].items, live)}
