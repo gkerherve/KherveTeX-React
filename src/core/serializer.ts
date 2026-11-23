@@ -3,7 +3,7 @@
 // byte-identical to the Python app's (tests/serializer.parity.test.ts).
 
 import { designPreamble } from './design.ts'
-import { inkPreamble } from './ink.ts'
+import { inkPreamble, placeInk } from './ink.ts'
 import { dateCommand } from './dateFormat.ts'
 import {
   HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
@@ -1249,6 +1249,9 @@ function geometryLine(m: DocMeta): string {
 const DATE_ONLY_RE = /^(?:\s*\\date\{[^{}]*\}\s*)+$/
 
 export function serializeDocument(doc: Document): string {
+  // Draw tab: strokes anchored to a word get \kInk{i} at that word.
+  const inked = placeInk(doc.children, doc.meta.ink)
+  if (inked.placed.size) doc = { ...doc, children: inked.blocks }
   const m = doc.meta
   markupMode = m.markup ?? ''
   const isElsarticle = (m.documentclass || '').toLowerCase().startsWith('elsarticle')
@@ -1294,7 +1297,7 @@ export function serializeDocument(doc: Document): string {
   const design = designPreamble(m.design, clsLower)
   if (design) packages += '\n' + design
   // Draw tab: the pen strokes, over each page.
-  const ink = inkPreamble(m.ink)
+  const ink = inkPreamble(m.ink, inked.placed)
   if (ink) packages += '\n' + ink
   // After preamble_extras, so a document's own \newcommand{\Kstroke} wins
   // and ours becomes a no-op.

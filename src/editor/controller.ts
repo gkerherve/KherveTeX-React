@@ -4,7 +4,7 @@
 // headers, footers and footnotes, and offers the EditorApi.
 import { designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
-import { InkLayer } from './ink.ts'
+import { InkLayer, anchorAtPos, posOfAnchor } from './ink.ts'
 import { PREFS_EVENT, pref } from '../app/prefs.ts'
 import { syncDesignChecks } from '../app/actions/design.ts'
 const PX_PER_CM_C = 96 / 2.54
@@ -167,6 +167,18 @@ export class EditorController implements ViewHost {
       pageHeightPx: () => this.layout.geometry.heightPx,
       pageWidthPx: () => this.layout.geometry.widthPx,
       zoom: () => this.zoom(),
+      anchorFor: (x, y) => {
+        const r = this.inkLayer.el.getBoundingClientRect(), z = this.zoom() || 1
+        const hit = this.view.posAtCoords({ left: r.left + x * z, top: r.top + y * z })
+        if (!hit) return null
+        const a = anchorAtPos(this.view.state.doc, hit.pos)
+        const pt = a && this.anchorScreen(a.pos)
+        return a && pt ? { block: a.block, offset: a.offset, x: pt[0], y: pt[1] } : null
+      },
+      anchorPoint: a => {
+        const pos = posOfAnchor(this.view.state.doc, a)
+        return pos === null ? null : this.anchorScreen(pos)
+      },
     })
     mount.replaceChildren(this.sheetsEl, this.flowEl, this.overlayEl, this.inkLayer.el)
 
@@ -353,6 +365,7 @@ export class EditorController implements ViewHost {
     const before = this.view.state
     const next = before.apply(tr)
     this.view.updateState(next)
+    if (tr.docChanged) this.mapInk(before.doc, tr)
     const pages = tr.getMeta(pagesKey)
     const metaChanged = !!tr.getMeta(layoutKey)
     if (tr.docChanged || metaChanged) {
@@ -419,6 +432,39 @@ export class EditorController implements ViewHost {
     void loadFonts(this.families()).then(() => this.relayout())
     this.schedulePages(0)
     this.syncToolbar()
+  }
+
+  // Draw tab: anchored strokes keep their word when the text before it
+  // changes (a paragraph added above, words typed in front).
+  private mapInk(old: EditorState['doc'], tr: Transaction): void {
+    const ink = this.meta.ink
+    if (!ink?.some(s => s.anchor)) return
+    let changed = false
+    const next = ink.map(s => {
+      if (!s.anchor) return s
+      const from = posOfAnchor(old, s.anchor)
+      if (from === null) return s
+      const a = anchorAtPos(this.view.state.doc, tr.mapping.map(from, 1), false)
+      if (!a || (a.block === s.anchor.block && a.offset === s.anchor.offset)) return s
+      changed = true
+      return { ...s, anchor: { ...s.anchor, block: a.block, offset: a.offset } }
+    })
+    if (!changed) return
+    queueMicrotask(() => {
+      if (this.destroyed) return
+      this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { meta: { ...this.meta, ink: next } }).setMeta('addToHistory', false))
+    })
+  }
+
+  // The baseline point of the text at `pos`, in layout px over the sheets.
+  private anchorScreen(pos: number): [number, number] | null {
+    try {
+      const c = this.view.coordsAtPos(pos, 1)
+      const r = this.inkLayer.el.getBoundingClientRect(), z = this.zoom() || 1
+      // Latin Modern's ascent in its 105.15 + 35.55 % content box.
+      const base = c.top + (c.bottom - c.top) * 0.747
+      return [(c.left - r.left) / z, (base - r.top) / z]
+    } catch { return null }
   }
 
   // set_meta: page size, class, fonts, margins... changed.
