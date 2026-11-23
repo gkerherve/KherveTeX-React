@@ -64,7 +64,7 @@ export function pageOf(pos: number, starts: { page: number; pos: number }[]): nu
 }
 
 export function tocWidget(kind: TocKind, entries: TocEntry[], pages: (number | null)[],
-  go: (pos: number) => void): HTMLElement {
+  go: (pos: number) => void, remove?: () => void): HTMLElement {
   const box = document.createElement('div')
   box.className = 'kt-toc'
   box.contentEditable = 'false'
@@ -72,6 +72,26 @@ export function tocWidget(kind: TocKind, entries: TocEntry[], pages: (number | n
   h.className = 'kt-toc-title'
   h.textContent = TOC_TITLES[kind]
   box.appendChild(h)
+  // A click on the title selects the table, as in Word; its × removes it.
+  if (remove) {
+    h.title = 'Click to select; × removes the table'
+    h.style.cursor = 'pointer'
+    const x = document.createElement('button')
+    x.type = 'button'
+    x.className = 'kt-toc-close'
+    x.textContent = '×'
+    x.title = `Remove ${TOC_TITLES[kind] === 'Contents' ? 'Table of Contents' : TOC_TITLES[kind]}`
+    x.addEventListener('mousedown', ev => { ev.preventDefault(); ev.stopPropagation(); remove() })
+    box.appendChild(x)
+    h.addEventListener('mousedown', ev => {
+      ev.preventDefault()
+      box.classList.add('sel')
+      const off = (e: MouseEvent) => {
+        if (!box.contains(e.target as Node)) { box.classList.remove('sel'); document.removeEventListener('mousedown', off, true) }
+      }
+      document.addEventListener('mousedown', off, true)
+    })
+  }
   if (!entries.length) {
     const p = document.createElement('div')
     p.className = 'kt-toc-empty'

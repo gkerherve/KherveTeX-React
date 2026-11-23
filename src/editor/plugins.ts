@@ -101,6 +101,16 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       const d = view.state.doc
       view.dispatch(view.state.tr.setSelection(TextSelection.near(d.resolve(Math.min(p + 1, d.content.size)))).scrollIntoView())
       view.focus()
+    }, () => {
+      // Remove the block, and leave the caret in the text after it.
+      const st = view.state
+      let at = -1, size = 0
+      st.doc.forEach((n, p) => { if (at < 0 && n.type.name === 'raw_latex' && tocBlock(n.textContent)?.kind === t.kind) { at = p; size = n.nodeSize } })
+      if (at < 0) return
+      const tr = st.tr.delete(at, at + size)
+      tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(at, tr.doc.content.size))))
+      view.dispatch(tr.scrollIntoView())
+      view.focus()
     }), { side: -1, key, ignoreSelection: true }))
   })
   let tables = 0

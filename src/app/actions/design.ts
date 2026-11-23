@@ -1,6 +1,7 @@
 // The Design tab (themes, style sets, colours, fonts, paragraph spacing,
 // watermark, page colour and borders) and Insert ▸ Contents (tables of
 // contents, figures and tables).
+import { TextSelection } from 'prosemirror-state'
 import type { DocMeta } from '../../core/model.ts'
 import {
   COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, STYLE_SETS, THEMES, WATERMARKS, type Design, type StyleSet,
@@ -91,7 +92,10 @@ function removeList(kind: TocKind): void {
   if (!spots.length) return
   const tr = st.tr
   for (const [a, b] of spots.reverse()) tr.delete(a, b)
-  e.view.dispatch(tr)
+  const at = tr.mapping.map(spots[spots.length - 1][0])
+  tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(at, tr.doc.content.size))))
+  e.view.dispatch(tr.scrollIntoView())
+  e.view.focus()
 }
 
 const actions: Record<string, Handler> = {

@@ -625,7 +625,17 @@ div.kt-box {
 .kt-hide-comments .kt-comment { background: none !important; border-bottom: none !important; }
 
 /* ----- References ▸ Table of Contents: the list LaTeX prints ----- */
-.kt-raw.kt-raw-toc { font-size: 10px; color: #8a8a8a; background: transparent; border-left: 2px solid #c9d6ea; padding-left: 4px; }
+.kt-flow > pre.kt-raw.kt-raw-toc {
+  font-size: 0; line-height: 0; height: 0; padding: 0; border: 0; overflow: hidden; color: transparent; background: transparent; caret-color: transparent;
+}
+body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-toc { font-size: 13.33px; line-height: normal; height: auto; color: #8a8a8a; }
+.kt-toc { position: relative; border: 1px solid transparent; border-radius: 3px; padding: 0 6px; margin-left: -7px; margin-right: -7px; }
+.kt-toc:hover { border-color: #d5dde9; }
+.kt-toc.sel { border-color: #9fb6d8; background: rgba(43, 87, 154, .03); }
+.kt-toc-close { position: absolute; top: 4px; right: 4px; display: none; width: 22px; height: 22px; border: 1px solid #c8c8c8;
+  border-radius: 3px; background: #fff; color: #555; font: 16px/18px Arial, sans-serif; cursor: pointer; padding: 0; }
+.kt-toc-close:hover { background: #fde7e7; color: #b71c1c; border-color: #e0a0a0; }
+.kt-toc.sel .kt-toc-close { display: block; }
 .kt-toc { margin: 4px 0 14px; user-select: none; cursor: default; }
 .kt-toc-title { font-size: 1.45em; font-weight: 700; margin: 6px 0 12px; }
 .kt-toc-row { display: flex; align-items: baseline; gap: 0; line-height: 1.55; cursor: pointer; }
