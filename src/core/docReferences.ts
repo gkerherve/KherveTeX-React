@@ -143,7 +143,44 @@ export function merge(text: string, other: string): [string, string[]] {
       added.push(key)
     }
   }
-  return [write(items, stringDefinitions(text).concat(stringDefinitions(other))), added]
+  return [write(items, [...stringDefinitions(text), ...stringDefinitions(other),
+    ...preambleDefinitions(text), ...preambleDefinitions(other)]), added]
+}
+
+// The @preamble{...} blocks of a .bib (macros its entries use, such as
+// \noopsort), kept with the list as its @string definitions are.
+export function preambleDefinitions(text: string): string[] {
+  const out: string[] = []
+  for (const m of text.matchAll(/@preamble\s*([{(])/gi)) {
+    const paren = m[1] === '('
+    let depth = 0
+    for (let i = m.index + m[0].length - 1; i < text.length; i++) {
+      const ch = text[i]
+      if (ch === '\\') { i++; continue }
+      if (ch === '{' || (paren && ch === '(')) depth++
+      else if (ch === '}' || (paren && ch === ')')) {
+        depth--
+        if (depth === 0) { out.push(text.slice(m.index, i + 1)); break }
+      }
+    }
+  }
+  return out
+}
+
+// The keys of *other* the list already has for a different reference
+// (not the same entry imported again): kept as they were, and said so.
+export function conflicts(text: string, other: string): string[] {
+  const mine = entries(text)
+  const norm = (src: string) => {
+    const [t, , f] = parseEntry(src)
+    return t.toLowerCase() + '|' + (f.title ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') + '|' + (f.year ?? '')
+  }
+  const out: string[] = []
+  for (const [key, src] of entries(other)) {
+    const have = mine.get(key)
+    if (have !== undefined && have !== src && norm(have) !== norm(src)) out.push(key)
+  }
+  return out
 }
 
 // The list with *source* in place of the entry *oldKey* (at its place),

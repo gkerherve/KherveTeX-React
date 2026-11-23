@@ -16,7 +16,7 @@ import {
   readProjectJson, saveKdocz, type FileAccess,
 } from '../../core/kdocz'
 import { document as newDocument, fromJson, paragraph, toJson, type DocMeta, type Document as KDocument } from '../../core/model'
-import { basename, dirname, join, normalize, suffix, withSuffix } from '../../core/paths'
+import { basename, dirname, isAbsolute, join, normalize, suffix, withSuffix } from '../../core/paths'
 import { serializeDocument } from '../../core/serializer'
 import { serializeDocument as serializeTypst } from '../../core/typstSerializer'
 import { isTauri, platform, type FileFilter } from '../../platform'
@@ -264,6 +264,32 @@ export async function openAction(): Promise<void> {
 // import_tex with base_dir: \input / \include targets are inlined. The
 // importer reads files synchronously, so the files it asks for are fetched
 // and the import re-run until it asks for nothing new.
+// The .bib files a .tex names, read into one reference list: the document
+// adopted as using it, the list, and a line saying what came in (and what
+// could not be found or clashed); null when it names none.
+export async function texBibIntoLibrary(doc: KDocument, dir: string): Promise<{ doc: KDocument; bib: string; report: string } | null> {
+  const { texBibliography, adoptLibrary } = await import('../../core/texBibliography')
+  const refs = await import('../../core/docReferences')
+  const found = texBibliography(doc)
+  if (!found) return null
+  const p = platform()
+  let bib = ''
+  const missing: string[] = [], clashes: string[] = []
+  for (const f of found.files) {
+    const full = isAbsolute(f) ? f : join(dir, f)
+    const text = await p.readText(full).catch(() => null)
+    if (text === null) { missing.push(f); continue }
+    clashes.push(...refs.conflicts(bib, text))
+    bib = refs.merge(bib, text)[0]
+  }
+  if (!bib) return null
+  const n = refs.entries(bib).size
+  let report = `${n} reference${n === 1 ? '' : 's'} from ${found.files.filter(f => !missing.includes(f)).join(', ')} put in the reference library.`
+  if (missing.length) report += ` Not found: ${missing.join(', ')}.`
+  if (clashes.length) report += ` The same key was used for different references in these files: ${[...new Set(clashes)].join(', ')} (the first one is kept).`
+  return { doc: adoptLibrary(doc, found), bib, report }
+}
+
 export async function importTexFile(path: string): Promise<KDocument> {
   const p = platform()
   const doc = await readTexFile(path)
@@ -364,6 +390,7 @@ export async function openPath(path: string): Promise<void> {
   appStore().set({ status: isImport ? 'Importing…' : 'Opening…' })
   let doc: KDocument
   let bib = ''
+  let bibReport = ''
   try {
     if (isKdoczPath(path)) {
       const extractDir = await p.makeTempDir('kdocz-')
@@ -371,6 +398,9 @@ export async function openPath(path: string): Promise<void> {
       bib = await readBundledBib(path, fs)
     } else if (sfx === '.tex') {
       doc = await importTexFile(path)
+      // Its .bib files go into the document's reference library.
+      const got = await texBibIntoLibrary(doc, dirname(path))
+      if (got) { doc = got.doc; bib = got.bib; bibReport = got.report }
     } else if (sfx === '.md' || sfx === '.markdown') {
       doc = importMd(await p.readText(path))
     } else if (sfx === '.rtf' || sfx === '.odt') {
@@ -396,6 +426,7 @@ export async function openPath(path: string): Promise<void> {
     if (await offerChapterSplit(path, doc)) return
     finishImport(doc, path)
     void refreshKherverefBib(doc).catch(() => {})
+    if (bibReport) void information('References', bibReport)
     return
   }
   if (await offerChapterSplit(path, doc, true)) return
@@ -586,10 +617,17 @@ export async function importLatexPackage(path: string): Promise<void> {
     return
   }
   appStore().set({ status: '' })
-  bundledBib = ''
-  setBundledBib('')
+  // The package's .bib files go into the document's reference library.
+  const got = await texBibIntoLibrary(doc, dirname(mainPath)).catch(() => null)
+  if (got) doc = got.doc
+  bundledBib = got?.bib ?? ''
+  setBundledBib(bundledBib)
   finishImport(doc, mainPath, { sourceDir: dirname(mainPath),
     message: `Imported ${basename(path)}: ${count} files unpacked into “${basename(folder)}” beside it — Save As to keep the document` })
+  if (got) {
+    void refreshKherverefBib(doc).catch(() => {})
+    void information('References', got.report)
+  }
 }
 
 async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 'md'): Promise<void> {

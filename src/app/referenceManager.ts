@@ -9,6 +9,7 @@
 // New, Delete, Import .bib… and From KherveRef… change the list; Cite
 // inserts the selected references at the caret. Nothing is saved until
 // Done; Cancel leaves the list as it was.
+import { texToPlain } from '../core/texPlain.ts'
 import * as dr from '../core/docReferences.ts'
 import type { RefRow } from '../core/docReferences.ts'
 
@@ -84,7 +85,7 @@ export class ReferenceManagerModel {
 
   private fill(): void {
     const all = dr.rows(this.textNow, this.cited)
-    this.shown = all.filter(r => (this.filter === 'all' || r.status === this.filter) && dr.matches(r, this.query))
+    this.shown = all.filter(r => (this.filter === 'all' || r.status === this.filter) && (dr.matches(r, this.query) || dr.matches({ ...r, author: texToPlain(r.author), title: texToPlain(r.title) }, this.query)))
     const keys = new Set(this.shown.map(r => r.key))
     this.selected = this.selected.filter(k => keys.has(k))
     this.summaryText = summary(all)

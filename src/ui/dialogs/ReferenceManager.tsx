@@ -9,6 +9,8 @@ import { shortAuthor } from '../../core/references'
 import { FILTERS, LABELS, ReferenceManagerModel } from '../../app/referenceManager'
 import { importToBibtex } from '../../core/refImport'
 import { splitBib } from '../../core/kherveref'
+import { conflicts } from '../../core/docReferences'
+import { texToPlain } from '../../core/texPlain'
 import { openDialog, type Close } from './dialogHost'
 
 export interface ReferenceChoice {
@@ -66,8 +68,9 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
     }
   }
 
-  const report = (title: string, added: string[]) =>
-    env.inform(title, `${added.length} reference${added.length !== 1 ? 's' : ''} added.`)
+  const report = (title: string, added: string[], clash: string[] = []) =>
+    env.inform(title, `${added.length} reference${added.length !== 1 ? 's' : ''} added.`
+      + (clash.length ? `\n\nThese keys are already in the list for a different reference, so the imported ones were not added: ${clash.join(', ')}. Rename the key in the file (or in the list) to keep both.` : ''))
   const importFile = async (kind: ImportKind) => {
     const title = kind === 'endnote' ? 'From EndNote' : kind === 'mendeley' ? 'From Mendeley' : 'Import references'
     const file = await env.importFile(kind)
@@ -79,7 +82,8 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
       await env.inform(title, e instanceof Error ? e.message : String(e))
       return
     }
-    await report(title, m.addBib(bib))
+    const clash = conflicts(m.text(), bib)
+    await report(title, m.addBib(bib), clash)
   }
   const fromZotero = async () => {
     const bib = await env.fromZotero()
@@ -129,12 +133,12 @@ function Manager({ m, env, close }: { m: ReferenceManagerModel; env: ReferenceEn
               <tbody>
                 {rows.map((r, i) => {
                   const missing = r.status === MISSING
-                  const title = missing ? '(not in the list: select it to add it)' : r.title.replace(/[{}]/g, '')
+                  const title = missing ? '(not in the list: select it to add it)' : texToPlain(r.title)
                   return (
                     <tr key={r.key} className={(m.selected.includes(r.key) ? 'selected' : '') + (missing ? ' missing' : '')}
                       aria-selected={m.selected.includes(r.key)}
                       onMouseDown={(e) => { e.preventDefault(); clickRow(i, e) }}>
-                      <td>{r.key}</td><td>{shortAuthor(r.author)}</td><td>{r.year}</td>
+                      <td>{r.key}</td><td>{shortAuthor(texToPlain(r.author))}</td><td>{r.year}</td>
                       <td className="dlg-refs-title" title={title}>{title}</td>
                       <td>{r.status === CITED ? '✓' : missing ? 'missing' : ''}</td>
                     </tr>
