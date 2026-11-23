@@ -44,7 +44,8 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
   recent: string[]; recentExists: boolean[]; examples: string[]; layout: LayoutMode; showAtStart: boolean
   done: (r: WelcomeResult) => void
 }) {
-  const [mode, setMode] = useState(layout)
+  // The way of working is chosen in the View menu; the page keeps it.
+  const mode = layout
   const [again, setAgain] = useState(showAtStart)
   const [exSel, setExSel] = useState(-1)
   const [recSel, setRecSel] = useState(-1)
@@ -111,16 +112,6 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
           </div>
         </div>
         <div style={{ borderTop: '1px solid var(--border)' }} />
-        {heading('How do you want to work?')}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24, rowGap: 10 }}>
-          {MODES.map(([m, title, text]) => (
-            <label key={m} style={{ display: 'block' }}>
-              <input type='radio' name='kt-layout' checked={mode === m} onChange={() => setMode(m)} />
-              <b> {title}</b>
-              <div style={{ paddingLeft: 24 }}>{text}</div>
-            </label>
-          ))}
-        </div>
         <div style={{ color: 'var(--muted, #888)' }}>{SHORT_NAME} is in beta — some parts are still new. Please send feedback to <b>{FEEDBACK_EMAIL}</b> (Help &gt; Send feedback).</div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label><input type='checkbox' checked={again} onChange={e => setAgain(e.target.checked)} /> Show this page when {SHORT_NAME} starts</label>
