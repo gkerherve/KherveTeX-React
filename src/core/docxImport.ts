@@ -295,6 +295,10 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     // --- Table ---
     if (tag === 'tbl') {
       flushList()
+      // An equation kTeX laid out as a borderless table (centred, its
+      // number at the margin; an align one row per line): an equation again.
+      const eq = equationTable(childElem)
+      if (eq !== null) { children.push(eq); continue }
       // A table holding pictures (instructions beside screenshots, as
       // manuals are written) keeps its layout: its cells become LaTeX with
       // the pictures in them.
@@ -341,6 +345,12 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
         if (ext !== null) blankRoomEmu += pyInt(get(ext, null, 'cy'))
       }
     }
+
+    // The date under the title, a DATE field alone in its paragraph (as
+    // kTeX writes \\today): the document's own date, not text.
+    const fields = descendants(para, NS.w, 'fldSimple')
+    if (fields.length === 1 && /^\s*DATE\b/.test(get(fields[0], NS.w, 'instr') ?? '')
+      && descendants(para, NS.w, 't').every(t => fields[0].contains(t))) continue
 
     // Display equations (m:oMathPara): each its own equation block,
     // numbered when "(1)" was typed after it; any text beside them stays a
@@ -2271,4 +2281,40 @@ function _pngRgb(width: number, height: number, raw: Uint8Array): Uint8Array {
   chunk('IDAT', z.subarray(0, o))
   chunk('IEND', new Uint8Array(0))
   return new Uint8Array(out)
+}
+
+// A table that holds only equations (and their "(n)" numbers), as kTeX's
+// Word export lays a numbered equation or an align out: the equation, or
+// null for any other table.
+function equationTable(tbl: XElement): Block | null {
+  const rows = descendants(tbl, NS.w, 'tr')
+  if (!rows.length || descendants(tbl, NS.w, 'tbl').length) return null
+  const out: { parts: string[]; num: boolean }[] = []
+  for (const tr of rows) {
+    const parts: string[] = []
+    let num = false
+    for (const tc of descendants(tr, NS.w, 'tc')) {
+      const maths = descendants(tc, M_NS, 'oMath')
+      const loose = descendants(tc, NS.w, 't').filter(t => !maths.some(m => m.contains(t))).map(t => t.textContent ?? '').join('').trim()
+      if (loose && !/^\(\s*[\w.:-]+\s*\)$/.test(loose)) return null
+      if (loose) num = true
+      for (const m of maths) parts.push(ommlToLatex(m).trim())
+      if (!maths.length) parts.push('')
+    }
+    if (!parts.some(Boolean)) return null
+    out.push({ parts, num })
+  }
+  const anyNum = out.some(r => r.num)
+  // One row, one equation: itself.
+  if (out.length === 1 && out[0].parts.filter(Boolean).length === 1) {
+    return mathBlock(out[0].parts.find(Boolean)!, anyNum, null)
+  }
+  // Rows of [left, right] (the empty side columns dropped): an align.
+  const lines = out.map(r => {
+    const inner = r.parts.slice(1, -1)
+    const [left, right] = inner.length >= 2 ? [inner[0], inner.slice(1).join(' ')] : ['', inner[0] ?? '']
+    return `  ${left} &${right ? ' ' + right : ''}${anyNum && !r.num ? ' \\nonumber' : ''}`
+  })
+  const env = anyNum ? 'align' : 'align*'
+  return mathBlock(`\\begin{${env}}\n${lines.join(' \\\\\n')}\n\\end{${env}}`, anyNum, null)
 }

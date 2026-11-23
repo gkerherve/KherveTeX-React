@@ -23,6 +23,9 @@ import { PyError, pyIndex } from './docxPackage.ts'
 import { basename, join } from './paths.ts'
 import { pyIntParse, pyRound, pyTitle, strip } from './py.ts'
 import { ReferenceResolver } from './references.ts'
+import { byCode } from './pageSizes.ts'
+import { formatDate } from './dateFormat.ts'
+import { latexToOmml } from './latexOmml.ts'
 import { autoBibliography, citeMode, texText } from './autoBibliography.ts'
 import type { Run as BibRun } from './autoBibliography.ts'
 import { parseTheBibliography } from './bibliography.ts'
@@ -968,7 +971,33 @@ function exportTable(b: Builder, block: Table, number?: string): void {
       }
     }
   }
+  tableRules(tbl, block.style || '', rowsOf())
   if (block.caption) captionPara(b, 'Table', number, block.caption, 'center')
+}
+
+// The table's rules as the PDF draws them: \hline (the default) and
+// booktabs / striped a rule above, one under the header row and one below;
+// plain none; grid every line (Word's Table Grid, kept).
+function tableRules(tbl: El, style: string, rows: El[]): void {
+  if (style === 'grid') return
+  const tblPr = findChild(tbl, 'w:tblPr')!
+  removeAll(tblPr, 'w:tblBorders')
+  const borders = insertBefore(tblPr, new El('w:tblBorders'), ['w:shd', 'w:tblLayout', 'w:tblCellMar', 'w:tblLook', 'w:tblCaption', 'w:tblDescription', 'w:tblPrChange'])
+  const heavy = style === 'booktabs' || style === 'striped' ? '12' : '4'
+  const outer = style === 'plain' ? null : heavy
+  for (const side of ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']) {
+    const line = (side === 'top' || side === 'bottom') && outer
+    append(borders, new El(`w:${side}`, line ? [['w:val', 'single'], ['w:sz', outer!], ['w:space', '0'], ['w:color', '000000']] : [['w:val', 'nil']]))
+  }
+  // Under the header row: a thin rule.
+  if (style !== 'plain' && rows.length > 1) {
+    for (const tc of rowCells(rows[0])) {
+      const tcPr = getOrAddTcPr(tc)
+      removeAll(tcPr, 'w:tcBorders')
+      const tb = getOrAdd(tcPr, 'w:tcBorders', TCPR_SEQ)
+      append(tb, new El('w:bottom', [['w:val', 'single'], ['w:sz', '4'], ['w:space', '0'], ['w:color', '000000']]))
+    }
+  }
 }
 
 // ---------------------------------------------------------------- the template package
@@ -1115,7 +1144,13 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
   const right = marginTwips(meta.margin_right_cm, false)
   const sectStart = docXml.indexOf('<w:sectPr')
   const sectEnd = docXml.indexOf('</w:sectPr>') + '</w:sectPr>'.length
-  const sectPr = docXml.slice(sectStart, sectEnd).replace(/<w:pgMar [^>]*\/>/, (pgMar) => pgMar
+  // The document's own paper (A4, Letter...) and orientation, as the PDF.
+  const paper = byCode(meta.page_size || 'A4')
+  let pw = Math.round(paper.width_in * 1440), ph = Math.round(paper.height_in * 1440)
+  if (meta.landscape) [pw, ph] = [ph, pw]
+  const sectPr = docXml.slice(sectStart, sectEnd)
+    .replace(/<w:pgSz [^>]*\/>/, `<w:pgSz w:w="${pw}" w:h="${ph}"${meta.landscape ? ' w:orient="landscape"' : ''}/>`)
+    .replace(/<w:pgMar [^>]*\/>/, (pgMar) => pgMar
     .replace(/ w:top="[^"]*"/, ` w:top="${top}"`).replace(/ w:bottom="[^"]*"/, ` w:bottom="${bottom}"`)
     .replace(/ w:left="[^"]*"/, ` w:left="${left}"`).replace(/ w:right="[^"]*"/, ` w:right="${right}"`))
   b.pageWidth = Number(/<w:pgSz w:w="(\d+)"/.exec(sectPr)![1]) * EMUS_PER_TWIP
@@ -1126,8 +1161,22 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
 
   const total = doc.children.length
 
+  // The date \maketitle prints under the title block (unless switched off).
+  const front = new Set(['Title', 'Author', 'Affiliation', 'Correspondence'])
+  const lastFront = doc.children.reduce((at, bl, k) => (front.has(bl.type) && doc.children.slice(0, k).every(x => front.has(x.type)) ? k : at), -1)
+  const hasTitle = doc.children.some(bl => bl.type === 'Title')
+  const textTwips = () => Math.round((b.pageWidth - b.leftMargin - b.rightMargin) / EMUS_PER_TWIP)
+
   for (let i = 0; i < doc.children.length; i++) {
     const block = doc.children[i]
+    if (i === lastFront + 1 && hasTitle && meta.show_date !== false) {
+      // A DATE field, as \\today: Word writes the day the file is opened.
+      const pic: Record<string, string> = {
+        d_month_y: 'd MMMM yyyy', month_d_y: 'MMMM d, yyyy', month_y: 'MMMM yyyy', dd_mm_yyyy: 'dd/MM/yyyy', iso: 'yyyy-MM-dd',
+      }
+      const fmt = pic[meta.date_format ?? ''] ?? 'MMMM d, yyyy'
+      b.body.push(rawEl(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:fldSimple w:instr=" DATE \\@ &quot;${fmt}&quot; "><w:r><w:t>${escText(formatDate(meta.date_format ?? '', new Date(2000, 0, 1), false))}</w:t></w:r></w:fldSimple></w:p>`))
+    }
     if (block.type === 'Title') {
       const para = b.addParagraph('', 'Title')
       _addInlines(b, para, block.children)
@@ -1179,9 +1228,18 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
         _addInlines(b, para, item.children)
       }
     } else if (block.type === 'MathBlock') {
-      // A Word equation, numbered as in the PDF.
-      const para = b.addParagraph()
-      append(para, rawEl(ommlDisplay(block.latex.trim(), block.numbered ? (numbers.get(i) ?? null) : null)))
+      // A Word equation, numbered as in the PDF: centred, its number at the
+      // right margin; an align one line per row, the = signs lined up.
+      const num = block.numbered ? (numbers.get(i) ?? null) : null
+      const rows = alignRows(block.latex.trim())
+      if (rows) {
+        b.body.push(rawEl(alignTable(rows, num, textTwips())))
+      } else if (num !== null) {
+        b.body.push(rawEl(alignTable([{ left: '', right: stripEnv(block.latex.trim()), numbered: true, centre: true }], num, textTwips())))
+      } else {
+        const para = b.addParagraph()
+        append(para, rawEl(ommlDisplay(block.latex.trim(), null)))
+      }
     } else if (block.type === 'Figure') {
       const align = has(_ALIGN_MAP, block.align) ? _ALIGN_MAP[block.align] : 'center'
       const para = b.addParagraph()
@@ -1293,6 +1351,9 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
     '[Content_Types].xml': types,
     'docProps/core.xml': core,
     'word/document.xml': bodyXml,
+    // A current Word file (not "Compatibility Mode", Word 2010's layout).
+    'word/settings.xml': strFromU8(tpl.files['word/settings.xml']).replace(
+      /(w:name="compatibilityMode" w:uri="http:\/\/schemas.microsoft.com\/office\/word" w:val=")\d+"/, '$115"'),
     'word/_rels/document.xml.rels': relsXml.replace('</Relationships>', rels + '</Relationships>'),
   }
   const files: Zippable = {}
@@ -1310,4 +1371,72 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
 // diagnostics).
 export function docxEntries(bytes: Uint8Array): string[] {
   return Object.keys(unzipSync(bytes))
+}
+
+// ---- displayed equations -------------------------------------------------
+
+// An equation environment's body (\\begin{equation}...\\end{equation} off).
+function stripEnv(latex: string): string {
+  return latex.replace(/^\\begin\{(equation|displaymath)\*?\}\s*/, '').replace(/\s*\\end\{(equation|displaymath)\*?\}$/, '')
+    .replace(/\\label\{[^}]*\}/g, '').trim()
+}
+
+interface AlignRow { left: string; right: string; numbered: boolean; centre?: boolean }
+
+// The rows of an align / align* / eqnarray (null for anything else): each
+// split at its first & into the parts before and after the alignment.
+function alignRows(latex: string): AlignRow[] | null {
+  const m = /^\\begin\{(align|eqnarray|flalign)(\*?)\}([\s\S]*)\\end\{\1\2\}$/.exec(latex)
+  if (!m) return null
+  const starred = m[2] === '*'
+  const rows: string[] = []
+  let depth = 0, cur = ''
+  const body = m[3]
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i]
+    if (c === '{') depth++
+    else if (c === '}') depth--
+    if (depth === 0 && c === '\\' && body[i + 1] === '\\') { rows.push(cur); cur = ''; i++; continue }
+    cur += c
+  }
+  if (cur.trim()) rows.push(cur)
+  return rows.filter(r => r.trim()).map(r => {
+    const numbered = !starred && !/\\(nonumber|notag)\b/.test(r)
+    const clean = r.replace(/\\(nonumber|notag)\b/g, '').replace(/\\label\{[^}]*\}/g, '')
+    const at = clean.indexOf('&')
+    const left = at < 0 ? '' : clean.slice(0, at)
+    const right = (at < 0 ? clean : clean.slice(at + 1)).replace(/&/g, ' ')
+    return { left: left.trim(), right: right.trim(), numbered }
+  })
+}
+
+// A borderless table across the text width: the left parts right-aligned,
+// the right parts left-aligned (so the = signs line up), and each numbered
+// row's number at the right margin, counting on from the block's number.
+function alignTable(rows: AlignRow[], first: string | null, width: number): string {
+  let n = first !== null && /^\d+$/.test(first) ? Number(first) : null
+  // Number columns on both sides (the right one holds the numbers), so the
+  // equations sit centred on the page, as LaTeX's.
+  const colNum = Math.round(width * 0.1), colL = Math.round((width - 2 * colNum) / 2), colR = width - 2 * colNum - colL
+  const none = '<w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/>'
+  const cell = (w: number, jc: string, inner: string, span = 1) =>
+    `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}<w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/><w:jc w:val="${jc}"/></w:pPr>${inner}</w:p></w:tc>`
+  // A cell holding only maths is a displayed equation to Word, centred on
+  // its own unless its justification is set: right before the =, left after.
+  const math = (tex: string, jc: 'right' | 'left' | 'center') => (tex
+    ? `<m:oMathPara><m:oMathParaPr><m:jc m:val="${jc}"/></m:oMathParaPr><m:oMath>${latexToOmml(tex)}</m:oMath></m:oMathPara>` : '')
+  const out = rows.map(r => {
+    let label = ''
+    if (r.numbered && first !== null) {
+      label = `<w:r><w:t>(${escText(n !== null ? String(n) : first)})</w:t></w:r>`
+      if (n !== null) n++
+    }
+    const body = r.centre
+      ? cell(colL + colR, 'center', math(r.right, 'center'), 2)
+      : cell(colL, 'right', math(r.left, 'right')) + cell(colR, 'left', math(r.right, 'left'))
+    return `<w:tr>${cell(colNum, 'left', '')}${body}${cell(colNum, 'right', label)}</w:tr>`
+  })
+  return `<w:tbl><w:tblPr><w:tblW w:w="${width}" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/>`
+    + '<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+    + `<w:tblGrid><w:gridCol w:w="${colNum}"/><w:gridCol w:w="${colL}"/><w:gridCol w:w="${colR}"/><w:gridCol w:w="${colNum}"/></w:tblGrid>${out.join('')}</w:tbl>`
 }

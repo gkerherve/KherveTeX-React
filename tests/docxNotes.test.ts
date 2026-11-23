@@ -109,7 +109,8 @@ describe('citations and cross-references', () => {
     expect(d).toContain('<w:t>(1)</w:t>')
     expect(d).toContain('<w:t xml:space="preserve">Figure 1: </w:t>')
     expect(d).toContain('<w:t xml:space="preserve">1\u2003</w:t>')
-    expect(d).toContain('<m:t>#(1)</m:t>')
+    // The number at the right margin, in the equation's own row.
+    expect(d).toMatch(/<w:jc w:val="right"\/><\/w:pPr><w:r><w:t>\(1\)<\/w:t><\/w:r>/)
   })
 })
 
