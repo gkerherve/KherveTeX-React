@@ -145,8 +145,16 @@ function SmallButton({ c, ctx, text }: { c: Command, ctx: Ctx, text: boolean }) 
       </div>
     )
   }
+  if (c.checkbox) {
+    return (
+      <label className='rb-check' {...tip}>
+        <input type='checkbox' checked={!!on} onChange={() => ctx.cmd.trigger(c.id)} />
+        <span>{shortText(c.text)}</span>
+      </label>
+    )
+  }
   return (
-    <button type='button' {...tip}
+    <button type='button' {...tip} disabled={c.disabled}
       className={'rb-btn rb-small' + (text ? ' rb-text' : '') + (on ? ' on' : '')}
       aria-pressed={c.checkable ? on : undefined} aria-label={shortText(c.text)}
       onClick={() => ctx.cmd.trigger(c.id)}>
@@ -240,6 +248,40 @@ function ParaField({ field }: { field: keyof typeof PARA_FIELDS }) {
         <div className='rb-spin-arrows'>
           <button type='button' disabled={!w.para} aria-label='Up' onClick={() => commit(cur + f.step)}>▴</button>
           <button type='button' disabled={!w.para} aria-label='Down' onClick={() => commit(cur - f.step)}>▾</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Header & Footer ▸ Position: Header from Top / Footer from Bottom (cm).
+const HF_FIELDS = {
+  header_cm: { label: 'Header from Top', icon: 'hf_top' },
+  footer_cm: { label: 'Footer from Bottom', icon: 'hf_bottom' },
+} as const
+function HFField({ field }: { field: keyof typeof HF_FIELDS }) {
+  const w = useRibbonWidgets()
+  const f = HF_FIELDS[field]
+  const cur = w.hf[field]
+  const shown = `${Math.round(cur * 100) / 100} cm`
+  const [value, setValue] = useState(shown)
+  useEffect(() => setValue(shown), [shown])
+  const commit = (v: number) => {
+    if (!isFinite(v)) { setValue(shown); return }
+    void runAction(`hfpos:${field}`, String(Math.max(0, Math.round(v * 100) / 100)))
+  }
+  return (
+    <div className='rb-parafield rb-hffield' title={`${f.label}: the distance from the paper's edge`}>
+      <Icon name={f.icon} size={18} />
+      <span className='rb-parafield-label'>{f.label}:</span>
+      <div className='rb-spin'>
+        <input value={value} aria-label={`${f.label} (cm)`}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') commit(parseFloat(value)) }}
+          onBlur={() => { if (value !== shown) commit(parseFloat(value)) }} />
+        <div className='rb-spin-arrows'>
+          <button type='button' aria-label='Up' onClick={() => commit(cur + 0.05)}>▴</button>
+          <button type='button' aria-label='Down' onClick={() => commit(cur - 0.05)}>▾</button>
         </div>
       </div>
     </div>
@@ -485,6 +527,7 @@ function Item({ it, ctx, large, text }: {
     if (it.widget === 'fontsize') return <FontSizeCombo ctx={ctx} />
     if (it.widget === 'fontfamily') return <FontFamilyCombo ctx={ctx} />
     if (it.widget === 'parafield') return <ParaField field={it.field} />
+    if (it.widget === 'hffield') return <HFField field={it.field} />
     if (it.widget === 'styles') return <StyleGallery ctx={ctx} />
     if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
     if (it.widget === 'stylesets') return <StyleSetGallery ctx={ctx} />
@@ -749,6 +792,11 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   const hiddenQuick = pref('ribbon/hidden_quick')
   const visible = RIBBON_TABS.filter(t => (!t.context || t.context === context) && (t.context || !hiddenTabs.includes(t.name)))
   const shown = visible.find(t => t.name === current) ?? visible[0]
+  // Editing a header or footer opens its tab, as in Word; leaving goes back.
+  useEffect(() => {
+    if (context === 'headerfooter') setCurrent('Header & Footer')
+    else setCurrent(c => (c === 'Header & Footer' ? 'Home' : c))
+  }, [context])
   // Leaving the Draw tab puts the pen (or the eraser) down: back to typing.
   useEffect(() => { if (shown.name !== 'Draw' && inkTool()) setInkTool(null) }, [shown.name])
 

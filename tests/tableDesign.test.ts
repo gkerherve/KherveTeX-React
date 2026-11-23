@@ -101,3 +101,24 @@ describe('table font size', () => {
     expect(tex).toMatch(/\{\\fontsize\{9\}\{10\.8\}\\selectfont\n\\begin\{longtable\}[\s\S]*\\end\{longtable\}\n\}/)
   })
 })
+
+describe('header and footer', () => {
+  it('writes fancyhdr with fields, first page and even pages', async () => {
+    const { docMeta } = await import('../src/core/model.ts')
+    const meta = docMeta({ title: 'Lab Report', header_footer: {
+      header: '{TITLE}\t\t{DATE}', footer: '\tPage {PAGE} of {NUMPAGES}', different_first: true, first_footer: '\tFirst',
+      odd_even: true, even_footer: '\tEven {PAGE}', footer_cm: 1.25 } })
+    const back = fromJson(toJson(document([paragraph([text('x')])], meta)))
+    expect(back.meta.header_footer?.odd_even).toBe(true)
+    const tex = serializeDocument(back)
+    expect(tex).toContain('\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}')
+    expect(tex).toContain('\\fancyhead[L]{\\ifodd\\value{page}Lab Report\\else \\fi}')
+    expect(tex).toContain('\\fancyhead[R]{\\ifodd\\value{page}\\today{}\\else \\fi}')
+    expect(tex).toContain('\\fancyfoot[C]{\\ifodd\\value{page}Page \\thepage{} of \\pageref{LastPage}\\else Even \\thepage{}\\fi}')
+    expect(tex).toContain('\\fancypagestyle{plain}{\\fancyhf{}\\fancyfoot[C]{First}}')
+    expect(tex).toContain('\\setlength{\\footskip}{\\dimexpr 2.5cm-1.25cm\\relax}')
+  })
+  it('leaves a document without one as before', () => {
+    expect(serializeDocument(document([paragraph([text('x')])]))).not.toContain('fancyhdr')
+  })
+})

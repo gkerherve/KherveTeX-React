@@ -506,3 +506,9 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
 .rb-pop-share { min-width: 320px; }
 /* Viewing: the page is read only. */
 .kt-viewing { caret-color: transparent; }
+
+/* Header & Footer ▸ Options: Word's check boxes; Position's boxes. */
+.rb-check { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 6px; font-size: 12px; white-space: nowrap; cursor: default; }
+.rb-check input { margin: 0; }
+.rb-hffield .rb-parafield-label { min-width: 118px; }
+.rb-btn:disabled { opacity: 0.45; pointer-events: none; }

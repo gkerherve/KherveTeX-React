@@ -26,6 +26,10 @@ export type MenuEntry = MenuItem | string
 export interface Command {
   id: string
   text: string
+  // Shown greyed, as Word's Link to Previous with one section.
+  disabled?: boolean
+  // A small checkable command drawn as a check box (Different First Page).
+  checkbox?: boolean
   icon?: string
   iconArg?: string
   shortcut?: string
@@ -60,6 +64,8 @@ export type Widget =
   | { widget: 'numbered' }
   // Layout ▸ Indent / Spacing: a number box for the caret's paragraph.
   | { widget: 'parafield', field: 'left_cm' | 'right_cm' | 'before_pt' | 'after_pt' }
+  // Header & Footer ▸ Position: Header from Top / Footer from Bottom (cm).
+  | { widget: 'hffield', field: 'header_cm' | 'footer_cm' }
 
 export type RibbonItem = string | Widget
 
@@ -71,7 +77,7 @@ export interface RibbonGroup {
   text?: boolean
 }
 
-export type ContextKind = 'table' | 'figure' | 'theorem' | 'equation'
+export type ContextKind = 'table' | 'figure' | 'theorem' | 'equation' | 'headerfooter'
 
 export interface RibbonTab {
   name: string
@@ -579,6 +585,62 @@ const cmds: Command[] = [
       { text: 'Two', command: 'cols_2', icon: 'two_columns', checkable: true },
       { text: 'Three', command: 'cols_3', icon: 'three_columns', checkable: true },
     ] },
+  // Header & Footer: Layout's group and the tab shown while one is edited
+  // (a double-click in a page's top or bottom margin), as Word's.
+  { id: 'hf_header', text: 'Header', icon: 'hf_header', tip: 'hf_header', popup: 'instant',
+    menu: [
+      { text: 'Blank', command: 'hf_header_blank', detail: 'Type your own' },
+      { text: 'Blank (Three Columns)', command: 'hf_header_three', detail: 'Left, centre and right' },
+      { text: 'Title and Date', command: 'hf_header_title', detail: 'The title at the left, the date at the right' },
+      '-',
+      { text: 'Edit Header', command: 'hf_goto_header' },
+      { text: 'Remove Header', command: 'hf_header_remove' },
+    ] },
+  { id: 'hf_footer', text: 'Footer', icon: 'hf_footer', tip: 'hf_footer', popup: 'instant',
+    menu: [
+      { text: 'Blank', command: 'hf_footer_blank', detail: 'Type your own' },
+      { text: 'Blank (Three Columns)', command: 'hf_footer_three', detail: 'Left, centre and right' },
+      { text: 'Page Number', command: 'pagenum_bottom_c', detail: 'The page number in the middle' },
+      { text: 'Page X of Y', command: 'pagenum_xy', detail: 'Page 2 of 7' },
+      '-',
+      { text: 'Edit Footer', command: 'hf_goto_footer' },
+      { text: 'Remove Footer', command: 'hf_footer_remove' },
+    ] },
+  { id: 'hf_pagenum', text: 'Page Number', icon: 'hf_pagenum', tip: 'hf_pagenum', popup: 'instant',
+    menu: [
+      { text: 'Top of Page', items: [
+        { text: 'Plain Number 1 (left)', command: 'pagenum_top_l' },
+        { text: 'Plain Number 2 (centre)', command: 'pagenum_top_c' },
+        { text: 'Plain Number 3 (right)', command: 'pagenum_top_r' },
+      ] },
+      { text: 'Bottom of Page', items: [
+        { text: 'Plain Number 1 (left)', command: 'pagenum_bottom_l' },
+        { text: 'Plain Number 2 (centre)', command: 'pagenum_bottom_c' },
+        { text: 'Plain Number 3 (right)', command: 'pagenum_bottom_r' },
+      ] },
+      { text: 'Page X of Y', command: 'pagenum_xy', detail: 'Page 2 of 7, at the foot' },
+      '-',
+      { text: 'Remove Page Numbers', command: 'pagenum_remove' },
+    ] },
+  { id: 'hf_datetime', text: 'Date & Time', icon: 'hf_datetime', tooltip: 'Date & Time: today\'s date at the cursor in the header or footer (the date the PDF is made)' },
+  { id: 'hf_field', text: 'Field', icon: 'hf_field', popup: 'instant', tooltip: 'Field: a value kept up to date - the page number, the number of pages, the date, the title or the author',
+    menu: [
+      { text: 'Page', command: 'hf_field_PAGE', detail: 'This page\'s number' },
+      { text: 'Number of Pages', command: 'hf_field_NUMPAGES', detail: 'The document\'s page count' },
+      { text: 'Date', command: 'hf_field_DATE', detail: 'Today\'s date' },
+      { text: 'Title', command: 'hf_field_TITLE', detail: 'The document\'s title' },
+      { text: 'Author', command: 'hf_field_AUTHOR', detail: 'The document\'s author' },
+    ] },
+  { id: 'hf_picture', text: 'Picture from File', icon: 'hf_picture', tooltip: 'Picture from File: a picture (a logo) at the cursor in the header or footer' },
+  { id: 'hf_goto_header', text: 'Go to Header', icon: 'hf_goto_header', tooltip: 'Go to Header: edit this page\'s header' },
+  { id: 'hf_goto_footer', text: 'Go to Footer', icon: 'hf_goto_footer', tooltip: 'Go to Footer: edit this page\'s footer' },
+  { id: 'hf_prev', text: 'Previous', icon: 'hf_prev', tooltip: 'Previous: the header or footer of the page before' },
+  { id: 'hf_next', text: 'Next', icon: 'hf_next', tooltip: 'Next: the header or footer of the page after' },
+  { id: 'hf_link', text: 'Link to Previous', icon: 'hf_link', disabled: true, tooltip: 'Link to Previous: this document is one section, so every page shares its header and footer' },
+  { id: 'hf_first', text: 'Different First Page', checkable: true, checkbox: true, tooltip: 'Different First Page: the first page gets its own header and footer (or none)' },
+  { id: 'hf_oddeven', text: 'Different Odd & Even Pages', checkable: true, checkbox: true, tooltip: 'Different Odd & Even Pages: even pages get their own header and footer' },
+  { id: 'hf_showtext', text: 'Show Document Text', checkable: true, checkbox: true, checked: true, tooltip: 'Show Document Text: show the page\'s text (dimmed) while the header or footer is edited' },
+  { id: 'hf_close', text: 'Close Header and Footer', icon: 'hf_close', tooltip: 'Close Header and Footer: back to the document (Esc, or a double-click in the text)' },
   // Layout ▸ Breaks, Line Numbers, Hyphenation (Word's Page Setup group).
   { id: 'breaks', text: 'Breaks', icon: 'breaks', tip: 'breaks', popup: 'instant',
     menu: [
@@ -774,6 +836,15 @@ export const RIBBON_TABS: RibbonTab[] = [
       rows: [['line_numbers'], ['hyphenation']], text: true },
     { label: 'Indent', rows: [[{ widget: 'parafield', field: 'left_cm' }], [{ widget: 'parafield', field: 'right_cm' }]] },
     { label: 'Spacing', rows: [[{ widget: 'parafield', field: 'before_pt' }], [{ widget: 'parafield', field: 'after_pt' }]] },
+    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum'] },
+  ] },
+  { name: 'Header & Footer', context: 'headerfooter', groups: [
+    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum'] },
+    { label: 'Insert', large: ['hf_datetime', 'hf_field', 'hf_picture'] },
+    { label: 'Navigation', large: ['hf_goto_header', 'hf_goto_footer'], rows: [['hf_prev'], ['hf_next'], ['hf_link']], text: true },
+    { label: 'Options', rows: [['hf_first'], ['hf_oddeven'], ['hf_showtext']], text: true },
+    { label: 'Position', rows: [[{ widget: 'hffield', field: 'header_cm' }], [{ widget: 'hffield', field: 'footer_cm' }]] },
+    { label: 'Close', large: ['hf_close'] },
   ] },
   { name: 'View', groups: [
     { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },

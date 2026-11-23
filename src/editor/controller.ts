@@ -5,6 +5,7 @@
 import { designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
 import { InkLayer, anchorAtPos, posOfAnchor } from './ink.ts'
+import { HeaderFooterEditor } from './headerFooter.ts'
 import { PREFS_EVENT, pref } from '../app/prefs.ts'
 import { syncDesignChecks } from '../app/actions/design.ts'
 const PX_PER_CM_C = 96 / 2.54
@@ -113,6 +114,8 @@ export class EditorController implements ViewHost {
   private inkLayer: InkLayer
   private flowEl: HTMLElement
   private overlayEl: HTMLElement
+  // Header & Footer (Insert / Layout ▸ Header, a double-click in a margin).
+  hf!: HeaderFooterEditor
   private onContext: (k: ContextKind | null) => void
   private atoms = new Set<{ render(): void }>()
   private lastDoc: M.Document
@@ -181,6 +184,24 @@ export class EditorController implements ViewHost {
       },
     })
     mount.replaceChildren(this.sheetsEl, this.flowEl, this.overlayEl, this.inkLayer.el)
+    // Header & Footer: drawn on each page, edited in place (headerFooter.ts).
+    this.hf = new HeaderFooterEditor({
+      root: mount,
+      meta: () => this.meta,
+      setHeaderFooter: hf => {
+        const { header_footer: _old, ...rest } = this.meta
+        void _old
+        this.setMeta(hf ? { ...rest, header_footer: hf } : rest)
+      },
+      geometry: () => this.layout.geometry,
+      sheets: () => this.sheets,
+      pageLabel: k => this.labels[k] ?? String(k + this.firstPage),
+      pageCount: () => this.sheets,
+      bodyFont: () => ({ family: this.layout.bodyChar.family, sizePx: this.layout.bodyChar.sizePx }),
+      resolveImage: p => this.resolveImage(p),
+      zoom: () => this.zoom(),
+      changed: () => { this.paintOverlay(this.layout.geometry, this.sheets); this.syncToolbar() },
+    })
 
     const s = appStore().get()
     this.lastDoc = s.doc
@@ -311,6 +332,7 @@ export class EditorController implements ViewHost {
 
   destroy(): void {
     this.destroyed = true
+    this.hf.destroy()
     this.flushExport()
     this.unsub()
     this.unsubSpell()
@@ -983,6 +1005,8 @@ export class EditorController implements ViewHost {
           + `font-family:${L.bodyChar.family};font-size:${size}px">${esc(label)}</div>`)
         continue
       }
+      // Headers and footers of the document's own replace the class's.
+      if (this.hf.current()) continue
       let opensChapter = false
       let firstH2: [string, string] | null = null
       for (const h of starts.get(k) ?? []) {
@@ -1061,6 +1085,7 @@ export class EditorController implements ViewHost {
           + `${f}font-size:${size}px;${color}">${esc(text)}</div>`)
       }
     }
+    out.push(this.hf.paint(sheets))
     this.overlayEl.innerHTML = out.join('')
   }
 
@@ -1125,7 +1150,12 @@ export class EditorController implements ViewHost {
       const cur = [meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm]
       setCommandChecked(`margin_${name}`, cur.every((v, i) => Math.abs(v - m[i]) < 0.01))
     }
-    const ctx = C.contextObject(s)
+    const ctx = this.hf?.editing ? 'headerfooter' as const : C.contextObject(s)
+    const hfs = this.hf?.current()
+    setCommandChecked('hf_first', !!hfs?.different_first)
+    setCommandChecked('hf_oddeven', !!hfs?.odd_even)
+    setCommandChecked('hf_showtext', this.hf ? this.hf.showText : true)
+    setRibbonWidgets({ hf: { header_cm: hfs?.header_cm ?? 1.25, footer_cm: hfs?.footer_cm ?? 1.25 } })
     if (ctx === 'table') {
       const col = C.currentColumnAlignment(s)
       setCommandChecked(`tbl_align_${col || 'l'}`, true)

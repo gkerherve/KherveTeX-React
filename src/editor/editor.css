@@ -66,6 +66,22 @@
 
 .kt-flow > * { flex: none; }
 
+/* Header & Footer (headerFooter.ts): the page's own, and editing one in
+   place - the body dimmed, the band's line and name tab, three zones. */
+.kt-hf-text { position: absolute; white-space: pre; color: inherit; }
+.kt-hf-pic { vertical-align: middle; }
+.kt-hf-layer { z-index: 4; }
+.kt-pages.kt-hf-editing .kt-flow-wrap { opacity: 0.45; }
+.kt-pages.kt-hf-editing.kt-hf-hide-text .kt-flow-wrap { opacity: 0; }
+.kt-hf-line { position: absolute; height: 0; border-top: 1px dashed #4472c4; pointer-events: none; }
+.kt-hf-tab { position: absolute; font: 11px -apple-system, "Segoe UI", sans-serif; color: #1f3864; background: #dae3f3;
+  border: 1px solid #8faadc; border-radius: 3px 3px 0 0; padding: 1px 7px; pointer-events: none; }
+.kt-hf-row { position: absolute; display: grid; grid-template-columns: 1fr 1fr 1fr; pointer-events: auto; }
+.kt-hf-cell { outline: none; white-space: pre-wrap; min-height: 1em; cursor: text; border-radius: 2px; }
+.kt-hf-cell:hover, .kt-hf-cell:focus { background: rgba(68, 114, 196, 0.07); }
+.kt-hf-cell:empty:focus::before { content: attr(data-placeholder); color: #a0a0a0; }
+.kt-hf-field { background: #e6e6e6; border-radius: 2px; }
+
 /* Layout ▸ Hyphenation ▸ None. */
 .kt-pages.kt-nohyphen .kt-flow, .kt-pages.kt-nohyphen .kt-flow * { -webkit-hyphens: manual; hyphens: manual; }
 

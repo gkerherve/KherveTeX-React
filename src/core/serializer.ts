@@ -6,7 +6,7 @@ import { designPreamble } from './design.ts'
 import { inkPreamble, placeInk } from './ink.ts'
 import { dateCommand } from './dateFormat.ts'
 import {
-  HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
+  HF_FIELD_RE, HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
 } from './model.ts'
 import type {
   Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, List, Paragraph, Project, Table,
@@ -1053,9 +1053,64 @@ function classOptions(m: DocMeta): string {
   return opts.join(',')
 }
 
+// Header & Footer: fancyhdr, each text's parts at the left, centre and
+// right (Word's tab stops), its fields as LaTeX's; the first page (the
+// title's \\thispagestyle{plain} too) and even pages their own when set;
+// Header from Top / Footer from Bottom through \\headsep and \\footskip.
+export function headerFooterLatex(m: DocMeta): string[] {
+  const hf = m.header_footer
+  if (!hf) return []
+  const used = [hf.header, hf.footer, hf.first_header, hf.first_footer, hf.even_header, hf.even_footer].join('\n')
+  const text = (s: string): string => {
+    let out = ''
+    let last = 0
+    for (const mt of s.matchAll(HF_FIELD_RE)) {
+      out += escapeText(s.slice(last, mt.index))
+      const f = mt[1]
+      // {} ends a command word: "\\thepage{} of" keeps its space.
+      out += f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref{LastPage}' : f === 'DATE' ? '\\today{}'
+        : f === 'TITLE' ? escapeText(m.title || '') : f === 'AUTHOR' ? escapeText(m.author || '')
+          : `\\raisebox{-0.3\\height}{\\includegraphics[height=0.9cm]{${f.slice(8).trim()}}}`
+      last = (mt.index ?? 0) + mt[0].length
+    }
+    return out + escapeText(s.slice(last))
+  }
+  // "a" left; "a<tab>b" left and centre; "a<tab>b<tab>c" left, centre, right.
+  const parts = (s = ''): [string, string, string] => {
+    const p = s.split('\t')
+    return [p[0] ?? '', p[1] ?? '', p.slice(2).join(' ')]
+  }
+  const slots = (head: string | undefined, foot: string | undefined, even?: [string | undefined, string | undefined]): string[] => {
+    const out: string[] = ['\\fancyhf{}']
+    for (const [cmd, odd, ev] of [['fancyhead', head, even?.[0]], ['fancyfoot', foot, even?.[1]]] as const) {
+      const o = parts(odd), e = even ? parts(ev) : null
+      ;(['L', 'C', 'R'] as const).forEach((side, i) => {
+        const a = text(o[i]), b = e ? text(e[i]) : a
+        if (!a && !b) return
+        out.push(`\\${cmd}[${side}]{${a === b ? a : `\\ifodd\\value{page}${a}\\else ${b}\\fi`}}`)
+      })
+    }
+    return out
+  }
+  const lines = ['\\usepackage{fancyhdr}']
+  if (/\{NUMPAGES\}/.test(used)) lines.push('\\usepackage{lastpage}')
+  lines.push('\\pagestyle{fancy}', '\\renewcommand{\\headrulewidth}{0pt}', '\\renewcommand{\\footrulewidth}{0pt}')
+  const even = hf.odd_even ? [hf.even_header, hf.even_footer] as [string | undefined, string | undefined] : undefined
+  lines.push(...slots(hf.header, hf.footer, even))
+  // The first page (and \\maketitle's plain style): its own, or the same.
+  const first = hf.different_first ? slots(hf.first_header, hf.first_footer) : slots(hf.header, hf.footer, even)
+  lines.push(`\\fancypagestyle{plain}{${first.join('')}}`)
+  if (hf.different_first) lines.push('\\AtBeginDocument{\\thispagestyle{plain}}')
+  const set: string[] = []
+  if (hf.header_cm !== undefined) set.push(`\\setlength{\\headheight}{14pt}\\setlength{\\headsep}{\\dimexpr ${pyFloat(m.margin_top_cm)}cm-${pyFloat(hf.header_cm)}cm-\\headheight\\relax}`)
+  if (hf.footer_cm !== undefined) set.push(`\\setlength{\\footskip}{\\dimexpr ${pyFloat(m.margin_bottom_cm)}cm-${pyFloat(hf.footer_cm)}cm\\relax}`)
+  if (set.length) lines.push(`\\AtBeginDocument{${set.join('')}}`)
+  return lines
+}
+
 // Layout ▸ Line Numbers and Hyphenation, at the end of the preamble.
 function withLayoutOptions(packages: string, m: DocMeta): string {
-  const add: string[] = []
+  const add: string[] = [...headerFooterLatex(m)]
   if (m.line_numbers) {
     add.push(m.line_numbers === 'page' ? '\\usepackage[pagewise]{lineno}' : '\\usepackage{lineno}', '\\linenumbers')
     if (m.line_numbers === 'section') add.push('\\AddToHook{cmd/section/before}{\\resetlinenumber}')

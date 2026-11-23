@@ -952,6 +952,60 @@ export function Hyphenation(p: IconProps) {
   </Svg>
 }
 
+// ----- Header & Footer (Word's tab) -----
+
+// A page with its header (or footer) band shaded orange, as Word's.
+function BandPage({ foot, ...p }: IconProps & { foot: boolean }) {
+  return <Svg {...p}>{Page(4, 2, 16, 20, 3)}
+    {foot ? F(5, 16.5, 14, 4.5, '#f4b183') : F(5, 3, 11.5, 4.5, '#f4b183')}
+    {foot ? L(4.5, 16, 19.5, 16, '#c55a11', 1) : L(4.5, 8, 19.5, 8, '#c55a11', 1)}
+    {[10.5, 13].map(y => <g key={y}>{L(7, foot ? y - 1 : y, 17, foot ? y - 1 : y, INK, 1)}</g>)}
+  </Svg>
+}
+export const HfHeader = (p: IconProps) => <BandPage {...p} foot={false} />
+export const HfFooter = (p: IconProps) => <BandPage {...p} foot />
+export function HfPageNum(p: IconProps) {
+  return <Svg {...p}>{Page(4, 2, 16, 20, 3)}
+    {T([4, 6, 16, 12], '#', { size: 11, bold: true, color: BLUE })}</Svg>
+}
+export function HfDateTime(p: IconProps) {
+  return <Svg {...p}>{R(3, 4, 15, 14, { fill: PAPER })}{L(3, 8, 18, 8, INK, 1.2)}
+    {L(7, 2.5, 7, 6, INK, 1.4)}{L(14, 2.5, 14, 6, INK, 1.4)}
+    <circle cx={17} cy={17} r={5} fill={PAPER} stroke={BLUE} strokeWidth={1.3} />
+    {L(17, 17, 17, 14, BLUE, 1.2)}{L(17, 17, 19, 18, BLUE, 1.2)}</Svg>
+}
+export function HfField(p: IconProps) {
+  return <Svg {...p}>{R(2.5, 7, 19, 10, { fill: PAPER, r: 1 })}{F(5, 10, 14, 4, '#c8c8c8')}</Svg>
+}
+export function HfPicture(p: IconProps) {
+  return <Svg {...p}>{R(2.5, 4, 15, 12, { fill: PAPER })}
+    {P([[4, 14], [8, 9], [11, 12], [13, 10], [16, 14]], { color: GREEN, closed: false, lw: 1.2 })}
+    {R(10, 11, 12, 9, { fill: '#cfe3f7', color: BLUE })}{L(13, 22, 19, 22, INK, 1.2)}</Svg>
+}
+export const HfGotoHeader = (p: IconProps) => <Svg {...p}>{Page(5, 2, 14, 20, 3)}
+  {F(6, 3, 9, 4, '#f4b183')}{L(12, 18, 12, 9.5, BLUE, 1.4)}{P([[9.5, 12], [12, 9.5], [14.5, 12]], { closed: false, color: BLUE, lw: 1.4 })}</Svg>
+export const HfGotoFooter = (p: IconProps) => <Svg {...p}>{Page(5, 2, 14, 20, 3)}
+  {F(6, 16.5, 12, 4.5, '#f4b183')}{L(12, 5, 12, 13.5, BLUE, 1.4)}{P([[9.5, 11], [12, 13.5], [14.5, 11]], { closed: false, color: BLUE, lw: 1.4 })}</Svg>
+const HfStep = ({ up, ...p }: IconProps & { up: boolean }) => <Svg {...p}>{R(4, 3, 16, 18, { fill: PAPER })}
+  {F(5, up ? 4 : 15, 14, 5, '#f4b183')}
+  {up ? P([[9, 14], [12, 11], [15, 14]], { closed: false, color: BLUE, lw: 1.6 }) : P([[9, 9], [12, 12], [15, 9]], { closed: false, color: BLUE, lw: 1.6 })}</Svg>
+export const HfPrev = (p: IconProps) => <HfStep {...p} up />
+export const HfNext = (p: IconProps) => <HfStep {...p} up={false} />
+export function HfLink(p: IconProps) {
+  return <Svg {...p}>{R(3, 3, 12, 8, { fill: PAPER })}{R(9, 13, 12, 8, { fill: PAPER })}
+    {L(7, 11, 7, 17, INK, 1.2)}{L(7, 17, 9, 17, INK, 1.2)}</Svg>
+}
+export function HfClose(p: IconProps) {
+  return <Svg {...p}>{R(3, 3, 18, 18, { fill: '#c42b1c', color: '#c42b1c', r: 2 })}
+    {L(8, 8, 16, 16, '#fff', 2)}{L(16, 8, 8, 16, '#fff', 2)}</Svg>
+}
+const HfPos = ({ foot, ...p }: IconProps & { foot: boolean }) => <Svg {...p}>
+  {F(3, foot ? 14 : 4, 18, 6, '#9dc3e6')}{L(3, foot ? 21 : 3, 21, foot ? 21 : 3, INK, 1.2)}
+  {L(12, foot ? 13 : 11, 12, foot ? 20 : 4, INK, 1)}
+  {P(foot ? [[10, 18], [12, 20], [14, 18]] : [[10, 6], [12, 4], [14, 6]], { closed: false, lw: 1 })}</Svg>
+export const HfTop = (p: IconProps) => <HfPos {...p} foot={false} />
+export const HfBottom = (p: IconProps) => <HfPos {...p} foot />
+
 export function HorizontalRule(p: IconProps) {
   return <Svg {...p}>{L(4, 6, 20, 6, INK, 1)}{L(4, 18, 20, 18, INK, 1)}
     {L(2.5, 12, 21.5, 12, BLUE, 2)}</Svg>
@@ -1810,6 +1864,9 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   three_columns: ThreeColumns, page_break: PageBreak,
   breaks: Breaks, column_break: ColumnBreak, section_next: SectionNext, section_odd: SectionOdd,
   line_numbers: LineNumbers, hyphenation: Hyphenation,
+  hf_header: HfHeader, hf_footer: HfFooter, hf_pagenum: HfPageNum, hf_datetime: HfDateTime, hf_field: HfField,
+  hf_picture: HfPicture, hf_goto_header: HfGotoHeader, hf_goto_footer: HfGotoFooter, hf_prev: HfPrev, hf_next: HfNext,
+  hf_link: HfLink, hf_close: HfClose, hf_top: HfTop, hf_bottom: HfBottom,
   horizontal_rule: HorizontalRule, title_date: TitleDate, zoom_in: ZoomIn, zoom_out: ZoomOut,
   fit_width: FitWidth, pdf_follow: PdfFollow, documents_panel: DocumentsPanel, split_documents: SplitDocuments, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
   table_row_above: TableRowAbove, table_row_below: TableRowBelow,

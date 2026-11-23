@@ -18,13 +18,14 @@ export interface RibbonWidgets {
   // The caret's paragraph's indents (cm) and space before / after (pt);
   // null outside a paragraph (Layout ▸ Indent / Spacing).
   para: { left_cm: number; right_cm: number; before_pt: number; after_pt: number } | null
+  hf: { header_cm: number; footer_cm: number }
   // Design tab: the document's design (style set, colours...).
   design: Design
 }
 
 let state: RibbonWidgets = {
   docClass: 'article', fontSize: '12', fontFamily: 'default', styleLevel: 0, numbered: true, numberedEnabled: false,
-  disabledStyles: {}, para: null, design: {},
+  disabledStyles: {}, para: null, design: {}, hf: { header_cm: 1.25, footer_cm: 1.25 },
 }
 const listeners = new Set<() => void>()
 

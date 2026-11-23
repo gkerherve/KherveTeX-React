@@ -237,6 +237,28 @@ export const project = (o: Partial<Omit<Project, 'type'>> = {}): Project => ({
 // amssymb provides \square, the equation builder's placeholder slot.
 export const DEFAULT_PACKAGES = ['amsmath', 'amssymb', 'graphicx', 'multicol', 'float']
 
+// Layout / Insert ▸ Header & Footer, as Word's: each text is up to three
+// parts split by a tab (left, centre, right, Word's tab stops) with fields
+// {PAGE}, {NUMPAGES}, {DATE}, {TITLE}, {AUTHOR} and {PICTURE:path}.
+export interface HeaderFooter {
+  header?: string
+  footer?: string
+  // Different First Page: the first page's own (empty = none there).
+  different_first?: boolean
+  first_header?: string
+  first_footer?: string
+  // Different Odd & Even Pages: the even pages' own.
+  odd_even?: boolean
+  even_header?: string
+  even_footer?: string
+  // Header from Top / Footer from Bottom (cm, from the paper's edge).
+  header_cm?: number
+  footer_cm?: number
+}
+export const HF_FIELDS = ['PAGE', 'NUMPAGES', 'DATE', 'TITLE', 'AUTHOR'] as const
+// {PAGE}, {PICTURE:images/logo.png}...
+export const HF_FIELD_RE = /\{(PAGE|NUMPAGES|DATE|TITLE|AUTHOR|PICTURE:[^{}]+)\}/g
+
 export interface DocMeta {
   title: string
   author: string
@@ -277,6 +299,9 @@ export interface DocMeta {
   // the document, from 1 on each page or from 1 at each section. Stored
   // only when on.
   line_numbers?: 'continuous' | 'page' | 'section'
+  // The headers and footers set in the page (Header & Footer tab); absent =
+  // the class's own (a page number).
+  header_footer?: HeaderFooter
   // Layout ▸ Hyphenation ▸ None: words are not broken at line ends.
   // Stored only when off.
   hyphenation?: false
@@ -316,6 +341,7 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   ...(o.landscape ? { landscape: true } : {}),
   ...(o.line_numbers ? { line_numbers: o.line_numbers } : {}),
   ...(o.hyphenation === false ? { hyphenation: false } : {}),
+  ...(o.header_footer ? { header_footer: { ...o.header_footer } } : {}),
   ...(o.design && Object.keys(o.design).length ? { design: { ...o.design } } : {}),
   ...(o.ink && o.ink.length ? { ink: o.ink.map(s => ({ ...s, pts: [...s.pts] })) } : {}),
   ...(o.track_changes ? { track_changes: true } : {}),
@@ -445,6 +471,7 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
     ...(['continuous', 'page', 'section'].includes(get(m, 'line_numbers', '')) ? { line_numbers: get(m, 'line_numbers', '') as 'page' } : {}),
     ...(get<unknown>(m, 'hyphenation', true) === false ? { hyphenation: false as const } : {}),
+    ...(get(m, 'header_footer', null) && typeof get(m, 'header_footer', null) === 'object' ? { header_footer: { ...get<HeaderFooter>(m, 'header_footer', {}) } } : {}),
     ...(get(m, 'design', null) && typeof get(m, 'design', null) === 'object' ? { design: { ...get<Design>(m, 'design', {}) } } : {}),
     ...(Array.isArray(get(m, 'ink', null)) && get<InkStroke[]>(m, 'ink', []).length ? { ink: get<InkStroke[]>(m, 'ink', []).map(s => ({ ...s, pts: [...s.pts] })) } : {}),
     ...(truthy(get(m, 'track_changes', false)) ? { track_changes: true } : {}),
