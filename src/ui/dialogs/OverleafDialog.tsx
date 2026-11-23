@@ -21,7 +21,7 @@ function OverleafDialog({ action, link: link0, token: token0, close }: {
       <div className="dlg-title">{action} Overleaf</div>
       <div className="dlg-body">
         <div>
-          Collaborators edit the project on <b>overleaf.com</b>; KherveTeX sends your version
+          Collaborators edit the project on <b>overleaf.com</b>; kTeX sends your version
           there and gets theirs back as a document.<br /><br />
           1. Open the project on Overleaf and copy the address from the browser.<br />
           2. In Overleaf, open <b>Account Settings › Git Integration</b> and create a token.<br /><br />

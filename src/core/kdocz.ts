@@ -199,7 +199,7 @@ export function unpackKtex(bytes: Uint8Array, name = 'document.ktex'): UnpackedK
     const manifest = JSON.parse(strFromU8(files[MANIFEST_BASENAME]))
     const version = manifest.schema_version ?? 0
     if (version > SCHEMA_VERSION) {
-      throw new Error(`${basename(name)} was produced by a newer KherveTeX (schema ${version} > ${SCHEMA_VERSION}).`)
+      throw new Error(`${basename(name)} was produced by a newer kTeX (schema ${version} > ${SCHEMA_VERSION}).`)
     }
   }
   if (!(DOC_BASENAME in files)) throw new Error(`${basename(name)} has no ${DOC_BASENAME}`)

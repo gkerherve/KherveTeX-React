@@ -35,7 +35,7 @@ export function letter(): KDocument {
       margin_top_cm: 2.0,
       margin_bottom_cm: 2.0,
       preamble_extras: '\\address{Dr Jane Author\\\\Department of Examples\\\\' +
-      'University of KherveTeX\\\\123 Example Road\\\\' +
+      'University of kTeX\\\\123 Example Road\\\\' +
       'London EC1A 1AA\\\\jane.author@example.org}\n' +
       '\\signature{Dr Jane Author\\\\\\textit{on behalf of all authors}}\n' +
       '\\date{17 May 2026}\n',
@@ -50,14 +50,14 @@ export function letter(): KDocument {
       _p(['Submission of manuscript JWE-2026-0142 for consideration', ['bold']]),
       _p(
         'I am writing to submit our manuscript, entitled ' +
-        '“A worked example of the KherveTeX editor for ' +
+        '“A worked example of the kTeX editor for ' +
         'scientific writing,” for consideration as a research ' +
         'article in the Journal of Worked Examples. The work has ' +
         'not been published elsewhere and is not under ' +
         'consideration at any other journal.',
       ),
       _p(
-        'The manuscript presents KherveTeX, an editor that stores documents as a structured model and serialises them to LaTeX on demand. Our contributions are threefold:',
+        'The manuscript presents kTeX, an editor that stores documents as a structured model and serialises them to LaTeX on demand. Our contributions are threefold:',
       ),
       _ordItems(
         'a document model that round-trips to LaTeX, including ' +

@@ -577,7 +577,7 @@ export const HOSTS: Host[] = [
     darwin: '~/.config/zed/settings.json',
     win: '%APPDATA%/Zed/settings.json',
     linux: '~/.config/zed/settings.json',
-  }, "Zed's settings file allows comments, so KherveTeX will not rewrite it. Copy the snippet in by hand.",
+  }, "Zed's settings file allows comments, so kTeX will not rewrite it. Copy the snippet in by hand.",
   true),
 ]
 

@@ -11,11 +11,11 @@ export function PlaceholderPage({ onContext }: { onContext?: (k: ContextKind | n
   }
   return (
     <div className='doc' onClick={() => onContext?.(null)}>
-      <h1 className='doc-title'>Welcome to KherveTeX</h1>
+      <h1 className='doc-title'>Welcome to kTeX</h1>
       <p className='doc-subtitle'>A guided tour of the editor</p>
-      <h2 className='doc-section'><span>1</span>What KherveTeX is</h2>
+      <h2 className='doc-section'><span>1</span>What kTeX is</h2>
       <p className='doc-p doc-first'>
-        KherveTeX is a WYSIWYG editor that produces real LaTeX. You type the way
+        kTeX is a WYSIWYG editor that produces real LaTeX. You type the way
         you would in Word; the preview on the right compiles to PDF every time you
         stop typing. Underneath, the document is stored as a structured model —
         section headings, paragraphs, math, tables, figures, lists — and the
@@ -24,7 +24,7 @@ export function PlaceholderPage({ onContext }: { onContext?: (k: ContextKind | n
       </p>
       <p className='doc-p'>
         If you have never written LaTeX directly, you will not need to. If you
-        have, KherveTeX stays out of your way: you can import an existing .tex
+        have, kTeX stays out of your way: you can import an existing .tex
         file, edit it visually, and export the result back to LaTeX with the
         structure preserved.
       </p>

@@ -95,7 +95,7 @@ export class GitHubSession {
   // the document committed and uploaded. [ok, message, the repository].
   async publish(docPath: string, name: string, priv: boolean): Promise<[boolean, string, GitHubRepo | null]> {
     const repo = await gh.createRepo(this.host.fetch, this.token, gh.repoName(name), priv,
-      `${basename(docPath)}, written in KherveTeX`)
+      `${basename(docPath)}, written in kTeX`)
     const [ok, msg] = await this.connectAndUpload(docPath, repo.clone_url)
     return [ok, ok ? `Published to ${repo.html_url}` : msg, repo]
   }
@@ -126,7 +126,7 @@ export class GitHubSession {
   async download(repo: GitHubRepo, parent: string): Promise<[boolean, string, string, string[]]> {
     let dest = join(parent, repo.name)
     for (let n = 2; await this.host.exists(dest); n++) dest = join(parent, `${repo.name}-${n}`)
-    if (!this.host.git.clone) return [false, 'Downloading needs the KherveTeX desktop app.', dest, []]
+    if (!this.host.git.clone) return [false, 'Downloading needs the kTeX desktop app.', dest, []]
     const [ok, msg] = await this.host.git.clone(gh.cloneUrl(repo.full_name), dest)
     if (!ok) return [false, msg, dest, []]
     return [true, msg, dest, await this.documentsIn(dest)]

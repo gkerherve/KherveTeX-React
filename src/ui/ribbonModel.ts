@@ -451,7 +451,7 @@ const cmds: Command[] = [
   { id: 'save_as_template', text: 'Save as &Template…',
     tooltip: 'Keep this document as a starting point for new ones' },
   { id: 'tour', text: 'Take the guided &tour',
-    tooltip: 'A multi-page document that shows what KherveTeX does' },
+    tooltip: 'A multi-page document that shows what kTeX does' },
   { id: 'github', text: '&GitHub…', icon: 'github',
     tooltip: 'Sign in to GitHub, publish this document there or connect it to one of your repositories, and open a document from GitHub' },
   { id: 'configure_remotes', text: 'Other cloud connections (GitLab…)…' },
@@ -520,7 +520,7 @@ const cmds: Command[] = [
   { id: 'send_feedback', text: 'Send &feedback (beta)…' },
   { id: 'buy_coffee', text: 'Buy me a &coffee…', icon: 'coffee',
     tooltip: 'Support kTeX: a QR code and a link to buymeacoffee.com' },
-  { id: 'about', text: '&About KherveTeX', icon: 'about_icon' },
+  { id: 'about', text: '&About kTeX', icon: 'about_icon' },
   { id: 'welcome', text: '&Welcome page…', icon: 'welcome_icon' },
   { id: 'check_updates', text: 'Check for Updates', icon: 'update_icon' },
   { id: 'check_updates_menu', text: 'Check for &updates…' },
@@ -755,7 +755,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Help', groups: [
     { label: 'Help', large: ['help_guide', 'shortcuts', 'welcome'] },
-    { label: 'KherveTeX', large: ['check_updates', 'about'] },
+    { label: 'kTeX', large: ['check_updates', 'about'] },
   ] },
   { name: 'Table Design', context: 'table', groups: [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },

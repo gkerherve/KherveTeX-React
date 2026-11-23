@@ -219,7 +219,7 @@ export class McpBridge {
     // one document would corrupt both.
     if (this.busy) {
       this.record(tool, 'busy')
-      return { error: 'KherveTeX is still running the previous tool call. Retry when it finishes.' }
+      return { error: 'kTeX is still running the previous tool call. Retry when it finishes.' }
     }
     if (this.executor === null) this.executor = new ToolExecutor(this.host())
     // One edit per mutating call: appHost.setChildren / replaceText are

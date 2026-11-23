@@ -145,7 +145,7 @@ export async function writeProject(doc: Document, baseDir: string, folder: strin
 // `fs` reads the document's figures (from `baseDir`) and writes the clone.
 export async function send(doc: Document, baseDir: string, link: string, token: string,
   cacheDir: string, extraFiles: Record<string, string> | null = null,
-  message = 'Update from KherveTeX', io: OverleafIo = overleafIo(), fs: FileAccess = io.fs): Promise<string> {
+  message = 'Update from kTeX', io: OverleafIo = overleafIo(), fs: FileAccess = io.fs): Promise<string> {
   const url = gitUrl(link)
   let folder: string
   try {

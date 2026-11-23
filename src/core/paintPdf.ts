@@ -52,7 +52,7 @@ class PdfBuilder {
     const xref = len
     push(`xref\n0 ${this.objs.length + 1}\n0000000000 65535 f \n`)
     for (const off of offsets) push(`${String(off).padStart(10, '0')} 00000 n \n`)
-    push(`trailer\n<< /Size ${this.objs.length + 1} /Root ${rootId} 0 R /Info ${this.add('<< /Creator (kherveDOC) /Producer (KherveTeX) >>')} 0 R >>\nstartxref\n${xref}\n%%EOF\n`)
+    push(`trailer\n<< /Size ${this.objs.length + 1} /Root ${rootId} 0 R /Info ${this.add('<< /Creator (kherveDOC) /Producer (kTeX) >>')} 0 R >>\nstartxref\n${xref}\n%%EOF\n`)
     void enc
     const out = new Uint8Array(len)
     let at = 0

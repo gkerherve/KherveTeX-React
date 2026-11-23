@@ -19,6 +19,7 @@ import {
 import { lookupTip, useTipProps, type TipContent } from './Tooltip'
 import { FEEDBACK_EMAIL, SHORT_NAME } from '../version'
 import { accentOf, secondOf, STYLE_SETS } from '../core/design'
+import { searchTools, type ToolHit } from './ribbonSearch'
 import './ribbon.css'
 
 const TILE_W = 70
@@ -431,7 +432,7 @@ function Item({ it, ctx, large, text }: {
 function Group({ g, ctx }: { g: RibbonGroup, ctx: Ctx }) {
   return (
     <>
-      <div className='rb-group'>
+      <div className='rb-group' data-group={g.label}>
         <div className='rb-group-body'>
           {g.large?.map((it, i) => <Item key={i} it={it} ctx={ctx} large text />)}
           {g.rows && (g.text
@@ -544,8 +545,8 @@ function TableGrid({ rect, onClose }: { rect: DOMRect, onClose: () => void }) {
   )
 }
 
-function TabBar({ tabs, current, onPick }: {
-  tabs: typeof RIBBON_TABS, current: string, onPick: (name: string) => void
+function TabBar({ tabs, current, onPick, onFold }: {
+  tabs: typeof RIBBON_TABS, current: string, onPick: (name: string, clicks?: number) => void, onFold: (name: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [overflow, setOverflow] = useState(false)
@@ -565,7 +566,7 @@ function TabBar({ tabs, current, onPick }: {
         {tabs.map(t => (
           <button type='button' key={t.name} role='tab' aria-selected={t.name === current}
             className={'rb-tab' + (t.name === current ? ' on' : '') + (t.context ? ' ctx' : '')}
-            onClick={() => onPick(t.name)}>
+            onClick={e => onPick(t.name, e.detail)} onDoubleClick={() => onFold(t.name)}>
             {/* The bold twin reserves the width so the open tab does not jump. */}
             <span className='rb-tab-text' data-text={t.name}>{t.name}</span>
           </button>
@@ -587,20 +588,67 @@ function TabBar({ tabs, current, onPick }: {
   )
 }
 
+// Word's Search box: type what you want to do; each tool shows where it
+// lives (Tab ▸ Group). Enter or a click goes there and runs it.
+function ToolSearch({ onGo }: { onGo: (h: ToolHit) => void }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const [sel, setSel] = useState(0)
+  const hits = searchTools(q)
+  const go = (h: ToolHit | undefined) => {
+    if (!h) return
+    setOpen(false); setQ('')
+    onGo(h)
+  }
+  return (
+    <div className='rb-search'>
+      <svg width='13' height='13' viewBox='0 0 13 13' aria-hidden='true' className='rb-search-glass'>
+        <circle cx='5.5' cy='5.5' r='4.2' fill='none' stroke='currentColor' strokeWidth='1.4' />
+        <path d='M8.6 8.6 L12 12' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' /></svg>
+      <input type='search' placeholder='Search tools' aria-label='Search tools' value={q}
+        onChange={e => { setQ(e.target.value); setSel(0); setOpen(true) }}
+        onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setSel(i => Math.min(hits.length - 1, i + 1)) }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setSel(i => Math.max(0, i - 1)) }
+          else if (e.key === 'Enter') { e.preventDefault(); go(hits[sel]) }
+          else if (e.key === 'Escape') { setQ(''); setOpen(false); (e.target as HTMLInputElement).blur() }
+        }} />
+      {open && q.trim() && (
+        <div className='rb-search-list' role='listbox'>
+          {!hits.length && <div className='rb-search-none'>No tool matches “{q}”.</div>}
+          {hits.map((h, i) => (
+            <div key={h.label + h.where} role='option' aria-selected={i === sel}
+              className={'rb-search-hit' + (i === sel ? ' on' : '')}
+              onMouseEnter={() => setSel(i)} onMouseDown={e => { e.preventDefault(); go(h) }}>
+              <span className='rb-search-icon'>{h.icon && <Icon name={h.icon} arg={h.iconArg} size={18} />}</span>
+              <span className='rb-search-label'>{h.label}</span>
+              <span className='rb-search-where'>{h.where}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKind | null }) {
   const [current, setCurrent] = useState('Home')
-  // As Word: a click on the open tab folds the ribbon away (only the tab
-  // names stay); a click on a tab shows it again. Remembered.
+  // As Word: a double-click on a tab (Home, Insert...) folds the ribbon
+  // away, leaving the tab names; a click on a tab shows it again, and a
+  // double-click pins it back. Remembered.
   const [folded, setFolded] = useState(() => Boolean(setting('ribbon_folded', false)))
-  const pick = (name: string) => {
-    if (name === shown.name) {
-      const f = !folded
-      setFolded(f)
-      setSetting('ribbon_folded', f)
-    } else {
-      setCurrent(name)
-      if (folded) { setFolded(false); setSetting('ribbon_folded', false) }
-    }
+  const fold = (f: boolean) => { setFolded(f); setSetting('ribbon_folded', f) }
+  // Folded or not before the double-click's first click (which unfolds).
+  const before = useRef(false)
+  const pick = (name: string, clicks = 1) => {
+    if (clicks <= 1) before.current = folded
+    setCurrent(name)
+    if (folded) fold(false)
+  }
+  const toggleFold = (name: string) => {
+    setCurrent(name)
+    fold(!before.current)
   }
   const [menu, setMenu] = useState<OpenMenu | null>(null)
   // The hidden combos' state follows the caret (editor/ribbonState.ts).
@@ -631,11 +679,21 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
     styleLevel, setStyleLevel }
 
   return (
-    <div className='ribbon'>
+    <div className={'ribbon' + (folded ? ' rb-folded' : '')}>
       <div className='rb-bar'>
         <Corner ids={CORNER_LEFT} ctx={ctx} side='left' />
-        <TabBar tabs={visible} current={shown.name} onPick={pick} />
+        <TabBar tabs={visible} current={shown.name} onPick={pick} onFold={toggleFold} />
         <div className='rb-bar-fill' />
+        <ToolSearch onGo={h => {
+          setCurrent(h.tab)
+          if (folded) { setFolded(false); setSetting('ribbon_folded', false) }
+          // Show where it is: the group flashes.
+          setTimeout(() => {
+            const el = document.querySelector(`.rb-group[data-group="${CSS.escape(h.group)}"]`)
+            if (el) { el.classList.remove('rb-flash'); void (el as HTMLElement).offsetWidth; el.classList.add('rb-flash') }
+          }, 30)
+          if (h.command) menuCmd.trigger(h.command)
+        }} />
         <button type='button' className='rb-feedback'
           title={`${SHORT_NAME} is in beta - some parts are still new. Click to email your feedback to ${FEEDBACK_EMAIL}`}
           onClick={() => { void runAction('send_feedback') }}>

@@ -106,7 +106,7 @@ export function SpellingPanel() {
             onClick={() => m.changeAll()}>Change all</button>
           <button type='button' disabled={!has} title='Leave this one as it is'
             onClick={() => m.ignore()}>Ignore</button>
-          <button type='button' disabled={!has} title='Leave this word everywhere, until KherveTeX closes'
+          <button type='button' disabled={!has} title='Leave this word everywhere, until kTeX closes'
             onClick={() => m.ignoreAll()}>Ignore all</button>
           <button type='button' className='sp-wide' disabled={!has} title='Never flag this word again'
             onClick={() => m.addToDictionary()}>Add to dictionary</button>

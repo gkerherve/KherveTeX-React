@@ -47,7 +47,7 @@ function clearMessage(): void {
 }
 
 const NO_GIT_CLOUD = 'Git is not available in the browser version, so cloud '
-  + 'features are unavailable.\n\nUse the KherveTeX desktop app.'
+  + 'features are unavailable.\n\nUse the kTeX desktop app.'
 
 // ---- the snapshot every save takes ----
 
@@ -61,7 +61,7 @@ export async function gitSnapshot(folder: string, name: string, fileStem: string
   pendingCommitMsg = null
   const g = git()
   if (!g.isAvailable()) {
-    showMessage('✔ Saved (version history needs the KherveTeX desktop app)', 5000)
+    showMessage('✔ Saved (version history needs the kTeX desktop app)', 5000)
     return
   }
   await g.initRepo(folder)
@@ -257,7 +257,7 @@ async function configureRemotes(): Promise<void> {
   const path = appStore().get().path
   if (path === null) {
     await information('Connect to cloud',
-      'You need to save your document first so KherveTeX knows where to create the connection.\n\n'
+      'You need to save your document first so kTeX knows where to create the connection.\n\n'
       + 'Use File → Save (Ctrl+S), then try again.')
     return
   }
@@ -294,13 +294,13 @@ async function showHistory(): Promise<void> {
   if (!g.isAvailable()) {
     await warning('Version history',
       'Git is not available in the browser version, so version history is unavailable.\n\n'
-      + 'Use the KherveTeX desktop app.')
+      + 'Use the kTeX desktop app.')
     return
   }
   const folder = dirname(path)
   if (!(await g.historyDetailed(folder, 1)).length) {
     await information('Version history',
-      'No snapshots yet. Every time you save, KherveTeX automatically creates a snapshot.\n\n'
+      'No snapshots yet. Every time you save, kTeX automatically creates a snapshot.\n\n'
       + 'Save your document and come back here to see its history.')
     return
   }
@@ -317,7 +317,7 @@ async function showBranches(): Promise<void> {
     return
   }
   if (!git().isAvailable()) {
-    await warning('Branches', 'Git is not available in the browser version.\n\nUse the KherveTeX desktop app.')
+    await warning('Branches', 'Git is not available in the browser version.\n\nUse the kTeX desktop app.')
     return
   }
   await openBranchesDialog(dirname(path), reloadCurrent)

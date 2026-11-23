@@ -92,7 +92,7 @@ describe('kdocz', () => {
       [MANIFEST_BASENAME]: strToU8('{"format":"kdocz","schema_version":99,"app":"kherveDOC"}'),
       [DOC_BASENAME]: strToU8('{"type":"Document","meta":{},"children":[]}'),
     }))
-    await expect(loadKdocz(out, join(dir, 'extract3'), nodeFs)).rejects.toThrow(/newer KherveTeX/)
+    await expect(loadKdocz(out, join(dir, 'extract3'), nodeFs)).rejects.toThrow(/newer kTeX/)
   })
 
   it('test_ktex_is_a_bundle_and_old_names_are_legacy', () => {

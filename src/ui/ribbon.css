@@ -422,3 +422,30 @@
 .rb-stylesets { align-items: center; }
 .rb-styleset { padding: 2px; margin: 0 1px; border: 1px solid transparent; border-radius: 3px; }
 .rb-styleset.on { border-color: #7da2ce; background: #dce8f7; }
+
+/* Word's Search box in the tab bar: tools and where they live. */
+.rb-search { position: relative; display: flex; align-items: center; margin: 0 8px; }
+.rb-search-glass { position: absolute; left: 7px; color: #666; pointer-events: none; }
+.rb-search input {
+  width: 150px; height: 22px; box-sizing: border-box; padding: 0 8px 0 24px;
+  border: 1px solid #c8c8c8; border-radius: 11px; background: #fff; font: inherit; font-size: 12px;
+}
+.rb-search input:focus { outline: none; border-color: #2b579a; width: 260px; }
+.rb-search-list {
+  position: absolute; top: 26px; right: 0; width: 420px; max-height: 420px; overflow-y: auto; z-index: 1000;
+  background: #fff; border: 1px solid #c8c8c8; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 4px 0;
+}
+.rb-search-hit { display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; font-size: 12.5px; }
+.rb-search-hit.on { background: #dce8f7; }
+.rb-search-icon { width: 18px; height: 18px; flex: none; display: flex; }
+.rb-search-label { flex: none; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-search-where { flex: 1; text-align: right; color: #777; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb-search-none { padding: 6px 10px; color: #888; font-size: 12px; }
+@keyframes rb-flash { 0%, 60% { background: #fff1b8; box-shadow: 0 0 0 2px #f5c542 inset; } 100% { background: transparent; box-shadow: none; } }
+.rb-group.rb-flash { animation: rb-flash 1.6s ease-out; border-radius: 4px; }
+
+/* Folded (double-click a tab), as Word: only the tab names, none marked
+   open; a line under the bar separates it from the page. */
+.ribbon.rb-folded .rb-tab.on { font-weight: 400; border-bottom-color: transparent; }
+.ribbon.rb-folded .rb-tab.on:hover { background: var(--hover-blue); }
+.ribbon.rb-folded { border-bottom: 1px solid #d6d6d6; }

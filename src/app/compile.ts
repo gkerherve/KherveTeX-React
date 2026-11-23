@@ -435,7 +435,7 @@ export async function showCompilerStatus(): Promise<void> {
   }
   let rows: [string, string][]
   if (st.path === null) {
-    rows = [['Engine', "<b style='color:#b91c1c'>tectonic not found</b> — reinstall KherveTeX, or install "
+    rows = [['Engine', "<b style='color:#b91c1c'>tectonic not found</b> — reinstall kTeX, or install "
       + 'tectonic and put it on the PATH.']]
   } else {
     const ok = st.offline
@@ -443,7 +443,7 @@ export async function showCompilerStatus(): Promise<void> {
       : "<b style='color:#b45309'>Not yet</b> — click Download offline bundle (needs internet once)"
     rows = [
       ['Engine', escapeHtml(st.version || 'tectonic')],
-      ['Location', st.bundled ? 'bundled with KherveTeX' : escapeHtml(st.path)],
+      ['Location', st.bundled ? 'bundled with kTeX' : escapeHtml(st.path)],
       ['Package cache', escapeHtml(st.cache ?? '—')],
       ['Cache size', `${st.cacheMb.toFixed(0)} MB`],
       ['Offline ready', ok],

@@ -173,7 +173,7 @@ function openDocx(bytes: Uint8Array): Src {
 // numbered lists, hyperlinks, footnotes, subscript/superscript, and
 // paragraph alignment.
 const OLE_SIGNATURE = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
-export const DOC_NOT_SUPPORTED = 'This is an older Word file (.doc), which KherveTeX cannot read. '
+export const DOC_NOT_SUPPORTED = 'This is an older Word file (.doc), which kTeX cannot read. '
   + 'Open it in Word, choose File > Save As > Word Document (.docx), and import the .docx.'
 
 export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAccess): Promise<Document> {

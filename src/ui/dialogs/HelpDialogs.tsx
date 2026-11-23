@@ -42,7 +42,7 @@ function Frame({ title, className, children, onClose }: {
 function UserGuide({ close }: { close: () => void }) {
   const [tab, setTab] = useState(0)
   return (
-    <Frame title='KherveTeX User Guide' className='dlg-help' onClose={close}>
+    <Frame title='kTeX User Guide' className='dlg-help' onClose={close}>
       <div className='help-tabs' role='tablist'>
         {HELP_PAGES.map(([t], i) => (
           <button key={t} type='button' role='tab' aria-selected={i === tab} autoFocus={i === 0}
@@ -100,7 +100,24 @@ export function aboutHtml(libraries: Library[], runtime: string): string {
     + '</tr>').join('')
   const libTable = "<table cellpadding='0' cellspacing='0' style='border-collapse:collapse'>"
     + rows + '</table>'
-  return '<h3>About the author</h3>'
+  const tools: [string, string][] = [
+    ['KherveFitting', 'XPS peak fitting'], ['KherveDB', 'the NIST XPS binding-energy database'],
+    ['KherveNoise', 'spectrum denoising'], ['KherveSheet', 'a spreadsheet for scientific data'],
+    ['KhervePlot', 'publication-quality plots'], ['KherveMol', 'molecules and crystal structures in 2D and 3D'],
+    ['KhervePaint', 'scientific drawings'], ['KherveRef', 'references for LaTeX and Word'],
+    ['KherveSlide', 'Beamer slides'], ['KhervePDF', 'PDF reading and annotation'],
+    ['kCAD', 'parametric CAD'], ['KherveLAB', 'lab instrument booking'], ['KherveNote', 'talk notes to LaTeX'],
+  ]
+  const promo = "<div style='background:#eef4fb;border:1px solid #c9d9ee;border-radius:8px;padding:10px 14px;margin-bottom:12px'>"
+    + "<h3 style='margin:0 0 6px 0'>Part of KherveTools — free software for scientists</h3>"
+    + '<p style=\'margin:0 0 6px 0\'>kTeX is one of a family of free tools made by a scientist for scientists: '
+    + 'to analyse data, plot it, draw it, cite it and write it up — from the measurement to the paper. '
+    + 'They work together (kTeX cites from KherveRef, draws with KhervePaint) and each is free to download '
+    + 'for Windows, Mac and Linux.</p>'
+    + "<p style='margin:0 0 6px 0'>" + tools.map(([n, w]) => `<b>${n}</b> (${w})`).join(', ') + '.</p>'
+    + "<p style='margin:0'>All the tools, with downloads and guides: "
+    + "<a href='https://khervetools.com'><b>khervetools.com</b></a></p></div>"
+  return promo + '<h3>About the author</h3>'
     + '<p><b>Gwilherm Kerhervé</b> &nbsp;—&nbsp; '
     + 'Research Associate, Department of Materials, '
     + "<a href='https://www.imperial.ac.uk/materials/'>"
@@ -113,7 +130,7 @@ export function aboutHtml(libraries: Library[], runtime: string): string {
     + 'KherveFitting</a> (peak fitting for XPS spectra) and '
     + "<a href='https://github.com/gkerherve/spe_reader'>"
     + 'spe-xps-reader</a> (an open reader for PHI Instruments SPE '
-    + 'binary files). KherveTeX grew out of the same workflow — '
+    + 'binary files). kTeX grew out of the same workflow — '
     + 'writing papers and reports in LaTeX without leaving the '
     + 'WYSIWYG comfort zone of Word.</p>'
     + "<p><a href='mailto:g.kerherve@imperial.ac.uk'>"
@@ -141,6 +158,8 @@ function About({ version, html, close }: { version: string, html: string, close:
           <p style={{ margin: '6px 0 0 0' }}>Press <b>F1</b> for the User Guide.</p>
           <p style={{ margin: '6px 0 0 0' }}>kTeX is in <b>beta</b>: some parts are still new. Feedback is very welcome —<br />
             <a href={`mailto:${FEEDBACK_EMAIL}?subject=kTeX%20feedback`}>{FEEDBACK_EMAIL}</a></p>
+          <p style={{ margin: '6px 0 0 0' }}>More free tools for scientists at{' '}
+            <a href='https://khervetools.com'><b>khervetools.com</b></a></p>
           <p style={{ margin: '6px 0 0 0' }}>© 2026 Gwilherm Kerhervé · GPL-3.0<br />
             <a href='https://github.com/gkerherve/kherveTeX'>github.com/gkerherve/kherveTeX</a></p>
         </div>

@@ -8,7 +8,7 @@
 export const API = 'https://api.github.com'
 export const TOKEN_KEY = 'github_token'
 // Where a token is made: a classic token with the "repo" scope, named.
-export const NEW_TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=repo&description=KherveTeX'
+export const NEW_TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=repo&description=kTeX'
 
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>
 

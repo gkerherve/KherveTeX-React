@@ -29,7 +29,7 @@ function githubSession(): GitHubSession {
 
 async function openGitHub(): Promise<void> {
   if (!git().isAvailable()) {
-    await warning('GitHub', 'GitHub needs the KherveTeX desktop app (git is not available in the browser version).')
+    await warning('GitHub', 'GitHub needs the kTeX desktop app (git is not available in the browser version).')
     return
   }
   const pf = platform()

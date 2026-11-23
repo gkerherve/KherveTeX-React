@@ -235,7 +235,7 @@ const OPEN_FILTERS: FileFilter[] = [
   { name: 'All supported', extensions: ['ktex', 'ktexz', 'kdocz', 'json', 'tex', 'md', 'markdown', 'docx', 'pdf',
     'rtf', 'odt', 'gdoc',
     ...ARCHIVE_EXTENSIONS] },
-  { name: 'KherveTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
+  { name: 'kTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
   { name: 'JSON', extensions: ['json'] },
   { name: 'LaTeX', extensions: ['tex'] },
   { name: 'LaTeX package (.zip, .tar.gz, .tar.bz2)', extensions: ARCHIVE_EXTENSIONS },
@@ -642,9 +642,9 @@ export async function saveAs(): Promise<void> {
     title: 'Save document', defaultName: defaultTarget(NATIVE_SUFFIX),
     // Every format Save As can write: macOS would otherwise add .ktex to
     // a name typed as talk.docx (talk.docx.ktex).
-    filters: [{ name: 'KherveTeX document', extensions: ['ktex'] }, { name: 'Word', extensions: ['docx'] },
+    filters: [{ name: 'kTeX document', extensions: ['ktex'] }, { name: 'Word', extensions: ['docx'] },
       { name: 'PDF', extensions: ['pdf'] }, { name: 'LaTeX', extensions: ['tex'] },
-      { name: 'JSON KherveTeX', extensions: ['json'] }],
+      { name: 'JSON kTeX', extensions: ['json'] }],
   })
   if (!picked) return
   // "talk.docx", "talk.pdf", "talk.tex": that format, where it was asked

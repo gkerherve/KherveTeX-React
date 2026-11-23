@@ -23,7 +23,7 @@ const PDF_LABEL = 'pdf'
 
 const OPEN_IN_NEW_WINDOW_FILTERS: FileFilter[] = [
   { name: 'All supported', extensions: ['ktex', 'ktexz', 'json', 'kdocz', 'tex', 'md', 'markdown'] },
-  { name: 'KherveTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
+  { name: 'kTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
   { name: 'JSON', extensions: ['json'] },
   { name: 'LaTeX', extensions: ['tex'] },
   { name: 'Markdown', extensions: ['md', 'markdown'] },
@@ -75,7 +75,7 @@ export async function openWindow(req: NewWindowRequest): Promise<void> {
   const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
   const label = `doc-${Date.now().toString(36)}-${serial++}`
   const win = new WebviewWindow(label, {
-    url: `index.html${query}`, title: 'KherveTeX', width: 1400, height: 900,
+    url: `index.html${query}`, title: 'kTeX', width: 1400, height: 900,
     minWidth: 760, minHeight: 500, resizable: true, dragDropEnabled: true,
   })
   await new Promise<void>((resolve, reject) => {

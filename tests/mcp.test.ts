@@ -501,7 +501,7 @@ describe('bridge', () => {
     const b = liveBridge(w)
     const first = b.callTool({ name: 'compile_document', input: {} })
     expect(await b.callTool({ name: 'get_outline', input: {} })).toEqual({
-      error: 'KherveTeX is still running the previous tool call. Retry when it finishes.' })
+      error: 'kTeX is still running the previous tool call. Retry when it finishes.' })
     release()
     expect((await first).error).toContain('did not finish')
     expect(b.log.map(e => e.outcome)[0]).toBe('busy')

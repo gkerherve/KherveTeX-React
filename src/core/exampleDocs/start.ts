@@ -47,17 +47,17 @@ export function _bib(...entries: any[]) {
 export function welcome(): KDocument {
   return Document({
     meta: _meta({
-      title: 'Welcome to KherveTeX',
-      author: 'The KherveTeX team',
+      title: 'Welcome to kTeX',
+      author: 'The kTeX team',
       packages: [...DEFAULT_PACKAGES, 'booktabs', 'hyperref'],
       preamble_extras: '\\usepackage[normalem]{ulem}',
     }),
     children: [
-      Title({ children: [Text({ text: 'Welcome to KherveTeX' })] }),
+      Title({ children: [Text({ text: 'Welcome to kTeX' })] }),
       Author({ children: [Text({ text: 'A ten-minute guided tour of the editor' })] }),
-      _h('What KherveTeX is'),
+      _h('What kTeX is'),
       _p(
-        'KherveTeX is a word processor that writes real LaTeX. You ' +
+        'kTeX is a word processor that writes real LaTeX. You ' +
         'type and format on this page the way you would in Word, ' +
         'with the ',
         ['ribbon', ['bold']],
@@ -70,7 +70,7 @@ export function welcome(): KDocument {
         ' source on demand.',
       ),
       _p(
-        'This page is itself a KherveTeX document. Click anywhere ' +
+        'This page is itself a kTeX document. Click anywhere ' +
         'in it and type, change a heading, or break something on ' +
         'purpose: nothing you do here is saved unless you save it, ' +
         'and the New button at the top left always gives you a ' +
@@ -132,7 +132,7 @@ export function welcome(): KDocument {
         'write. ',
         ['Code', ['bold']],
         ' (Ctrl+2) shows the LaTeX ' +
-        'that KherveTeX generates, so you can read it, copy it or ' +
+        'that kTeX generates, so you can read it, copy it or ' +
         'learn from it. ',
         ['PDF', ['bold']],
         ' keeps the compiled result beside the page (Ctrl+4), and ',
@@ -359,7 +359,7 @@ export function welcome(): KDocument {
         'in its own window so this tour stays open. The Help tab ' +
         'has the user guide (F1) and every keyboard shortcut.',
       ),
-      _p('Happy writing. ', ['The KherveTeX team', ['italic']]),
+      _p('Happy writing. ', ['The kTeX team', ['italic']]),
       _bib([
         'example2026',
         'I.~Writer and J.~Typesetter, \\emph{Writing documents ' +

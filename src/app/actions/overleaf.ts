@@ -148,7 +148,7 @@ export function platformGitIo(): OverleafIo {
       // git_backend._signature's fallback when no identity is configured.
       let ident: string[] = []
       try { await git(dir, ['var', 'GIT_COMMITTER_IDENT']) } catch {
-        ident = ['-c', 'user.name=KherveTeX', '-c', 'user.email=khervedoc@local']
+        ident = ['-c', 'user.name=kTeX', '-c', 'user.email=khervedoc@local']
       }
       const sha = await git(dir, [...ident, 'commit-tree', tree, ...parents, '-m', message])
       // libgit2's check: the branch must still be at the first parent.

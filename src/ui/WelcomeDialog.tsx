@@ -36,7 +36,7 @@ const START: [string, string, WelcomeChoice][] = [
   ['\u{1F4C4}  New document', 'A blank page', { kind: 'new' }],
   ['\u{1F4C2}  Open…', 'Open or import a document (.ktex, .tex, .docx, .md, .pdf)', { kind: 'open' }],
   ['\u{1F4DA}  New project (thesis, book)…', 'Several documents compiled into one PDF', { kind: 'project' }],
-  ['\u{1F9ED}  Take the guided tour', 'A multi-page document that shows what KherveTeX does', { kind: 'tour' }],
+  ['\u{1F9ED}  Take the guided tour', 'A multi-page document that shows what kTeX does', { kind: 'tour' }],
 ]
 
 

@@ -103,7 +103,7 @@ function GitHubDialog({ env, close }: { env: GitHubEnv; close: Close<void> }) {
     const [ok, msg, dest, docs] = await s.download(repo, parent)
     if (!ok) { setMessage({ ok: false, text: msg }); return }
     if (!docs.length) {
-      setMessage({ ok: true, text: `Downloaded to ${dest}. It holds no KherveTeX or LaTeX document.` })
+      setMessage({ ok: true, text: `Downloaded to ${dest}. It holds no kTeX or LaTeX document.` })
       return
     }
     close()
@@ -127,7 +127,7 @@ function GitHubDialog({ env, close }: { env: GitHubEnv; close: Close<void> }) {
             </div>
           ) : (
             <>
-              <p>Sign in once: KherveTeX keeps the sign-in on this computer and uses it for every upload and
+              <p>Sign in once: kTeX keeps the sign-in on this computer and uses it for every upload and
                 download, so GitHub never asks for a password.</p>
               <div className='gh-row'>
                 <span>1.</span>

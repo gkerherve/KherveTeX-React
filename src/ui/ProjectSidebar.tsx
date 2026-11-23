@@ -48,7 +48,7 @@ async function pickExisting(sb: SidebarModel): Promise<void> {
   const paths = await platform().openFileDialog({
     title: 'Add existing documents', multiple: true,
     filters: [
-      { name: 'KherveTeX documents', extensions: ['ktex', 'ktexz', 'json', 'kdocz', 'tex'] },
+      { name: 'kTeX documents', extensions: ['ktex', 'ktexz', 'json', 'kdocz', 'tex'] },
       { name: 'All files', extensions: [] },
     ],
   })

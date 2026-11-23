@@ -132,7 +132,7 @@ const host: ProjectHost = {
   getOpenProject: async () => {
     const picked = await platform().openFileDialog({
       title: 'Open project',
-      filters: [{ name: 'KherveTeX project', extensions: ['ktex', 'json'] }, { name: 'All files', extensions: [] }],
+      filters: [{ name: 'kTeX project', extensions: ['ktex', 'json'] }, { name: 'All files', extensions: [] }],
     })
     return picked?.length ? picked[0] : null
   },

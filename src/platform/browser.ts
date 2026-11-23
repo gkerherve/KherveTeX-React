@@ -13,7 +13,7 @@ const browserSecrets = new Map<string, string>()
 
 export const DOWNLOADS = '/downloads'
 export const COMPILE_UNAVAILABLE =
-  'Compiling needs the KherveTeX desktop app — the browser version cannot run tectonic.'
+  'Compiling needs the kTeX desktop app — the browser version cannot run tectonic.'
 
 const norm = (p: string) => '/' + p.replaceAll('\\', '/').split('/').filter(Boolean).join('/')
 const parentOf = (p: string) => norm(p).replace(/\/[^/]*$/, '') || '/'

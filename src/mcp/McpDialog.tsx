@@ -215,7 +215,7 @@ function McpServerDialog({ bridge, close }: { bridge: McpBridge; close: () => vo
 
   const onDisconnect = async () => {
     if (!selected) return
-    if (!(await question(TITLE, `Remove KherveTeX from ${selected.label}'s configuration?\n`
+    if (!(await question(TITLE, `Remove kTeX from ${selected.label}'s configuration?\n`
       + 'Other servers are left untouched.'))) return
     await report(await selected.disconnect())
   }

@@ -279,7 +279,7 @@ export function docSettingsDialog(meta: DocMeta): Promise<DocMeta | null> {
             )}
             {tab === 3 && (
               <div className='dlg-packages'>
-                <div>Extra LaTeX packages, one per line. geometry / setspace are added automatically by KherveTeX.</div>
+                <div>Extra LaTeX packages, one per line. geometry / setspace are added automatically by kTeX.</div>
                 <textarea value={pkgs} placeholder='One package name per line' onChange={e => setPkgs(e.target.value)} />
               </div>
             )}
@@ -314,7 +314,7 @@ export function styleDialog(env: {
           <div className='dlg-title'>Manage LaTeX styles</div>
           <div className='dlg-body'>
             <div>
-              <b>Bundled styles</b> ship with KherveTeX and are always available. <b>User styles</b> are
+              <b>Bundled styles</b> ship with kTeX and are always available. <b>User styles</b> are
               files you imported — they live in a personal folder and survive app updates.<br /><br />
               Any <code>.cls</code> (document class), <code>.sty</code> (package) or <code>.bst</code>{' '}
               (bibliography style) file placed here is found automatically by the LaTeX compiler.
