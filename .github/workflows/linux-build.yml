@@ -2,12 +2,10 @@ name: Linux build
 
 # Builds the Linux AppImage and .deb (x86_64) with the bundled tectonic and
 # warmed offline TeX cache, installs the .deb and smoke-tests it offline.
-# Uploads a workflow artifact only — publishing is a separate, deliberate step.
+# Uploads a workflow artifact only. Releases build Linux themselves
+# (release.yml); this is for a Linux build by hand.
 
 on:
-  push:
-    tags:
-      - "linux-v*"
   workflow_dispatch:
     inputs:
       python_ref:
@@ -104,4 +102,5 @@ jobs:
             KherveTeX-React/src-tauri/target/release/bundle/appimage/*.AppImage
             KherveTeX-React/src-tauri/target/release/bundle/appimage/*.AppImage.sig
             KherveTeX-React/src-tauri/target/release/bundle/deb/*.deb
+            KherveTeX-React/src-tauri/target/release/bundle/deb/*.deb.sig
           if-no-files-found: error

@@ -1,5 +1,7 @@
 # NOV 2026: no macOS jobs here any more. Mac DMGs (Apple Silicon only, no Intel) are
-# built on the user's own Mac and uploaded to the release by hand; this runs Windows only.
+# built on the user's own Mac and uploaded to the draft by hand (before it is
+# published, so latest.json lists them); this builds Windows and Linux (AppImage
+# and .deb), all signed for the in-app updater.
 
 name: Release
 
@@ -115,6 +117,12 @@ jobs:
             runner: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
+          # The AppImage and the .deb, each with its updater signature: Linux
+          # installs update themselves as Windows and Mac ones do.
+          - name: Linux
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
     name: build (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -140,6 +148,12 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: KherveTeX/requirements.txt
+
+      - name: System libraries for Tauri (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 xvfb file
 
       - name: Restore the warmed TeX cache
         id: texcache
@@ -195,6 +209,40 @@ jobs:
           # The publish job writes latest.json once, from every job's assets.
           uploadUpdaterJson: false
           retryAttempts: 2
+
+      - name: Check the Linux bundles and put both signatures on the release
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          B=src-tauri/target/${{ matrix.target }}/release/bundle
+          ls -la $B/appimage $B/deb
+          ls $B/appimage/*.AppImage $B/appimage/*.AppImage.sig $B/deb/*.deb $B/deb/*.deb.sig
+          dpkg -c $B/deb/*.deb > deb.txt
+          grep -c tectonic_cache deb.txt
+          grep 'bin/tectonic' deb.txt
+          # The updater needs both signed bundles (linux-x86_64-appimage and
+          # -deb in latest.json): upload any the action left out.
+          HAVE=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate --jq '.[].name')
+          for f in $B/appimage/*.AppImage $B/appimage/*.AppImage.sig $B/deb/*.deb $B/deb/*.deb.sig; do
+            n=$(basename "$f")
+            if ! grep -qxF "$n" <<<"$HAVE"; then
+              gh api --method POST -H "Content-Type: application/octet-stream" --input "$f" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$n" --jq .name
+            fi
+          done
+
+      - name: Install the .deb and smoke-test it offline
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          D=$(ls src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb)
+          sudo apt-get install -y "./$D"
+          EXE=$(dpkg -L $(dpkg-deb -f "$D" Package) | grep '^/usr/bin/' | grep -v tectonic | head -1)
+          echo "smoke-testing $EXE"
+          xvfb-run -a node scripts/smoke_test.mjs "$EXE"
 
       - name: Check the macOS bundle
         if: runner.os == 'macOS'
