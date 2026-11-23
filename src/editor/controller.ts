@@ -1148,7 +1148,7 @@ export class EditorController implements ViewHost {
     for (const [code] of BIB_STYLES) setCommandChecked(`bib_style_${code}`, (meta.bib_style || 'plainnat') === code)
     for (const [name, m] of MARGIN_PRESETS) {
       const cur = [meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm]
-      setCommandChecked(`margin_${name}`, cur.every((v, i) => Math.abs(v - m[i]) < 0.01))
+      setCommandChecked(`margin_${name}`, (name === 'Mirrored') === !!meta.mirror_margins && cur.every((v, i) => Math.abs(v - m[i]) < 0.01))
     }
     const ctx = this.hf?.editing ? 'headerfooter' as const : C.contextObject(s)
     const hfs = this.hf?.current()
@@ -1291,6 +1291,8 @@ export const MARGIN_PRESETS: [string, number[]][] = [
   ['Narrow', [1.27, 1.27, 1.27, 1.27]],
   ['Moderate', [2.54, 2.54, 1.91, 1.91]],
   ['Wide', [2.54, 2.54, 5.08, 5.08]],
+  // Left / right are the inside / outside margins (mirror_margins).
+  ['Mirrored', [2.54, 2.54, 3.18, 2.54]],
 ]
 
 function resolvePdfFont(name: string, meta: M.DocMeta) {

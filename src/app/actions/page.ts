@@ -116,7 +116,8 @@ const actions: Record<string, Handler> = {
   manage_styles: () => manageStyles(),
 }
 for (const [name, [t, b, l, r]] of MARGIN_PRESETS) {
-  actions[`margin_${name}`] = () => setMeta({ margin_top_cm: t, margin_bottom_cm: b, margin_left_cm: l, margin_right_cm: r })
+  actions[`margin_${name}`] = () => setMeta({ margin_top_cm: t, margin_bottom_cm: b, margin_left_cm: l, margin_right_cm: r,
+    mirror_margins: name === 'Mirrored' ? true : undefined })
 }
 for (const code of ['A4', 'Letter', 'Legal']) {
   actions[`pagesize_${code}`] = () => { if (meta().page_size !== code) setMeta({ page_size: code }) }

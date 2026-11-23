@@ -1197,11 +1197,35 @@ export function PageSize(p: IconProps) {
     {L(3.5, 3, 3.5, 20.5, BLUE, 1)}{L(8, 22.5, 16, 22.5, BLUE, 1)}</Svg>
 }
 
+// Layout ▸ Margins (Word's): a page, its margins' lines across it and the
+// text area in blue.
 export function PageMargins(p: IconProps) {
-  return <Svg {...p}>{R(4, 2.5, 16, 19.5, { fill: PAPER, r: 0.5, lw: 1.2 })}
-    <rect x={7} y={5.5} width={10} height={13.5} stroke={BLUE} strokeWidth={1}
-      strokeDasharray='4 2' strokeLinecap='butt' fill='none' />
+  return <Svg {...p}>{R(3.5, 2, 17, 20, { fill: PAPER, r: 0.5, lw: 1.1 })}
+    {L(7, 2, 7, 22, INK, 0.7)}{L(17, 2, 17, 22, INK, 0.7)}{L(3.5, 5.5, 20.5, 5.5, INK, 0.7)}{L(3.5, 18.5, 20.5, 18.5, INK, 0.7)}
+    <rect x={7} y={5.5} width={10} height={13} stroke={BLUE} strokeWidth={1.3} fill='none' />
   </Svg>
+}
+
+// Layout ▸ Margins: an A4 page with its margins' lines across it and the
+// text area outlined, as Word's list draws them. arg is "t,b,l,r" in cm,
+// "m..." for Mirrored (two facing pages, left = inside).
+export function MarginThumb({ arg = '2.54,2.54,2.54,2.54', ...p }: IconProps) {
+  const mirror = arg.startsWith('m')
+  const [t, b, l, r] = arg.replace(/^m/, '').split(',').map(Number)
+  const LINE = '#9db8d9'
+  const page = (x: number, y: number, w: number, h: number, left: number, right: number, key: string) => {
+    const s = w / 21
+    const xl = x + left * s, xr = x + w - right * s, yt = y + t * s, yb = y + h - b * s
+    return <g key={key}>
+      {R(x, y, w, h, { fill: PAPER, r: 0.3, lw: 0.8 })}
+      {L(xl, y, xl, y + h, LINE, 0.6)}{L(xr, y, xr, y + h, LINE, 0.6)}
+      {L(x, yt, x + w, yt, LINE, 0.6)}{L(x, yb, x + w, yb, LINE, 0.6)}
+      <rect x={xl} y={yt} width={xr - xl} height={yb - yt} fill='none' stroke={BLUE} strokeWidth={0.9} />
+    </g>
+  }
+  return <Svg {...p}>{mirror
+    ? [page(0.8, 4.5, 10.8, 15.2, r, l, 'l'), page(12.4, 4.5, 10.8, 15.2, l, r, 'r')]
+    : page(4.5, 2, 15, 21, l, r, 'p')}</Svg>
 }
 
 // arg is "<width_in>x<height_in>".
@@ -1876,7 +1900,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   table_style_booktabs: TableStyleBooktabs, picture_delete: PictureDelete,
   picture_edit: PictureEdit, picture_width: PictureWidth,
   equation_numbered: EquationNumbered, equation_delete: EquationDelete,
-  page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb,
+  page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
   theorem: Theorem, caption: Caption, table_style_icon: TableStyleIcon,

@@ -128,8 +128,11 @@ export function Popup({ entries, anchor, placement = 'below', cmd, onClose,
                   : it.checked ? <CheckMark /> : null}
               </span>
             )}
-            <span className='qmenu-text'><Mnemonic text={it.text} /></span>
-            {hasDetail && <span className='qmenu-detail'>{it.detail ?? ''}</span>}
+            {/* Big pictures (Margins): the details under the name, as Word's. */}
+            {iconSize >= 32 && it.detail
+              ? <span className='qmenu-text qmenu-two'><Mnemonic text={it.text} /><span className='qmenu-sub'>{it.detail}</span></span>
+              : <span className='qmenu-text'><Mnemonic text={it.text} /></span>}
+            {hasDetail && !(iconSize >= 32 && it.detail) && <span className='qmenu-detail'>{it.detail ?? ''}</span>}
             {it.items && <span className='qmenu-arrow'>
               <svg width='6' height='9' viewBox='0 0 6 9' aria-hidden='true'>
                 <path d='M1 0.5 L5.5 4.5 L1 8.5 Z' fill='currentColor' /></svg></span>}

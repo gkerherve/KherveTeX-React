@@ -512,3 +512,8 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
 .rb-check input { margin: 0; }
 .rb-hffield .rb-parafield-label { min-width: 118px; }
 .rb-btn:disabled { opacity: 0.45; pointer-events: none; }
+
+/* Menus with big pictures (Layout ▸ Margins): the name, and its details
+   under it in grey, as Word's. */
+.qmenu-text.qmenu-two { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
+.qmenu-two .qmenu-sub { font-size: 11px; color: #6b6b6b; white-space: nowrap; }

@@ -73,6 +73,7 @@ function iconOf(c: Command, ctx: Ctx, size: number) {
 }
 
 function menuSize(c: Command): number {
+  if (c.id === 'margins') return 36
   if (c.id === 'size' || c.id === 'orientation' || c.id === 'columns') return 28
   if (c.id.startsWith('gallery_')) return 26
   return 16

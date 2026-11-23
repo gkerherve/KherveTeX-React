@@ -113,6 +113,8 @@ const MARGIN_PRESETS: [string, number[]][] = [
   ['Narrow', [1.27, 1.27, 1.27, 1.27]],
   ['Moderate', [2.54, 2.54, 1.91, 1.91]],
   ['Wide', [2.54, 2.54, 5.08, 5.08]],
+  // Left / right are the inside / outside margins (mirror_margins).
+  ['Mirrored', [2.54, 2.54, 3.18, 2.54]],
 ]
 
 const PAGE_SIZES: [string, number, number][] = [
@@ -563,8 +565,11 @@ const cmds: Command[] = [
   // Layout > Page Setup and Document type
   { id: 'margins', text: 'Margins', icon: 'page_margins', tip: 'margins', popup: 'instant',
     menu: [
+      // Word's list: each preset drawn as a page with its margin lines.
       ...MARGIN_PRESETS.map(([name, [t, b, l, r]]): MenuItem => ({
-        text: name, command: `margin_${name}`, detail: `Top ${t} cm  Bottom ${b} cm  Left ${l} cm  Right ${r} cm`,
+        text: name, command: `margin_${name}`,
+        detail: `Top: ${t.toFixed(2)} cm, Bottom: ${b.toFixed(2)} cm, Left: ${l.toFixed(2)} cm, Right: ${r.toFixed(2)} cm`,
+        icon: 'margin_thumb', iconArg: `${name === 'Mirrored' ? 'm' : ''}${t},${b},${l},${r}`,
         checkable: true, checked: name === 'Normal',
       })),
       '-', { text: 'Custom Margins…', command: 'doc_props' },

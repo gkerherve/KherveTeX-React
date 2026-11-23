@@ -310,6 +310,9 @@ export interface DocMeta {
   markup?: 'simple' | 'none' | 'original'
   // Pages turned sideways (geometry's landscape). Stored only when on.
   landscape?: boolean
+  // Layout ▸ Margins ▸ Mirrored: left / right are the inside / outside
+  // margins, alternating on facing pages. Stored only when on.
+  mirror_margins?: boolean
   // Layout ▸ Line Numbers (lineno): numbers in the margin, counted through
   // the document, from 1 on each page or from 1 at each section. Stored
   // only when on.
@@ -354,6 +357,7 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   bib_style: o.bib_style ?? 'plainnat',
   ...(o.show_date === false ? { show_date: false } : {}),
   ...(o.landscape ? { landscape: true } : {}),
+  ...(o.mirror_margins ? { mirror_margins: true } : {}),
   ...(o.line_numbers ? { line_numbers: o.line_numbers } : {}),
   ...(o.hyphenation === false ? { hyphenation: false } : {}),
   ...(o.header_footer ? { header_footer: { ...o.header_footer } } : {}),
@@ -484,6 +488,7 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     preamble_extras: pyStr(get(m, 'preamble_extras', '')),
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
     ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
+    ...(truthy(get(m, 'mirror_margins', false)) ? { mirror_margins: true } : {}),
     ...(['continuous', 'page', 'section'].includes(get(m, 'line_numbers', '')) ? { line_numbers: get(m, 'line_numbers', '') as 'page' } : {}),
     ...(get<unknown>(m, 'hyphenation', true) === false ? { hyphenation: false as const } : {}),
     ...(get(m, 'header_footer', null) && typeof get(m, 'header_footer', null) === 'object' ? { header_footer: { ...get<HeaderFooter>(m, 'header_footer', {}) } } : {}),

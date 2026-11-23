@@ -1337,7 +1337,9 @@ function geometryLine(m: DocMeta): string {
   const page = byCode(m.page_size)
   return `\\usepackage[${page.geometry_option},${m.landscape ? 'landscape,' : ''}`
     + `top=${pyFloat(m.margin_top_cm)}cm,bottom=${pyFloat(m.margin_bottom_cm)}cm,`
-    + `left=${pyFloat(m.margin_left_cm)}cm,right=${pyFloat(m.margin_right_cm)}cm]{geometry}`
+    + (m.mirror_margins
+      ? `twoside,inner=${pyFloat(m.margin_left_cm)}cm,outer=${pyFloat(m.margin_right_cm)}cm]{geometry}`
+      : `left=${pyFloat(m.margin_left_cm)}cm,right=${pyFloat(m.margin_right_cm)}cm]{geometry}`)
 }
 
 const DATE_ONLY_RE = /^(?:\s*\\date\{[^{}]*\}\s*)+$/
