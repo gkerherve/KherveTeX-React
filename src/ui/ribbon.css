@@ -474,3 +474,9 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
 .rb-pen-widths button.on { border-color: #2b579a; background: #dce8f7; }
 .rb-pen-widths span { border-radius: 50%; display: block; }
 .rb-pen-colour { border: 1px solid #c8c8c8; background: #f6f6f6; border-radius: 4px; padding: 3px 10px; }
+
+/* Draw ▸ Pens: the beta warning beside the gallery. */
+.rb-pens-wrap { display: flex; align-items: center; gap: 8px; align-self: center; }
+.rb-ink-beta { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 150px;
+  font-size: 10.5px; line-height: 1.25; color: #7a4b00; background: #fff6e0; border: 1px solid #f0c36d;
+  border-radius: 4px; padding: 4px 6px; cursor: help; }

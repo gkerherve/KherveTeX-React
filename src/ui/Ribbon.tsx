@@ -352,6 +352,7 @@ function PenGallery() {
   const drawing = inkTool()?.kind === 'pen'
   const pen = list[cur]
   return (
+    <div className='rb-pens-wrap'>
     <div className='rb-pens'>
       {list.map((p, i) => (
         <button key={i} type='button' className={'rb-pen' + (i === cur && drawing ? ' on' : '')}
@@ -381,8 +382,17 @@ function PenGallery() {
         </div>
       )}
     </div>
+    <div className='rb-ink-beta' title={INK_BETA_TIP}>
+      <span className='beta-tag'>beta</span>
+      <span>Ink in the PDF may often miss the word it marks: check its position after compiling.</span>
+    </div>
+    </div>
   )
 }
+
+const INK_BETA_TIP = 'Drawing is in beta. kTeX ties each stroke to the word under it, but LaTeX lays out the page '
+  + 'differently from the editor, so in the PDF a circle, underline or highlight may land beside its word, '
+  + 'on the wrong line or a little off. Always check the PDF, and please send feedback (Help ▸ Send feedback).'
 
 // Design ▸ Document Formatting: Word's style-set gallery, each tile a
 // page in that heading look with the document's colours.

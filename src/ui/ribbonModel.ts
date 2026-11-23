@@ -339,7 +339,7 @@ const cmds: Command[] = [
   { id: 'smartart', text: 'SmartArt', icon: 'smartart' },
   // Draw tab (Word's): ink on the page.
   { id: 'draw_tool', text: 'Draw', icon: 'draw_tool', checkable: true,
-    tooltip: 'Draw: write and draw on the page with the chosen pen; click again (or Esc) to go back to typing. The ink prints in the PDF at the same place.' },
+    tooltip: 'Draw: write and draw on the page with the chosen pen; click again (or Esc) to go back to typing. The ink prints in the PDF at its word. BETA: in the PDF a stroke may often miss the word it marks (LaTeX lays out the page differently), so check its position after compiling.' },
   { id: 'eraser_tool', text: 'Eraser', icon: 'eraser_tool', checkable: true, popup: 'split',
     tooltip: 'Eraser: drag over ink to remove the strokes it touches',
     menu: [
