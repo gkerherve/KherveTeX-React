@@ -16,9 +16,11 @@ const MODES: [EditMode, string, string, string][] = [
 const SHARES: [string, string, string][] = [
   ['share:overleaf', 'Send to Overleaf', 'Put this version in your Overleaf project (needs Git access on Overleaf)'],
   ['share:overleaf_zip', 'Download for Overleaf (.zip)…', 'A zip to upload as a new Overleaf project (free plan)'],
-  ['share:email_pdf', 'Email the PDF', 'Compile, then a new mail in Mail with the PDF attached'],
-  ['share:email_ktex', 'Email the document (.ktex)', 'A new mail with the kTeX file attached, to edit in kTeX'],
+  ['share:email_pdf', 'Email the PDF (Mail)', 'Compile, then a new mail in Mail with the PDF attached'],
+  ['share:outlook', 'Email the PDF (Outlook)', 'Compile, then a new Outlook message with the PDF attached'],
+  ['share:teams', 'Send the PDF in Teams', 'Compile, then the PDF is shown ready to drag into a Teams chat'],
   ['share:whatsapp', 'Send the PDF with WhatsApp', 'Compile, then share the PDF in WhatsApp'],
+  ['share:email_ktex', 'Email the document (.ktex)', 'A new mail with the kTeX file attached, to edit in kTeX'],
   ['share:reveal_pdf', 'Show the PDF in the Finder', 'To drop it into any other app'],
 ]
 

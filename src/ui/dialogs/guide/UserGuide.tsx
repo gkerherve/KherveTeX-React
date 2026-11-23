@@ -58,10 +58,11 @@ function highlight(root: HTMLElement, q: string): HTMLElement | null {
   return first
 }
 
-export function UserGuide({ close }: { close: () => void }) {
+export function UserGuide({ close, onMount }: { close: () => void; onMount?: (el: HTMLElement) => void }) {
   const [cur, setCur] = useState(lastChapter)
   const [q, setQ] = useState('')
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null)
+  const [wide, setWide] = useState(false)
   const body = useRef<HTMLDivElement>(null)
   const win = useRef<HTMLDivElement>(null)
   const drag = useDragWindow(win)
@@ -82,8 +83,12 @@ export function UserGuide({ close }: { close: () => void }) {
     first?.scrollIntoView({ block: 'center' })
   }, [cur, q, searching])
 
+  useEffect(() => { if (win.current) onMount?.(win.current) }, [])
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      // The guide floats beside the document: its keys only while it has
+      // the focus (typing in the document keeps its arrows and Esc).
+      if (!win.current?.contains(e.target as Node)) return
       if (e.key === 'Escape') {
         e.stopPropagation(); e.preventDefault()
         // Esc: the picture, then the search, then the guide.
@@ -122,7 +127,7 @@ export function UserGuide({ close }: { close: () => void }) {
 
   let lastPart = ''
   return (
-    <div ref={win} className='dlg dlg-guide' role='dialog' aria-modal='true' aria-label='kTeX User Guide'>
+    <div ref={win} className={'dlg dlg-guide' + (wide ? ' g-big' : '')} role='dialog' aria-modal='false' aria-label='kTeX User Guide'>
       <div className='g-top' {...drag} title='Drag to move the guide; double-click to centre it'>
         <div className='g-brand'><span className='g-logo'>kTeX</span><span>User Guide</span></div>
         <div className='g-search'>
@@ -140,6 +145,8 @@ export function UserGuide({ close }: { close: () => void }) {
             }}
             />
         </div>
+        <button type='button' className='g-close' title={wide ? 'Beside the document' : 'Bigger, in the middle'}
+          aria-label={wide ? 'Beside the document' : 'Bigger'} onClick={() => setWide(w => !w)}>{wide ? '⇥' : '⤢'}</button>
         <button type='button' className='g-close' aria-label='Close' onClick={close}>✕</button>
       </div>
       <div className='g-main'>

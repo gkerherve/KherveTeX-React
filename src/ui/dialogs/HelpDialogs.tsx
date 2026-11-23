@@ -39,8 +39,17 @@ function Frame({ title, className, children, onClose }: {
   )
 }
 
+// The guide floats beside the document (modeless), as Word's Help pane:
+// read and work at the same time. Opening it again brings the open one
+// forward.
+let guideOpen: HTMLElement | null = null
 export function showHelpGuide(): Promise<void> {
-  return openDialog<void>(close => <UserGuide close={() => close(null)} />).then(() => undefined)
+  if (guideOpen?.isConnected) {
+    guideOpen.querySelector<HTMLInputElement>('.g-search input')?.focus()
+    return Promise.resolve()
+  }
+  return openDialog<void>(close => <UserGuide close={() => { guideOpen = null; close(null) }}
+    onMount={el => { guideOpen = el }} />, { modeless: true }).then(() => { guideOpen = null })
 }
 
 // _show_shortcuts: the QMessageBox's rich text.

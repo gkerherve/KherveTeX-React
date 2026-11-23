@@ -2,6 +2,7 @@
    illustrated page on the right. Colours follow the app theme. */
 .dlg-guide {
   width: min(1240px, 96vw); height: min(880px, 94vh); max-width: 96vw; max-height: 94vh;
+  outline: none;
   padding: 0; overflow: hidden; border-radius: 10px; border-color: #8a9bb5;
   font: 13px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; position: relative;
   --g-ink: var(--text, #1f2328); --g-soft: #5b6472; --g-line: #dfe3ea; --g-page: var(--base, #fff);
@@ -162,3 +163,13 @@ body.kt-dark .dlg-guide, [data-theme="dark"] .dlg-guide { --g-soft: #a9b1bd; --g
 /* The title bar moves the window (useDragWindow). */
 .g-top { cursor: grab; touch-action: none; }
 .g-top:active { cursor: grabbing; }
+
+/* Beside the document (modeless): on the right, narrower, the full height. */
+.dlg-modeless > .dlg-guide:not(.g-big) { width: min(760px, 52vw); height: calc(100vh - 170px); margin-top: -60px; }
+.dlg-modeless > .dlg-guide.g-big { position: fixed; left: 50%; top: 50%; translate: -50% -50%; }
+.dlg-modeless > .dlg-guide:not(.g-big) .g-nav { width: 210px; }
+.dlg-modeless > .dlg-guide:not(.g-big) .g-page { padding: 0 24px 24px; }
+.dlg-modeless > .dlg-guide:not(.g-big) .g-pair, .dlg-modeless > .dlg-guide:not(.g-big) .g-three, .dlg-modeless > .dlg-guide:not(.g-big) .g-cards,
+.dlg-modeless > .dlg-guide:not(.g-big) .g-legend, .dlg-modeless > .dlg-guide:not(.g-big) .g-pdfs { grid-template-columns: 1fr; }
+.dlg-modeless > .dlg-guide:not(.g-big) .g-keys { columns: 1; }
+.dlg-modeless > .dlg-guide:not(.g-big) .g-head h2 { font-size: 24px; }
