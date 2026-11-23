@@ -462,9 +462,9 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
 .rb-pens { display: flex; align-items: flex-end; gap: 2px; padding: 2px 8px 0; height: 62px; box-sizing: border-box;
   border: 1px solid #cfcfcf; border-radius: 4px; background: #fff; overflow: hidden; align-self: center; }
 .rb-pen { border: none; background: transparent; padding: 0 3px; height: 58px; display: flex; align-items: flex-end;
-  transform: translateY(10px); transition: transform .12s; }
-.rb-pen:hover { transform: translateY(6px); }
-.rb-pen.on { transform: translateY(0); }
+  transform: translateY(-4px); transition: transform .12s; }
+.rb-pen:hover { transform: translateY(-7px); }
+.rb-pen.on { transform: translateY(-10px); }
 .rb-pen-pop { position: fixed; z-index: 2000; background: #fff; border: 1px solid #c8c8c8; border-radius: 6px;
   box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 8px 10px; width: 210px; font-size: 12px; }
 .rb-pen-pop-title { font-weight: 600; margin-bottom: 6px; }
