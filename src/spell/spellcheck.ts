@@ -12,6 +12,9 @@ import { SpellChecker } from './spellchecker.ts'
 const WORD_RE = /[A-Za-z][A-Za-z'’-]*[A-Za-z]|[A-Za-z]/g
 const STRIP = "’'’"
 
+// Preferences ▸ Spelling & Grammar (app/prefs.ts sets them).
+export const spellOptions = { ignoreUpper: false, flagRepeated: false }
+
 export const UNDERLINE_COLOR = '#d8000c'
 
 // Worth-looking-up: at least three letters and alphabetic.
@@ -196,9 +199,20 @@ export class SpellHighlighter {
   misspelledRanges(text: string): [number, number][] {
     if (this.checker === null || !text) return []
     const out: [number, number][] = []
+    const { ignoreUpper, flagRepeated } = spellOptions
+    let prev: { word: string; end: number } | null = null
     for (const m of text.matchAll(WORD_RE)) {
       const raw = m[0]
+      // Preferences ▸ Spelling: "the the" flagged (only a space between).
+      const low = raw.toLowerCase()
+      if (flagRepeated && prev && prev.word === low && /^[ \t]+$/.test(text.slice(prev.end, m.index))) {
+        out.push([m.index, m.index + raw.length])
+        prev = { word: low, end: m.index + raw.length }
+        continue
+      }
+      prev = { word: low, end: m.index + raw.length }
       if (!isCheckable(raw)) continue
+      if (ignoreUpper && raw.length > 1 && raw === raw.toUpperCase()) continue
       const key = stripChars(raw.toLowerCase(), STRIP)
       if (!key || this.ignored.has(key)) continue
       if (this.lookup(key)) out.push([m.index, m.index + raw.length])

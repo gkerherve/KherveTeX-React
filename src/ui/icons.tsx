@@ -1632,6 +1632,8 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   themes: Themes, design_colors: DesignColors, design_fonts: DesignFonts, para_spacing: ParaSpacing,
   set_default: SetDefault, watermark: Watermark, page_color: PageColor, page_borders: PageBorders,
   style_set_tile: StyleSetTile,
+  pref_general: PrefGeneral, pref_ribbon: PrefRibbon, pref_edit: PrefEdit, pref_autocorrect: PrefAutoCorrect,
+  pref_access: PrefAccess, pref_user: PrefUser, pref_files: PrefFiles,
   track_changes: TrackChanges, markup_view: MarkupView, markup_options: MarkupOptions,
   grow_font: GrowFont, shrink_font: ShrinkFont, change_case: ChangeCase, clear_format: ClearFormat,
   font_color: FontColor, underline_style: UnderlineStyle,
@@ -1766,6 +1768,37 @@ export function StyleSetTile({ arg = 'default|#2F5496|#ED7D31', width = 64, heig
       {lines}
     </svg>
   )
+}
+
+
+// Preferences window panes.
+export function PrefGeneral(p: IconProps) {
+  return <Svg {...p}>{R(6, 3, 12, 18, { fill: PAPER, lw: 1.3, r: 2 })}{R(9, 6, 6, 12, { lw: 1.1, r: 1 })}{R(9.5, 6.5, 5, 5.5, { fill: '#9aa0a6', lw: 0, r: 0.8 })}</Svg>
+}
+export function PrefRibbon(p: IconProps) {
+  return <Svg {...p}>{R(2.5, 4, 19, 16, { fill: PAPER, lw: 1.3, r: 1.5 })}{F(3.2, 4.7, 17.6, 3.3, '#9ec5f8')}
+    {L(5, 11, 9, 11, INK, 1.1)}{L(11, 11, 14, 11, INK, 1.1)}{L(16, 11, 19, 11, INK, 1.1)}{L(5, 14, 8, 14, INK, 1.1)}{L(11, 14, 15, 14, INK, 1.1)}</Svg>
+}
+export function PrefEdit(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 14, 19, 3)}{L(6, 8, 13, 8, INK, 1.1)}{L(6, 11, 12, 11, INK, 1.1)}{L(6, 14, 10, 14, INK, 1.1)}
+    {P([[20.5, 8], [22.5, 10], [14, 18.5], [11.5, 19], [12, 16.5]], { fill: '#9ec5f8', color: BLUE, lw: 1 })}</Svg>
+}
+export function PrefAutoCorrect(p: IconProps) {
+  return <Svg {...p}>{T([0, 6, 16, 12], 'ABC', { size: 7.5, bold: true })}{L(1.5, 17, 14.5, 17, RED, 1.4, '1.5 1')}
+    {P([[19, 3], [15.5, 11], [18.5, 11], [16.5, 20], [21.5, 9.5], [18.5, 9.5], [20.5, 3]], { fill: '#f39c12', color: '#d35400', lw: 0.8 })}</Svg>
+}
+export function PrefAccess(p: IconProps) {
+  return <Svg {...p}>{Page(4, 2, 15, 20, 3.5)}{C(11.5, 8, 1.7, BLUE, 1.2, BLUE)}{L(7.5, 11, 15.5, 11, BLUE, 1.4)}
+    {L(11.5, 11, 11.5, 15, BLUE, 1.4)}{L(11.5, 15, 9, 19, BLUE, 1.4)}{L(11.5, 15, 14, 19, BLUE, 1.4)}</Svg>
+}
+export function PrefUser(p: IconProps) {
+  return <Svg {...p}>{R(2.5, 5, 19, 14, { fill: PAPER, lw: 1.3, r: 1.5 })}{F(3.2, 5.7, 17.6, 2.6, BLUE)}
+    {C(8, 12.5, 2, INK, 1.1)}<path d='M4.8 17.5c0.6-2.2 5.8-2.2 6.4 0' fill='none' stroke={INK} strokeWidth={1.1} />
+    {L(13, 12, 19, 12, INK, 1.1)}{L(13, 15, 18, 15, INK, 1.1)}</Svg>
+}
+export function PrefFiles(p: IconProps) {
+  return <Svg {...p}><path d='M2.5 7.5V18.5H18V9.5H10L8.5 7.5Z' fill='#c3d6ea' stroke={INK} strokeWidth={1.2} strokeLinejoin='round' />
+    {C(17, 15, 3.2, INK, 1.4, '#fff')}{L(19.3, 17.3, 22, 20, INK, 1.8)}</Svg>
 }
 
 export function Icon({ name, ...p }: IconProps & { name: string }) {

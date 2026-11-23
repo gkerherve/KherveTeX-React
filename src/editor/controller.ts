@@ -3,6 +3,8 @@
 // document in step with it, lays the pages out, paints the sheets, the
 // headers, footers and footnotes, and offers the EditorApi.
 import { designCss } from '../core/design.ts'
+import { autocorrectPlugin } from './autocorrect.ts'
+import { PREFS_EVENT, pref } from '../app/prefs.ts'
 import { syncDesignChecks } from '../app/actions/design.ts'
 const PX_PER_CM_C = 96 / 2.54
 import { dropCursor } from 'prosemirror-dropcursor'
@@ -266,9 +268,17 @@ export class EditorController implements ViewHost {
     document.fonts?.addEventListener?.('loadingdone', this.onFonts)
     window.addEventListener(FIGURE_UPDATED_EVENT, this.onFigureUpdated)
     window.addEventListener('focus', this.onWindowFocus)
+    window.addEventListener(PREFS_EVENT, this.onPrefs)
     void loadFonts(this.families()).then(() => this.relayout())
     this.schedulePages(0)
     this.syncToolbar()
+  }
+
+  // Preferences changed: the track look and the spelling options.
+  private onPrefs = (): void => {
+    if (this.destroyed) return
+    this.applyGeometry()
+    this.view.dispatch(this.view.state.tr.setMeta(SPELL_REFRESH, true).setMeta('addToHistory', false))
   }
 
   destroy(): void {
@@ -280,6 +290,7 @@ export class EditorController implements ViewHost {
     document.fonts?.removeEventListener?.('loadingdone', this.onFonts)
     window.removeEventListener(FIGURE_UPDATED_EVENT, this.onFigureUpdated)
     window.removeEventListener('focus', this.onWindowFocus)
+    window.removeEventListener(PREFS_EVENT, this.onPrefs)
     clearTimeout(this.pageTimer)
     clearTimeout(this.resolverTimer)
     if (current === this) { setCurrent(null); setEditorApi(null) }
@@ -294,7 +305,7 @@ export class EditorController implements ViewHost {
       layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
-      history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(),
+      history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(),
     ]
   }
 
@@ -639,6 +650,12 @@ export class EditorController implements ViewHost {
     // Review ▸ Track Changes and the markup shown (All, Simple, None, Original).
     setTracking(!!this.meta.track_changes)
     for (const k of ['simple', 'none', 'original']) this.root.classList.toggle(`kt-markup-${k}`, this.meta.markup === k)
+    // Preferences ▸ Track Changes: how insertions and deletions look here.
+    const tl = pref('track/look')
+    for (const k of ['underline', 'double', 'bold', 'italic', 'colour']) this.root.classList.toggle(`kt-ins-${k}`, tl.insert === k)
+    for (const k of ['strike', 'double', 'hidden']) this.root.classList.toggle(`kt-del-${k}`, tl.delete === k)
+    this.root.classList.toggle('kt-track-fixed', tl.colour !== 'author')
+    if (tl.colour !== 'author') this.root.style.setProperty('--kt-track-colour', tl.colour)
     // Design tab: the heading look (style set, colours, fonts).
     const dcss = designCss(this.meta.design)
     this.root.classList.toggle('kt-design', !!dcss)

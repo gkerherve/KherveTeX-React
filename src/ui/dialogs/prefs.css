@@ -1,0 +1,51 @@
+/* kTeX ▸ Preferences, as Word's Preferences window. */
+.pf-window { width: 640px; max-width: calc(100vw - 40px); max-height: calc(100vh - 60px); display: flex; flex-direction: column;
+  padding: 0; overflow: hidden; background: #f6f6f6; border-radius: 10px; }
+.pf-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #ececec; border-bottom: 1px solid #d4d4d4; }
+.pf-nav { display: flex; border: 1px solid #c9c9c9; border-radius: 6px; overflow: hidden; }
+.pf-nav button, .pf-all { border: none; background: #fafafa; width: 28px; height: 24px; font-size: 17px; line-height: 1; color: #444; cursor: default; }
+.pf-nav button + button { border-left: 1px solid #c9c9c9; }
+.pf-nav button:disabled { color: #bbb; }
+.pf-all { border: 1px solid #c9c9c9; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #666; }
+.pf-title { flex: 1; color: #777; font-size: 15px; font-weight: 600; }
+.pf-search { width: 170px; height: 24px; border: 1px solid #c9c9c9; border-radius: 12px; padding: 0 10px; font: inherit; font-size: 12.5px; }
+.pf-close { border: none; background: transparent; font-size: 20px; color: #777; width: 26px; cursor: default; }
+.pf-close:hover { color: #000; }
+.pf-grid { overflow-y: auto; }
+.pf-section { padding: 8px 14px 12px; border-bottom: 1px solid #dcdcdc; }
+.pf-section:nth-child(2) { background: #ededed; }
+.pf-section-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.pf-icons { display: flex; flex-wrap: wrap; }
+.pf-icon { width: 84px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;
+  border: none; background: transparent; border-radius: 6px; font-size: 11.5px; line-height: 1.2; color: #222; text-align: center; padding: 4px 2px; }
+.pf-icon:hover { background: rgba(0, 0, 0, 0.06); }
+.pf-icon.dim { opacity: 0.3; }
+.pf-icon.hit { background: rgba(43, 87, 154, 0.14); }
+.pf-pane { overflow-y: auto; padding: 4px 18px 16px; background: #fff; font-size: 13px; }
+.pf-group { padding: 10px 0 12px; border-bottom: 1px solid #e3e3e3; }
+.pf-group:last-child { border-bottom: none; }
+.pf-group-title { font-weight: 700; margin-bottom: 8px; }
+.pf-check, .pf-radio { display: flex; align-items: flex-start; gap: 7px; margin: 0 0 6px 6px; }
+.pf-check input, .pf-radio input { margin-top: 2px; }
+.pf-note { display: block; color: #777; font-size: 12px; margin-top: 2px; }
+.pf-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px 6px; }
+.pf-row-label { min-width: 150px; text-align: right; color: #333; }
+.pf-row select { min-width: 190px; }
+.pf-fields { display: flex; gap: 10px; margin: 0 0 6px 6px; }
+.pf-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #555; }
+.pf-field.wide { flex: 1; }
+.pf-field input { font: inherit; font-size: 13px; padding: 3px 6px; }
+.pf-buttons { margin: 8px 0 0 6px; display: flex; gap: 8px; }
+.pf-tabs { display: flex; justify-content: center; margin: 12px 0 4px; }
+.pf-tabs button { border: 1px solid #c9c9c9; background: #f4f4f4; padding: 3px 14px; font-size: 12.5px; }
+.pf-tabs button:first-child { border-radius: 6px 0 0 6px; }
+.pf-tabs button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.pf-tabs button.on { background: #fff; font-weight: 600; }
+.pf-list { border: 1px solid #d6d6d6; border-radius: 4px; max-height: 300px; overflow-y: auto; margin: 0 0 6px 6px; }
+.pf-list-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+.pf-list-row .pf-note { margin: 0 0 0 auto; font-size: 11px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-table { border-collapse: collapse; margin: 6px 0 4px 6px; width: calc(100% - 6px); font-size: 12.5px; }
+.pf-table th { text-align: left; font-weight: 600; background: #f0f0f0; padding: 3px 8px; border: 1px solid #ddd; }
+.pf-table td { padding: 2px 8px; border: 1px solid #eee; }
+.pf-files td:nth-child(2) { max-width: 330px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #555; }
+.pf-sample { margin: 6px 0 4px 162px; padding: 6px 10px; border: 1px solid #ddd; display: inline-block; font-family: Georgia, serif; }

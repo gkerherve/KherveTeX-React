@@ -1,3 +1,4 @@
+import { pref } from './prefs.ts'
 // Pictures from outside the document: pasted from the clipboard (Cmd+V, the
 // Paste button, Paste Special ▸ Picture) or dropped on the page (a file
 // from Finder, the screenshot thumbnail macOS shows after Cmd+Shift+4).
@@ -72,6 +73,9 @@ async function savePicture(p: Picture): Promise<M.Figure | null> {
     }
     width = naturalWidth(img.naturalWidth, ext === '.png' ? pngDpi(bytes) : null)
   }
+  // Preferences ▸ Edit: pictures inserted at a set share of the text width.
+  const share = pref('edit/picture_width')
+  if (share !== 'natural') width = `${share}\\textwidth`
   const dir = await imagesDir()
   const pf = platform()
   const names = new Set((await pf.listDir(dir).catch(() => [])).map(e => e.name))

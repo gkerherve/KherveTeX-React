@@ -20,6 +20,7 @@ import { lookupTip, useTipProps, type TipContent } from './Tooltip'
 import { FEEDBACK_EMAIL, SHORT_NAME } from '../version'
 import { accentOf, secondOf, STYLE_SETS } from '../core/design'
 import { searchTools, type ToolHit } from './ribbonSearch'
+import { PREFS_EVENT, pref } from '../app/prefs'
 import './ribbon.css'
 
 const TILE_W = 70
@@ -659,7 +660,17 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
     if (!(lv in widgets.disabledStyles)) void runAction('style', lv)
   }
   const closeMenu = useCallback(() => setMenu(null), [])
-  const visible = RIBBON_TABS.filter(t => !t.context || t.context === context)
+  // Preferences ▸ Ribbon & Toolbar / View: tabs and quick buttons shown,
+  // group titles; a change shows at once.
+  const [, setPrefTick] = useState(0)
+  useEffect(() => {
+    const on = () => { setPrefTick(n => n + 1); setFolded(Boolean(setting('ribbon_folded', false))) }
+    window.addEventListener(PREFS_EVENT, on)
+    return () => window.removeEventListener(PREFS_EVENT, on)
+  }, [])
+  const hiddenTabs = pref('ribbon/hidden_tabs')
+  const hiddenQuick = pref('ribbon/hidden_quick')
+  const visible = RIBBON_TABS.filter(t => (!t.context || t.context === context) && (t.context || !hiddenTabs.includes(t.name)))
   const shown = visible.find(t => t.name === current) ?? visible[0]
 
   // Menu items that are not commands (font sizes, styles) report through
@@ -698,9 +709,9 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   }, [])
 
   return (
-    <div className={'ribbon' + (folded ? ' rb-folded' : '')}>
+    <div className={'ribbon' + (folded ? ' rb-folded' : '') + (pref('ribbon/group_titles') ? '' : ' rb-no-titles')}>
       <div className='rb-bar'>
-        <Corner ids={CORNER_LEFT} ctx={ctx} side='left' />
+        <Corner ids={CORNER_LEFT.filter(id => id === null || !hiddenQuick.includes(id))} ctx={ctx} side='left' />
         <TabBar tabs={visible} current={shown.name} onPick={pick} onFold={toggleFold} />
         <div className='rb-bar-fill' />
         <button type='button' className='rb-feedback'

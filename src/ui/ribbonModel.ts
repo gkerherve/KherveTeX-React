@@ -469,7 +469,7 @@ const cmds: Command[] = [
   { id: 'comment', text: 'New &comment', icon: 'comment', shortcut: 'Ctrl+Alt+M' },
   { id: 'your_name', text: 'Your &name…', icon: 'your_name',
     tooltip: 'Your name, shown on your comments and reviews (in the margin, the PDF and Word)' },
-  { id: 'settings', text: '&Settings…', icon: 'settings',
+  { id: 'settings', text: '&Preferences…', icon: 'settings',
     tooltip: 'Settings: your name (on comments and reviews) and how kTeX starts' },
   { id: 'accept_comment', text: '&Accept', icon: 'accept_change', popup: 'split',
     menu: [{ text: 'Accept This Change', command: 'accept_comment' }, { text: 'Accept All Changes', command: 'accept_all' },

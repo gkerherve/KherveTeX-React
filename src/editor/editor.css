@@ -663,3 +663,13 @@ body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-pagebreak { font-size: 13.33px
   content: 'Page Break'; font: 11px 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #4a6fa5;
   background: var(--kt-page-bg, #fff); padding: 0 6px;
 }
+
+/* Preferences ▸ Track Changes: how insertions and deletions look. */
+.kt-ins, .kt-del { --kt-tc: var(--kt-track-colour, unset); }
+.kt-ins-double .kt-ins { text-decoration: underline double; }
+.kt-ins-bold .kt-ins { text-decoration: none; font-weight: 700; }
+.kt-ins-italic .kt-ins { text-decoration: none; font-style: italic; }
+.kt-ins-colour .kt-ins { text-decoration: none; }
+.kt-del-double .kt-del { text-decoration: line-through double; }
+.kt-del-hidden .kt-del { display: none; }
+.kt-track-fixed .kt-ins, .kt-track-fixed .kt-del { color: var(--kt-track-colour); }

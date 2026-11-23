@@ -26,6 +26,7 @@ import { useDocumentsDock } from './app/actions/project'
 import { editorApi } from './app/editorApi'
 import { pdfApi } from './preview/PdfView'
 import { loadSettings, setting, setSetting } from './platform/settings'
+import { PREFS_EVENT } from './app/prefs'
 import './App.css'
 
 // A4 at 96 dpi: the PDF panel's page.
@@ -129,6 +130,12 @@ export default function App() {
   const [follow, setFollow] = useState(() => setting('pdf_follows_text', true))
   // The window renders before the settings are read.
   useEffect(() => { void loadSettings().then(() => setFollow(setting('pdf_follows_text', true))) }, [])
+  // Preferences ▸ General changes it too.
+  useEffect(() => {
+    const on = () => setFollow(setting('pdf_follows_text', true))
+    window.addEventListener(PREFS_EVENT, on)
+    return () => window.removeEventListener(PREFS_EVENT, on)
+  }, [])
   // Scroll events come once a frame; the work is two reads and a write.
   const syncPdf = () => {
     const desk = deskRef.current

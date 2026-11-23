@@ -4,6 +4,7 @@
 // _import_tex, _import_md, _export_tex, _export_latex_zip, _export_pdf,
 // _show_in_explorer, _remember_recent, _update_title, offer_save_before).
 import { defaultDesign } from './design.ts'
+import { pref } from '../prefs.ts'
 import { locateFigures } from '../../core/texFigures'
 import { isImageName } from '../../core/pictures'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
@@ -201,7 +202,13 @@ export async function newBlank(): Promise<void> {
   importedStem = null
   setImportSourceDir(null)
   const blank = blankDocument()
-  replaceDoc({ ...blank, meta: defaultDesign(blank.meta) }, { path: null, dirty: false })
+  let meta = defaultDesign(blank.meta)
+  // Preferences ▸ User Information: you as the author of new documents.
+  if (pref('user/author_new_docs')) {
+    const who = [String(setting('user/name', '') ?? '').trim(), pref('user/affiliation').trim()].filter(Boolean).join(', ')
+    if (who) meta = { ...meta, author: who }
+  }
+  replaceDoc({ ...blank, meta }, { path: null, dirty: false })
   updateTitle()
 }
 
@@ -928,22 +935,15 @@ export async function startFileService(): Promise<boolean> {
 }
 
 // Settings (the gear beside Help): your name, then how kTeX starts.
-async function settingsAction(): Promise<void> {
-  const { settingsDialog } = await import('../../ui/dialogs/SettingsDialog')
-  const { USER_NAME_KEY, userName, gitAuthor } = await import('./editor')
-  const r = await settingsDialog({
-    name: userName(), showWelcome: setting('show_welcome', true),
-    layout: setting<LayoutMode>('layout_mode', 'side'),
-  }, await gitAuthor().catch(() => ''))
-  if (!r) return
-  setSetting(USER_NAME_KEY, r.name)
-  setSetting('show_welcome', r.showWelcome)
-  if (r.layout !== setting<LayoutMode>('layout_mode', 'side')) applyLayoutMode(r.layout)
-  showMessage(r.name ? `Settings saved. Comments are signed “${r.name}”.` : 'Settings saved.', 4000)
+// kTeX ▸ Preferences (the gear): Word's Preferences window.
+async function settingsAction(start: string | null = null): Promise<void> {
+  const { preferencesDialog } = await import('../../ui/dialogs/PreferencesDialog')
+  await preferencesDialog(start)
 }
 
 registerActions({
   settings: () => settingsAction(),
+  preferences: (pane) => settingsAction(typeof pane === 'string' ? pane : null),
   new: () => newDocumentAction(),
   // MainWindow wires Close document to _new.
   close_doc: () => newDocumentAction('closing it'),

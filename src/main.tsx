@@ -7,6 +7,7 @@ import { scheduleUpdates } from './app/actions/updater'
 import { initStore } from './app/store'
 import { startMcpIfEnabled } from './mcp/service'
 import { loadSettings, setting } from './platform/settings'
+import { applyPrefs } from './app/prefs'
 import { startTemplatesService } from './app/actions/templates'
 import { startThemeService } from './app/actions/theme'
 import { startWindowService, windowRequest } from './app/actions/window'
@@ -48,7 +49,7 @@ if (location.hash === SPLASH_HASH) {
   // Settings, the command-line file and the window hooks first; then the
   // compile loop (it applies the saved layout and compiles once).
   // The saved theme as soon as the settings are in.
-  void loadSettings().then(startThemeService)
+  void loadSettings().then(() => { applyPrefs(); startThemeService() })
   void startFileService().then(async opened => {
     void splashStep('Opening the document')
     startWindowService()
