@@ -100,8 +100,9 @@ export function designPreamble(d: Design | undefined, cls: string): string {
   if (!hasDesign(d)) return ''
   const D = d!
   const out: string[] = []
-  const needColor = !!(D.colors || (D.style_set && D.style_set !== 'default') || D.page_color || D.watermark)
-  if (needColor) out.push('\\usepackage{xcolor}')
+  // \definecolor below always needs xcolor (loading it twice is harmless);
+  // without it LaTeX prints the colour names on a page of their own.
+  out.push('\\usepackage{xcolor}')
   const accent = accentOf(D), second = secondOf(D)
   out.push(`\\definecolor{kAccent}{HTML}{${hex(accent)}}`, `\\definecolor{kSecond}{HTML}{${hex(second)}}`)
   const standard = ['article', 'report', 'book', 'extarticle', 'extreport', 'extbook'].includes(cls)

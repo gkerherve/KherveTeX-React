@@ -39,3 +39,11 @@ describe('Tables of contents', () => {
     expect(tocBlock('\\section{x}')).toBeNull()
   })
 })
+
+describe('design colours always have xcolor', () => {
+  test('paragraph spacing alone still loads xcolor before \\definecolor', () => {
+    const pre = designPreamble({ para_space_pt: 8 }, 'article')
+    expect(pre.indexOf('\\usepackage{xcolor}')).toBeGreaterThanOrEqual(0)
+    expect(pre.indexOf('\\usepackage{xcolor}')).toBeLessThan(pre.indexOf('\\definecolor'))
+  })
+})
