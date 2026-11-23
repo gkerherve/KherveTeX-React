@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react'
 import { useCommandState } from './ui/commands'
 import { MenuBar } from './ui/MenuBar'
+import { TitleBar, titleBarShown } from './ui/TitleBar'
 import { useCompileUi } from './app/compile'
 import { useApp } from './app/store'
 import { CodeView } from './codeview/CodeView'
@@ -176,6 +177,7 @@ export default function App() {
   return (
     <TooltipProvider>
       <div className='window'>
+        {titleBarShown() && <TitleBar />}
         <MenuBar cmd={cmd} />
         <Ribbon cmd={cmd} context={context} />
         <div className='workspace'>

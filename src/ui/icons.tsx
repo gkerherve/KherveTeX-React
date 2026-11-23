@@ -211,6 +211,29 @@ function UndoArrow({ mirror, ...p }: IconProps & { mirror: boolean }) {
   </Svg>
 }
 
+// The title bar's icons: white outlines (currentColor) on the blue bar.
+function TbUndoArrow({ mirror, ...p }: IconProps & { mirror: boolean }) {
+  const x = (v: number) => mirror ? 24 - v : v
+  return <Svg {...p}>
+    <path d={`M${x(5)},10 L${x(14)},10 C${x(20)},10 ${x(20)},19 ${x(14)},19 L${x(10)},19`} stroke='currentColor' strokeWidth={1.8} fill='none' strokeLinecap='round' />
+    <path d={`M${x(9)},5.5 L${x(4.5)},10 L${x(9)},14.5`} stroke='currentColor' strokeWidth={1.8} fill='none' strokeLinecap='round' strokeLinejoin='round' />
+  </Svg>
+}
+function TbSave(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M4.5,4.5 H16.5 L19.5,7.5 V19.5 H4.5 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <path d='M8,4.5 V9 H15 V4.5' stroke='currentColor' strokeWidth={1.6} fill='none' />
+    <rect x='7.5' y='13' width='9' height='6.5' stroke='currentColor' strokeWidth={1.6} fill='none' />
+  </Svg>
+}
+function TbPrint(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M7,9 V4.5 H17 V9' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <rect x='3.5' y='9' width='17' height='7.5' rx='1.5' stroke='currentColor' strokeWidth={1.6} fill='none' />
+    <rect x='7' y='14' width='10' height='6' stroke='currentColor' strokeWidth={1.6} fill='#2b579a' />
+  </Svg>
+}
+
 export function Undo(p: IconProps) { return <UndoArrow {...p} mirror={false} /> }
 export function Redo(p: IconProps) { return <UndoArrow {...p} mirror /> }
 
@@ -1629,6 +1652,8 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   file_new: FileNew, file_open: FileOpen, file_save: FileSave,
   export_pdf: ExportPdf, export_docx_icon: ExportDocx, printer: Printer, print_preview: PrintPreview,
   project_open: ProjectOpen, undo: Undo, redo: Redo,
+  tb_save: TbSave, tb_print: TbPrint, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
+  tb_redo: (p: IconProps) => <TbUndoArrow {...p} mirror />,
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,

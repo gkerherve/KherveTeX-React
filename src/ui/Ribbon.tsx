@@ -24,6 +24,7 @@ import { PREFS_EVENT, pref } from '../app/prefs'
 import { PENS_EVENT, penIndex, pens, setPen, usePen } from '../app/actions/draw'
 import { pickColor } from '../app/actions/table'
 import { inkTool, setInkTool } from '../editor/ink'
+import { titleBarShown } from './TitleBar'
 import { PEN_WIDTHS } from '../core/ink'
 import './ribbon.css'
 
@@ -533,6 +534,15 @@ function CornerButton({ id, ctx }: { id: string, ctx: Ctx }) {
   return <SmallButton c={c} ctx={ctx} text={CORNER_LABELLED.has(id)} />
 }
 
+// The quick-access buttons left of the tabs; with the blue title bar
+// (macOS) Save, Print, Undo and Redo live on it instead, as in Word.
+function leftCorner(hidden: string[]): (string | null)[] {
+  const onBar = titleBarShown() ? ['save', 'print', 'undo', 'redo'] : []
+  const ids = CORNER_LEFT.filter(id => id === null || (!hidden.includes(id) && !onBar.includes(id)))
+  while (ids.length && ids[ids.length - 1] === null) ids.pop()
+  return ids
+}
+
 function Corner({ ids, ctx, side }: { ids: (string | null)[], ctx: Ctx, side: string }) {
   return (
     <div className={`rb-corner rb-corner-${side}`}>
@@ -777,7 +787,7 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   return (
     <div className={'ribbon' + (folded ? ' rb-folded' : '') + (pref('ribbon/group_titles') ? '' : ' rb-no-titles')}>
       <div className='rb-bar'>
-        <Corner ids={CORNER_LEFT.filter(id => id === null || !hiddenQuick.includes(id))} ctx={ctx} side='left' />
+        <Corner ids={leftCorner(hiddenQuick)} ctx={ctx} side='left' />
         <TabBar tabs={visible} current={shown.name} onPick={pick} onFold={toggleFold} />
         <div className='rb-bar-fill' />
         <button type='button' className='rb-feedback'

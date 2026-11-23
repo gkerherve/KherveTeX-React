@@ -73,10 +73,13 @@ export async function openWindow(req: NewWindowRequest): Promise<void> {
     return
   }
   const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+  const { LogicalPosition } = await import('@tauri-apps/api/dpi')
   const label = `doc-${Date.now().toString(36)}-${serial++}`
   const win = new WebviewWindow(label, {
     url: `index.html${query}`, title: 'kTeX', width: 1400, height: 900,
     minWidth: 760, minHeight: 500, resizable: true, dragDropEnabled: true,
+    // The blue title bar (src/ui/TitleBar.tsx) under the window buttons.
+    titleBarStyle: 'overlay', hiddenTitle: true, trafficLightPosition: new LogicalPosition(14, 12),
   })
   await new Promise<void>((resolve, reject) => {
     void win.once('tauri://created', () => resolve())
