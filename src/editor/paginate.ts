@@ -408,6 +408,9 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
       i = j
     } else units.push(u)
   }
+  // The sheets the document itself starts (a chapter, \\newpage), before
+  // the PDF's page starts are added.
+  const ownStart = new Set(units.filter(u => u.forced))
   forcePageStarts(units, pageStarts)
   // WebKit cannot start a new sheet (a spanner) inside a list: it drew the
   // item twice and ran the rest into a third column off the page. So a
@@ -608,7 +611,10 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
       col += 1
     }
     vy = colTop()
-    usedFrom = u.top
+    // A chapter (a sheet the document starts) keeps its large space above
+    // under the spanner ("Chapter 5"); WebKit drops other blocks' margins at
+    // a break.
+    usedFrom = u.top - (u.kind === 'block' && col === 0 && ownStart.has(u) ? u.gap : 0)
     prevBottom = u.bottom
     colStart = ui
   }

@@ -1100,6 +1100,12 @@ export function headerFooterLatex(m: DocMeta): string[] {
   // The first page (and \\maketitle's plain style): its own, or the same.
   const first = hf.different_first ? slots(hf.first_header, hf.first_footer) : slots(hf.header, hf.footer, even)
   lines.push(`\\fancypagestyle{plain}{${first.join('')}}`)
+  // A letter's first page has a style of its own (letter: firstpage, or
+  // empty with a return address; KOMA's scrlttr2: empty): the same header
+  // and footer there.
+  const cls = (m.documentclass || '').trim()
+  if (cls === 'letter') lines.push(`\\fancypagestyle{firstpage}{${first.join('')}}`)
+  if (cls === 'letter' || cls === 'scrlttr2') lines.push(`\\fancypagestyle{empty}{${first.join('')}}`)
   if (hf.different_first) lines.push('\\AtBeginDocument{\\thispagestyle{plain}}')
   const set: string[] = []
   const place = hfPlacement(m)
