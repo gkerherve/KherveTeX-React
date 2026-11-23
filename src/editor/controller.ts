@@ -190,6 +190,8 @@ export class EditorController implements ViewHost {
       state: this.makeState(s.doc),
       nodeViews: nodeViews(this, this.atoms),
       dispatchTransaction: tr => this.dispatch(tr),
+      // Viewing mode (the Editing ▾ menu): the page is read, not changed.
+      editable: () => !this.readOnly,
       // writingsuggestions: no macOS inline predictions, which WebKit paints as
       // grey text after the caret that looks as if it were in the document.
       attributes: { spellcheck: 'false', writingsuggestions: 'false', autocorrect: 'off', class: 'kt-flow' },
@@ -468,6 +470,14 @@ export class EditorController implements ViewHost {
   }
 
   // set_meta: page size, class, fonts, margins... changed.
+  // Viewing (true) or Editing / Reviewing (false), as Word's mode menu.
+  readOnly = false
+  setReadOnly(on: boolean): void {
+    this.readOnly = on
+    this.view.setProps({})
+    this.view.dom.classList.toggle('kt-viewing', on)
+  }
+
   setMeta(meta: M.DocMeta): void {
     this.view.dispatch(this.view.state.tr.setMeta(layoutKey, { meta }).setMeta('addToHistory', false))
     // The bibliography style decides how citations print.

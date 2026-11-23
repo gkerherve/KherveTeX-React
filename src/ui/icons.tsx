@@ -226,6 +226,31 @@ function TbSave(p: IconProps) {
     <rect x='7.5' y='13' width='9' height='6.5' stroke='currentColor' strokeWidth={1.6} fill='none' />
   </Svg>
 }
+// The mode menu (Editing, Reviewing, Viewing) and Share, as Word's.
+function ModeEditing(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M5,19 L6,15 L15.5,5.5 L18.5,8.5 L9,18 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <path d='M13.5,7.5 L16.5,10.5' stroke='currentColor' strokeWidth={1.6} />
+  </Svg>
+}
+function ModeReviewing(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M4,17 L5,13.5 L13,5.5 L15.5,8 L7.5,16 Z' stroke='currentColor' strokeWidth={1.5} fill='none' strokeLinejoin='round' />
+    <path d='M12,19.5 H20 M16,15.5 V19.5' stroke='#c43e1c' strokeWidth={1.8} strokeLinecap='round' />
+  </Svg>
+}
+function ModeViewing(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M2.5,12 C6,6 18,6 21.5,12 C18,18 6,18 2.5,12 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <circle cx='12' cy='12' r='3.2' stroke='currentColor' strokeWidth={1.6} fill='none' />
+  </Svg>
+}
+function ShareIcon(p: IconProps) {
+  return <Svg {...p}>
+    <path d='M8,9 H6 V20 H18 V9 H16' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
+    <path d='M12,14 V3.5 M8.5,7 L12,3.5 L15.5,7' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinecap='round' strokeLinejoin='round' />
+  </Svg>
+}
 function TbNew(p: IconProps) {
   return <Svg {...p}>
     <path d='M6,3.5 H14 L18.5,8 V20.5 H6 Z' stroke='currentColor' strokeWidth={1.6} fill='none' strokeLinejoin='round' />
@@ -1664,7 +1689,8 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   file_new: FileNew, file_open: FileOpen, file_save: FileSave,
   export_pdf: ExportPdf, export_docx_icon: ExportDocx, printer: Printer, print_preview: PrintPreview,
   project_open: ProjectOpen, undo: Undo, redo: Redo,
-  tb_save: TbSave, tb_print: TbPrint, tb_new: TbNew, tb_open: TbOpen, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
+  tb_save: TbSave, tb_print: TbPrint, tb_new: TbNew, tb_open: TbOpen,
+  mode_editing: ModeEditing, mode_reviewing: ModeReviewing, mode_viewing: ModeViewing, share: ShareIcon, tb_undo: (p: IconProps) => <TbUndoArrow {...p} mirror={false} />,
   tb_redo: (p: IconProps) => <TbUndoArrow {...p} mirror />,
   bold: Bold, italic: Italic, underline: Underline, strike: Strike,
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,

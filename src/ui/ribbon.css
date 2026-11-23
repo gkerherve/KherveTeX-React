@@ -480,3 +480,29 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
 .rb-ink-beta { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 150px;
   font-size: 10.5px; line-height: 1.25; color: #7a4b00; background: #fff6e0; border: 1px solid #f0c36d;
   border-radius: 4px; padding: 4px 6px; cursor: help; }
+
+/* Word's buttons at the right of the tab row: comment, mode, Share. */
+.rb-word { display: flex; align-items: center; gap: 6px; margin: 0 8px 0 4px; }
+.rb-word-icon { width: 30px; height: 28px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; }
+.rb-word-icon:hover { background: var(--hover-blue, #e5eefb); border-color: #c5d5ee; }
+.rb-word-drop { position: relative; }
+.rb-pill { display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid #b9c6da; border-radius: 15px;
+  background: #fff; color: #1f3f73; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.rb-pill:hover { background: #eef3fb; }
+.rb-pill .rb-caret { font-size: 9px; opacity: .7; }
+.rb-mode-reviewing { color: #a33617; border-color: #e6b8a8; background: #fff6f2; }
+.rb-mode-viewing { color: #3d5a80; border-color: #b9c6da; background: #f3f6fa; }
+.rb-share { background: #2b579a; color: #fff; border-color: #2b579a; }
+.rb-share:hover { background: #1f4580; }
+.rb-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 1500; min-width: 290px; padding: 6px; background: #fff;
+  border: 1px solid #c8d0dc; border-radius: 8px; box-shadow: 0 10px 28px rgba(20, 40, 80, .18); display: flex; flex-direction: column; gap: 2px; }
+.rb-pop button { display: flex; align-items: flex-start; gap: 10px; text-align: left; padding: 8px 10px; border: none; border-radius: 6px;
+  background: transparent; cursor: pointer; font: inherit; color: #1f2328; }
+.rb-pop button:hover { background: #eef3fb; }
+.rb-pop button.on { background: #e1ebf9; }
+.rb-pop span { display: flex; flex-direction: column; gap: 2px; }
+.rb-pop b { font-size: 13px; }
+.rb-pop small { font-size: 11.5px; color: #5b6472; }
+.rb-pop-share { min-width: 320px; }
+/* Viewing: the page is read only. */
+.kt-viewing { caret-color: transparent; }
