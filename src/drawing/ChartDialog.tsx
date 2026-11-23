@@ -11,6 +11,7 @@ import {
 import type { Dash } from '../core/paintModel'
 import { chartSvg } from './chartFiles'
 import { openModal, type Close } from './modal'
+import { useDragWindow } from '../ui/dialogs/useDragWindow'
 import './chart.css'
 
 export interface ChartResult { spec: ChartSpec; caption: string; label: string }
@@ -61,6 +62,8 @@ function ChartEditor({ start, editing, close }: { start: ChartSpec; editing: boo
   const [caption, setCaption] = useState('')
   const [label, setLabel] = useState('')
   const sheet = useRef<HTMLDivElement>(null)
+  const win = useRef<HTMLDivElement>(null)
+  const drag = useDragWindow(win)
 
   const set = (patch: Partial<ChartSpec>) => setSpecState(s => {
     const n = { ...s, ...patch }
@@ -138,9 +141,9 @@ function ChartEditor({ start, editing, close }: { start: ChartSpec; editing: boo
   const ok = () => close({ spec: { ...spec, series: seriesFor(spec) }, caption: caption.trim(), label: label.trim() })
 
   return (
-    <div className='ch-dialog' role='dialog' aria-label={editing ? 'Edit Chart' : 'Insert Chart'}
+    <div ref={win} className='ch-dialog' role='dialog' aria-label={editing ? 'Edit Chart' : 'Insert Chart'}
       onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); close(null) } }}>
-      <div className='ch-top'>
+      <div className='ch-top' {...drag} title='Drag to move the chart editor; double-click to centre it'>
         <svg width='18' height='18' viewBox='0 0 18 18' aria-hidden='true'><rect x='2' y='9' width='3' height='7' fill='#fff' /><rect x='7.5' y='4' width='3' height='12' fill='#fff' /><rect x='13' y='7' width='3' height='9' fill='#fff' /></svg>
         <b>{editing ? 'Edit Chart' : 'Insert Chart'}</b>
         <span>Pick a type, type or paste your data, then format it. Double-click the chart on the page to come back here.</span>

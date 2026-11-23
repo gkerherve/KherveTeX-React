@@ -105,3 +105,7 @@
 .ch-primary { background: #107c41; color: #fff; border-color: #107c41; }
 .ch-primary:hover { background: #0b6a37; }
 .ch-primary:disabled { opacity: .5; cursor: default; }
+
+/* The title bar moves the window (useDragWindow). */
+.ch-top { cursor: grab; touch-action: none; }
+.ch-top:active { cursor: grabbing; }

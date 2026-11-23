@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { platform } from '../../../platform'
 import { GUIDE, type GuideChapter } from './guideContent'
+import { useDragWindow } from '../useDragWindow'
 import './guide.css'
 
 const PART_COLOURS: Record<GuideChapter['part'], string> = {
@@ -62,6 +63,8 @@ export function UserGuide({ close }: { close: () => void }) {
   const [q, setQ] = useState('')
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null)
   const body = useRef<HTMLDivElement>(null)
+  const win = useRef<HTMLDivElement>(null)
+  const drag = useDragWindow(win)
   const hits = useMemo(() => hitsOf(q.trim()), [q])
   const searching = q.trim().length > 0
   const ch = GUIDE[cur]
@@ -119,8 +122,8 @@ export function UserGuide({ close }: { close: () => void }) {
 
   let lastPart = ''
   return (
-    <div className='dlg dlg-guide' role='dialog' aria-modal='true' aria-label='kTeX User Guide'>
-      <div className='g-top'>
+    <div ref={win} className='dlg dlg-guide' role='dialog' aria-modal='true' aria-label='kTeX User Guide'>
+      <div className='g-top' {...drag} title='Drag to move the guide; double-click to centre it'>
         <div className='g-brand'><span className='g-logo'>kTeX</span><span>User Guide</span></div>
         <div className='g-search'>
           <svg width='14' height='14' viewBox='0 0 13 13' aria-hidden='true'>

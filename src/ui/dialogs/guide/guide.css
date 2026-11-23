@@ -158,3 +158,7 @@ body.kt-dark .dlg-guide, [data-theme="dark"] .dlg-guide { --g-soft: #a9b1bd; --g
   .g-pair, .g-pdfs, .g-three, .g-cards, .g-legend { grid-template-columns: 1fr; }
   .g-keys { columns: 1; }
 }
+
+/* The title bar moves the window (useDragWindow). */
+.g-top { cursor: grab; touch-action: none; }
+.g-top:active { cursor: grabbing; }
