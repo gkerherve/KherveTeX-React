@@ -255,6 +255,21 @@ export interface HeaderFooter {
   header_cm?: number
   footer_cm?: number
 }
+// Where the header and footer stand (cm from the paper's edges): Header
+// from Top / Footer from Bottom, moved towards the edge when the margin is
+// too small to hold them clear of the text (Narrow: 1.27 cm), so they never
+// run into it. The header's line is 14 pt high and kept 0.25 cm above the
+// text; the footer's baseline 0.55 cm below it.
+export function hfPlacement(m: Pick<DocMeta, 'margin_top_cm' | 'margin_bottom_cm' | 'header_footer'>): { header_cm: number; footer_cm: number } {
+  const hf = m.header_footer ?? {}
+  const head = 14 / 72 * 2.54
+  const clamp = (v: number) => Math.max(0.3, Math.round(v * 1000) / 1000)
+  return {
+    header_cm: clamp(Math.min(hf.header_cm ?? 1.25, m.margin_top_cm - head - 0.25)),
+    footer_cm: clamp(Math.min(hf.footer_cm ?? 1.25, m.margin_bottom_cm - 0.55)),
+  }
+}
+
 export const HF_FIELDS = ['PAGE', 'NUMPAGES', 'DATE', 'TITLE', 'AUTHOR'] as const
 // {PAGE}, {PICTURE:images/logo.png}...
 export const HF_FIELD_RE = /\{(PAGE|NUMPAGES|DATE|TITLE|AUTHOR|PICTURE:[^{}]+)\}/g

@@ -6,7 +6,7 @@ import { designPreamble } from './design.ts'
 import { inkPreamble, placeInk } from './ink.ts'
 import { dateCommand } from './dateFormat.ts'
 import {
-  HF_FIELD_RE, HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
+  HF_FIELD_RE, HIGHLIGHT_COLORS, hfPlacement, THEOREM_KINDS, citedKeys, classSupportsChapter,
 } from './model.ts'
 import type {
   Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, List, Paragraph, Project, Table,
@@ -1102,8 +1102,12 @@ export function headerFooterLatex(m: DocMeta): string[] {
   lines.push(`\\fancypagestyle{plain}{${first.join('')}}`)
   if (hf.different_first) lines.push('\\AtBeginDocument{\\thispagestyle{plain}}')
   const set: string[] = []
-  if (hf.header_cm !== undefined) set.push(`\\setlength{\\headheight}{14pt}\\setlength{\\headsep}{\\dimexpr ${pyFloat(m.margin_top_cm)}cm-${pyFloat(hf.header_cm)}cm-\\headheight\\relax}`)
-  if (hf.footer_cm !== undefined) set.push(`\\setlength{\\footskip}{\\dimexpr ${pyFloat(m.margin_bottom_cm)}cm-${pyFloat(hf.footer_cm)}cm\\relax}`)
+  const place = hfPlacement(m)
+  // \\topmargin set again so the text stays where the margin puts it
+  // (\\headheight and \\headsep changed after geometry moved it).
+  if (hf.header_cm !== undefined) set.push(`\\setlength{\\headheight}{14pt}\\setlength{\\headsep}{\\dimexpr ${pyFloat(m.margin_top_cm)}cm-${pyFloat(place.header_cm)}cm-\\headheight\\relax}`
+    + `\\setlength{\\topmargin}{\\dimexpr ${pyFloat(m.margin_top_cm)}cm-1in-\\headheight-\\headsep\\relax}`)
+  if (hf.footer_cm !== undefined) set.push(`\\setlength{\\footskip}{\\dimexpr ${pyFloat(m.margin_bottom_cm)}cm-${pyFloat(place.footer_cm)}cm\\relax}`)
   if (set.length) lines.push(`\\AtBeginDocument{${set.join('')}}`)
   return lines
 }

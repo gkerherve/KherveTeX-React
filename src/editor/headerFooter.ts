@@ -3,7 +3,7 @@
 // dims; the edited band shows a line and its name ("Header", "First Page
 // Footer"...) and three zones, left, centre and right (Word's tab stops),
 // where fields (page number, date...) show as their values.
-import { HF_FIELD_RE, type DocMeta, type HeaderFooter } from '../core/model.ts'
+import { HF_FIELD_RE, hfPlacement, type DocMeta, type HeaderFooter } from '../core/model.ts'
 import type { PageGeometry } from './layout.ts'
 
 export type Band = 'header' | 'footer'
@@ -202,9 +202,10 @@ export class HeaderFooterEditor {
     const lh = size * 1.25
     // LaTeX's head box ends 14 pt under "Header from Top"; the footer's
     // baseline is "Footer from Bottom" up from the paper's foot.
+    const place = hfPlacement({ ...this.host.meta(), header_footer: hf })
     const base = band === 'header'
-      ? (hf.header_cm ?? 1.25) * CM + 14 * PT
-      : g.heightPx - (hf.footer_cm ?? 1.25) * CM
+      ? place.header_cm * CM + 14 * PT
+      : g.heightPx - place.footer_cm * CM
     return { top: sheet * g.heightPx + base - 0.8 * lh, lh, size }
   }
 

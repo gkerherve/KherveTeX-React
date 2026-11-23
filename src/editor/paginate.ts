@@ -409,6 +409,32 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     } else units.push(u)
   }
   forcePageStarts(units, pageStarts)
+  // WebKit cannot start a new sheet (a spanner) inside a list: it drew the
+  // item twice and ran the rest into a third column off the page. So a
+  // sheet never begins inside a list: each unit's list (its first unit's
+  // index, or -1), and the PDF's page starts inside one moved to its start.
+  const listFirst: number[] = units.map(() => -1)
+  // The position before each unit's list (the top-level block).
+  const listPos: number[] = units.map(() => -1)
+  {
+    const doc = view.state.doc
+    let key: number | null = null, first = -1
+    units.forEach((u, i) => {
+      let k: number | null = null
+      try {
+        const $p = doc.resolve(u.pos)
+        if ($p.depth === 0) k = $p.nodeAfter?.type.name === 'list' ? u.pos : null
+        else if ($p.node(1).type.name === 'list') k = $p.before(1)
+      } catch { k = null }
+      if (k === null) { key = null; return }
+      if (k !== key) { key = k; first = i }
+      listFirst[i] = first
+      listPos[i] = k
+    })
+    units.forEach((u, i) => {
+      if (u.forced && listFirst[i] >= 0 && listFirst[i] < i) { u.forced = false; units[listFirst[i]].forced = true }
+    })
+  }
   // The PDF's own column starts (a document set in columns, compiled):
   // the editor's columns break exactly there, as LaTeX's do.
   const colForced = new Set<Unit>()
@@ -442,6 +468,10 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
       Math.floor(((clientX - pageLeft) / z - geo.leftPx) / (colW + geo.colGapPx))))
     const lowest = new Map<string, number>()
     const noteRoom = new Map<string, number>()
+    // Text WebKit ran into a column past the last (right of the page): a
+    // row taller than measured overflows sideways, not down.
+    const sideways: number[] = []
+    const textRight = geo.widthPx - geo.rightPx + 2
     const walk = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT)
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       if (!n.nodeValue?.trim() || (n.parentElement?.closest('.kt-page-gap, .kt-labels'))) continue
@@ -452,6 +482,7 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
         const i = Math.floor(y0 / H)
         const k = `${i},${colOf(b.left + 1)}`
         if (i >= 0 && y1 > (lowest.get(k) ?? -Infinity)) lowest.set(k, y1)
+        if (i >= 0 && (b.left - pageLeft) / z > textRight) sideways[i] = (sideways[i] ?? 0) + (y1 - y0)
       }
     }
     for (const nt of foot.notes) {
@@ -468,6 +499,7 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
       const i = Number(k.split(',')[0])
       overBy[i] = Math.max(overBy[i] ?? 0, y - (i * H + limit + slack - (noteRoom.get(k) ?? 0)))
     }
+    sideways.forEach((h, i) => { overBy[i] = Math.max(overBy[i] ?? 0, h) })
     overBy.forEach((over, i) => {
       if (over > 1) shrink[i] = Math.min((shrink[i] ?? 0) + over, (limit - top) * 0.25)
     })
@@ -520,7 +552,10 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
   }
   // The notes of the column being filled.
   let noteH = 0
-  for (const [ui, u] of units.entries()) {
+  // The first unit of the column being filled.
+  let colStart = 0
+  for (let ui = 0; ui < units.length; ui++) {
+    let u = units[ui]
     const uNote = foot.notes.length ? noteOf(ui) : 0
     const notes = noteH + uNote
     // The last column of a PDF-paged sheet may run into the margin's slack
@@ -534,6 +569,20 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     const colBreak = colForced.has(u) && col < geo.cols - 1
     if (atStart || !(over || u.forced || colBreak)) { atStart = false; prevBottom = u.bottom; noteH += uNote; continue }
     noteH = uNote
+    // A new sheet inside a list that began lower in this column: the
+    // sheet ends before the list instead (see listFirst).
+    const lf = listFirst[ui]
+    if ((u.forced || col === geo.cols - 1) && lf > colStart && lf < ui) {
+      ui = lf
+      u = units[ui]
+      prevBottom = units[ui - 1].bottom
+      noteH = foot.notes.length ? noteOf(ui) : 0
+    }
+    // A sheet starting at a list starts before the list, not inside it
+    // before its first item.
+    if ((u.forced || col === geo.cols - 1) && listFirst[ui] === ui && listPos[ui] >= 0 && u.pos !== listPos[ui]) {
+      u = { ...u, kind: 'block', pos: listPos[ui] }
+    }
     const inline = u.kind === 'inline'
     // This column ends here: padded down to the bottom margin.
     fill(u.pos, inline, vy + (prevBottom - usedFrom))
@@ -561,6 +610,7 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     vy = colTop()
     usedFrom = u.top
     prevBottom = u.bottom
+    colStart = ui
   }
   // The last sheet: its columns filled too (the text stays in the first
   // ones, as LaTeX fills the left column first).
