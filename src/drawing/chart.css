@@ -1,0 +1,107 @@
+/* Insert ▸ Chart: the chart editor (types | chart and sheet | format). */
+.ch-dialog {
+  width: min(1240px, 97vw); height: min(820px, 95vh); display: flex; flex-direction: column;
+  background: #f6f7f9; color: #1f2328; border-radius: 10px; overflow: hidden;
+  box-shadow: 0 18px 60px rgba(10, 25, 50, .35); border: 1px solid #9aa9bf;
+  font: 13px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+.ch-top { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #fff; flex: none;
+  background: linear-gradient(90deg, #107c41, #1d9a57); }
+.ch-top b { font-size: 15px; }
+.ch-top span { opacity: .9; font-size: 12.5px; margin-left: 8px; }
+.ch-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px 1fr 268px; }
+.ch-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #5b6472; margin: 2px 2px 8px; }
+.ch-grow { flex: 1; }
+
+/* Types. */
+.ch-types { background: #fff; border-right: 1px solid #dde2ea; padding: 12px; display: flex; flex-direction: column; min-height: 0; }
+.ch-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; overflow: auto; }
+.ch-kind { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px 5px; border: 1.5px solid #e3e7ee;
+  border-radius: 8px; background: #fff; cursor: pointer; font: inherit; font-size: 11.5px; color: #333; }
+.ch-kind:hover { border-color: #9cc9ae; background: #f4faf6; }
+.ch-kind.on { border-color: #107c41; background: #e9f6ee; color: #0b5c30; font-weight: 600; }
+.ch-thumb { display: block; width: 84px; height: 52px; border-radius: 4px; overflow: hidden; }
+.ch-thumb svg { display: block; }
+.ch-about { margin-top: 10px; padding: 10px 11px; border-radius: 8px; background: #eef6f1; border: 1px solid #cfe6d8; flex: none; }
+.ch-about b { color: #0b5c30; }
+.ch-about p { margin: 5px 0 0; font-size: 12px; }
+.ch-tip { color: #4a5a50; font-style: italic; }
+
+/* Preview and sheet. */
+.ch-centre { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 12px 14px; gap: 8px; }
+.ch-preview { flex: none; align-self: center; width: min(100%, 600px); aspect-ratio: 16 / 10; background: #fff; border-radius: 8px;
+  border: 1px solid #dde2ea; box-shadow: 0 4px 16px rgba(20, 40, 80, .08); overflow: hidden; }
+.ch-preview svg { display: block; width: 100%; height: 100%; }
+.ch-sheetbar { display: flex; align-items: center; gap: 6px; flex: none; }
+.ch-sheetbar b { font-size: 13px; }
+.ch-hint { color: #5b6472; font-size: 11.5px; }
+.ch-sheetbar button { white-space: nowrap; flex: none; border: 1px solid #c9d0db; background: #fff; border-radius: 5px; padding: 3px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+.ch-sheetbar button:hover:not(:disabled) { border-color: #107c41; color: #107c41; }
+.ch-sheetbar button:disabled { opacity: .45; cursor: default; }
+.ch-warn { background: #fff6e0; border: 1px solid #f0c36d; color: #6b4300; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+.ch-sheet { flex: 1; min-height: 120px; overflow: auto; background: #fff; border: 1px solid #c9d0db; border-radius: 6px; }
+.ch-sheet table { border-collapse: collapse; font-size: 12.5px; }
+.ch-sheet th { position: sticky; top: 0; z-index: 1; background: #f0f2f5; color: #5b6472; font-weight: 500; font-size: 11px;
+  border: 1px solid #dde2ea; padding: 2px 0; min-width: 34px; }
+.ch-sheet tbody th { position: sticky; left: 0; top: auto; z-index: 0; width: 34px; }
+.ch-sheet th.on { background: #dfeee5; color: #0b5c30; font-weight: 700; }
+.ch-sheet .ch-corner { left: 0; z-index: 2; }
+.ch-sheet td { border: 1px solid #e3e7ee; padding: 0; }
+.ch-sheet td.sel { outline: 2px solid #107c41; outline-offset: -2px; position: relative; z-index: 1; }
+.ch-sheet td.bad input { color: #c42b1c; background: #fff3f2; }
+.ch-sheet input { width: 112px; border: none; outline: none; padding: 4px 7px; font: inherit; background: transparent; color: #1f2328; }
+.ch-sheet input.num { text-align: right; font-variant-numeric: tabular-nums; width: 92px; }
+.ch-sheet tr.ch-names input { font-weight: 650; }
+.ch-sheet tr.ch-names td { background: #fafbfc; }
+
+/* Format. */
+.ch-format { background: #fff; border-left: 1px solid #dde2ea; display: flex; flex-direction: column; min-height: 0; }
+.ch-tabs { display: flex; border-bottom: 1px solid #dde2ea; flex: none; }
+.ch-tabs button { flex: 1; border: none; background: transparent; padding: 10px 0 8px; font: inherit; font-weight: 600; color: #5b6472;
+  border-bottom: 2.5px solid transparent; cursor: pointer; }
+.ch-tabs button.on { color: #107c41; border-bottom-color: #107c41; }
+.ch-tabs button:disabled { opacity: .4; cursor: default; }
+.ch-form { padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+.ch-form > label, .ch-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #444; font-weight: 600; }
+.ch-form input:not([type]), .ch-form input[type=text] { font: inherit; font-weight: 400; font-size: 13px; padding: 5px 8px;
+  border: 1px solid #c9d0db; border-radius: 5px; color: #1f2328; background: #fff; }
+.ch-form input:not([type]):focus { border-color: #107c41; outline: 2px solid rgba(16, 124, 65, .18); }
+.ch-seg { display: flex; border: 1px solid #c9d0db; border-radius: 6px; overflow: hidden; }
+.ch-seg button { flex: 1; border: none; border-right: 1px solid #c9d0db; background: #fff; padding: 5px 0; font: inherit; font-size: 12px;
+  font-weight: 400; cursor: pointer; color: #333; display: grid; place-items: center; }
+.ch-seg button:last-child { border-right: none; }
+.ch-seg button.on { background: #107c41; color: #fff; }
+.ch-icons button { padding: 6px 0; }
+.ch-checks { display: flex; gap: 16px; }
+.ch-check { display: flex !important; flex-direction: row !important; align-items: center; gap: 6px; font-weight: 400 !important; font-size: 12.5px !important; cursor: pointer; }
+.ch-palettes { display: flex; flex-direction: column; gap: 4px; }
+.ch-palettes button { display: flex; gap: 0; border: 1.5px solid #e3e7ee; border-radius: 6px; padding: 3px; background: #fff; cursor: pointer; }
+.ch-palettes button.on { border-color: #107c41; }
+.ch-palettes i { flex: 1; height: 14px; }
+.ch-palettes i:first-child { border-radius: 3px 0 0 3px; } .ch-palettes i:last-child { border-radius: 0 3px 3px 0; }
+.ch-minmax { display: flex; gap: 8px; }
+.ch-minmax label { display: flex; align-items: center; gap: 5px; font-weight: 400; }
+.ch-minmax input { width: 70px; }
+.ch-serieslist { display: flex; flex-direction: column; gap: 3px; }
+.ch-serieslist button { display: flex; align-items: center; gap: 8px; text-align: left; border: 1px solid transparent; background: transparent;
+  border-radius: 6px; padding: 5px 8px; font: inherit; cursor: pointer; color: #1f2328; }
+.ch-serieslist button:hover { background: #f4f6f9; }
+.ch-serieslist button.on { border-color: #107c41; background: #e9f6ee; font-weight: 600; }
+.ch-serieslist i { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.ch-colour { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.ch-colour input[type=color] { width: 40px; height: 26px; border: 1px solid #c9d0db; border-radius: 5px; padding: 1px; background: #fff; cursor: pointer; }
+.ch-colour button { width: 20px; height: 20px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, .15); cursor: pointer; }
+.ch-colour button:hover { transform: scale(1.15); }
+.ch-field input[type=range] { accent-color: #107c41; }
+.ch-note { color: #5b6472; font-size: 12px; margin: 0; }
+
+/* Footer. */
+.ch-foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #fff; border-top: 1px solid #dde2ea; flex: none; }
+.ch-foot label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #444; font-weight: 600; }
+.ch-foot input { font: inherit; font-weight: 400; padding: 5px 8px; border: 1px solid #c9d0db; border-radius: 5px; width: 280px; }
+.ch-foot .ch-label input { width: 150px; font-family: Menlo, Consolas, monospace; font-size: 12px; }
+.ch-btn { border: 1px solid #c9d0db; background: #fff; border-radius: 6px; padding: 7px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+.ch-btn:hover { background: #f4f6f9; }
+.ch-primary { background: #107c41; color: #fff; border-color: #107c41; }
+.ch-primary:hover { background: #0b6a37; }
+.ch-primary:disabled { opacity: .5; cursor: default; }

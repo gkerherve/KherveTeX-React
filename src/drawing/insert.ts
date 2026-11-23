@@ -132,6 +132,9 @@ async function resolveImagePath(p: string): Promise<string | null> {
 export async function editFigure(fig: { path: string; source?: string }): Promise<string | null> {
   const resolved = await resolveImagePath(fig.path)
   if (resolved === null) return null
+  if (fig.source === 'chart' || (await exists(resolved.replace(/\.[^./\\]*$/, '') + '.chart.json'))) {
+    return (await editExistingChart(resolved)) ? 'chart' : null
+  }
   if (fig.source === 'flowchart' || (await flowchartSourceFor(resolved, exists)) !== null) {
     return (await editExistingFlowchart(resolved)) ? 'flowchart' : null
   }
@@ -151,16 +154,39 @@ export async function editFigure(fig: { path: string; source?: string }): Promis
   return 'drawing'
 }
 
-// Insert ▸ Chart: the chart dialog, then the chart as a drawing to adjust
-// before it goes in.
+// Insert ▸ Chart: the chart editor, then the chart's files (PDF for
+// LaTeX, PNG for the page, the spec to edit it again) and the figure.
 export async function insertChart(): Promise<void> {
   const { openChartDialog } = await import('./ChartDialog')
-  const choice = await openChartDialog()
-  if (!choice) return
-  const { chartScene, parseChartData } = await import('../core/chart')
-  const data = parseChartData(choice.data)
-  if (!data) return
-  await insertDrawing({ scene: chartScene(choice.kind, data, choice.title) }, 'Chart')
+  const res = await openChartDialog()
+  if (!res) return
+  const { nextChartPath, saveChart } = await import('./chartFiles')
+  const path = await nextChartPath(await imagesDir())
+  if (!(await saveChart(path, res.spec))) {
+    await warning('Chart', 'The chart could not be saved.')
+    return
+  }
+  insertFigure(figure({
+    path, caption: escapeText(res.caption), label: res.label || null, width: '0.8\\textwidth', source: 'chart',
+  }))
+}
+
+async function editExistingChart(pngPath: string): Promise<boolean> {
+  const { readChartSpec, saveChart } = await import('./chartFiles')
+  const spec = await readChartSpec(pngPath)
+  if (!spec) {
+    await information('Cannot re-edit', "This chart's data (.chart.json) is missing or unreadable.")
+    return false
+  }
+  const { openChartDialog } = await import('./ChartDialog')
+  const res = await openChartDialog(spec)
+  if (!res) return false
+  if (!(await saveChart(pngPath, res.spec))) {
+    await warning('Chart', 'The chart could not be saved.')
+    return false
+  }
+  announceFigureUpdated(pngPath)
+  return true
 }
 
 // Insert ▸ Screenshot: macOS's own capture (drag over the part of the

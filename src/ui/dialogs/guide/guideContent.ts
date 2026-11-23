@@ -243,9 +243,23 @@ ${fig('drawing.webp', 'The drawing canvas: tools on the left, the shape properti
 added after the selected box and joined by an arrow. Drag boxes to move them, edit the text and the arrow labels on the
 right, choose the direction and the colours, and <b>Tidy up</b> lays it out for you.</p>
 ${fig('flowchart.webp', 'The flowchart builder: shapes along the top, the chart in the middle, its text and links on the right.', { wide: true })}
-<h3>Charts and SmartArt</h3>
-${pair(['chart.webp', '<b>Chart</b>: paste or type the data (from Excel too); column, bar, line, pie and scatter charts, inserted as vector figures.'],
-  ['smartart.webp', '<b>SmartArt</b>: type a list and pick a layout (list, process, cycle, hierarchy, relationship, pyramid, matrix).'])}
+<h3>Charts</h3>
+<p><b>Chart</b> opens the chart editor. Pick one of ten types on the left (each says what it is for), type or paste
+your numbers in the sheet below the chart (as in Excel: ${k('Tab')} and ${k('Enter')} move between cells, a block
+pasted from Excel fills the sheet), and format it on the right: titles, axis titles, legend, gridlines, data labels,
+colours and the value range; on the <b>Series</b> tab, each series' colour, line style, width, marker and a smooth line.
+The chart goes into the document as a vector PDF, crisp at any size. <b>Double-click it on the page</b> to change
+anything later: the type, the data, the look.</p>
+${fig('chart.webp', 'The chart editor: chart types and what they are for on the left, the chart and its data sheet in the middle, the Format panel on the right.', { wide: true })}
+${table(['Type', 'Use it for'], [
+  ['Column, Stacked column', 'Comparing amounts across a few groups; parts of a total.'],
+  ['Bar, Stacked bar', 'The same, horizontal: long category names, many categories.'],
+  ['Line, Area', 'A trend over time or an ordered sequence.'],
+  ['Scatter, Scatter with lines', 'Measured X, Y data: correlations, curves, calibrations, kinetics.'],
+  ['Pie, Doughnut', 'Shares of one total (the first series).'],
+])}
+<h3>SmartArt</h3>
+${fig('smartart.webp', '<b>SmartArt</b>: type a list and pick a layout (list, process, cycle, hierarchy, relationship, pyramid, matrix).', { small: true })}
 ${show('Insert', 'Illustrations')}
 `,
   },

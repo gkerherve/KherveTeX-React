@@ -285,7 +285,7 @@ const SECTION_COMMANDS: Record<number, string> = {
 
 // Vector siblings each figure source keeps beside its PNG preview. A
 // flowchart has no SVG, so Typst gets its PNG.
-const VECTOR_SIBLINGS: Record<string, string[]> = { drawing: ['.pdf', '.svg'], flowchart: ['.pdf'] }
+const VECTOR_SIBLINGS: Record<string, string[]> = { drawing: ['.pdf', '.svg'], flowchart: ['.pdf'], chart: ['.pdf'] }
 
 const FIGURE_ALIGN: Record<string, string> = {
   left: '\\raggedright', center: '\\centering', right: '\\raggedleft',

@@ -195,6 +195,9 @@ async function figureEntries(path: string, source: string): Promise<Entry[]> {
     const exists = (p: string) => platform().exists(p)
     const resolved = await resolveForMenu(path)
     if (resolved === null) return []
+    if (source === 'chart' || await exists(withSuffix(resolved, '.chart.json'))) {
+      return ['-', { text: 'Edit chart…', run: () => { void runAction('fig_edit') } }]
+    }
     if (source === 'flowchart' || await flowchartSourceFor(resolved, exists) !== null) {
       return ['-', { text: 'Edit flowchart…', run: () => { void runAction('fig_edit') } }]
     }

@@ -80,6 +80,7 @@ export interface Figure {
   extra?: FigureImage[]
   // "drawing": `path` is the PNG preview beside .svg and .pdf siblings.
   // "flowchart": `path` is the PNG preview beside .pdf, .flow.json, .tikz.
+  // "chart": `path` is the PNG preview beside .pdf and .chart.json.
   source: string
   align: string
   type: 'Figure'
