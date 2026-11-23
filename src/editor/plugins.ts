@@ -149,7 +149,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       // _code_block_format / _bibliography_block_format / _raw_block_format.
       const t = node.textContent
       attrs.class = t.includes('\\begin{lstlisting}') || t.includes('\\begin{verbatim}') ? 'kt-raw-code'
-        : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : tocBlock(t) ? 'kt-raw-toc' : ''
+        : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : tocBlock(t) ? 'kt-raw-toc' : /^\s*\\(?:newpage|clearpage|pagebreak|cleardoublepage)\s*$/.test(t) ? 'kt-raw-pagebreak' : ''
     }
     if (L.breakBefore) attrs['data-break'] = '1'
     if (L.spans) attrs['data-span'] = '1'

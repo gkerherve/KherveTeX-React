@@ -17,6 +17,7 @@ import { baselineskipPt, pdfFont, type ScreenFont } from './latexFonts.ts'
 // Where Qt puts the baseline within a fixed-height line, from the line's
 // top (Latin Modern's ascent over its line height).
 import { tocBlock } from './toc.ts'
+export const PAGE_BREAK_RE = /^\s*\\(?:newpage|clearpage|pagebreak|cleardoublepage)\s*$/
 export const BASELINE_AT = 0.79
 export const PX_PER_CM = 96 / 2.54
 export const PT_PX = 96 / 72
@@ -515,6 +516,10 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       // \bibname is a \chapter*: a new page, unless the PDF says otherwise.
       if (classChapters && i !== 0 && !pdfPaged) startsSheet = true
     }
+    // After a page break (\newpage, \clearpage), the next block starts a
+    // new sheet, as Word's page break does.
+    if (i > 0 && geometry.cols <= 1 && blocks[i - 1].state === S.RAW && PAGE_BREAK_RE.test(blocks[i - 1].text)) startsSheet = true
+    if (state === S.RAW && PAGE_BREAK_RE.test(text)) { L.top = 0; L.bottom = 0 }
     L.breakBefore = startsSheet
     let number = ''
     let level: number | null = state === S.CHAPTER ? 0 : (state >= 1 && state <= 5 ? state : null)

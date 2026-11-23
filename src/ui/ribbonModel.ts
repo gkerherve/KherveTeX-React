@@ -503,7 +503,7 @@ const cmds: Command[] = [
   // Compile
   { id: 'compile_now', text: '&Compile PDF', icon: 'compile_pdf', shortcut: 'Ctrl+Shift+C' },
   { id: 'show_marks', text: 'Show formatting &marks', icon: 'formatting_marks', shortcut: 'Ctrl+*',
-    checkable: true },
+    checkable: true, tooltip: 'Show/Hide ¶: paragraph marks, page breaks and other hidden formatting symbols' },
   { id: 'auto_compile', text: 'Auto-compile', icon: 'auto_compile_on', checkable: true, checked: true },
   { id: 'skip_images', text: 'Skip images', icon: 'compile_no_images', checkable: true },
   { id: 'compile_range', text: 'Compile range', icon: 'compile_range', checkable: true, checked: true },

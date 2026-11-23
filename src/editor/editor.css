@@ -647,3 +647,19 @@ div.kt-box {
 }
 .kt-sheet-watermark { writing-mode: horizontal-tb; }
 .kt-sheet-watermark::after { content: none; }
+
+/* A page break (\newpage, \clearpage): nothing on the page, as in Word;
+   with formatting marks shown, Word's dotted "Page Break" line. */
+.kt-flow > pre.kt-raw.kt-raw-pagebreak {
+  font-size: 0; line-height: 0; height: 0; overflow: hidden; color: transparent; background: transparent;
+  caret-color: transparent;
+}
+body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-pagebreak { font-size: 13.33px; line-height: normal; height: auto; color: #b71c1c; background: #ffebee; }
+.kt-show-marks > pre.kt-raw.kt-raw-pagebreak {
+  display: flex; align-items: center; justify-content: center; height: 18px; line-height: 18px; overflow: visible;
+  background: repeating-linear-gradient(to right, #6b8ab5 0 1.5px, transparent 1.5px 4.5px) center / 100% 1px no-repeat;
+}
+.kt-show-marks > pre.kt-raw.kt-raw-pagebreak::before {
+  content: 'Page Break'; font: 11px 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: #4a6fa5;
+  background: var(--kt-page-bg, #fff); padding: 0 6px;
+}
