@@ -93,7 +93,8 @@ const nodes: Record<string, NodeSpec> = {
     group: 'block', content: 'table_row+', isolating: true, tableRole: 'table',
     attrs: {
       caption: { default: '' }, label: { default: null }, alignment: { default: '' },
-      style: { default: '' }, header: { default: false }, repeat_header: { default: false }, ...ORIG,
+      style: { default: '' }, header: { default: false }, repeat_header: { default: false },
+      font_size: { default: 0 }, ...ORIG,
     },
     toDOM: () => ['table', { class: 'kt-block kt-table' }, ['tbody', 0]],
   },

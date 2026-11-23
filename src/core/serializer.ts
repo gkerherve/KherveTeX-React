@@ -710,32 +710,38 @@ function serializeTable(node: Table, floatH = true): string {
   })
   const cap = percent(node.caption)
   const lab = node.label ? maybeLabel(node.label) : ''
+  // The table's own text size: a size switch inside the float (or a group
+  // around a longtable), as \small would be.
+  const pt = node.font_size && node.font_size > 0 ? node.font_size : 0
+  const sizeCmd = pt ? `\\fontsize{${pt}}{${pyFloat(Math.round(pt * 12) / 10)}}\\selectfont\n` : ''
+  const sized = (s: string) => (sizeCmd ? `{${sizeCmd}${s}}\n` : s)
   if (node.repeat_header && bodyRows.length > 1) {
     // longtable repeats everything before \endhead on each page.
     const head = [topRule, bodyRows[0]].filter((x) => x).join('\n')
     const capLine = cap ? `\\caption{${cap}}${strip(lab)}\\\\\n` : ''
     const rest = bodyRows.slice(1).join('\n')
-    return `\\begin{longtable}{${raggedForm(align)}}\n${capLine}${head}\n`
+    return sized(`\\begin{longtable}{${raggedForm(align)}}\n${capLine}${head}\n`
       + `\\endhead\n${rest}\n`
       + (bottomRule ? `${bottomRule}\n` : '')
-      + '\\end{longtable}\n'
+      + '\\end{longtable}\n')
   }
   if (tableHasPictures(node)) {
     // Pictures in the cells (a manual's steps beside their screenshots)
     // make a table taller than a page: a longtable breaks between rows,
     // where a floating tabular would run off the page.
     const capLine = cap ? `\\caption{${cap}}${strip(lab)}\\\\\n` : ''
-    return `\\begin{longtable}{${raggedForm(align)}}\n${capLine}`
+    return sized(`\\begin{longtable}{${raggedForm(align)}}\n${capLine}`
       + (topRule ? `${topRule}\n` : '')
       + bodyRows.join('\n') + '\n'
       + (bottomRule ? `${bottomRule}\n` : '')
-      + '\\end{longtable}\n'
+      + '\\end{longtable}\n')
   }
   const body = bodyRows.join('\n    ')
   const placement = floatH ? 'H' : 'htbp'
   const rule = (x: string) => (x ? `    ${x}\n` : '')
   return `\\begin{table}[${placement}]\n`
     + '  \\centering\n'
+    + (sizeCmd ? `  ${sizeCmd}` : '')
     + `  \\begin{tabular}{${align}}\n`
     + rule(topRule)
     + `    ${body}\n`

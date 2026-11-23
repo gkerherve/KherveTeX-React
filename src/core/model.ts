@@ -94,6 +94,9 @@ export interface Table {
   merges: number[][]
   header: boolean; repeat_header: boolean
   shading: Record<string, string>  // "row,col" -> "#rrggbb"
+  // The table's text size in points (Font size on a selection holding the
+  // table); absent = the body size.
+  font_size?: number
   type: 'Table'
 }
 export interface RawLatex { text: string; type: 'RawLatex' }
@@ -175,7 +178,9 @@ export const table = (o: Partial<Omit<Table, 'type'>> = {}): Table => ({
   rows: o.rows ?? [], caption: o.caption ?? '', label: o.label ?? null,
   alignment: o.alignment ?? '', style: o.style ?? '', merges: o.merges ?? [],
   header: o.header ?? false, repeat_header: o.repeat_header ?? false,
-  shading: o.shading ?? {}, type: 'Table',
+  shading: o.shading ?? {},
+  ...(o.font_size ? { font_size: o.font_size } : {}),
+  type: 'Table',
 })
 export const rawLatex = (t: string): RawLatex => ({ text: t, type: 'RawLatex' })
 export const title = (children: Inline[] = []): Title => ({ children, type: 'Title' })
@@ -386,6 +391,7 @@ function buildBlock(d: Json): Block {
       merges: get<unknown[][]>(d, 'merges', []).map((m) => m.map((v) => pyInt(v, 0))),
       header: get(d, 'header', false), repeat_header: get(d, 'repeat_header', false),
       shading: Object.fromEntries(Object.entries(get<Json>(d, 'shading', {})).map(([k, v]) => [pyStr(k), pyStr(v)])),
+      font_size: Number(get(d, 'font_size', 0)) || undefined,
     })
     case 'RawLatex': {
       if (!('text' in d)) throw new Error("KeyError: 'text'")

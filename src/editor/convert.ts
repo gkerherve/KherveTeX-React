@@ -339,6 +339,7 @@ function tableNode(t: M.Table): PMNode {
   return schema.nodes.table.create({
     caption: t.caption ?? '', label: t.label ?? null, alignment: t.alignment ?? '',
     style: t.style ?? '', header: !!t.header, repeat_header: !!t.repeat_header,
+    font_size: t.font_size ?? 0,
   }, rows)
 }
 
@@ -508,6 +509,7 @@ function tableFromPM(node: PMNode): M.Table {
     rows, caption: node.attrs.caption, label: node.attrs.label || null,
     alignment: node.attrs.alignment, style: node.attrs.style, merges,
     header: !!node.attrs.header, repeat_header: !!node.attrs.repeat_header, shading,
+    font_size: node.attrs.font_size || undefined,
   })
 }
 

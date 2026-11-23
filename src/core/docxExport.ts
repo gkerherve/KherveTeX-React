@@ -972,6 +972,17 @@ function exportTable(b: Builder, block: Table, number?: string): void {
     }
   }
   tableRules(tbl, block.style || '', rowsOf())
+  // The table's own text size, on every run of its cells (half-points).
+  if (block.font_size && block.font_size > 0) {
+    const half = String(Math.round(block.font_size * 2))
+    for (const tr of rowsOf()) {
+      for (const tc of rowCells(tr)) {
+        for (const p of findChildren(tc, 'w:p')) {
+          for (const r of paraRuns(p)) setAttr(getOrAdd(getOrAddRPr(r), 'w:sz', RPR_SEQ), 'w:val', half)
+        }
+      }
+    }
+  }
   if (block.caption) captionPara(b, 'Table', number, block.caption, 'center')
 }
 

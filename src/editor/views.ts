@@ -360,10 +360,13 @@ class TableView implements NodeView {
     const fixed = fr.length > 0 && fr.every((f) => f !== null)
     this.table.style.width = fixed ? `${Math.min(100, total * 100 + fr.length * 2)}%` : ''
     this.table.style.tableLayout = fixed ? 'fixed' : ''
+    // Its own text size (Font size on a selection holding the table).
+    const pt = this.node.attrs.font_size
+    this.table.style.fontSize = pt ? `calc(1em * ${pt} / var(--kt-body-pt, 12))` : ''
   }
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
-    const spec = node.attrs.alignment !== this.node.attrs.alignment
+    const spec = node.attrs.alignment !== this.node.attrs.alignment || node.attrs.font_size !== this.node.attrs.font_size
     this.node = node
     if (spec) this.size()
     return true

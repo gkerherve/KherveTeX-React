@@ -1194,8 +1194,30 @@ export function marksHere(state: EditorState): readonly import('prosemirror-mode
 }
 
 export function sizeAt(state: EditorState, body: number): number {
+  const $f = state.selection.$from
+  for (let d = $f.depth; d > 0; d--) {
+    const n = $f.node(d)
+    if (n.type.name === 'table') return Number(n.attrs.font_size) || body
+  }
   const m = marksHere(state).find(x => x.type === schema.marks.fontsize)
   return m ? Number(m.attrs.pt) : body
+}
+
+// The tables a selection holds or is inside take a text size (0 = the
+// body's): their cells hold plain text, so the size is the table's.
+export function setTableSize(size: number): Command {
+  return (state, dispatch) => {
+    const { from, to } = state.selection
+    const tr = state.tr
+    state.doc.nodesBetween(from, to, (n, pos) => {
+      if (n.type.name !== 'table') return true
+      if ((n.attrs.font_size || 0) !== size) tr.setNodeMarkup(pos, undefined, { ...n.attrs, font_size: size })
+      return false
+    })
+    if (!tr.docChanged) return false
+    dispatch?.(tr)
+    return true
+  }
 }
 
 // Grow / Shrink Font: Word's size steps.
@@ -1205,7 +1227,9 @@ export function growFont(up: boolean, body: number): Command {
     const cur = sizeAt(state, body)
     const next = up ? SIZE_STEPS.find(s => s > cur) ?? cur : [...SIZE_STEPS].reverse().find(s => s < cur) ?? cur
     if (next === cur) return false
-    return setValueMark('fontsize', next === body ? null : { pt: next })(state, dispatch)
+    let done = setValueMark('fontsize', next === body ? null : { pt: next })(state, tr => { state = state.apply(tr); dispatch?.(tr) })
+    done = setTableSize(next === body ? 0 : next)(state, dispatch) || done
+    return done
   }
 }
 

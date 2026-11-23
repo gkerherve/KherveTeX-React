@@ -82,3 +82,22 @@ describe('test_table_design.py', () => {
   // test_editor_header_sort_shading_style and test_editor_merge_and_split
   // drive the editor: tests/editor.commands.test.ts runs them.
 })
+
+describe('table font size', () => {
+  it('writes a size switch inside the float and round-trips', () => {
+    const t = makeTable({ font_size: 8 })
+    const back = fromJson(toJson(document([t]))).children[0] as Table
+    expect(back.font_size).toBe(8)
+    expect(serializeDocument(document([back]))).toContain('\\centering\n  \\fontsize{8}{9.6}\\selectfont\n  \\begin{tabular}')
+  })
+  it('leaves a table without a size as before', () => {
+    const t = makeTable()
+    expect('font_size' in t).toBe(false)
+    expect(toJson(document([t]))).not.toContain('font_size')
+    expect(serializeDocument(document([t]))).not.toContain('\\fontsize')
+  })
+  it('groups a longtable', () => {
+    const tex = serializeDocument(document([makeTable({ font_size: 9, repeat_header: true })]))
+    expect(tex).toMatch(/\{\\fontsize\{9\}\{10\.8\}\\selectfont\n\\begin\{longtable\}[\s\S]*\\end\{longtable\}\n\}/)
+  })
+})

@@ -82,7 +82,11 @@ const actions: Record<string, Handler> = {
     const e = editor()
     if (e && !e.view.state.selection.empty) {
       const pt = Math.max(1, Math.min(400, Math.round(raw * 2) / 2))
-      C.setValueMark('fontsize', pt === meta().body_font_pt ? null : { pt })(e.view.state, tr => e.view.dispatch(tr))
+      const size = pt === meta().body_font_pt ? 0 : pt
+      C.setValueMark('fontsize', size ? { pt } : null)(e.view.state, tr => e.view.dispatch(tr))
+      // Tables take the size too: the whole table (its cells hold plain
+      // text, no marks), for a selection that holds or is inside one.
+      C.setTableSize(size)(e.view.state, tr => e.view.dispatch(tr))
       e.view.focus()
       return
     }
