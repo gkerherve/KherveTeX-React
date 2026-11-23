@@ -1183,7 +1183,14 @@ function classFallbacks(cls: string): string {
 
 // For column counts the class can't express natively (3+; twocolumn only
 // does 2).
-const wrapMulticols = (body: string, n: number) => `\\begin{multicols}{${n}}\n${body}\\end{multicols}\n`
+// Three columns and more (multicol): the title (\\maketitle first in the
+// body) runs across the columns above them, as twocolumn's does and as the
+// page shows it; inside, it took column 1 and the others began beside it.
+const wrapMulticols = (body: string, n: number) => {
+  const m = /^(\s*\\maketitle\n)/.exec(body)
+  const head = m ? m[1] : ''
+  return `${head}\\begin{multicols}{${n}}\n${body.slice(head.length)}\\end{multicols}\n`
+}
 
 // \providecommand so an imported document that defines \Kstroke itself
 // survives the round-trip without "command already defined".
