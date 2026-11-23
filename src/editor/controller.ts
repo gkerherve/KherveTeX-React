@@ -801,7 +801,8 @@ export class EditorController implements ViewHost {
     const old = pagesKey.getState(this.view.state)!.spacers
     const { spacers, measure } = geo.cols > 1
       ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, this.pdfPageStarts(),
-        layoutKey.getState(this.view.state)!.anchors.length > 0, this.pdfColumnStarts())
+        layoutKey.getState(this.view.state)!.anchors.length > 0, this.pdfColumnStarts(),
+        { notes: this.footnoteBoxes(geo).map(n => ({ pos: n.pos, height: n.height })) })
       : computeSpacers(this.view, geo, this.flowEl, this.pdfPageStarts(),
         layoutKey.getState(this.view.state)!.anchors.length > 0, figuresFloat(this.meta))
     if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {
@@ -865,6 +866,24 @@ export class EditorController implements ViewHost {
     return this.root.offsetWidth ? r.width / this.root.offsetWidth : 1
   }
 
+  // Each footnote: its mark's place and its note's text and height, in a
+  // column's width (columns) or the text width.
+  private footnoteBoxes(geo: PageGeometry): { el: HTMLElement; pos: number; text: string; height: number }[] {
+    const small = this.layout.bodyChar.sizePx * 0.8
+    const lineH = small * 1.407
+    const textW = geo.widthPx - geo.leftPx - geo.rightPx
+    const colW = geo.cols > 1 ? (textW - (geo.cols - 1) * geo.colGapPx) / geo.cols : textW
+    const perLine = Math.max(10, colW / (small * 0.47))
+    const out: { el: HTMLElement; pos: number; text: string; height: number }[] = []
+    for (const el of this.flowEl.querySelectorAll<HTMLElement>('.kt-footnote')) {
+      let pos: number
+      try { pos = this.view.posAtDOM(el, 0) } catch { continue }
+      const text = el.title || ''
+      out.push({ el, pos, text, height: 6 + Math.max(1, Math.ceil((text.length + 3) / perLine)) * lineH })
+    }
+    return out
+  }
+
   private paintOverlay(geo: PageGeometry, sheets: number): void {
     const H = geo.heightPx
     const L = this.layout
@@ -887,6 +906,40 @@ export class EditorController implements ViewHost {
       notes.get(sheet)!.push({ n: fn, text: el.title })
     }
     const small = L.bodyChar.sizePx * 0.8
+    // In columns: each note at the foot of its mark's column, inside the
+    // text area (the column keeps room for it), as LaTeX sets it.
+    if (geo.cols > 1) {
+      notes.clear()
+      const z = this.zoom()
+      const left0 = this.flowEl.getBoundingClientRect().left
+      const textW = geo.widthPx - geo.leftPx - geo.rightPx
+      const colW = (textW - (geo.cols - 1) * geo.colGapPx) / geo.cols
+      const cols = new Map<string, { sheet: number; col: number; items: { n: number; text: string; height: number }[] }>()
+      this.footnoteBoxes(geo).forEach((b, i) => {
+        // Where the mark's caret is (the element's own box was found at a
+        // stale place in columns).
+        let c = { left: b.el.getBoundingClientRect().left, top: b.el.getBoundingClientRect().top }
+        try { c = this.view.coordsAtPos(b.pos) } catch { /* the element's own place */ }
+        const x = (c.left + 1 - left0) / z
+        const col = Math.max(0, Math.min(geo.cols - 1, Math.floor((x - geo.leftPx) / (colW + geo.colGapPx))))
+        const sheet = Math.max(0, Math.floor((c.top - this.flowEl.getBoundingClientRect().top) / z / H))
+        const key = `${sheet},${col}`
+        if (!cols.has(key)) cols.set(key, { sheet, col, items: [] })
+        cols.get(key)!.items.push({ n: i + 1, text: b.text, height: b.height })
+      })
+      for (const { sheet, col, items } of cols.values()) {
+        const g = sheet < sheets - 1 ? gap / 2 : 0
+        const x = geo.leftPx + col * (colW + geo.colGapPx)
+        let y = (sheet + 1) * H - g - geo.bottomPx - items.reduce((a, it) => a + it.height, 0)
+        out.push(`<div class="kt-fn-rule" style="left:${x}px;top:${y + 2}px;width:${colW * 0.4}px"></div>`)
+        for (const it of items) {
+          out.push(`<div class="kt-fn" style="left:${x}px;width:${colW}px;top:${y + 5}px;white-space:normal;text-align:justify;`
+            + `font-family:${L.bodyChar.family};font-size:${small}px;line-height:${small * 1.407}px">`
+            + `<sup style="font-size:${small * 0.75}px">${it.n}</sup> ${esc(it.text)}</div>`)
+          y += it.height
+        }
+      }
+    }
     for (const [sheet, items] of notes) {
       const g = sheet < sheets - 1 ? gap / 2 : 0
       let y = (sheet + 1) * H - g - geo.bottomPx + 4

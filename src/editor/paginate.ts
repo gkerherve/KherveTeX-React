@@ -353,7 +353,11 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
 // keeps its text rather than moving it on.
 export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: HTMLElement,
   old: readonly Spacer[], shrink: number[], pageStarts: readonly PageStart[] = [],
-  pdfPaged = false, columnStarts: readonly PageStart[] = []): { spacers: Spacer[]; measure: PageMeasure } {
+  pdfPaged = false, columnStarts: readonly PageStart[] = [],
+  // Each footnote's mark and the height of its note, set at the foot of
+  // its column inside the text area, as LaTeX does.
+  foot: { notes: readonly { pos: number; height: number }[] } = { notes: [] },
+): { spacers: Spacer[]; measure: PageMeasure } {
   const z = zoomOf(page) || 1
   const yOf = (clientY: number) => (clientY - page.getBoundingClientRect().top) / z
   const H = geo.heightPx
@@ -418,21 +422,26 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     if (hit > 0 && !units[hit].forced) colForced.add(units[hit])
   }
   const followPdf = colForced.size > 0
-  // Following the PDF, its breaks are kept: a column the editor sets a
-  // little taller than TeX runs on into the margin's slack; only one that
-  // would leave the page breaks early (and the PDF's next column start is
-  // then passed over, so the sheets stay the PDF's pages).
-  if (followPdf) shrink.length = 0
   // Following the PDF's columns, a column may use its whole bottom margin
   // before a break of the editor's own: an extra sheet the PDF does not
   // have is worse than a few lines low (narrow columns set looser than
   // TeX's).
-  const slack = pdfPaged ? geo.bottomPx * 0.6 : 0
+  // The bottom margin stays empty, as Page Setup sets it: no column runs
+  // into it (it held the page number and the footnotes). A column the
+  // editor sets taller than TeX's breaks a line or two early instead.
+  const slack = 0
   // How far each rendered sheet's text runs past its bottom margin: from
   // the lines themselves (the last sheet too, which has no spanner after
   // it; WebKit also placed a spanner's box wrongly).
-  if (!followPdf && old.length && old.every(s => s.kind === 'span' || s.kind === 'col' || s.kind === 'fill')) {
-    const lowest: number[] = []
+  if (old.length && old.every(s => s.kind === 'span' || s.kind === 'col' || s.kind === 'fill')) {
+    // The lowest line of each column of each sheet, and the room its
+    // footnotes take at that column's foot.
+    const pageLeft = page.getBoundingClientRect().left
+    const colW = (geo.widthPx - geo.leftPx - geo.rightPx - (geo.cols - 1) * geo.colGapPx) / geo.cols
+    const colOf = (clientX: number) => Math.max(0, Math.min(geo.cols - 1,
+      Math.floor(((clientX - pageLeft) / z - geo.leftPx) / (colW + geo.colGapPx))))
+    const lowest = new Map<string, number>()
+    const noteRoom = new Map<string, number>()
     const walk = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT)
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       if (!n.nodeValue?.trim() || (n.parentElement?.closest('.kt-page-gap, .kt-labels'))) continue
@@ -441,14 +450,25 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
       for (const b of r.getClientRects()) {
         const y0 = yOf(b.top), y1 = yOf(b.bottom)
         const i = Math.floor(y0 / H)
-        if (i >= 0 && y1 > (lowest[i] ?? -Infinity)) lowest[i] = y1
+        const k = `${i},${colOf(b.left + 1)}`
+        if (i >= 0 && y1 > (lowest.get(k) ?? -Infinity)) lowest.set(k, y1)
       }
     }
-    // Against what a sheet may use (its margin's slack when it follows the
-    // PDF), and never more than a quarter of a column: the correction
-    // added up round after round and once left a sheet almost empty.
-    lowest.forEach((y, i) => {
-      const over = y - (i * H + limit + slack)
+    for (const nt of foot.notes) {
+      let c: { left: number; top: number }
+      try { c = view.coordsAtPos(nt.pos) } catch { continue }
+      const k = `${Math.floor(yOf(c.top) / H)},${colOf(c.left + 1)}`
+      noteRoom.set(k, (noteRoom.get(k) ?? 0) + nt.height)
+    }
+    // Against what the column may use, and never more than a quarter of a
+    // column: the correction added up round after round and once left a
+    // sheet almost empty.
+    const overBy: number[] = []
+    for (const [k, y] of lowest) {
+      const i = Number(k.split(',')[0])
+      overBy[i] = Math.max(overBy[i] ?? 0, y - (i * H + limit + slack - (noteRoom.get(k) ?? 0)))
+    }
+    overBy.forEach((over, i) => {
       if (over > 1) shrink[i] = Math.min((shrink[i] ?? 0) + over, (limit - top) * 0.25)
     })
   }
@@ -491,20 +511,41 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
   // The top of the next unit the PDF starts a page with, for each unit.
   const nextForced: number[] = new Array(units.length).fill(Infinity)
   for (let i = units.length - 2; i >= 0; i--) nextForced[i] = units[i + 1].forced ? units[i + 1].top : nextForced[i + 1]
+  // The footnotes each unit holds (their notes' heights).
+  const noteOf = (ui: number) => {
+    const from = units[ui].pos, to = ui + 1 < units.length ? units[ui + 1].pos : Infinity
+    let h = 0
+    for (const n of foot.notes) if (n.pos >= from && n.pos < to) h += n.height
+    return h
+  }
+  // The notes of the column being filled.
+  let noteH = 0
   for (const [ui, u] of units.entries()) {
-    // The last column of a PDF-paged sheet may run into the margin's slack.
-    const room = target() + (col === geo.cols - 1 || followPdf ? slack : 0)
+    const uNote = foot.notes.length ? noteOf(ui) : 0
+    const notes = noteH + uNote
+    // The last column of a PDF-paged sheet may run into the margin's slack
+    // (not one with footnotes: they stand at the text area's foot).
+    const room = target() - notes + (!notes && (col === geo.cols - 1 || followPdf) ? slack : 0)
     let over = vy + (u.bottom - usedFrom) > room
     // A line or two before the PDF's next page: kept on this sheet, low in
     // its margin, rather than alone on a sheet the PDF does not have.
-    if (over && pdfPaged && !u.forced && col === geo.cols - 1 && nextForced[ui] - u.top <= geo.bottomPx * 0.35
-      && vy + (nextForced[ui] - usedFrom) <= limit + geo.bottomPx * 0.95) over = false
+    if (over && pdfPaged && !notes && !u.forced && col === geo.cols - 1 && nextForced[ui] - u.top <= geo.bottomPx * 0.35
+      && vy + (nextForced[ui] - usedFrom) <= limit) over = false
     const colBreak = colForced.has(u) && col < geo.cols - 1
-    if (atStart || !(over || u.forced || colBreak)) { atStart = false; prevBottom = u.bottom; continue }
+    if (atStart || !(over || u.forced || colBreak)) { atStart = false; prevBottom = u.bottom; noteH += uNote; continue }
+    noteH = uNote
     const inline = u.kind === 'inline'
     // This column ends here: padded down to the bottom margin.
     fill(u.pos, inline, vy + (prevBottom - usedFrom))
     if (u.forced || col === geo.cols - 1) {
+      // The bottom margin stays empty, so a sheet ends before the PDF's
+      // page does: when only a few lines are left before the PDF's next
+      // page start, they would stand alone on a sheet. That page start is
+      // let go and the text flows on instead.
+      if (pdfPaged && !u.forced && nextForced[ui] - u.top <= (limit - top) * 0.3) {
+        for (let k = ui + 1; k < units.length; k++) if (units[k].forced) { units[k].forced = false; break }
+        for (let k = ui; k >= 0 && nextForced[k] !== Infinity; k--) nextForced[k] = Infinity
+      }
       fillRest(u.pos, inline)
       rowEnds.push(rowEnd)
       rowEnd = 0
