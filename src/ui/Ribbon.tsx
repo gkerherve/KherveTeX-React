@@ -23,7 +23,7 @@ import { searchTools, type ToolHit } from './ribbonSearch'
 import { PREFS_EVENT, pref } from '../app/prefs'
 import { PENS_EVENT, penIndex, pens, setPen, usePen } from '../app/actions/draw'
 import { pickColor } from '../app/actions/table'
-import { inkTool } from '../editor/ink'
+import { inkTool, setInkTool } from '../editor/ink'
 import { PEN_WIDTHS } from '../core/ink'
 import './ribbon.css'
 
@@ -736,6 +736,8 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   const hiddenQuick = pref('ribbon/hidden_quick')
   const visible = RIBBON_TABS.filter(t => (!t.context || t.context === context) && (t.context || !hiddenTabs.includes(t.name)))
   const shown = visible.find(t => t.name === current) ?? visible[0]
+  // Leaving the Draw tab puts the pen (or the eraser) down: back to typing.
+  useEffect(() => { if (shown.name !== 'Draw' && inkTool()) setInkTool(null) }, [shown.name])
 
   // Menu items that are not commands (font sizes, styles) report through
   // the same channel, so they also log.
