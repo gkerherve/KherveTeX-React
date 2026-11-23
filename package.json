@@ -1,12 +1,13 @@
 {
   "name": "khervetex",
   "private": true,
-  "version": "488.0.0",
+  "version": "489.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:web": "tsc -b && vite build --mode web",
+    "build:try": "tsc -b && vite build --mode web --outDir ../KherveTools-Web/public/try --emptyOutDir",
     "lint": "oxlint",
     "test": "vitest run",
     "golden": "python3 scripts/make_golden.py && ../KherveTeX/.venv/bin/python scripts/make_golden_examples.py && ../KherveTeX/.venv/bin/python scripts/make_golden_docx.py && ../KherveTeX/.venv/bin/python scripts/make_golden_pdf.py && ../KherveTeX/.venv/bin/python scripts/make_golden_refs.py && ../KherveTeX/.venv/bin/python scripts/make_golden_overleaf.py && ../KherveTeX/.venv/bin/python scripts/make_golden_drawing.py && ../KherveTeX/.venv/bin/python scripts/make_golden_drawing_symbols.py && ../KherveTeX/.venv/bin/python scripts/math_golden.py && QT_QPA_PLATFORM=offscreen ../KherveTeX/.venv/bin/python scripts/make_golden_project.py",
