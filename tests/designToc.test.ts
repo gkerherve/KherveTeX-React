@@ -47,3 +47,17 @@ describe('design colours always have xcolor', () => {
     expect(pre.indexOf('\\usepackage{xcolor}')).toBeLessThan(pre.indexOf('\\definecolor'))
   })
 })
+
+describe('unnumbered headings in the table of contents (as Word)', () => {
+  const doc = (withToc: boolean) => M.document([
+    ...(withToc ? [M.rawLatex('\\tableofcontents')] : []),
+    M.section(1, [M.text('Intro')], true, null),
+    M.section(1, [M.text('Acknowledgements')], false, null),
+  ] as M.Block[])
+  test('listed with \\addcontentsline when the document has contents', () => {
+    expect(serializeDocument(doc(true))).toContain('\\section*{Acknowledgements}\n\\addcontentsline{toc}{section}{Acknowledgements}')
+  })
+  test('nothing added without a table of contents', () => {
+    expect(serializeDocument(doc(false))).not.toContain('addcontentsline')
+  })
+})

@@ -114,6 +114,9 @@ const ULINE_CMDS: Record<string, string> = { double: '\\uuline', wave: '\\uwave'
 // document shows (Review ▸ All Markup...) decides how (set per document by
 // serializeDocument).
 let markupMode = ''
+// A document with a table of contents lists its unnumbered headings in it
+// too, as Word does (\section* alone stays out of LaTeX's contents).
+let tocUnnumbered = false
 export function changeAuthorId(author: string): string {
   return (author.normalize('NFD').replace(/[^A-Za-z]/g, '') || 'anon').slice(0, 24)
 }
@@ -492,7 +495,9 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       const effective = hasChapters ? node.level - 1 : node.level
       const cmd = SECTION_COMMANDS[Math.max(0, Math.min(5, effective))] ?? 'section'
       const star = node.numbered ? '' : '*'
-      return `\\${cmd}${star}{${serializeInlines(node.children)}}\n${maybeLabel(node.label)}`
+      const title = serializeInlines(node.children)
+      const listed = !node.numbered && tocUnnumbered && title.trim() ? `\\addcontentsline{toc}{${cmd}}{${title}}\n` : ''
+      return `\\${cmd}${star}{${title}}\n${listed}${maybeLabel(node.label)}`
     }
     case 'MathBlock': {
       // The importer stores align*, gather, ... as a complete
@@ -1254,6 +1259,7 @@ export function serializeDocument(doc: Document): string {
   if (inked.placed.size) doc = { ...doc, children: inked.blocks }
   const m = doc.meta
   markupMode = m.markup ?? ''
+  tocUnnumbered = doc.children.some(b => b.type === 'RawLatex' && /\\tableofcontents\b/.test(b.text))
   const isElsarticle = (m.documentclass || '').toLowerCase().startsWith('elsarticle')
   const isBeamer = (m.documentclass || '').toLowerCase() === 'beamer'
   const hasChapters = classSupportsChapter(m.documentclass || '')
@@ -1574,6 +1580,7 @@ export function serializeDocument(doc: Document): string {
 // Body-only LaTeX for an \include'd chapter file.
 export function serializeChapterBody(doc: Document): string {
   const m = doc.meta
+  tocUnnumbered = false
   const hasChapters = classSupportsChapter(m.documentclass || '')
   const isJournal = !STANDARD_SERIALIZER_CLASSES.has((m.documentclass || '').toLowerCase())
   const parts: string[] = []

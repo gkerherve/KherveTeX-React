@@ -40,10 +40,12 @@ export function tocEntries(doc: PMNode, kind: TocKind, depth: number | null,
     const name = node.type.name
     if (name === 'section') {
       if (node.attrs.level === 0 && node.attrs.numbered) chapter += 1
-      if (kind !== 'tableofcontents' || !node.attrs.numbered) return
+      // Unnumbered headings are listed too, without a number, as in Word
+      // (the serializer adds \\addcontentsline for them).
+      if (kind !== 'tableofcontents' || !node.textContent.trim()) return
       const level: number = node.attrs.level
       if (level > maxLevel) return
-      out.push({ level: hasChapters ? level : level - 1, number: numbers.get(pos) ?? '', text: node.textContent, pos })
+      out.push({ level: hasChapters ? level : level - 1, number: node.attrs.numbered ? (numbers.get(pos) ?? '') : '', text: node.textContent, pos })
     } else if (name === 'figure' && node.attrs.caption) {
       figs += 1
       if (kind === 'listoffigures') out.push({ level: 0, number: hasChapters ? `${chapter}.${figs}` : String(figs), text: captionText(node.attrs.caption), pos })
@@ -95,7 +97,7 @@ export function tocWidget(kind: TocKind, entries: TocEntry[], pages: (number | n
   if (!entries.length) {
     const p = document.createElement('div')
     p.className = 'kt-toc-empty'
-    p.textContent = kind === 'tableofcontents' ? 'No numbered headings yet: apply Heading 1–3 to build the table.'
+    p.textContent = kind === 'tableofcontents' ? 'No headings yet: apply Heading 1–3 to build the table.'
       : kind === 'listoffigures' ? 'No captioned figures yet.' : 'No captioned tables yet.'
     box.appendChild(p)
   }
