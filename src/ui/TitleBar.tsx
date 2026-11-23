@@ -11,6 +11,7 @@ import { runAction } from '../app/actions'
 import { appStore } from '../app/store'
 import { isTauri } from '../platform'
 import { Icon } from './icons'
+import { WordControls } from './WordControls'
 import './titlebar.css'
 
 export function titleBarShown(): boolean {
@@ -68,7 +69,7 @@ export function TitleBar() {
         {btn('print', 'tb_print', 'Print (⌘P)')}
       </div>
       <div className='tb-title' data-tauri-drag-region>{title}</div>
-      <div className='tb-right' data-tauri-drag-region />
+      <div className='tb-right' data-tauri-drag-region><WordControls onBar /></div>
     </div>
   )
 }

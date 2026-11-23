@@ -3,7 +3,8 @@
 // find, character formats, alignment, paragraph styles, lists, links,
 // footnotes, cross-references, raw LaTeX blocks, theorems, highlights and
 // comments.
-import { NodeSelection } from 'prosemirror-state'
+import { NodeSelection, TextSelection } from 'prosemirror-state'
+import { information } from '../../platform/MessageBox'
 import { redo, undo } from 'prosemirror-history'
 import * as M from '../../core/model.ts'
 import { COMPILE_END, COMPILE_START, NOT_COMPILE_END, NOT_COMPILE_START } from '../../core/compiler.ts'
@@ -182,7 +183,32 @@ async function highlight(): Promise<void> {
 async function comment(): Promise<void> {
   const e = ed()
   if (!e) return
-  if (e.view.state.selection.empty) { status('Select the text to comment on first.'); return }
+  // Nothing selected: the word at the caret, as Word comments on it.
+  if (e.view.state.selection.empty) {
+    const st = e.view.state
+    const $at = st.selection.$from
+    if ($at.parent.isTextblock) {
+      const text = $at.parent.textBetween(0, $at.parent.content.size, '\ufffc', '\ufffc')
+      let a = $at.parentOffset, b = $at.parentOffset
+      const word = /[\p{L}\p{N}'’_-]/u
+      while (a > 0 && word.test(text[a - 1])) a--
+      while (b < text.length && word.test(text[b])) b++
+      // Between two words or at a line end: the word just before.
+      if (a === b) {
+        while (a > 0 && !word.test(text[a - 1])) a--
+        b = a
+        while (a > 0 && word.test(text[a - 1])) a--
+      }
+      if (a < b) {
+        const start = $at.start()
+        e.view.dispatch(st.tr.setSelection(TextSelection.create(st.doc, start + a, start + b)))
+      }
+    }
+    if (e.view.state.selection.empty) {
+      await information('New comment', 'Click in a word or select the text you want to comment on, then press New comment.')
+      return
+    }
+  }
   const note = await promptText('New comment', 'Comment:', '', { multiline: true })
   if (!note || !note.trim()) return
   const now = new Date()
