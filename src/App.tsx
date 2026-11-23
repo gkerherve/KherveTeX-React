@@ -96,7 +96,12 @@ export default function App() {
   useApp(s => s.projectPath)
   useApp(s => s.chapterIndex)
   const fileName = session.titleText() ?? (path ? path.split(/[\\/]/).pop()! : null)
-  const showPdf = layout === 'side'
+  // The arrow on the divider folds the PDF away (kept loaded) and opens
+  // it again at the width it had. Remembered.
+  const [pdfFolded, setPdfFolded] = useState(() => Boolean(setting('pdf_folded', false)))
+  useEffect(() => { void loadSettings().then(() => setPdfFolded(Boolean(setting('pdf_folded', false)))) }, [])
+  const foldPdf = (on: boolean) => { setPdfFolded(on); setSetting('pdf_folded', on) }
+  const showPdf = layout === 'side' && !pdfFolded
   // The visual page is as wide as the document's paper (or its class's).
   const pageW = pagePx(useApp(s => s.doc.meta)).width
   const docClass = useApp(s => s.doc.meta.documentclass)
@@ -231,9 +236,17 @@ export default function App() {
           </div>
           {tab === 'code' && <div className='code-pane'><CodeView /></div>}
           {tab === 'console' && <pre className='console-pane'>{log}</pre>}
-          {showPdf && <>
-            <div className='splitter' onPointerDown={dragSplitter} />
-            <div ref={pdfRef} className='pdf-panel' style={{ width: pdfWidth }}>
+          {layout === 'side' && <>
+            <div className={'splitter' + (pdfFolded ? ' folded' : '')} onPointerDown={e => { if (!pdfFolded) dragSplitter(e) }}>
+              <button type='button' className='splitter-fold' onPointerDown={e => e.stopPropagation()}
+                onClick={() => foldPdf(!pdfFolded)}
+                title={pdfFolded ? 'Show the PDF' : 'Hide the PDF'} aria-label={pdfFolded ? 'Show the PDF' : 'Hide the PDF'}>
+                <svg width='8' height='12' viewBox='0 0 8 12' aria-hidden='true'>
+                  <path d={pdfFolded ? 'M6 1 L1.5 6 L6 11' : 'M2 1 L6.5 6 L2 11'} fill='none' stroke='currentColor' strokeWidth='1.6' />
+                </svg>
+              </button>
+            </div>
+            <div ref={pdfRef} className='pdf-panel' style={{ width: pdfWidth }} hidden={pdfFolded}>
               <PdfPanel zoom={pdfZoom} fit={fitWidth && pdfManualZoom === null} />
             </div>
           </>}
