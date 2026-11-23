@@ -891,6 +891,57 @@ export function PageBreak(p: IconProps) {
   </Svg>
 }
 
+// Layout ▸ Breaks: the foot of one page and the head of the next, the
+// gap between them marked, text lines on each.
+export function Breaks(p: IconProps) {
+  return <Svg {...p}>
+    {P([[4, 2], [4, 9.5], [20, 9.5], [20, 2]], { closed: false, fill: PAPER })}
+    {L(7, 5, 17, 5, BLUE, 1.1)}
+    {P([[4, 22], [4, 14.5], [20, 14.5], [20, 22]], { closed: false, fill: PAPER })}
+    {L(7, 18, 17, 18, BLUE, 1.1)}
+    {L(1.5, 12, 22.5, 12, INK, 1, '2 1.6')}
+  </Svg>
+}
+
+// A column break: two columns, the left one ending early, an arrow on.
+export function ColumnBreak(p: IconProps) {
+  return <Svg {...p}>{R(3, 3, 18, 18, { fill: PAPER, r: 1, lw: 1.2 })}
+    {[6.5, 9.5].map(y => <g key={y}>{L(5.5, y, 11, y, BLUE, 1)}</g>)}
+    {[6.5, 9.5, 12.5, 15.5, 18.5].map(y => <g key={y}>{L(13, y, 18.5, y, BLUE, 1)}</g>)}
+    {L(5.5, 13, 9.5, 13, INK, 1, '1.5 1')}
+    {P([[9, 11.5], [11, 13], [9, 14.5]], { closed: false, lw: 1, color: INK })}
+  </Svg>
+}
+
+// A section break to the next page or the next odd page: a page with a
+// number at its foot.
+function SectionPage({ label, ...p }: IconProps & { label: string }) {
+  return <Svg {...p}>{Page(5, 2.5, 14, 19)}
+    {[7, 10, 13].map(y => <g key={y}>{L(7.5, y, 16.5, y, BLUE, 1)}</g>)}
+    {T([5, 15, 14, 6], label, { size: 6.5, bold: true, color: INK })}</Svg>
+}
+export const SectionNext = (p: IconProps) => <SectionPage {...p} label="→" />
+export const SectionOdd = (p: IconProps) => <SectionPage {...p} label="1 3" />
+
+// Line Numbers: lines of text with their numbers in the margin.
+export function LineNumbers(p: IconProps) {
+  return <Svg {...p}>
+    {T([1, 2.5, 6, 8], '1', { size: 7, color: BLUE })}
+    {T([1, 9.5, 6, 8], '2', { size: 7, color: BLUE })}
+    {T([1, 16, 6, 8], '3', { size: 7, color: BLUE })}
+    {[6.5, 13.5, 20].map(y => <g key={y}>{L(9, y, 22, y, INK, 1.3)}</g>)}
+  </Svg>
+}
+
+// Hyphenation: "a-" over "bc", a word broken at a line end.
+export function Hyphenation(p: IconProps) {
+  return <Svg {...p}>
+    {T([7, 1, 14, 11], 'a-', { size: 9, color: INK, align: 'left' })}
+    {T([2, 12, 14, 11], 'bc', { size: 9, color: INK, align: 'left' })}
+    {L(13.5, 6.5, 16.5, 6.5, BLUE, 1.6)}
+  </Svg>
+}
+
 export function HorizontalRule(p: IconProps) {
   return <Svg {...p}>{L(4, 6, 20, 6, INK, 1)}{L(4, 18, 20, 18, INK, 1)}
     {L(2.5, 12, 21.5, 12, BLUE, 2)}</Svg>
@@ -1747,6 +1798,8 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   chemistry: Chemistry, chemfig_structure: ChemfigStructure,
   one_column: OneColumn, two_columns: TwoColumns,
   three_columns: ThreeColumns, page_break: PageBreak,
+  breaks: Breaks, column_break: ColumnBreak, section_next: SectionNext, section_odd: SectionOdd,
+  line_numbers: LineNumbers, hyphenation: Hyphenation,
   horizontal_rule: HorizontalRule, title_date: TitleDate, zoom_in: ZoomIn, zoom_out: ZoomOut,
   fit_width: FitWidth, pdf_follow: PdfFollow, documents_panel: DocumentsPanel, split_documents: SplitDocuments, heading: Heading, paste: Paste, cut: Cut, copy: Copy,
   table_row_above: TableRowAbove, table_row_below: TableRowBelow,

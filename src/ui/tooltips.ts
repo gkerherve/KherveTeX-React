@@ -131,5 +131,8 @@ export const WIDGET_TIPS: Record<string, Tip> = {
   class: { title: 'Document type', what: 'Chooses the overall design of the document — an article, report, book, thesis, slides, letter, CV, poster, or a journal\'s own template (IEEE, Elsevier, ACS, Springer…). Your text is kept; only the layout changes.', latex: 'Sets the LaTeX \\documentclass.' },
   fontsize: { title: 'Font size', what: 'Size of the body text in points. Headings scale with it.', latex: 'Most classes accept 10, 11 or 12 pt.' },
   pagesize: { title: 'Size', what: 'Paper size of the document: A4, US Letter or Legal, shown with its dimensions, as in Word\'s Layout > Size.', latex: 'Sets the geometry package\'s paper option.' },
+  breaks: { title: 'Breaks', what: 'Add a page break or a column break where the cursor is, or start the next part on a new page or on the next odd page.', latex: '\\newpage, \\columnbreak, \\clearpage, \\cleardoublepage.' },
+  line_numbers: { title: 'Line Numbers', what: 'Number the lines in the margin: through the whole document, from 1 on each page, or from 1 at each section. They show in the PDF.', latex: 'The lineno package (\\linenumbers).' },
+  hyphenation: { title: 'Hyphenation', what: 'Automatic breaks long words at line ends with a hyphen; None keeps words whole.', latex: 'None sets \\hyphenpenalty=10000.' },
   margins: { title: 'Margins', what: 'Word\'s margin presets (Normal, Narrow, Moderate, Wide), or Custom Margins… to type your own.', latex: 'Sets the geometry package\'s top / bottom / left / right.' },
 }

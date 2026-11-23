@@ -725,6 +725,8 @@ export class EditorController implements ViewHost {
     st.width = `${g.widthPx}px`
     // Text set to a size (Home ▸ font size on a selection) scales from it.
     st.setProperty('--kt-body-pt', String(this.meta.body_font_pt || 12))
+    // Layout ▸ Hyphenation ▸ None: no word broken at a line end, as the PDF.
+    this.root.classList.toggle('kt-nohyphen', this.meta.hyphenation === false)
     // Review ▸ Track Changes and the markup shown (All, Simple, None, Original).
     setTracking(!!this.meta.track_changes)
     for (const k of ['simple', 'none', 'original']) this.root.classList.toggle(`kt-markup-${k}`, this.meta.markup === k)
@@ -1058,6 +1060,9 @@ export class EditorController implements ViewHost {
     for (const code of ['A4', 'Letter', 'Legal']) setCommandChecked(`pagesize_${code}`, meta.page_size === code)
     setCommandChecked('orient_portrait', !meta.landscape)
     setCommandChecked('orient_landscape', !!meta.landscape)
+    for (const k of ['none', 'continuous', 'page', 'section']) setCommandChecked(`ln_${k}`, (meta.line_numbers ?? 'none') === k)
+    setCommandChecked('hyph_auto', meta.hyphenation !== false)
+    setCommandChecked('hyph_none', meta.hyphenation === false)
     setCommandChecked('track_changes', !!meta.track_changes)
     for (const k of ['all', 'simple', 'none', 'original']) setCommandChecked(`markup:${k}`, (meta.markup ?? 'all') === k)
     setCommandChecked('markup_insdel', !meta.markup)

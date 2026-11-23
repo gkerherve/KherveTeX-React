@@ -1053,6 +1053,17 @@ function classOptions(m: DocMeta): string {
   return opts.join(',')
 }
 
+// Layout ▸ Line Numbers and Hyphenation, at the end of the preamble.
+function withLayoutOptions(packages: string, m: DocMeta): string {
+  const add: string[] = []
+  if (m.line_numbers) {
+    add.push(m.line_numbers === 'page' ? '\\usepackage[pagewise]{lineno}' : '\\usepackage{lineno}', '\\linenumbers')
+    if (m.line_numbers === 'section') add.push('\\AddToHook{cmd/section/before}{\\resetlinenumber}')
+  }
+  if (m.hyphenation === false) add.push('\\hyphenpenalty=10000', '\\exhyphenpenalty=10000', '\\sloppy')
+  return add.length ? `${packages}\n${add.join('\n')}` : packages
+}
+
 function documentclassLine(m: DocMeta): string {
   const cls = (m.documentclass || '').toLowerCase()
   let opts = classOptions(m)
@@ -1414,6 +1425,7 @@ export function serializeDocument(doc: Document): string {
     packages = withStrikeout(packages, packages, frontmatter, body)
     packages = withUnicodeFallbacks(packages, packages, frontmatter, body)
     packages = withFloatPlacement(packages, m, isJournal, doc)
+  packages = withLayoutOptions(packages, m)
     return `${documentclassLine(m)}\n${packages}\n\\begin{document}\n${frontmatter}${body}\\end{document}\n`
   }
 
@@ -1585,6 +1597,7 @@ export function serializeDocument(doc: Document): string {
   packages = withStrikeout(packages, packages, preambleMeta, body)
   packages = withUnicodeFallbacks(packages, packages, preambleMeta, body)
   packages = withFloatPlacement(packages, m, isJournal, doc)
+  packages = withLayoutOptions(packages, m)
   return `${documentclassLine(m)}\n${packages}\n${preambleMeta}\\begin{document}\n${body}\\end{document}\n`
 }
 

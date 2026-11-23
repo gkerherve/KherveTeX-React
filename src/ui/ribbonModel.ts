@@ -577,6 +577,33 @@ const cmds: Command[] = [
       { text: 'Two', command: 'cols_2', icon: 'two_columns', checkable: true },
       { text: 'Three', command: 'cols_3', icon: 'three_columns', checkable: true },
     ] },
+  // Layout ▸ Breaks, Line Numbers, Hyphenation (Word's Page Setup group).
+  { id: 'breaks', text: 'Breaks', icon: 'breaks', tip: 'breaks', popup: 'instant',
+    menu: [
+      { text: 'Page', command: 'brk_page', icon: 'page_break', detail: 'The next text starts on a new page' },
+      { text: 'Column', command: 'brk_column', icon: 'column_break', detail: 'The next text starts in the next column' },
+      '-',
+      { text: 'Next Page', command: 'brk_next', icon: 'section_next', detail: 'Pending figures and tables, then a new page' },
+      { text: 'Odd Page', command: 'brk_odd', icon: 'section_odd', detail: 'Starts on the next odd-numbered page' },
+    ] },
+  { id: 'line_numbers', text: 'Line Numbers', icon: 'line_numbers', tip: 'line_numbers', popup: 'instant',
+    menu: [
+      { text: 'None', command: 'ln_none', checkable: true, checked: true },
+      { text: 'Continuous', command: 'ln_continuous', checkable: true },
+      { text: 'Restart Each Page', command: 'ln_page', checkable: true },
+      { text: 'Restart Each Section', command: 'ln_section', checkable: true },
+    ] },
+  { id: 'hyphenation', text: 'Hyphenation', icon: 'hyphenation', tip: 'hyphenation', popup: 'instant',
+    menu: [
+      { text: 'Automatic', command: 'hyph_auto', checkable: true, checked: true },
+      { text: 'None', command: 'hyph_none', checkable: true },
+    ] },
+  { id: 'brk_page', text: 'Page' }, { id: 'brk_column', text: 'Column' },
+  { id: 'brk_next', text: 'Next Page' }, { id: 'brk_odd', text: 'Odd Page' },
+  ...(['none', 'continuous', 'page', 'section'] as const).map((k): Command => ({ id: `ln_${k}`,
+    text: k, checkable: true, group: 'line_numbers', checked: k === 'none' })),
+  { id: 'hyph_auto', text: 'Automatic', checkable: true, group: 'hyphenation', checked: true },
+  { id: 'hyph_none', text: 'None', checkable: true, group: 'hyphenation' },
   // The Margins and Size menu entries, checked against the document.
   ...MARGIN_PRESETS.map(([name]): Command => ({ id: `margin_${name}`, text: name, checkable: true,
     group: 'margins', checked: name === 'Normal' })),
@@ -741,7 +768,8 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Document type', large: [{ widget: 'classes' }] },
   ] },
   { name: 'Layout', groups: [
-    { label: 'Page Setup', large: ['margins', 'orientation', 'size', 'columns'] },
+    { label: 'Page Setup', large: ['margins', 'orientation', 'size', 'columns', 'breaks'],
+      rows: [['line_numbers'], ['hyphenation']], text: true },
     { label: 'Indent', rows: [[{ widget: 'parafield', field: 'left_cm' }], [{ widget: 'parafield', field: 'right_cm' }]] },
     { label: 'Spacing', rows: [[{ widget: 'parafield', field: 'before_pt' }], [{ widget: 'parafield', field: 'after_pt' }]] },
   ] },

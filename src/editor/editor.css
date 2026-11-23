@@ -66,6 +66,9 @@
 
 .kt-flow > * { flex: none; }
 
+/* Layout ▸ Hyphenation ▸ None. */
+.kt-pages.kt-nohyphen .kt-flow, .kt-pages.kt-nohyphen .kt-flow * { -webkit-hyphens: manual; hyphens: manual; }
+
 .kt-block {
   position: relative;
   margin: 0;

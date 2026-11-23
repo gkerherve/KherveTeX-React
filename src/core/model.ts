@@ -273,6 +273,13 @@ export interface DocMeta {
   markup?: 'simple' | 'none' | 'original'
   // Pages turned sideways (geometry's landscape). Stored only when on.
   landscape?: boolean
+  // Layout ▸ Line Numbers (lineno): numbers in the margin, counted through
+  // the document, from 1 on each page or from 1 at each section. Stored
+  // only when on.
+  line_numbers?: 'continuous' | 'page' | 'section'
+  // Layout ▸ Hyphenation ▸ None: words are not broken at line ends.
+  // Stored only when off.
+  hyphenation?: false
   // The Design tab (design.ts); stored only when set.
   design?: Design
   // Draw tab: pen strokes on the pages (ink.ts); stored only when any.
@@ -307,6 +314,8 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   bib_style: o.bib_style ?? 'plainnat',
   ...(o.show_date === false ? { show_date: false } : {}),
   ...(o.landscape ? { landscape: true } : {}),
+  ...(o.line_numbers ? { line_numbers: o.line_numbers } : {}),
+  ...(o.hyphenation === false ? { hyphenation: false } : {}),
   ...(o.design && Object.keys(o.design).length ? { design: { ...o.design } } : {}),
   ...(o.ink && o.ink.length ? { ink: o.ink.map(s => ({ ...s, pts: [...s.pts] })) } : {}),
   ...(o.track_changes ? { track_changes: true } : {}),
@@ -434,6 +443,8 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     preamble_extras: pyStr(get(m, 'preamble_extras', '')),
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
     ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
+    ...(['continuous', 'page', 'section'].includes(get(m, 'line_numbers', '')) ? { line_numbers: get(m, 'line_numbers', '') as 'page' } : {}),
+    ...(get<unknown>(m, 'hyphenation', true) === false ? { hyphenation: false as const } : {}),
     ...(get(m, 'design', null) && typeof get(m, 'design', null) === 'object' ? { design: { ...get<Design>(m, 'design', {}) } } : {}),
     ...(Array.isArray(get(m, 'ink', null)) && get<InkStroke[]>(m, 'ink', []).length ? { ink: get<InkStroke[]>(m, 'ink', []).map(s => ({ ...s, pts: [...s.pts] })) } : {}),
     ...(truthy(get(m, 'track_changes', false)) ? { track_changes: true } : {}),

@@ -38,6 +38,8 @@ function meta(): DocMeta {
 // set_meta: the editor relays out and hands the document on.
 function setMeta(patch: Partial<DocMeta>): void {
   const next = { ...meta(), ...patch }
+  // A setting turned back to its default is left out of the file.
+  for (const k of Object.keys(patch) as (keyof DocMeta)[]) if (next[k] === undefined) delete next[k]
   const e = editor()
   if (e) e.setMeta(next)
   else editDoc({ ...appStore().get().doc, meta: next })
@@ -120,6 +122,26 @@ for (const code of ['A4', 'Letter', 'Legal']) {
   actions[`pagesize_${code}`] = () => { if (meta().page_size !== code) setMeta({ page_size: code }) }
 }
 
+// Layout ▸ Breaks: a page break, a column break (the next column; with one
+// column, the next page), a section starting on the next page or the next
+// odd page.
+const breakBlock = (latex: string) => () => {
+  const e = editor()
+  if (e) C.insertRawBlock(latex)(e.view.state, tr => e.view.dispatch(tr))
+}
+actions.brk_page = breakBlock('\\newpage')
+actions.brk_column = () => breakBlock((meta().column_count ?? 1) >= 3 ? '\\columnbreak' : '\\newpage')()
+actions.brk_next = breakBlock('\\clearpage')
+actions.brk_odd = breakBlock('\\cleardoublepage')
+// Layout ▸ Line Numbers and Hyphenation.
+for (const k of ['none', 'continuous', 'page', 'section'] as const) {
+  actions[`ln_${k}`] = () => {
+    const v = k === 'none' ? undefined : k
+    if (meta().line_numbers !== v) setMeta({ line_numbers: v })
+  }
+}
+actions.hyph_auto = () => { if (meta().hyphenation === false) setMeta({ hyphenation: undefined }) }
+actions.hyph_none = () => { if (meta().hyphenation !== false) setMeta({ hyphenation: false }) }
 actions.orient_portrait = () => { if (meta().landscape) setMeta({ landscape: undefined }) }
 actions.orient_landscape = () => { if (!meta().landscape) setMeta({ landscape: true }) }
 
