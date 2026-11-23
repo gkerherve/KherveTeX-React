@@ -816,7 +816,8 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Styles', large: [{ widget: 'styles' }, { widget: 'numbered' }] },
   ] },
   { name: 'Insert', groups: [
-    { label: 'Pages', large: ['pagebreak'], rows: [['hrule'], ['show_date']], text: true },
+    { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
+    { label: 'Header & Footer', large: ['hf_header', 'hf_footer'] },
     { label: 'Tables', large: ['table_menu'] },
     { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes'], ['flowchart', 'smartart'], ['chart', 'screenshot']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },

@@ -759,7 +759,7 @@ export class EditorController implements ViewHost {
     this.root.classList.toggle('kt-track-fixed', tl.colour !== 'author')
     if (tl.colour !== 'author') this.root.style.setProperty('--kt-track-colour', tl.colour)
     // Design tab: the heading look (style set, colours, fonts).
-    const dcss = designCss(this.meta.design)
+    const dcss = designCss(this.meta.design, this.meta.documentclass)
     this.root.classList.toggle('kt-design', !!dcss)
     let styleEl = this.root.querySelector<HTMLStyleElement>(':scope > style.kt-design-css')
     if (!styleEl) { styleEl = document.createElement('style'); styleEl.className = 'kt-design-css'; this.root.prepend(styleEl) }

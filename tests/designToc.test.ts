@@ -14,7 +14,8 @@ describe('Design tab', () => {
     const tex = serializeDocument(M.document([M.section(1, [M.text('A')])], M.docMeta({
       design: { style_set: 'shaded', colors: 'green', watermark: 'DRAFT', page_border: 'double', page_color: '#fff2cc' },
     })))
-    expect(tex).toContain('\\usepackage[explicit]{titlesec}')
+    expect(tex).toContain('\\usepackage{titlesec}')
+    expect(tex).toContain('\\titleformat{\\section}{\\bfseries\\Large}{}{0pt}{\\kSecBox}')
     expect(tex).toContain('\\definecolor{kAccent}{HTML}{38761D}')
     expect(tex).toContain('{DRAFT}')
     expect(tex).toContain('\\pagecolor[HTML]{FFF2CC}')
@@ -22,6 +23,18 @@ describe('Design tab', () => {
   })
   test('headings are not restyled outside the standard classes', () => {
     expect(designPreamble({ style_set: 'basic' }, 'beamer')).not.toContain('titlesec')
+  })
+  test('every class with headings takes the style set', () => {
+    // KOMA: titlesec, chapters with the number before the title.
+    const koma = designPreamble({ style_set: 'shaded' }, 'scrreprt')
+    expect(koma).toContain('\\titleformat{\\chapter}[block]')
+    expect(koma).toContain('\\kChapBox')
+    // report keeps "Chapter 2" on its own line.
+    expect(designPreamble({ style_set: 'lines' }, 'report')).toContain('\\titleformat{\\chapter}[display]')
+    // llncs: titlesec cannot take its headings; their colour still changes.
+    const ln = designPreamble({ style_set: 'lines' }, 'llncs')
+    expect(ln).not.toContain('titlesec')
+    expect(ln).toContain('\\allsectionsfont{\\color{kAccent}}')
   })
   test('the design survives a save and load', () => {
     const m = M.docMeta({ design: { style_set: 'lines', para_space_pt: 6 } })

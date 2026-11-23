@@ -94,8 +94,31 @@ export function hasDesign(d: Design | undefined): boolean {
   return !!d && Object.values(d).some(v => v !== undefined && v !== '' && v !== 'default')
 }
 
+// Classes with chapters (Heading 1 is \\chapter), and those that print
+// "Chapter 2" on a line of its own over the title.
+const CHAPTER_CLASSES = ['report', 'book', 'extreport', 'extbook', 'memoir', 'scrreprt', 'scrbook', 'mimosis',
+  'hepthesis', 'suftesi', 'toptesi', 'disser', 'amsbook', 'elegantbook', 'tufte-book']
+const CHAPTER_LINE = ['report', 'book', 'extreport', 'extbook', 'memoir', 'amsbook', 'hepthesis', 'disser']
+// Classes whose headings titlesec cannot take over (they fail to compile
+// with it): their headings keep the class's look; letters, CVs and posters
+// have none to restyle.
+const NO_TITLESEC = ['apa7', 'llncs', 'disser', 'moderncv', 'europasscv', 'letter', 'scrlttr2', 'tikzposter', 'a0poster', 'beamer']
+function headingsByTitlesec(cls: string): boolean {
+  return !NO_TITLESEC.includes(cls)
+}
+
+// How much of a style set the PDF can show in a class: all of it
+// (titlesec), the headings' colour and font only, or nothing (letters,
+// CVs, posters: no such headings). The page shows the same.
+export function designReach(cls: string): 'all' | 'color' | 'none' {
+  const c = (cls || '').toLowerCase()
+  if (headingsByTitlesec(c)) return 'all'
+  if (['apa7', 'llncs', 'disser', 'beamer', 'moderncv'].includes(c)) return 'color'
+  return 'none'
+}
+
 // The preamble lines; `cls` is the class in lower case. Headings are
-// restyled (titlesec) only in the standard classes, where it is safe.
+// restyled with titlesec in every class that allows it.
 export function designPreamble(d: Design | undefined, cls: string): string {
   if (!hasDesign(d)) return ''
   const D = d!
@@ -105,31 +128,55 @@ export function designPreamble(d: Design | undefined, cls: string): string {
   out.push('\\usepackage{xcolor}')
   const accent = accentOf(D), second = secondOf(D)
   out.push(`\\definecolor{kAccent}{HTML}{${hex(accent)}}`, `\\definecolor{kSecond}{HTML}{${hex(second)}}`)
-  const standard = ['article', 'report', 'book', 'extarticle', 'extreport', 'extbook'].includes(cls)
   const set = D.style_set ?? 'default'
   const fam = D.heading_font === 'sans' ? '\\sffamily' : D.heading_font === 'serif' ? '\\rmfamily' : ''
-  if (standard && (set !== 'default' || D.heading_font || D.colors)) {
-    out.push('\\usepackage[explicit]{titlesec}')
+  const styled = set !== 'default' || !!D.heading_font || !!D.colors
+  // moderncv draws its own section titles in its color1: the accent.
+  if (styled && cls === 'moderncv') out.push('\\colorlet{color1}{kAccent}')
+  // Classes titlesec cannot take: the headings' colour and font only.
+  const hcolor = set === 'default' && !D.colors ? '' : '\\color{kAccent}'
+  if (styled && (cls === 'apa7' || cls === 'llncs') && (hcolor || fam)) out.push(`\\usepackage{sectsty}\\allsectionsfont{${fam}${hcolor}}`)
+  if (styled && cls === 'disser' && (hcolor || fam)) {
+    out.push(`\\renewcommand\\chapterfont{${fam}\\Large\\bfseries${hcolor}}\\renewcommand\\thechapterfont{${fam}\\Large${hcolor}}`,
+      `\\renewcommand\\sectionfont{\\normalfont${fam}\\large\\bfseries${hcolor}}`,
+      `\\renewcommand\\subsectionfont{\\normalfont${fam}\\normalsize\\bfseries${hcolor}}`,
+      `\\renewcommand\\subsubsectionfont{\\normalfont${fam}\\normalsize\\bfseries${hcolor}}`)
+  }
+  if (styled && cls === 'beamer' && hcolor) out.push('\\setbeamercolor{structure}{fg=kAccent}')
+  if (styled && headingsByTitlesec(cls)) {
+    // No [explicit]: a class that loads titlesec itself (tufte, elegantbook,
+    // suftesi) would clash with the option. The title goes to the last
+    // command of each format (\kHeadBox, \MakeUppercase) instead of #1.
+    out.push('\\usepackage{titlesec}')
     const color = set === 'default' && !D.colors ? '' : '\\color{kAccent}'
-    // A class with chapters (report, book): the chapter is the top level,
-    // as the page shows it (Heading 1), set as the class does ("Chapter 2"
-    // on its own line over the title) in the style's look.
-    const chapters = ['report', 'book', 'extreport', 'extbook'].includes(cls)
+    const box = (num: string) => `{\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut ${num}#1}}}`
+    out.push(`\\providecommand{\\kHeadBox}[1]${box('')}`)
+    // A class with chapters: the chapter is the top level, as the page shows
+    // it (Heading 1). Where the class prints "Chapter 2" on a line of its
+    // own (report, book, memoir...) it stays so; KOMA and the others put the
+    // number before the title.
+    const chapters = CHAPTER_CLASSES.includes(cls)
     if (chapters) {
-      const label = '\\chaptertitlename\\ \\thechapter'
-      const box = (t: string) => `\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut ${t}}}`
-      let lab = `{${label}}`, title = '{\\Huge #1}', after = '', shape = `${fam}\\bfseries\\huge${color}`
+      const display = CHAPTER_LINE.includes(cls)
+      const label = display ? '\\chaptertitlename\\ \\thechapter' : '\\thechapter'
+      let shape = `${fam}\\bfseries\\huge${color}`, lab = `{${label}}`, title = '\\Huge', after = ''
       switch (set) {
-        case 'shaded': shape = `${fam}\\bfseries\\huge\\color{kAccent}`; title = `{\\Huge${box('#1')}}`; break
+        case 'shaded': shape = `${fam}\\bfseries\\huge\\color{kAccent}`; title = display ? '\\Huge\\kHeadBox' : '\\Huge\\kChapBox'; break
         case 'lines': after = '[\\vspace{-0.6ex}\\titlerule]'; break
-        case 'lines_accent': shape = `${fam}\\huge\\color{kAccent}`; title = '{\\Huge #1}'; after = '[{\\color{kSecond}\\vspace{-0.4ex}\\titlerule[1.2pt]}]'; break
-        case 'elegant': shape = `${fam}\\huge${color}`; title = '{\\Huge\\MakeUppercase{#1}}'; break
+        case 'lines_accent': shape = `${fam}\\huge\\color{kAccent}`; after = '[{\\color{kSecond}\\vspace{-0.4ex}\\titlerule[1.2pt]}]'; break
+        case 'elegant': shape = `${fam}\\huge${color}`; title = '\\Huge\\MakeUppercase'; break
         case 'centered': shape += '\\centering'; break
         case 'casual': lab = `{{\\color{kSecond}${label}}}`; break
       }
-      out.push(`\\titleformat{\\chapter}[display]{${shape}}${lab}{20pt}${title}${after}`)
-      out.push(`\\titleformat{name=\\chapter,numberless}[display]{${shape}}{}{0pt}${title}${after}`)
-      out.push('\\titlespacing*{\\chapter}{0pt}{50pt}{40pt}')
+      if (set === 'shaded' && !display) {
+        // The number inside the box with the title, as a section's.
+        out.push(`\\providecommand{\\kChapBox}[1]${box('\\thechapter\\quad ')}`)
+        out.push(`\\titleformat{\\chapter}[block]{${shape}}{}{0pt}{\\Huge\\kChapBox}`)
+      } else {
+        out.push(`\\titleformat{\\chapter}[${display ? 'display' : 'hang'}]{${shape}}${lab}{${display ? '20pt' : '1em'}}{${title}}${after}`)
+      }
+      out.push(`\\titleformat{name=\\chapter,numberless}[${display ? 'display' : 'hang'}]{${shape}}{}{0pt}{${set === 'shaded' ? '\\Huge\\kHeadBox' : title}}${after}`)
+      out.push(`\\titlespacing*{\\chapter}{0pt}{${display ? '50pt' : '30pt'}}{${display ? '40pt' : '20pt'}}`)
     }
     const lvls: [string, string, string][] = [
       ['section', '\\Large', '\\thesection'], ['subsection', '\\large', '\\thesubsection'], ['subsubsection', '\\normalsize', '\\thesubsubsection'],
@@ -140,32 +187,33 @@ export function designPreamble(d: Design | undefined, cls: string): string {
       const top = name === 'section' && !chapters
       switch (set) {
         case 'shaded':
-          out.push(...(top
-            ? [`\\titleformat{\\${name}}{${fam}\\bfseries${size}}{}{0pt}{\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut ${num}\\quad #1}}}`,
-              `\\titleformat{name=\\${name},numberless}{${fam}\\bfseries${size}}{}{0pt}{\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut #1}}}`]
-            : [`\\titleformat{\\${name}}{${fam}\\bfseries${size}\\color{kAccent}}{${num}}{1em}{#1}`]))
+          if (top) {
+            out.push(`\\providecommand{\\kSecBox}[1]${box('\\thesection\\quad ')}`)
+            out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}}{}{0pt}{\\kSecBox}`,
+              `\\titleformat{name=\\${name},numberless}{${fam}\\bfseries${size}}{}{0pt}{\\kHeadBox}`)
+          } else out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}\\color{kAccent}}{${num}}{1em}{}`)
           break
         case 'lines':
-          out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}${color}}{${num}}{1em}{#1}[${top ? '\\vspace{-0.6ex}\\titlerule' : ''}]`)
+          out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}${color}}{${num}}{1em}{}[${top ? '\\vspace{-0.6ex}\\titlerule' : ''}]`)
           break
         case 'lines_accent':
           out.push(top
-            ? `\\titleformat{\\${name}}{${fam}${size}\\color{kAccent}}{${num}}{1em}{#1}[{\\color{kSecond}\\vspace{-0.4ex}\\titlerule[1.2pt]}]`
-            : `\\titleformat{\\${name}}{${fam}\\bfseries${size}\\color{kAccent}}{${num}}{1em}{#1}`)
+            ? `\\titleformat{\\${name}}{${fam}${size}\\color{kAccent}}{${num}}{1em}{}[{\\color{kSecond}\\vspace{-0.4ex}\\titlerule[1.2pt]}]`
+            : `\\titleformat{\\${name}}{${fam}\\bfseries${size}\\color{kAccent}}{${num}}{1em}{}`)
           break
         case 'elegant':
-          out.push(`\\titleformat{\\${name}}{${fam}${size}${color}}{${num}}{1em}{${top ? '\\MakeUppercase{#1}' : '\\textsc{#1}'}}`)
+          out.push(`\\titleformat{\\${name}}{${fam}${size}${color}}{${num}}{1em}{${top ? '\\MakeUppercase' : '\\scshape'}}`)
           if (top) out.push(`\\titlespacing*{\\${name}}{0pt}{4ex plus 1ex minus .2ex}{2ex plus .2ex}`)
           break
         case 'centered':
-          out.push(`\\titleformat{\\${name}}[block]{${fam}\\bfseries${size}${color}\\centering}{${num}}{1em}{#1}`)
+          out.push(`\\titleformat{\\${name}}[block]{${fam}\\bfseries${size}${color}\\centering}{${num}}{1em}{}`)
           break
         case 'casual':
-          out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}${color}}{{\\color{kSecond}${num}}}{1em}{#1}`)
+          out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}${color}}{{\\color{kSecond}${num}}}{1em}{}`)
           break
         case 'basic':
         default:
-          out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}${color}}{${num}}{1em}{#1}`)
+          out.push(`\\titleformat{\\${name}}{${fam}\\bfseries${size}${color}}{${num}}{1em}{}`)
       }
     }
   }
@@ -197,8 +245,9 @@ export function designPreamble(d: Design | undefined, cls: string): string {
 
 // The editor's look for a style set: CSS for the headings (the page's
 // .kt-design root), the watermark and border drawn on each sheet.
-export function designCss(d: Design | undefined): string {
+export function designCss(d: Design | undefined, cls = 'article'): string {
   if (!hasDesign(d)) return ''
+  const reach = designReach(cls)
   const D = d!
   const accent = accentOf(D), second = secondOf(D)
   const set = D.style_set ?? 'default'
@@ -208,8 +257,8 @@ export function designCss(d: Design | undefined): string {
   const color = set === 'default' && !D.colors ? '' : `color: ${accent} !important;`
   for (const lv of [1, 2, 3]) {
     const top = lv === 1
-    let r = fam + color
-    switch (set) {
+    let r = reach === 'none' ? '' : fam + color
+    if (reach === 'all') switch (set) {
       case 'shaded': r += top ? `background: ${accent}; color: #fff !important; padding: 2px 6px;` : ''; break
       case 'lines': if (top) r += 'border-bottom: 0.67px solid #000; padding-bottom: 2px;'; break
       case 'lines_accent': if (top) r += `border-bottom: 1.6px solid ${second}; padding-bottom: 2px; font-weight: 400 !important;`; break
@@ -218,6 +267,7 @@ export function designCss(d: Design | undefined): string {
       default: break
     }
     if (r) css.push(`${sel(lv)} { ${r} }`)
+    if (reach !== 'all') continue
     if (set === 'casual') css.push(`${sel(lv)}::before { color: ${second}; }`)
     if (set === 'shaded' && top) css.push(`${sel(lv)}::before { color: #fff !important; }`)
     // A chapter keeps its "Chapter 2" line and space above in its padding:
