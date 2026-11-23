@@ -573,6 +573,21 @@ export class EditorController implements ViewHost {
     return { page, frac }
   }
 
+  // Where a PDF page and height on it stand in the page view (client y):
+  // the sheet labelled with that page (its run-on "(cont.)" sheet for the
+  // part past its foot).
+  spotClientY(page: number, frac: number): number | null {
+    const H = this.layout.geometry.heightPx
+    if (!H || !this.flowEl.isConnected) return null
+    let k = -1
+    for (let i = 0; i < this.sheets; i++) {
+      const label = this.labels[i] ?? String(i + this.firstPage)
+      if (parseInt(label, 10) === page && !label.includes('cont')) { k = i; break }
+    }
+    if (k < 0) return null
+    return this.flowEl.getBoundingClientRect().top + (k + frac) * H * this.zoom()
+  }
+
   // set_first_page_number: a project document continues from the pages
   // of the documents before it.
   setPageNumberStart(n: number): void {
@@ -1189,6 +1204,7 @@ export class EditorController implements ViewHost {
       setHeadingOffset: c => this.setHeadingOffset(c ?? []),
       setPageAnchors: (_pages, anchors, furniture, typography) => this.setPageAnchors(anchors, furniture, typography),
       pdfSpotAt: y => this.pdfSpotAt(y),
+      spotClientY: (page, frac) => this.spotClientY(page, frac),
       // The contextual Equation tab (src/app/actions/math.ts).
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },

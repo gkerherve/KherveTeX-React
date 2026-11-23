@@ -39,7 +39,13 @@ export interface PdfApi {
   // Scroll so this point of page `page` (1-based; `frac` 0..1 down it)
   // sits in the middle of the panel: the PDF following the text.
   showSpot(page: number, frac: number): void
+  // The page (1-based) the middle of the view shows and how far down it
+  // (0..1): for the page view to follow the PDF.
+  spotAtMiddle(): { page: number; frac: number } | null
 }
+
+// Sent when the user scrolls the PDF (the primary view).
+export const PDF_SCROLLED = 'kt-pdf-scrolled'
 
 let primaryApi: PdfApi | null = null
 export function pdfApi(): PdfApi | null {
@@ -211,9 +217,28 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
       if (!slot || !el) return
       el.scrollTop = Math.max(0, slot.offsetTop + frac * slot.offsetHeight - el.clientHeight / 2)
     }
-    const api: PdfApi = { findText, currentPage, pageCount: () => boxes.length, showSpot }
+    const spotAtMiddle = () => {
+      const el = container.current
+      if (!el || !slots.current.length) return null
+      const mid = el.scrollTop + el.clientHeight / 2
+      for (let i = 0; i < boxes.length; i++) {
+        const s = slots.current[i]
+        if (!s) continue
+        if (mid < s.offsetTop + s.offsetHeight || i === boxes.length - 1) {
+          return { page: i + 1, frac: Math.max(0, Math.min(1, (mid - s.offsetTop) / Math.max(1, s.offsetHeight))) }
+        }
+      }
+      return null
+    }
+    const api: PdfApi = { findText, currentPage, pageCount: () => boxes.length, showSpot, spotAtMiddle }
     primaryApi = api
-    return () => { if (primaryApi === api) primaryApi = null }
+    const el = container.current
+    const onScroll = () => window.dispatchEvent(new CustomEvent(PDF_SCROLLED))
+    el?.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      el?.removeEventListener('scroll', onScroll)
+      if (primaryApi === api) primaryApi = null
+    }
   }, [primary, findText, currentPage, boxes])
 
   // The text line under the pointer (or the page's first line), as the

@@ -31,6 +31,9 @@ export interface EditorApi {
   // down that page it is (0..1), for the PDF to follow the text; null with
   // no page view.
   pdfSpotAt?(clientY: number): { page: number; frac: number } | null
+  // The other way: where (client y) the page view shows that PDF spot,
+  // for the page view to follow the PDF; null when no sheet shows it.
+  spotClientY?(page: number, frac: number): number | null
   focus(): void
   // The Spelling panel: every mistake of the document's prose, selecting
   // one on the page, and putting a correction in its place (false when

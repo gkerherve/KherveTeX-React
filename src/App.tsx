@@ -26,7 +26,7 @@ import { currentBranch, recentSnapshot, subscribeBranch, subscribeRecent } from 
 import { runAction } from './app/actions'
 import { useDocumentsDock } from './app/actions/project'
 import { editorApi } from './app/editorApi'
-import { pdfApi } from './preview/PdfView'
+import { PDF_SCROLLED, pdfApi } from './preview/PdfView'
 import { loadSettings, setting, setSetting } from './platform/settings'
 import { PREFS_EVENT } from './app/prefs'
 import './App.css'
@@ -139,13 +139,35 @@ export default function App() {
     return () => window.removeEventListener(PREFS_EVENT, on)
   }, [])
   // Scroll events come once a frame; the work is two reads and a write.
+  // Each side follows the other: the one moved for the other ignores its
+  // own scroll events for a moment, so they do not chase each other.
+  const quietUntil = useRef({ desk: 0, pdf: 0 })
   const syncPdf = () => {
     const desk = deskRef.current
-    if (!follow || !showPdf || !desk) return
+    if (!follow || !showPdf || !desk || performance.now() < quietUntil.current.desk) return
     const r = desk.getBoundingClientRect()
     const spot = editorApi()?.pdfSpotAt?.(r.top + r.height / 2)
-    if (spot) pdfApi()?.showSpot(spot.page, spot.frac)
+    if (spot) {
+      quietUntil.current.pdf = performance.now() + 200
+      pdfApi()?.showSpot(spot.page, spot.frac)
+    }
   }
+  // Scrolling the PDF scrolls the page view to the same place.
+  useEffect(() => {
+    const on = () => {
+      const desk = deskRef.current
+      if (!follow || !showPdf || !desk || performance.now() < quietUntil.current.pdf) return
+      const spot = pdfApi()?.spotAtMiddle()
+      if (!spot) return
+      const y = editorApi()?.spotClientY?.(spot.page, spot.frac)
+      if (y === null || y === undefined) return
+      const r = desk.getBoundingClientRect()
+      quietUntil.current.desk = performance.now() + 200
+      desk.scrollTop += y - (r.top + r.height / 2)
+    }
+    window.addEventListener(PDF_SCROLLED, on)
+    return () => window.removeEventListener(PDF_SCROLLED, on)
+  }, [follow, showPdf])
   const toggleFollow = () => {
     const on = !follow
     setFollow(on)
