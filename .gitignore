@@ -27,3 +27,5 @@ dist-ssr
 # Word documents downloaded from the web (scripts/import_word_examples.py
 # examples/word/web): third-party files, not part of the repository.
 examples/word/web/
+scripts/guide-shots/out/
+scripts/guide-shots/node_modules/

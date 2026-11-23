@@ -2,14 +2,14 @@
 // MainWindow._show_help_guide (a QTabWidget of QTextBrowser pages, 680 x
 // 560), _show_shortcuts (a rich-text QMessageBox) and _about (680 x 760:
 // the app icon beside its name and version over a QTextBrowser).
-import { useState, type MouseEvent, type ReactNode } from 'react'
+import { type MouseEvent, type ReactNode } from 'react'
 import { platform } from '../../platform'
 import { messageBox } from '../../platform/MessageBox'
 import { COFFEE_URL, FEEDBACK_EMAIL } from '../../version'
 import { Icon } from '../icons'
-import { Mnemonic } from '../Menu'
 import { openDialog } from './dialogHost'
-import { HELP_PAGES, SHORTCUT_ROWS } from './helpGuide'
+import { SHORTCUT_ROWS } from './helpGuide'
+import { UserGuide } from './guide/UserGuide'
 import './helpDialogs.css'
 
 // QTextBrowser.setOpenExternalLinks(True): a link opens in the browser.
@@ -36,23 +36,6 @@ function Frame({ title, className, children, onClose }: {
       </div>
       {children}
     </div>
-  )
-}
-
-function UserGuide({ close }: { close: () => void }) {
-  const [tab, setTab] = useState(0)
-  return (
-    <Frame title='kTeX User Guide' className='dlg-help' onClose={close}>
-      <div className='help-tabs' role='tablist'>
-        {HELP_PAGES.map(([t], i) => (
-          <button key={t} type='button' role='tab' aria-selected={i === tab} autoFocus={i === 0}
-            className={'help-tab' + (i === tab ? ' on' : '')} onClick={() => setTab(i)}>
-            <Mnemonic text={t} show={false} />
-          </button>
-        ))}
-      </div>
-      <Browser html={HELP_PAGES[tab][1]} />
-    </Frame>
   )
 }
 
