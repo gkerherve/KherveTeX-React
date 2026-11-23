@@ -2,6 +2,7 @@
 // same node types, same field names and the same field order, so
 // document.json written here is byte-identical to the Python app's.
 
+import type { Design } from './design.ts'
 import { pyFloatOf, pyInt, pyJson, pyStr, strip, truthy } from './py.ts'
 
 export type Mark = 'bold' | 'italic' | 'underline' | 'code' | 'smallcaps'
@@ -265,6 +266,8 @@ export interface DocMeta {
   markup?: 'simple' | 'none' | 'original'
   // Pages turned sideways (geometry's landscape). Stored only when on.
   landscape?: boolean
+  // The Design tab (design.ts); stored only when set.
+  design?: Design
 }
 
 // Python stores these as floats: JSON and f-strings print "2.0", not "2".
@@ -295,6 +298,7 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   bib_style: o.bib_style ?? 'plainnat',
   ...(o.show_date === false ? { show_date: false } : {}),
   ...(o.landscape ? { landscape: true } : {}),
+  ...(o.design && Object.keys(o.design).length ? { design: { ...o.design } } : {}),
   ...(o.track_changes ? { track_changes: true } : {}),
   ...(o.markup ? { markup: o.markup } : {}),
   ...(o.date_format ? { date_format: o.date_format } : {}),
@@ -419,6 +423,7 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     preamble_extras: pyStr(get(m, 'preamble_extras', '')),
     ...(truthy(get(m, 'show_date', true)) ? {} : { show_date: false }),
     ...(truthy(get(m, 'landscape', false)) ? { landscape: true } : {}),
+    ...(get(m, 'design', null) && typeof get(m, 'design', null) === 'object' ? { design: { ...get<Design>(m, 'design', {}) } } : {}),
     ...(truthy(get(m, 'track_changes', false)) ? { track_changes: true } : {}),
     ...(['simple', 'none', 'original'].includes(get(m, 'markup', '')) ? { markup: get(m, 'markup', '') as 'simple' } : {}),
     ...(get(m, 'date_format', '') ? { date_format: pyStr(get(m, 'date_format', '')) } : {}),

@@ -1628,6 +1628,10 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   subscript: Subscript, superscript: Superscript, smallcaps: Smallcaps,
   code: Code, highlight: Highlight, bullet_list: BulletList,
   shapes: Shapes, chart: Chart, smartart: SmartArt, screenshot: Screenshot,
+  toc: Toc, table_of_figures: TableOfFigures, update_toc: UpdateToc, remove_toc: RemoveToc,
+  themes: Themes, design_colors: DesignColors, design_fonts: DesignFonts, para_spacing: ParaSpacing,
+  set_default: SetDefault, watermark: Watermark, page_color: PageColor, page_borders: PageBorders,
+  style_set_tile: StyleSetTile,
   track_changes: TrackChanges, markup_view: MarkupView, markup_options: MarkupOptions,
   grow_font: GrowFont, shrink_font: ShrinkFont, change_case: ChangeCase, clear_format: ClearFormat,
   font_color: FontColor, underline_style: UnderlineStyle,
@@ -1676,6 +1680,92 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   eq_vectors: EqVectors, eq_brackets: EqBrackets,
   eq_relations: EqRelations, eq_functions: EqFunctions,
   eq_environments: EqEnvironments,
+}
+
+
+// Insert ▸ Contents: a page of entries with dotted leaders and page numbers.
+export function Toc(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 17, 20, 3.5)}
+    {L(6, 7, 12, 7, BLUE, 1.6)}{L(12.5, 7, 15.5, 7, INK, 0.9, '0.8 1.2')}{L(16.5, 7, 17, 7, INK, 1.4)}
+    {L(8, 11, 13, 11, INK, 1.2)}{L(13.5, 11, 15.5, 11, INK, 0.9, '0.8 1.2')}{L(16.5, 11, 17, 11, INK, 1.4)}
+    {L(8, 14, 12, 14, INK, 1.2)}{L(12.5, 14, 15.5, 14, INK, 0.9, '0.8 1.2')}{L(16.5, 14, 17, 14, INK, 1.4)}
+    {L(6, 18, 11, 18, BLUE, 1.6)}{L(11.5, 18, 15.5, 18, INK, 0.9, '0.8 1.2')}{L(16.5, 18, 17, 18, INK, 1.4)}</Svg>
+}
+export function TableOfFigures(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 17, 20, 3.5)}
+    {R(6, 5.5, 6, 4.5, { fill: '#cfe3f8', color: BLUE, lw: 1, r: 0.5 })}{P([[6.5, 9.5], [8.5, 7.3], [10, 8.6], [11.5, 9.5]], { closed: false, color: GREEN, lw: 0.9 })}
+    {L(6, 13, 13, 13, INK, 1.2)}{L(13.5, 13, 15.5, 13, INK, 0.9, '0.8 1.2')}{L(16.5, 13, 17, 13, INK, 1.4)}
+    {L(6, 16.5, 12, 16.5, INK, 1.2)}{L(12.5, 16.5, 15.5, 16.5, INK, 0.9, '0.8 1.2')}{L(16.5, 16.5, 17, 16.5, INK, 1.4)}</Svg>
+}
+export function UpdateToc(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 14, 18, 3)}{L(6, 7, 13, 7, INK, 1.1)}{L(6, 10, 12, 10, INK, 1.1)}{L(6, 13, 11, 13, INK, 1.1)}
+    <path d='M21 15.5a4.5 4.5 0 1 1-1.3-3.2' fill='none' stroke={GREEN} strokeWidth={1.6} />
+    {P([[20.2, 10], [20.4, 13], [17.4, 12.6]], { fill: GREEN, color: GREEN, lw: 1 })}</Svg>
+}
+export function RemoveToc(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 14, 18, 3)}{L(6, 7, 13, 7, INK, 1.1)}{L(6, 10, 12, 10, INK, 1.1)}
+    {L(14, 14, 21, 21, RED, 2)}{L(21, 14, 14, 21, RED, 2)}</Svg>
+}
+// Design tab.
+export function Themes(p: IconProps) {
+  return <Svg {...p}>{R(2.5, 2.5, 19, 19, { fill: PAPER, lw: 1.2, r: 1 })}
+    {T([3, 2, 12, 11], 'Aa', { size: 10, color: INK })}
+    {F(4, 15, 4, 4, '#4472C4')}{F(8.5, 15, 4, 4, '#ED7D31')}{F(13, 15, 4, 4, '#A5A5A5')}{F(17.5, 15, 3, 4, '#FFC000')}</Svg>
+}
+export function DesignColors(p: IconProps) {
+  const [a, b] = (p.arg ?? '#4472C4|#ED7D31').split('|')
+  return <Svg {...p}>{F(3, 3, 9, 9, a)}{F(12, 3, 9, 9, b)}{F(3, 12, 9, 9, '#FFC000')}{F(12, 12, 9, 9, '#A5A5A5')}
+    {R(3, 3, 18, 18, { lw: 0.6, r: 0 })}</Svg>
+}
+export function DesignFonts(p: IconProps) {
+  return <Svg {...p}>{T([0, 1, 24, 22], 'Aa', { size: 17, family: SERIF })}</Svg>
+}
+export function ParaSpacing(p: IconProps) {
+  return <Svg {...p}>{L(9, 5, 21, 5)}{L(9, 9, 21, 9)}{L(9, 15, 21, 15)}{L(9, 19, 17, 19)}
+    {L(5, 4, 5, 20, BLUE, 1.2)}{P([[3, 6.5], [5, 3.5], [7, 6.5]], { closed: false, color: BLUE, lw: 1.2 })}
+    {P([[3, 17.5], [5, 20.5], [7, 17.5]], { closed: false, color: BLUE, lw: 1.2 })}</Svg>
+}
+export function SetDefault(p: IconProps) {
+  return <Svg {...p}>{C(12, 12, 8.5, GREEN, 1.6)}{P([[7.5, 12.5], [10.8, 15.6], [16.8, 8.8]], { closed: false, color: GREEN, lw: 1.8 })}</Svg>
+}
+export function Watermark(p: IconProps) {
+  return <Svg {...p}>{Page(4, 2, 16, 20, 3.5)}
+    <text x={12} y={13.5} textAnchor='middle' dominantBaseline='central' fontFamily={SANS} fontSize={9} fontWeight={700}
+      fill='none' stroke={RED} strokeWidth={0.7} transform='rotate(-45 12 13)'>A</text></Svg>
+}
+export function PageColor(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2, 14, 18, 3)}
+    {P([[13, 9], [19, 9], [20, 16], [12, 16]], { fill: p.arg ?? '#FFF2CC', color: INK, lw: 1.1 })}
+    <path d='M21 17.5c0 1.5 1.6 1.5 1.6 0l-0.8-1.6z' fill={BLUE} stroke='none' />
+    {F(3, 21, 18, 2.5, p.arg ?? '#FFC000')}</Svg>
+}
+export function PageBorders(p: IconProps) {
+  return <Svg {...p}>{R(5, 2, 14, 20, { fill: PAPER, lw: 1.4, r: 0 })}{R(7, 4, 10, 16, { color: '#d9822b', lw: 1.6, r: 0 })}</Svg>
+}
+// Design ▸ Document Formatting: a page in a style set (arg "set|accent|second").
+export function StyleSetTile({ arg = 'default|#2F5496|#ED7D31', width = 64, height = 52 }: IconProps) {
+  const [set, accent, second] = arg.split('|')
+  const w = width, h = height
+  const col = set === 'default' ? '#222' : accent
+  const sans = set === 'basic' || set === 'shaded' || set === 'lines_accent'
+  const fam = sans ? SANS : SERIF
+  const title = set === 'elegant' ? 'TITLE' : 'Title'
+  const anchor = set === 'centered' ? 'middle' : 'start'
+  const x = set === 'centered' ? w / 2 : 5
+  const lines = [0, 1, 2, 3].map(i => <line key={i} x1={5} x2={w - 5 - (i === 3 ? 14 : 0)} y1={33 + i * 4.5} y2={33 + i * 4.5} stroke='#9aa0a6' strokeWidth={1} />)
+  return (
+    <svg className='kicon' width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden='true'>
+      <rect x={0.5} y={0.5} width={w - 1} height={h - 1} fill='#fff' stroke='#d0d0d0' />
+      <text x={x} y={10} textAnchor={anchor} dominantBaseline='central' fontFamily={fam} fontSize={10}
+        fontWeight={set === 'elegant' || set === 'lines_accent' ? 400 : 700} fill={set === 'shaded' ? '#222' : col}>{title}</text>
+      {set === 'shaded' && <rect x={4} y={17} width={w - 8} height={9} fill={accent} />}
+      <text x={set === 'centered' ? w / 2 : set === 'shaded' ? 7 : 5} y={21.5} textAnchor={anchor} dominantBaseline='central'
+        fontFamily={fam} fontSize={7} fontWeight={set === 'elegant' ? 400 : 700}
+        fill={set === 'shaded' ? '#fff' : col}>{set === 'elegant' ? 'HEADING 1' : set === 'casual' ? <><tspan fill={second}>1 </tspan>Heading 1</> : 'Heading 1'}</text>
+      {(set === 'lines' || set === 'lines_accent') && <line x1={5} x2={w - 5} y1={27} y2={27} stroke={set === 'lines' ? '#222' : second} strokeWidth={set === 'lines' ? 0.7 : 1.3} />}
+      {lines}
+    </svg>
+  )
 }
 
 export function Icon({ name, ...p }: IconProps & { name: string }) {

@@ -4,11 +4,12 @@ import { captionText } from './convert.ts'
 // change as _apply_page_layout is) and the page breaks (paginate.ts).
 import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
-import { Plugin, PluginKey, type EditorState } from 'prosemirror-state'
+import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
+import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 import type { DocMeta } from '../core/model.ts'
 import { tableCellStyles } from './views.ts'
-import { BASELINE_AT, layoutDocument, pdfPageStartBlocks, type PageAnchor, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
+import { BASELINE_AT, anchorTargets, layoutDocument, pdfPageStartBlocks, type PageAnchor, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
 
 export interface LayoutPluginState {
   meta: DocMeta
@@ -79,10 +80,29 @@ function firstBaselineOf(L: BlockLayout, body: CharStyle): number {
   return lh / 2 + 0.348 * c.sizePx
 }
 
-function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
+function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly PageAnchor[] = []): DecorationSet {
   const decos: Decoration[] = []
   const byPos = new Map<number, BlockLayout>()
   for (const L of layout.blocks) byPos.set(L.pos, L)
+  // Tables of contents (lists of figures, tables): drawn as LaTeX prints them.
+  let starts: { page: number; pos: number }[] | null = null
+  doc.forEach((node, pos) => {
+    if (node.type.name !== 'raw_latex') return
+    const t = tocBlock(node.textContent)
+    if (!t) return
+    const numbers = new Map<number, string>()
+    for (const L of layout.blocks) if (L.number) numbers.set(L.pos, L.number.replace(/\s+$/, ''))
+    const entries = tocEntries(doc, t.kind, t.depth, numbers)
+    if (starts === null) starts = anchors.length ? anchorTargets(doc, anchors).map(a => ({ page: a.page, pos: a.pos })).sort((a, b) => a.pos - b.pos) : []
+    const st = starts
+    const pages = entries.map(e => pageOf(e.pos, st))
+    const key = 'toc' + JSON.stringify([t, entries.map(e => [e.number, e.text, e.level]), pages])
+    decos.push(Decoration.widget(pos + node.nodeSize, view => tocWidget(t.kind, entries, pages, p => {
+      const d = view.state.doc
+      view.dispatch(view.state.tr.setSelection(TextSelection.near(d.resolve(Math.min(p + 1, d.content.size)))).scrollIntoView())
+      view.focus()
+    }), { side: -1, key, ignoreSelection: true }))
+  })
   let tables = 0
   const visit = (node: PMNode, pos: number) => {
     const L = byPos.get(pos)
@@ -124,11 +144,12 @@ function buildDecorations(doc: PMNode, layout: DocLayout): DecorationSet {
       attrs.class = `kt-numbered kt-num-${L.numberStyle}`
       attrs.style += `--kt-num-gap:${L.numberGap}px;`
     }
+    if (node.type.name === 'section') attrs['data-level'] = String(node.attrs.level)
     if (node.type.name === 'raw_latex') {
       // _code_block_format / _bibliography_block_format / _raw_block_format.
       const t = node.textContent
       attrs.class = t.includes('\\begin{lstlisting}') || t.includes('\\begin{verbatim}') ? 'kt-raw-code'
-        : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : ''
+        : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : tocBlock(t) ? 'kt-raw-toc' : ''
     }
     if (L.breakBefore) attrs['data-break'] = '1'
     if (L.spans) attrs['data-span'] = '1'
@@ -158,7 +179,7 @@ export function layoutPlugin(meta: DocMeta): Plugin<LayoutPluginState> {
     typography: PdfTypography | null): LayoutPluginState => {
     const layout = layoutDocument(doc, m, off, anchors.length ? pdfPageStartBlocks(doc, anchors) : new Set(),
       anchors.length > 0, anchors.length ? typography : null)
-    return { meta: m, headingOffset: off, anchors, typography, layout, decos: buildDecorations(doc, layout) }
+    return { meta: m, headingOffset: off, anchors, typography, layout, decos: buildDecorations(doc, layout, anchors) }
   }
   return new Plugin<LayoutPluginState>({
     key: layoutKey,

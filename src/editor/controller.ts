@@ -2,6 +2,9 @@
 // paged_edit.py) over ProseMirror. It owns the view, keeps the store's
 // document in step with it, lays the pages out, paints the sheets, the
 // headers, footers and footnotes, and offers the EditorApi.
+import { designCss } from '../core/design.ts'
+import { syncDesignChecks } from '../app/actions/design.ts'
+const PX_PER_CM_C = 96 / 2.54
 import { dropCursor } from 'prosemirror-dropcursor'
 import { gapCursor } from 'prosemirror-gapcursor'
 import { history } from 'prosemirror-history'
@@ -636,6 +639,12 @@ export class EditorController implements ViewHost {
     // Review ▸ Track Changes and the markup shown (All, Simple, None, Original).
     setTracking(!!this.meta.track_changes)
     for (const k of ['simple', 'none', 'original']) this.root.classList.toggle(`kt-markup-${k}`, this.meta.markup === k)
+    // Design tab: the heading look (style set, colours, fonts).
+    const dcss = designCss(this.meta.design)
+    this.root.classList.toggle('kt-design', !!dcss)
+    let styleEl = this.root.querySelector<HTMLStyleElement>(':scope > style.kt-design-css')
+    if (!styleEl) { styleEl = document.createElement('style'); styleEl.className = 'kt-design-css'; this.root.prepend(styleEl) }
+    if (styleEl.textContent !== dcss) styleEl.textContent = dcss
     st.setProperty('--kt-page-h', `${g.heightPx}px`)
     const f = this.flowEl.style
     f.paddingTop = `${g.topPx}px`
@@ -712,12 +721,23 @@ export class EditorController implements ViewHost {
     this.flowEl.style.minHeight = `${total}px`
     const g = this.pageGapPx()
     // A tikzposter's background colour.
-    const bg = posterBackground(this.meta)
+    const bg = posterBackground(this.meta) || this.meta.design?.page_color || ''
     const parts: string[] = []
+    // Design ▸ Watermark and Page Borders, on every sheet (1 cm in).
+    const D = this.meta.design
+    const cm = PX_PER_CM_C
+    const border = D?.page_border ? ({
+      box: `border:0.8px solid #000`, thick: `border:3px solid #000`, double: `border:3px double #000`,
+      art: `border:3px solid #000;outline:0.7px solid #000;outline-offset:-6px`, shadow: `border:0.8px solid #000;box-shadow:4px 4px 0 #444`,
+    } as Record<string, string>)[D.page_border] : ''
+    const wm = D?.watermark ? D.watermark.replace(/[<&]/g, '') : ''
+    const wmSize = wm ? Math.max(28, Math.min(130, (geo.widthPx * 1.05) / Math.max(4, wm.length) * 1.25)) : 0
     for (let k = 0; k < n; k++) {
       const top = k * H + (k ? g / 2 : 0)
       const bottom = k < n - 1 ? (k + 1) * H - g / 2 : total - 1
       parts.push(`<div class="kt-sheet" style="top:${top}px;height:${bottom - top}px;border-color:${SHEET_EDGE}${bg ? `;background:${bg}` : ''}"></div>`)
+      if (border) parts.push(`<div class="kt-sheet-border" style="top:${top + cm}px;height:${bottom - top - 2 * cm}px;left:${cm}px;right:${cm}px;${border}"></div>`)
+      if (wm) parts.push(`<div class="kt-sheet-watermark" style="top:${top}px;height:${bottom - top}px;font-size:${wmSize}px"><span style="transform:rotate(-45deg)">${wm}</span></div>`)
       if (k < n - 1) {
         parts.push(`<div class="kt-sheet-gap" style="top:${bottom}px;height:${g}px;background:${DESK}"></div>`)
       }
@@ -917,7 +937,7 @@ export class EditorController implements ViewHost {
     }
     setRibbonWidgets({
       styleLevel: level, numberedEnabled: isHeading, numbered: isHeading ? C.isHeadingNumbered(s) : true,
-      docClass: meta.documentclass, disabledStyles: disabled,
+      docClass: meta.documentclass, disabledStyles: disabled, design: meta.design ?? {},
       // The size and font at the caret (a mark), or the body's.
       fontSize: String(C.sizeAt(s, meta.body_font_pt)),
       fontFamily: (() => {
@@ -935,6 +955,7 @@ export class EditorController implements ViewHost {
     setCommandChecked('track_changes', !!meta.track_changes)
     for (const k of ['all', 'simple', 'none', 'original']) setCommandChecked(`markup:${k}`, (meta.markup ?? 'all') === k)
     setCommandChecked('markup_insdel', !meta.markup)
+    syncDesignChecks(meta)
     for (const [code] of BIB_STYLES) setCommandChecked(`bib_style_${code}`, (meta.bib_style || 'plainnat') === code)
     for (const [name, m] of MARGIN_PRESETS) {
       const cur = [meta.margin_top_cm, meta.margin_bottom_cm, meta.margin_left_cm, meta.margin_right_cm]

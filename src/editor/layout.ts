@@ -16,6 +16,7 @@ import { baselineskipPt, pdfFont, type ScreenFont } from './latexFonts.ts'
 
 // Where Qt puts the baseline within a fixed-height line, from the line's
 // top (Latin Modern's ascent over its line height).
+import { tocBlock } from './toc.ts'
 export const BASELINE_AT = 0.79
 export const PX_PER_CM = 96 / 2.54
 export const PT_PX = 96 / 72
@@ -407,7 +408,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
 
   const body = look.body
   const emPx = body.size * pt
-  const extrasParskip = meta.paragraph_indent ? null : parskipFromExtras(meta.preamble_extras, emPx, pt)
+  const extrasParskip = meta.paragraph_indent ? null : parskipFromExtras(meta.preamble_extras + (meta.design?.para_space_pt !== undefined ? `\\setlength{\\parskip}{${meta.design.para_space_pt}pt}` : ''), emPx, pt)
   const spacing = Math.max(0.5, Number(meta.line_spacing || 1.0))
   const stretch = baselineskipPt(meta.body_font_pt, spacing) / baselineskipPt(meta.body_font_pt, 1.0)
   const bodyLinePx = body.leading * stretch * pt
@@ -870,8 +871,8 @@ export function normalizeForMatch(s: string): string {
 // fixed" reads "With km fixed"): each one matches any short run of the
 // PDF's characters, so a page starting on such a line is still found.
 export function anchorOffset(blockText: string, keyNorm: string): number {
-  const list = LIST_PAGE_RE.exec(blockText)
-  if (list) return LIST_TITLES[list[1]].includes(keyNorm) ? 0 : -1
+  const list = tocBlock(blockText)
+  if (list) return LIST_TITLES[list.kind].includes(keyNorm) ? 0 : -1
   if (BIB_BLOCK_RE.test(blockText) && LIST_TITLES.bibliography.includes(keyNorm)) return 0
   if (blockText.includes(OBJ)) return wildAnchorOffset(blockText, keyNorm)
   const norm = normalizeForMatch(blockText)
@@ -891,7 +892,6 @@ export function anchorOffset(blockText: string, keyNorm: string): number {
 // A raw \tableofcontents (\listoffigures, \listoftables) is one line in
 // the editor and a page or more in the PDF, which starts with its title in
 // the document's language.
-const LIST_PAGE_RE = /^\s*\\(tableofcontents|listoffigures|listoftables)\s*$/
 const LIST_TITLES: Record<string, string[]> = {
   tableofcontents: ['contents', 'table of contents', 'inhaltsverzeichnis', 'indice', 'sommario',
     'table des matieres', 'sommaire', 'содержание', 'оглавление', 'indice general', 'inhoudsopgave',

@@ -623,3 +623,27 @@ div.kt-box {
 .kt-markup-original .kt-ins { display: none; }
 .kt-markup-original .kt-del { text-decoration: none; color: inherit; }
 .kt-hide-comments .kt-comment { background: none !important; border-bottom: none !important; }
+
+/* ----- References ▸ Table of Contents: the list LaTeX prints ----- */
+.kt-raw.kt-raw-toc { font-size: 10px; color: #8a8a8a; background: transparent; border-left: 2px solid #c9d6ea; padding-left: 4px; }
+.kt-toc { margin: 4px 0 14px; user-select: none; cursor: default; }
+.kt-toc-title { font-size: 1.45em; font-weight: 700; margin: 6px 0 12px; }
+.kt-toc-row { display: flex; align-items: baseline; gap: 0; line-height: 1.55; cursor: pointer; }
+.kt-toc-row:hover .kt-toc-text { color: #1a56b0; text-decoration: underline; }
+.kt-toc-l0 { font-weight: 700; margin-top: 6px; }
+.kt-toc-num { min-width: 2.3em; padding-right: .6em; flex: none; }
+.kt-toc-text { flex: 0 1 auto; }
+.kt-toc-dots { flex: 1 1 auto; border-bottom: 1px dotted #777; margin: 0 .35em; transform: translateY(-.3em); min-width: 1em; }
+.kt-toc-l0 .kt-toc-dots { border-bottom-color: transparent; }
+.kt-toc-page { flex: none; min-width: 1.4em; text-align: right; }
+.kt-toc-empty { color: #888; font-style: italic; }
+
+/* ----- Design ▸ Page Background: border and watermark on each sheet ----- */
+.kt-sheet-border { position: absolute; box-sizing: border-box; pointer-events: none; }
+.kt-sheet-watermark {
+  position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; overflow: hidden; white-space: nowrap; color: rgba(0, 0, 0, 0.1);
+  font-family: Helvetica, Arial, sans-serif; font-weight: 700; transform-origin: center;
+}
+.kt-sheet-watermark { writing-mode: horizontal-tb; }
+.kt-sheet-watermark::after { content: none; }

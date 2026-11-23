@@ -3,6 +3,7 @@
 // in step with the caret as _sync_toolbar_state does. Ribbon.tsx reads it;
 // the editor writes it.
 import { useSyncExternalStore } from 'react'
+import type { Design } from '../core/design.ts'
 
 export interface RibbonWidgets {
   docClass: string
@@ -17,11 +18,13 @@ export interface RibbonWidgets {
   // The caret's paragraph's indents (cm) and space before / after (pt);
   // null outside a paragraph (Layout ▸ Indent / Spacing).
   para: { left_cm: number; right_cm: number; before_pt: number; after_pt: number } | null
+  // Design tab: the document's design (style set, colours...).
+  design: Design
 }
 
 let state: RibbonWidgets = {
   docClass: 'article', fontSize: '12', fontFamily: 'default', styleLevel: 0, numbered: true, numberedEnabled: false,
-  disabledStyles: {}, para: null,
+  disabledStyles: {}, para: null, design: {},
 }
 const listeners = new Set<() => void>()
 

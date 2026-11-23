@@ -18,6 +18,7 @@ import {
 } from './ribbonModel'
 import { lookupTip, useTipProps, type TipContent } from './Tooltip'
 import { FEEDBACK_EMAIL, SHORT_NAME } from '../version'
+import { accentOf, secondOf, STYLE_SETS } from '../core/design'
 import './ribbon.css'
 
 const TILE_W = 70
@@ -328,6 +329,40 @@ function ClassCell({ cls, on, onPick }: { cls: string, on: boolean, onPick: (cls
   )
 }
 
+// Design ▸ Document Formatting: Word's style-set gallery, each tile a
+// page in that heading look with the document's colours.
+function StyleSetGallery({ ctx }: { ctx: Ctx }) {
+  const d = useRibbonWidgets().design
+  const cur = d.style_set ?? 'default'
+  const arg = (k: string) => `${k}|${accentOf(d)}|${secondOf(d)}`
+  const shown = STYLE_SETS.slice(0, 5).some(([k]) => k === cur) ? STYLE_SETS.slice(0, 5) : [STYLE_SETS.find(([k]) => k === cur)!, ...STYLE_SETS.slice(0, 4)]
+  const isOpen = ctx.menu?.owner === 'stylesets'
+  const moreTip = useTipProps({ plain: 'All style sets' })
+  return (
+    <div className='rb-gallery rb-stylesets'>
+      {shown.map(([k, name]) => <StyleSetTileButton key={k} k={k} name={name} arg={arg(k)} on={k === cur} />)}
+      <button type='button' data-menu-owner {...moreTip}
+        className={'rb-btn rb-gallery-more' + (isOpen ? ' on' : '')} aria-label='All style sets'
+        onClick={e => ctx.openMenu(isOpen ? null : {
+          owner: 'stylesets', rect: e.currentTarget.getBoundingClientRect(), iconSize: 64,
+          entries: STYLE_SETS.map(([k, name]) => ({ text: name, icon: 'style_set_tile', iconArg: arg(k), checkable: true, checked: k === cur, command: `styleset:${k}` })),
+        })}>
+        <Icon name='gallery_more' size={14} />
+      </button>
+    </div>
+  )
+}
+
+function StyleSetTileButton({ k, name, arg, on }: { k: string, name: string, arg: string, on: boolean }) {
+  const tip = useTipProps({ plain: `${name}: the look of the title and headings` })
+  return (
+    <button type='button' {...tip} className={'rb-btn rb-styleset' + (on ? ' on' : '')} aria-pressed={on}
+      onClick={() => { void runAction(`styleset:${k}`) }}>
+      <Icon name='style_set_tile' arg={arg} width={58} height={50} />
+    </button>
+  )
+}
+
 // Tiles beyond GALLERY_INLINE, in the order they join when there is room.
 const GALLERY_MORE = [4, 5, -2, -7, -8, -3, -4, -5, -6]
 
@@ -385,6 +420,7 @@ function Item({ it, ctx, large, text }: {
     if (it.widget === 'parafield') return <ParaField field={it.field} />
     if (it.widget === 'styles') return <StyleGallery ctx={ctx} />
     if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
+    if (it.widget === 'stylesets') return <StyleSetGallery ctx={ctx} />
     return <NumberedTile />
   }
   const c = COMMANDS[it]

@@ -1,0 +1,104 @@
+// References ▸ Table of Contents as Word shows it: a raw \tableofcontents
+// (\listoffigures, \listoftables) block is drawn in the editor as the list
+// LaTeX prints — its title, then each numbered heading (figure, table)
+// with its number, a dotted leader and its page in the last compiled PDF.
+// A click on an entry goes to that heading.
+import type { Node as PMNode } from 'prosemirror-model'
+import { captionText } from './convert.ts'
+
+export type TocKind = 'tableofcontents' | 'listoffigures' | 'listoftables'
+
+// The block's LaTeX: an optional \setcounter{tocdepth}{N} line (the
+// Automatic Table's levels), then the command.
+export const TOC_BLOCK_RE = /^\s*(?:\\setcounter\{tocdepth\}\{(-?\d)\}\s*)?\\(tableofcontents|listoffigures|listoftables)\s*$/
+
+export function tocBlock(text: string): { kind: TocKind; depth: number | null } | null {
+  const m = TOC_BLOCK_RE.exec(text)
+  return m ? { kind: m[2] as TocKind, depth: m[1] !== undefined ? Number(m[1]) : null } : null
+}
+
+export function tocLatex(kind: TocKind, depth: number | null = null): string {
+  return (depth !== null && kind === 'tableofcontents' ? `\\setcounter{tocdepth}{${depth}}\n` : '') + `\\${kind}`
+}
+
+export interface TocEntry { level: number; number: string; text: string; pos: number }
+
+export const TOC_TITLES: Record<TocKind, string> = {
+  tableofcontents: 'Contents', listoffigures: 'List of Figures', listoftables: 'List of Tables',
+}
+
+// The entries of a list, in document order. `numbers` maps a heading's
+// position to the number the editor paints before it (layout).
+export function tocEntries(doc: PMNode, kind: TocKind, depth: number | null,
+  numbers: Map<number, string>): TocEntry[] {
+  const out: TocEntry[] = []
+  const hasChapters = (() => { let c = false; doc.forEach(n => { if (n.type.name === 'section' && n.attrs.level === 0) c = true }); return c })()
+  // LaTeX's default tocdepth: 3 (article), 2 with chapters (report, book).
+  const maxLevel = depth ?? (hasChapters ? 2 : 3)
+  let figs = 0, tabs = 0, chapter = 0
+  doc.forEach((node, pos) => {
+    const name = node.type.name
+    if (name === 'section') {
+      if (node.attrs.level === 0 && node.attrs.numbered) chapter += 1
+      if (kind !== 'tableofcontents' || !node.attrs.numbered) return
+      const level: number = node.attrs.level
+      if (level > maxLevel) return
+      out.push({ level: hasChapters ? level : level - 1, number: numbers.get(pos) ?? '', text: node.textContent, pos })
+    } else if (name === 'figure' && node.attrs.caption) {
+      figs += 1
+      if (kind === 'listoffigures') out.push({ level: 0, number: hasChapters ? `${chapter}.${figs}` : String(figs), text: captionText(node.attrs.caption), pos })
+    } else if (name === 'table' && node.attrs.caption) {
+      tabs += 1
+      if (kind === 'listoftables') out.push({ level: 0, number: hasChapters ? `${chapter}.${tabs}` : String(tabs), text: captionText(node.attrs.caption), pos })
+    }
+  })
+  return out
+}
+
+// The page each entry is on: the last PDF page starting at or before it.
+export function pageOf(pos: number, starts: { page: number; pos: number }[]): number | null {
+  if (!starts.length) return null
+  let page = 1
+  for (const s of starts) if (s.pos <= pos) page = s.page; else break
+  return page
+}
+
+export function tocWidget(kind: TocKind, entries: TocEntry[], pages: (number | null)[],
+  go: (pos: number) => void): HTMLElement {
+  const box = document.createElement('div')
+  box.className = 'kt-toc'
+  box.contentEditable = 'false'
+  const h = document.createElement('div')
+  h.className = 'kt-toc-title'
+  h.textContent = TOC_TITLES[kind]
+  box.appendChild(h)
+  if (!entries.length) {
+    const p = document.createElement('div')
+    p.className = 'kt-toc-empty'
+    p.textContent = kind === 'tableofcontents' ? 'No numbered headings yet: apply Heading 1–3 to build the table.'
+      : kind === 'listoffigures' ? 'No captioned figures yet.' : 'No captioned tables yet.'
+    box.appendChild(p)
+  }
+  entries.forEach((e, i) => {
+    const row = document.createElement('div')
+    row.className = `kt-toc-row kt-toc-l${Math.min(4, e.level)}`
+    row.style.paddingLeft = `${e.level * 1.5}em`
+    const num = document.createElement('span')
+    num.className = 'kt-toc-num'
+    num.textContent = e.number
+    const txt = document.createElement('span')
+    txt.className = 'kt-toc-text'
+    txt.textContent = e.text
+    const dots = document.createElement('span')
+    dots.className = 'kt-toc-dots'
+    const pg = document.createElement('span')
+    pg.className = 'kt-toc-page'
+    pg.textContent = pages[i] !== null ? String(pages[i]) : ''
+    if (e.number) row.appendChild(num)
+    row.append(txt, dots, pg)
+    row.title = 'Go to this heading'
+    row.addEventListener('mousedown', ev => { ev.preventDefault(); go(e.pos) })
+    box.appendChild(row)
+  })
+  return box
+}

@@ -3,6 +3,7 @@
 // khervedoc/mainwindow.py (_new, _open_path, _save, _save_as, _write_to,
 // _import_tex, _import_md, _export_tex, _export_latex_zip, _export_pdf,
 // _show_in_explorer, _remember_recent, _update_title, offer_save_before).
+import { defaultDesign } from './design.ts'
 import { locateFigures } from '../../core/texFigures'
 import { isImageName } from '../../core/pictures'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
@@ -199,7 +200,8 @@ export async function newBlank(): Promise<void> {
   setBundledBib('')
   importedStem = null
   setImportSourceDir(null)
-  replaceDoc(blankDocument(), { path: null, dirty: false })
+  const blank = blankDocument()
+  replaceDoc({ ...blank, meta: defaultDesign(blank.meta) }, { path: null, dirty: false })
   updateTitle()
 }
 

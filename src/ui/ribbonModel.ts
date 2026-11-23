@@ -4,6 +4,7 @@
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
+import { COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, THEMES, WATERMARKS } from '../core/design.ts'
 
 export interface MenuItem {
   text: string
@@ -52,6 +53,7 @@ export type Widget =
   | { widget: 'fontfamily' }
   | { widget: 'styles' }
   | { widget: 'classes' }
+  | { widget: 'stylesets' }
   | { widget: 'numbered' }
   // Layout ▸ Indent / Spacing: a number box for the caret's paragraph.
   | { widget: 'parafield', field: 'left_cm' | 'right_cm' | 'before_pt' | 'after_pt' }
@@ -291,11 +293,11 @@ const cmds: Command[] = [
     tooltip: 'Insert citation: cite a reference at the cursor, e.g. [1] or (Smith, 2020)' },
   { id: 'manage_references', text: 'Reference &library…', icon: 'manage_references',
     tooltip: 'Reference library: add, edit, import and delete the references this document can cite (its bibliography)' },
-  { id: 'refs_zotero', text: 'From &Zotero…', icon: 'refs_zotero',
+  { id: 'refs_zotero', text: '&Zotero…', icon: 'refs_zotero',
     tooltip: 'Add references from Zotero: pick them in Zotero (with the Better BibTeX add-on), or take the library' },
-  { id: 'refs_endnote', text: 'From &EndNote…', icon: 'refs_endnote',
+  { id: 'refs_endnote', text: '&EndNote…', icon: 'refs_endnote',
     tooltip: 'Add references from an EndNote export: EndNote XML (.xml), RIS (.ris) or EndNote tagged (.enw)' },
-  { id: 'refs_mendeley', text: 'From &Mendeley…', icon: 'refs_mendeley',
+  { id: 'refs_mendeley', text: '&Mendeley…', icon: 'refs_mendeley',
     tooltip: 'Add references exported from Mendeley: BibTeX (.bib), RIS (.ris) or EndNote XML (.xml)' },
   { id: 'refs_import', text: 'Import &file…', icon: 'refs_import',
     tooltip: 'Add references from a file: BibTeX (.bib), RIS (.ris), EndNote (.enw, .xml), from any reference manager' },
@@ -330,6 +332,65 @@ const cmds: Command[] = [
       { text: 'Stars', items: [{ text: '5-point star', command: 'shape:star' }, { text: '6-point star', command: 'shape:star6' }] },
     ] },
   { id: 'smartart', text: 'SmartArt', icon: 'smartart' },
+  // Insert ▸ Contents, as Word's References ▸ Table of Contents.
+  { id: 'toc', text: 'Table of Contents', icon: 'toc', popup: 'instant',
+    tooltip: 'Table of Contents: an automatic table built from the headings (Heading 1–3), kept up to date at each compile',
+    menu: [
+      { text: 'Automatic Table (3 levels)', icon: 'toc', command: 'toc:3' },
+      { text: 'Automatic Table (2 levels)', icon: 'toc', command: 'toc:2' },
+      { text: 'Automatic Table (1 level)', icon: 'toc', command: 'toc:1' },
+      '-',
+      { text: 'Update Table', icon: 'update_toc', command: 'update_toc' },
+      { text: 'Remove Table of Contents', icon: 'remove_toc', command: 'remove_toc' },
+    ] },
+  { id: 'table_of_figures', text: 'Table of Figures', icon: 'table_of_figures', popup: 'instant',
+    tooltip: 'Table of Figures: a list of the captioned figures or tables, with their pages',
+    menu: [
+      { text: 'List of Figures', icon: 'table_of_figures', command: 'tof:figures' },
+      { text: 'List of Tables', icon: 'table', command: 'tof:tables' },
+      '-',
+      { text: 'Remove List of Figures', icon: 'remove_toc', command: 'remove_tof:figures' },
+      { text: 'Remove List of Tables', icon: 'remove_toc', command: 'remove_tof:tables' },
+    ] },
+  { id: 'update_toc', text: 'Update Table', icon: 'update_toc',
+    tooltip: 'Update Table: compile, so the tables of contents, figures and tables take the new headings and pages' },
+  // Design tab (design.ts).
+  { id: 'design_themes', text: 'Themes', icon: 'themes', popup: 'instant',
+    tooltip: 'Themes: colours, fonts and a heading style together',
+    menu: THEMES.map(([k, name]): MenuItem => ({ text: name, command: `theme:${k}`, checkable: true })) },
+  { id: 'design_colors', text: 'Colours', icon: 'design_colors', popup: 'instant',
+    tooltip: 'Colours: the accent of the headings and shaded bands',
+    menu: [
+      ...COLOR_SETS.map(([k, name, a, b]): MenuItem => ({ text: name, icon: 'design_colors', iconArg: `${a}|${b}`, command: `colors:${k}`, checkable: true })),
+      '-', { text: 'Black (no colour)', command: 'colors:none' },
+    ] },
+  { id: 'design_fonts', text: 'Fonts', icon: 'design_fonts', popup: 'instant',
+    tooltip: 'Fonts: the body and heading fonts',
+    menu: FONT_SETS.map(([k, name]): MenuItem => ({ text: name, command: `fonts:${k}`, checkable: true })) },
+  { id: 'para_spacing', text: 'Paragraph Spacing', icon: 'para_spacing', popup: 'instant',
+    tooltip: 'Paragraph Spacing: the space between paragraphs and the line spacing of the whole document',
+    menu: SPACING_SETS.map(([k, name, , sp, ls]): MenuItem => ({ text: name, detail: k === 'none' ? 'indent' : `${sp} pt, ${ls}`, command: `pspacing:${k}`, checkable: true })) },
+  { id: 'set_default', text: 'Set as Default', icon: 'set_default',
+    tooltip: 'Set as Default: new documents start with this design' },
+  { id: 'watermark', text: 'Watermark', icon: 'watermark', popup: 'instant',
+    menu: [
+      ...WATERMARKS.map((w): MenuItem => ({ text: w, command: `watermark:${w}`, checkable: true })),
+      '-', { text: 'Custom Watermark…', command: 'watermark_custom' },
+      { text: 'Remove Watermark', icon: 'remove_toc', command: 'watermark_none' },
+    ] },
+  { id: 'page_color', text: 'Page Colour', icon: 'page_color', popup: 'instant',
+    menu: [
+      { text: 'No Colour', command: 'pagecolor:none' },
+      ...([['#FFF2CC', 'Cream'], ['#FBE5D6', 'Peach'], ['#E2EFDA', 'Light green'], ['#DDEBF7', 'Light blue'],
+        ['#EDE7F6', 'Lavender'], ['#F2F2F2', 'Light grey'], ['#FFFFE0', 'Light yellow']] as const)
+        .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: c, command: `pagecolor:${c}` })),
+      '-', { text: 'More Colours…', command: 'pagecolor_more' },
+    ] },
+  { id: 'page_borders', text: 'Page Borders', icon: 'page_borders', popup: 'instant',
+    menu: [
+      { text: 'None', command: 'pageborder:none', checkable: true },
+      ...PAGE_BORDERS.map(([k, name]): MenuItem => ({ text: name, command: `pageborder:${k}`, checkable: true })),
+    ] },
   { id: 'chart', text: 'Chart', icon: 'chart' },
   { id: 'screenshot', text: 'Screenshot', icon: 'screenshot' },
   { id: 'flowchart', text: 'Fl&owchart builder…', icon: 'flowchart_builder', shortcut: 'Ctrl+Shift+F' },
@@ -636,18 +697,24 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Tables', large: ['table_menu'] },
-    { label: 'Illustrations', large: ['figure', 'shapes', 'smartart', 'chart', 'screenshot'], rows: [['drawing'], ['flowchart']], text: true },
+    { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes'], ['flowchart', 'smartart'], ['chart', 'screenshot']], text: true },
+    { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
       rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },
     { label: 'Theorems', large: ['theorem'] },
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig']], text: true },
   ] },
+  { name: 'Design', groups: [
+    { label: 'Document Formatting', large: ['design_themes', { widget: 'stylesets' }] },
+    { label: 'Formatting', large: ['design_colors', 'design_fonts'], rows: [['para_spacing'], ['set_default']], text: true },
+    { label: 'Page Background', large: ['watermark', 'page_color', 'page_borders'] },
+    { label: 'Document type', large: [{ widget: 'classes' }] },
+  ] },
   { name: 'Layout', groups: [
     { label: 'Page Setup', large: ['margins', 'orientation', 'size', 'columns'] },
     { label: 'Indent', rows: [[{ widget: 'parafield', field: 'left_cm' }], [{ widget: 'parafield', field: 'right_cm' }]] },
     { label: 'Spacing', rows: [[{ widget: 'parafield', field: 'before_pt' }], [{ widget: 'parafield', field: 'after_pt' }]] },
-    { label: 'Document type', large: [{ widget: 'classes' }] },
   ] },
   { name: 'View', groups: [
     { label: 'Views', large: ['page_visual', 'page_code', 'page_console'] },

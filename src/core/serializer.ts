@@ -2,6 +2,7 @@
 // pure functions, one serializer per node type, no I/O. The output must stay
 // byte-identical to the Python app's (tests/serializer.parity.test.ts).
 
+import { designPreamble } from './design.ts'
 import { dateCommand } from './dateFormat.ts'
 import {
   HIGHLIGHT_COLORS, THEOREM_KINDS, citedKeys, classSupportsChapter,
@@ -1288,6 +1289,9 @@ export function serializeDocument(doc: Document): string {
   // User preamble (\lstset, \definecolor, \hypersetup, \newcommand...),
   // preserved verbatim from the imported .tex.
   if (m.preamble_extras && strip(m.preamble_extras)) packages += '\n' + strip(m.preamble_extras)
+  // Design tab: heading styles, colours, paragraph spacing, page background.
+  const design = designPreamble(m.design, clsLower)
+  if (design) packages += '\n' + design
   // After preamble_extras, so a document's own \newcommand{\Kstroke} wins
   // and ours becomes a no-op.
   packages += '\n' + KSTROKE_PROVIDE
