@@ -27,12 +27,17 @@ import { runAction } from './app/actions'
 import { useDocumentsDock } from './app/actions/project'
 import { editorApi } from './app/editorApi'
 import { PDF_SCROLLED, pdfApi } from './preview/PdfView'
+import { REVIEW_COLUMN_PX, REVIEW_EVENT, hasReviewColumn } from './editor/reviewMargin'
 import { loadSettings, setting, setSetting } from './platform/settings'
 import { PREFS_EVENT } from './app/prefs'
 import './App.css'
 
 // A4 at 96 dpi: the PDF panel's page.
 const PAGE_W = 794
+const subscribeReview = (fn: () => void) => {
+  window.addEventListener(REVIEW_EVENT, fn)
+  return () => window.removeEventListener(REVIEW_EVENT, fn)
+}
 // The desk's margin around the page card.
 const DESK_PAD = 23
 const PDF_PAD = 7
@@ -110,8 +115,12 @@ export default function App() {
 
 
   const fitWidth = cmd.isChecked('fit_page_width')
+  // With comments the page has its comment column beside it, as Word's:
+  // the width fitted and scrolled is the page's and the column's.
+  const review = useSyncExternalStore(subscribeReview, hasReviewColumn)
+  const reviewW = review ? REVIEW_COLUMN_PX : 0
   const fitZoom = deskWidth > 0
-    ? Math.max(25, (deskWidth - 2 * DESK_PAD) / pageW * 100) : 100
+    ? Math.max(25, (deskWidth - 2 * DESK_PAD) / (pageW + reviewW) * 100) : 100
   // Fitting until a zoom of its own is set (fit turned off keeps the
   // width it fitted, below).
   const zoom = manualZoom ?? fitZoom
@@ -227,7 +236,7 @@ export default function App() {
                   again, so every zoom and window width shows the same lines
                   and the same page breaks (CSS zoom re-flowed the text at
                   each size, and rounding moved line and page breaks). */}
-              <div className='page-scale' style={{ width: card.w * zoom / 100, height: card.h * zoom / 100, '--kt-zoom': zoom / 100 } as React.CSSProperties}>
+              <div className='page-scale' style={{ width: (card.w + reviewW) * zoom / 100, height: card.h * zoom / 100, '--kt-zoom': zoom / 100 } as React.CSSProperties}>
                 <div ref={cardRef} className='page-card' style={{ transform: `scale(${zoom / 100})` }}>
                   <EditorPane onContext={setContext} />
                 </div>

@@ -177,7 +177,11 @@
   display: flex;
   flex: none;
   flex-direction: column;
-  align-items: center;
+  /* Pages centre themselves (margin auto): one wider than the panel (a
+     PDF with its comment pane) starts at the left and scrolls sideways,
+     where centring cut its left side off. */
+  align-items: flex-start;
+  overflow-x: auto;
   gap: 7px;
   padding: 7px;
   overflow-y: auto;
@@ -187,6 +191,7 @@
 
 .pdf-page {
   flex: none;
+  margin-inline: auto;
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }

@@ -45,6 +45,19 @@ function shortDate(ts: string): string {
   return isNaN(d.getTime()) ? ts : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+// The comment column beside the page (its 20 px gap, 250 px cards and a
+// little room after): the page view counts it in the page's width when
+// there are comments, so fitting the width shows them.
+export const REVIEW_COLUMN_PX = 290
+export const REVIEW_EVENT = 'kt-review-shown'
+let reviewShown = false
+export function hasReviewColumn(): boolean { return reviewShown }
+function setReviewShown(on: boolean): void {
+  if (on === reviewShown) return
+  reviewShown = on
+  window.dispatchEvent(new CustomEvent(REVIEW_EVENT))
+}
+
 export class ReviewMargin {
   readonly el: HTMLElement
   private frame = 0
@@ -68,6 +81,7 @@ export class ReviewMargin {
   destroy(): void {
     cancelAnimationFrame(this.frame)
     this.mount.classList.remove('kt-has-review')
+    setReviewShown(false)
   }
 
   private accept(s: CommentSpan): void {
@@ -97,6 +111,7 @@ export class ReviewMargin {
     if (!v.dom.isConnected) return
     const spans = commentSpans(v)
     this.mount.classList.toggle('kt-has-review', spans.length > 0)
+    setReviewShown(spans.length > 0)
     this.el.replaceChildren()
     if (!spans.length) return
     const box = this.mount.getBoundingClientRect()
