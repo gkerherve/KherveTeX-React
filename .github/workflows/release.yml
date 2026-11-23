@@ -1,7 +1,8 @@
-# NOV 2026: no macOS jobs here any more. Mac DMGs (Apple Silicon only, no Intel) are
-# built on the user's own Mac and uploaded to the draft by hand (before it is
-# published, so latest.json lists them); this builds Windows and Linux (AppImage
-# and .deb), all signed for the in-app updater.
+# NOV 2026: no macOS jobs here any more. Mac DMGs are
+# built on the user's own Mac, Apple Silicon and Intel, and uploaded to the
+# draft by scripts/mac_release.sh vN (before it is published, so latest.json
+# lists them); this builds Windows and Linux (AppImage and .deb), all signed
+# for the in-app updater.
 
 name: Release
 
