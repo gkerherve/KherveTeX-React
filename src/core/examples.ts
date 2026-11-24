@@ -108,8 +108,6 @@ export const GALLERY: [string, string, Factory, string][] = [
     'A ten-minute guided tour of the editor: formatting, maths, tables, history, review, import and export.'],
   ['Start', 'Blank document', blank,
     'An empty page, as in Word.'],
-  ['Start', 'Coloured boxes', calloutBoxes,
-    'Every Insert > Box kind (Note, Tip, Warning, Danger...), renamed headings and boxes in your own colours.'],
 
   ['Articles', 'Single-column article', article,
     'A short experimental paper with abstract, equations, a table and citations.'],
@@ -178,6 +176,8 @@ export const GALLERY: [string, string, Factory, string][] = [
   ['Theses & books', 'Dissertation (disser)', disserThesis,
     'A dissertation in the Russian disser class.'],
 
+  ['Teaching', 'Coloured boxes', calloutBoxes,
+    'Every Insert > Box kind (Note, Tip, Warning, Danger...), renamed headings and boxes in your own colours.'],
   ['Teaching', 'Lab report', labReport,
     'An undergraduate lab report with data tables and uncertainties.'],
   ['Teaching', 'Exam (exam class)', examPaper,

@@ -130,7 +130,7 @@ const PAGE_SIZES: [string, number, number][] = [
 // examples.GALLERY by category: the class of the first example (the
 // button's preview) and every example's label, in gallery order.
 export const GALLERY: [string, string, string[]][] = [
-  ['Start', 'article', ['Welcome tour', 'Blank document', 'Coloured boxes']],
+  ['Start', 'article', ['Welcome tour', 'Blank document']],
   ['Articles', 'article', ['Single-column article', 'Two-column article',
     'Three-column document', 'Maths-heavy document', 'KOMA-Script article',
     'White paper', 'Literature review', 'Research proposal']],
@@ -145,7 +145,7 @@ export const GALLERY: [string, string, string[]][] = [
     'Monograph (AMS book)', 'Book (elegantbook)', 'Thesis (mimosis)',
     'Thesis (hepthesis, particle physics)', 'Thesis (suftesi, humanities)',
     'Thesis (toptesi, engineering)', 'Dissertation (disser)']],
-  ['Teaching', 'article', ['Lab report', 'Exam (exam class)',
+  ['Teaching', 'article', ['Coloured boxes', 'Lab report', 'Exam (exam class)',
     'Homework / problem set', 'Lecture notes', 'Handout (Tufte)',
     'Quantum mechanics lecture']],
   ['Science', 'article', ['XPS surface-science paper',
@@ -762,6 +762,8 @@ const cmds: Command[] = [
   { id: 'box_title', text: 'Title…', icon: 'picture_edit', tooltip: 'The text in the box\'s title bar' },
   { id: 'box_style', text: 'Name & Colour…', icon: 'callout', tooltip: 'Change the box\'s name and colour (also: click its title bar)' },
   { id: 'box_para_after', text: 'Text after box', icon: 'formatting_marks', tooltip: 'A new ordinary paragraph after the box' },
+  { id: 'block_up', text: 'Move up', icon: 'move_up', tooltip: 'Move it above the block before it (or drag its grip ⋮⋮ in the margin)' },
+  { id: 'block_down', text: 'Move down', icon: 'move_down', tooltip: 'Move it below the block after it (or drag its grip ⋮⋮ in the margin)' },
   { id: 'box_remove', text: 'Remove box', icon: 'clear_format', tooltip: 'Remove the box, keep its text' },
   { id: 'box_delete', text: 'Delete box', icon: 'table_delete', tooltip: 'Delete the box and its text' },
   { id: 'box_color', text: 'Colour…', icon: 'callout', tooltip: 'Any colour for this box (frame, title bar and tint)' },
@@ -925,6 +927,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Rows & Columns', large: ['tbl_row_above', 'tbl_row_below', 'tbl_col_left', 'tbl_col_right'] },
     { label: 'Merge', large: ['tbl_merge', 'tbl_split'] },
     { label: 'Delete', large: ['tbl_del_row', 'tbl_del_col', 'tbl_delete'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Alignment', large: ['tbl_align_l', 'tbl_align_c', 'tbl_align_r'] },
     { label: 'Data', large: ['tbl_sort_up', 'tbl_sort_down'] },
     { label: 'Caption', large: ['caption'] },
@@ -942,6 +945,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Box', context: 'callout', groups: [
     { label: 'Type', rows: [boxKinds.slice(0, 3), boxKinds.slice(3, 6), boxKinds.slice(6)], text: true },
     { label: 'Style', large: ['box_style'], rows: [['box_title'], ['box_color']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Box', rows: [['box_para_after'], ['box_remove'], ['box_delete']], text: true },
   ] },
   { name: 'Equation', context: 'equation', groups: [
