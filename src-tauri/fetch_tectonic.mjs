@@ -180,6 +180,13 @@ function syncStyles() {
   }
 }
 
-await fetchBinary()
+const tectonicExe = await fetchBinary()
 syncCache()
 syncStyles()
+// The Python app's warm-up knows only its own examples: add what kTeX's
+// documents need too (qrcode, lettrine, fontawesome5...), so they compile
+// offline on a new PC (scripts/warm_extra.mjs).
+if (!dev) {
+  const { warmExtra } = await import('../scripts/warm_extra.mjs')
+  await warmExtra(tectonicExe, join(RES, 'tectonic_cache'), join(RES, 'styles'))
+}
