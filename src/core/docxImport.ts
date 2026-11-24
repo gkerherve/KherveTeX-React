@@ -417,6 +417,9 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
     // like "List Paragraph" and also paragraphs with ad-hoc numbering).
     const isList = kind === 'list' || (kind !== 'heading' && kind !== 'title' && _paraIsList(para))
     if (isList) {
+      // A bullet or number on an empty paragraph (Word leaves one behind
+      // a deleted item) is no item: it would print an empty one.
+      if (!textRuns.some((r) => r.type !== 'Text' || strip(r.text))) continue
       // Nested items keep their level; the list takes its top level's
       // kind and style (Word's bullet character or number format).
       const lv = Math.max(0, _paraListLevel(para))
