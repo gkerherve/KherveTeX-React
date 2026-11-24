@@ -2,7 +2,7 @@
 //
 // Pure functions; one serializer per node type. No I/O.
 
-import { HIGHLIGHT_COLORS, THEOREM_KINDS } from './model.ts'
+import { CALLOUT_KINDS, HIGHLIGHT_COLORS, THEOREM_KINDS } from './model.ts'
 import type { Abstract, Block, Document, Figure, Inline, Keywords, Mark } from './model.ts'
 import { isAlpha, pyFixed, pyFloat, pyTitle, rstrip, strip } from './py.ts'
 import { figureOutputPath } from './serializer.ts'
@@ -133,7 +133,8 @@ export function serializeBlock(node: Block): string {
       const body = serializeInlines(node.children)
       if (!node.start) return body + '\n'
       const fallback = pyTitle(node.kind)
-      const name = has(THEOREM_KINDS, node.kind) ? THEOREM_KINDS[node.kind] : fallback
+      const name = has(THEOREM_KINDS, node.kind) ? THEOREM_KINDS[node.kind]
+        : has(CALLOUT_KINDS, node.kind) ? CALLOUT_KINDS[node.kind].name : fallback
       const head = node.title ? `${name} (${node.title})` : name
       const style = node.kind === 'proof' ? '_' : '*'
       return `${style}${head}.${style} ${body}\n`

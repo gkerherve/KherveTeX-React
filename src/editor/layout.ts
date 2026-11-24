@@ -7,7 +7,7 @@
 import { formatDate } from '../core/dateFormat.ts'
 import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
-import { classSupportsChapter, THEOREM_KINDS, type DocMeta } from '../core/model.ts'
+import { CALLOUT_KINDS, classSupportsChapter, isCallout, THEOREM_KINDS, type DocMeta } from '../core/model.ts'
 import { byCode, DPI } from '../core/pageSizes.ts'
 import { lookFor, numberLabel, type LabelSpec, type Look, type StyleKey, type StyleSpec } from './classLooks.ts'
 import { moderncvLook } from './cvView.ts'
@@ -152,7 +152,7 @@ export interface BlockLayout {
   // Painted before the first line, as HEADING_NUMBER / THEOREM_LABEL.
   number: string
   numberGap: number
-  numberStyle: 'heading' | 'theorem' | 'proof' | null
+  numberStyle: 'heading' | 'theorem' | 'proof' | 'callout' | null
   equationNumber: string
   above: PaintedLabel[]
   runIn: PaintedLabel | null
@@ -599,7 +599,12 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     }
     applyRunInLabel(L, key, prevState, state)
     if (level !== null && level <= (hasChapters ? 0 : 1)) thm = 0  // \newtheorem{theorem}{...}[section]
-    if (state === S.THEOREM && node.attrs.start) {
+    if (state === S.THEOREM && node.attrs.start && isCallout(node.attrs.kind)) {
+      // A callout box: its title bar, not a theorem number.
+      L.number = node.attrs.title || CALLOUT_KINDS[node.attrs.kind].name
+      L.numberStyle = 'callout'
+      L.numberGap = 0
+    } else if (state === S.THEOREM && node.attrs.start) {
       const kind: string = node.attrs.kind || 'theorem'
       let name = THEOREM_KINDS[kind] ?? (kind.charAt(0).toUpperCase() + kind.slice(1).toLowerCase())
       if (kind !== 'proof') {

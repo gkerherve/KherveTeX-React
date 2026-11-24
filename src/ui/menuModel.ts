@@ -2,7 +2,7 @@
 // entries `_extend_menus` adds), in order. Strings are command ids from
 // COMMANDS, or '-' for a separator.
 import { BETA_DETAIL, isBetaExample } from './pageBeta'
-import { GALLERY, THEOREM_KINDS, type MenuEntry, type MenuItem } from './ribbonModel'
+import { CALLOUT_MENU, GALLERY, THEOREM_KINDS, type MenuEntry, type MenuItem } from './ribbonModel'
 
 export interface MenuBarMenu {
   text: string
@@ -69,6 +69,8 @@ export const MENU_BAR: MenuBarMenu[] = [
     'abstract', 'keywords', '-',
     { text: '&LaTeX', items: ['code_block', 'raw', '-', 'compile_start', 'compile_end',
       'not_compile_start', 'not_compile_end'] },
+    { text: 'Coloured &box', icon: 'callout',
+      items: CALLOUT_MENU.map(([k]) => `box_insert_${k}`) },
     { text: '&Theorem-like', icon: 'theorem',
       items: THEOREM_KINDS.map(([k]) => `thm_insert_${k}`) },
   ] },

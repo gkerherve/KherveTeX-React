@@ -1183,6 +1183,9 @@ export class EditorController implements ViewHost {
     } else if (ctx === 'figure') {
       const a = C.currentAlignment(s)
       setCommandChecked(a === 'left' ? 'fig_left' : a === 'right' ? 'fig_right' : 'fig_center', true)
+    } else if (ctx === 'callout') {
+      const kind = C.currentTheoremKind(s)
+      if (kind) setCommandChecked(`box_kind_${kind}`, true)
     } else if (ctx === 'theorem') {
       const kind = C.currentTheoremKind(s)
       if (kind) setCommandChecked(`thm_kind_${kind}`, true)

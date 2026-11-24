@@ -1283,6 +1283,13 @@ export function Theorem(p: IconProps) {
     {[14, 17].map(y => <g key={y}>{L(5.5, y, 18.5, y, INK, 1)}</g>)}</Svg>
 }
 
+// A coloured box with a title bar (Insert > Box).
+export function Callout(p: IconProps) {
+  return <Svg {...p}>{R(3, 4, 18, 16, { fill: TINT, color: BLUE, r: 1.5 })}
+    {R(3, 4, 18, 4.5, { fill: BLUE, color: BLUE, r: 1.5 })}
+    {[13, 16.5].map(y => <g key={y}>{L(5.5, y, 18.5, y, INK, 1)}</g>)}</Svg>
+}
+
 export function Caption(p: IconProps) {
   return <Svg {...p}>{R(4, 3, 16, 11, { fill: PAPER, r: 0.8 })}
     {P([[5.5, 12.5], [10, 7.5], [13, 10.5], [18.5, 12.5]],
@@ -1903,7 +1910,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
-  theorem: Theorem, caption: Caption, table_style_icon: TableStyleIcon,
+  theorem: Theorem, callout: Callout, caption: Caption, table_style_icon: TableStyleIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
   repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,

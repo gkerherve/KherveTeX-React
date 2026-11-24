@@ -13,7 +13,7 @@
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import type { Zippable } from 'fflate'
-import { THEOREM_KINDS } from './model.ts'
+import { CALLOUT_KINDS, THEOREM_KINDS } from './model.ts'
 import type { Document, Inline, Table } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
 import { DOCX_TEMPLATE_B64 } from './docxTemplate.ts'
@@ -1220,7 +1220,8 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
     } else if (block.type === 'Theorem') {
       const para = b.addParagraph()
       if (block.start) {
-        const name = has(THEOREM_KINDS, block.kind) ? THEOREM_KINDS[block.kind] : pyTitle(block.kind)
+        const name = has(THEOREM_KINDS, block.kind) ? THEOREM_KINDS[block.kind]
+          : has(CALLOUT_KINDS, block.kind) ? CALLOUT_KINDS[block.kind].name : pyTitle(block.kind)
         const head = block.title ? `${name} (${block.title}). ` : `${name}. `
         const run = addRun(para, head)
         const proof = block.kind === 'proof'

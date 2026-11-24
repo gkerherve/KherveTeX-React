@@ -340,6 +340,8 @@ const BLOCK_DISPATCH: [string, RegExp][] = [
   ['maketitle', pyRe(String.raw`\\maketitle\b`)],
   ['longtable', pyRe(String.raw`\\begin\{longtable\}\{((?:[^{}]|\{[^{}]*\})*)\}(.*?)\\end\{longtable\}`, 's')],
   // Theorem-like environments (amsthm): editable Theorem paragraphs.
+  // Callout boxes this app writes (\newtcolorbox kNoteBox...): back to callouts.
+  ['callout_env', pyRe(String.raw`\\begin\{k(Note|Tip|Info|Important|Warning|Danger|Summary)Box\}(?:\[\{?(.*?)\}?\])?(.*?)\\end\{k\1Box\}`, 's')],
   ['theorem_env', pyRe(String.raw`\\begin\{(theorem|lemma|proposition|corollary|definition|example|remark|proof)\}(?:\[([^\]]*)\])?(.*?)\\end\{\1\}`, 's')],
   // Last-resort: any other \begin{...}...\end{...} we don't understand
   // gets wrapped in a RawLatex block instead of leaking its body as
@@ -873,6 +875,11 @@ function dispatch(kind: string, m: Hit): Block | Block[] | null {
     tbl.repeat_header = true
     return tbl
   }
+  if (kind === 'callout_env') {
+    const paras = splitParagraphs(g[3]!)
+    if (!paras.length) paras.push('')
+    return paras.map((p, i) => M.theorem(g[1]!.toLowerCase(), strip(g[2] || ''), parseInlines(p), i === 0))
+  }
   if (kind === 'theorem_env') {
     const paras = splitParagraphs(g[3]!)
     if (!paras.length) paras.push('')
@@ -1236,6 +1243,8 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   // The review column is written back by the serializer while there are
   // comments: never kept as the document's own preamble.
   texSource = texSource.replace(REVIEW_PREAMBLE, '')
+  // Callout boxes' definitions: the serializer writes them again for the boxes in use.
+  texSource = texSource.replace(/^\\(?:definecolor\{k[A-Z][a-z]+BoxC\}|newtcolorbox\{k[A-Z][a-z]+Box\}).*\n?/gm, '')
   // Strip line comments first — Elsevier templates use `%%` ruled
   // banners between sections, and without this every banner would
   // appear as a stray paragraph in the imported document.

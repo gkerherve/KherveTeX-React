@@ -6,7 +6,7 @@ import { designPreamble } from './design.ts'
 import { inkPreamble, placeInk } from './ink.ts'
 import { dateCommand } from './dateFormat.ts'
 import {
-  HF_FIELD_RE, HIGHLIGHT_COLORS, hfPlacement, THEOREM_KINDS, citedKeys, classSupportsChapter,
+  HF_FIELD_RE, HIGHLIGHT_COLORS, hfPlacement, THEOREM_KINDS, CALLOUT_KINDS, isCallout, citedKeys, classSupportsChapter,
 } from './model.ts'
 import type {
   Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, List, Paragraph, Project, Table,
@@ -363,6 +363,11 @@ export function groupTheorems(blocks: Block[]): Grouped[] {
 }
 
 function serializeTheorem(env: TheoremEnv): string {
+  if (isCallout(env.kind)) {
+    const box = CALLOUT_KINDS[env.kind]
+    const opt = env.title ? `[{${env.title}}]` : ''
+    return `\\begin{${box.env}}${opt}\n${env.paragraphs.map(serializeInlines).join('\n\n')}\n\\end{${box.env}}\n`
+  }
   const opt = env.title ? `[${env.title}]` : ''
   const body = env.paragraphs.map(serializeInlines).join('\n\n')
   return `\\begin{${env.kind}}${opt}\n${body}\n\\end{${env.kind}}\n`
@@ -476,8 +481,22 @@ function paraFormatPreamble(doc: Document): [string[], string] {
     }
     if (b.left_cm || b.right_cm) indent = true
   }
+  // Callout boxes: one \newtcolorbox per kind used, its title the kind's name
+  // unless the box gives its own.
+  const callouts = Object.keys(CALLOUT_KINDS).filter((k) =>
+    doc.children.some((b) => b.type === 'Theorem' && b.kind === k))
+  if (callouts.length) {
+    for (const p of ['xcolor', 'tcolorbox']) if (!need.includes(p)) need.push(p)
+  }
   if (need.includes('tcolorbox')) defs.push('\\tcbuselibrary{breakable,skins}')
   for (const c of shades) defs.push(`\\definecolor{kShade${c}}{HTML}{${c}}`)
+  for (const k of callouts) {
+    const { name, color, env } = CALLOUT_KINDS[k]
+    defs.push(`\\definecolor{${env}C}{HTML}{${color}}`)
+    defs.push(`\\newtcolorbox{${env}}[1][${name}]{breakable,enhanced,colback=${env}C!7!white,colframe=${env}C,`
+      + 'coltitle=white,fonttitle=\\bfseries,title={#1},arc=2pt,boxrule=0.8pt,left=6pt,right=6pt,'
+      + 'before skip=8pt,after skip=8pt}')
+  }
   if (indent) {
     defs.push('\\newenvironment{kIndent}[2]{\\list{}{\\leftmargin=#1\\rightmargin=#2\\itemindent=0pt'
       + '\\listparindent=\\parindent\\topsep=0pt\\partopsep=0pt\\parsep=\\parskip}\\item\\relax}{\\endlist}')

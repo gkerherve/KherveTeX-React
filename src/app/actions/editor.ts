@@ -17,6 +17,7 @@ import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
 import { askCrossRef, promptItem, promptText, type CrossRefEntry } from '../../ui/dialogs/EditorDialogs.tsx'
 import { documentLabels } from '../../core/labels.ts'
 import { setCommandChecked } from '../../ui/commands.ts'
+import { CALLOUT_MENU } from '../../ui/ribbonModel.ts'
 import { hasAction, registerActions, type Handler } from '../actions.ts'
 import { appStore } from '../store.ts'
 import { setSetting, setting } from '../../platform/settings'
@@ -266,6 +267,13 @@ export async function gitAuthor(): Promise<string> {
   }
 }
 
+async function boxTitle(): Promise<void> {
+  const e = ed()
+  if (!e) return
+  const t = await promptText('Box title', 'Text in the title bar (empty: the box\'s own, e.g. "Note"):', C.currentTheoremTitle(e.view.state))
+  if (t !== null) run(C.setTheoremTitle(t.trim()))
+}
+
 async function theoremTitle(): Promise<void> {
   const e = ed()
   if (!e) return
@@ -372,6 +380,8 @@ const actions: Record<string, Handler> = {
 
   theorem: () => { run(C.insertTheorem('theorem')); sync() },
   thm_title: theoremTitle,
+  callout: () => { run(C.insertTheorem('note')); sync() },
+  box_title: boxTitle,
 
   highlight,
   remove_highlight: () => { run(C.removeHighlight) },
@@ -423,6 +433,11 @@ const actions: Record<string, Handler> = {
 for (const [k] of [['theorem'], ['lemma'], ['proposition'], ['corollary'], ['definition'], ['example'], ['remark'], ['proof']]) {
   actions[`thm_insert_${k}`] = () => { run(C.insertTheorem(k)); sync() }
   actions[`thm_kind_${k}`] = () => { run(C.setTheoremKind(k)); sync() }
+}
+
+for (const [k] of CALLOUT_MENU) {
+  actions[`box_insert_${k}`] = () => { run(C.insertTheorem(k)); sync() }
+  actions[`box_kind_${k}`] = () => { run(C.setTheoremKind(k)); sync() }
 }
 
 for (const [k, mode] of [['all', undefined], ['simple', 'simple'], ['none', 'none'], ['original', 'original']] as const) {

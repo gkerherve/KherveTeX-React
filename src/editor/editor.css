@@ -712,3 +712,15 @@ body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-pagebreak { font-size: 13.33px
 .kt-ink.drawing, .kt-ink.erasing { pointer-events: auto; touch-action: none; }
 .kt-ink.drawing { cursor: crosshair; }
 .kt-ink.erasing { cursor: cell; }
+
+/* Callout boxes (a titled tcolorbox): the title bar across the top of the
+   box, white on its colour, as the PDF draws it. */
+.kt-num-callout::before {
+  display: block;
+  margin: -2px -8px 4px;
+  padding: 2px 8px;
+  background: var(--kt-callout, #1F6FB5);
+  color: #fff;
+  font-weight: 700;
+  font-style: normal;
+}

@@ -82,11 +82,12 @@ export function currentTheorem(state: EditorState): { node: PMNode; pos: number 
 }
 
 // "table", "figure", "equation", "theorem" or null (context_object).
-export function contextObject(state: EditorState): 'table' | 'figure' | 'equation' | 'theorem' | null {
+export function contextObject(state: EditorState): 'table' | 'figure' | 'equation' | 'theorem' | 'callout' | null {
   if (currentFigure(state)) return 'figure'
   if (currentTable(state)) return 'table'
   if (currentMathBlock(state) || currentMathInline(state)) return 'equation'
-  if (currentTheorem(state)) return 'theorem'
+  const t = currentTheorem(state)
+  if (t) return M.isCallout(t.node.attrs.kind) ? 'callout' : 'theorem'
   return null
 }
 

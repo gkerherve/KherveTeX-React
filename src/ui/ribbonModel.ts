@@ -77,7 +77,7 @@ export interface RibbonGroup {
   text?: boolean
 }
 
-export type ContextKind = 'table' | 'figure' | 'theorem' | 'equation' | 'headerfooter'
+export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation' | 'headerfooter'
 
 export interface RibbonTab {
   name: string
@@ -105,6 +105,12 @@ export const THEOREM_KINDS: [string, string][] = [
   ['theorem', 'Theorem'], ['lemma', 'Lemma'], ['proposition', 'Proposition'],
   ['corollary', 'Corollary'], ['definition', 'Definition'],
   ['example', 'Example'], ['remark', 'Remark'], ['proof', 'Proof'],
+]
+
+// Coloured callout boxes (CALLOUT_KINDS in model.ts), in menu order.
+export const CALLOUT_MENU: [string, string][] = [
+  ['note', 'Note'], ['tip', 'Tip'], ['info', 'Information'], ['important', 'Important'],
+  ['warning', 'Warning'], ['danger', 'Danger'], ['summary', 'Key points'],
 ]
 
 // Word's margin presets, in cm: top, bottom, left, right.
@@ -444,6 +450,8 @@ const cmds: Command[] = [
   { id: 'hrule', text: 'Horizontal rule', icon: 'horizontal_rule' },
   { id: 'show_date', text: 'Date', icon: 'title_date', checkable: true, checked: true },
   { id: 'multicol', text: '&Multi-column region (2)...' },
+  { id: 'callout', text: 'Box', icon: 'callout', popup: 'split',
+    menu: CALLOUT_MENU.map(([k, name]) => ({ text: name, command: `box_insert_${k}` })) },
   { id: 'theorem', text: 'Theorem', icon: 'theorem', popup: 'split',
     menu: THEOREM_KINDS.map(([k, name]) => ({ text: name, command: `thm_insert_${k}` })) },
 
@@ -745,6 +753,14 @@ const cmds: Command[] = [
   ...THEOREM_KINDS.map(([k, name]): Command => ({ id: `thm_insert_${k}`, text: name })),
   { id: 'thm_title', text: 'Name…', icon: 'picture_edit' },
 
+  // Callout box
+  ...CALLOUT_MENU.map(([k, name]): Command => ({
+    id: `box_kind_${k}`, text: name, icon: 'callout', checkable: true, group: 'boxkind',
+    checked: k === 'note', tooltip: `Make this a ${name} box`,
+  })),
+  ...CALLOUT_MENU.map(([k, name]): Command => ({ id: `box_insert_${k}`, text: name })),
+  { id: 'box_title', text: 'Title…', icon: 'picture_edit', tooltip: 'The text in the box\'s title bar' },
+
   // View tab: the Visual / Code / Console pages and where the PDF lives.
   { id: 'page_visual', text: 'Visual', icon: 'page_view', checkable: true, group: 'page', checked: true },
   { id: 'page_code', text: 'Code', icon: 'code', checkable: true, group: 'page' },
@@ -803,6 +819,7 @@ export const CORNER_RIGHT: (string | null)[] = [
 export const CORNER_LABELLED = new Set(['compile_now'])
 
 const thmKinds = THEOREM_KINDS.map(([k]) => `thm_kind_${k}`)
+const boxKinds = CALLOUT_MENU.map(([k]) => `box_kind_${k}`)
 
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
@@ -824,7 +841,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
       rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },
-    { label: 'Theorems', large: ['theorem'] },
+    { label: 'Boxes', large: ['callout', 'theorem'] },
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig']], text: true },
   ] },
   { name: 'Draw', groups: [
@@ -916,6 +933,10 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Theorem', context: 'theorem', groups: [
     { label: 'Type', rows: [thmKinds.slice(0, 3), thmKinds.slice(3, 6), thmKinds.slice(6)], text: true },
     { label: 'Name', large: ['thm_title'] },
+  ] },
+  { name: 'Box', context: 'callout', groups: [
+    { label: 'Colour', rows: [boxKinds.slice(0, 3), boxKinds.slice(3, 5), boxKinds.slice(5)], text: true },
+    { label: 'Title', large: ['box_title'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },

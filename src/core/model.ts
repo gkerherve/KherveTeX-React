@@ -123,6 +123,20 @@ export const THEOREM_KINDS: Record<string, string> = {
   example: 'Example', remark: 'Remark', proof: 'Proof',
 }
 
+// Coloured callout boxes (a titled tcolorbox), stored as Theorem paragraphs
+// so they share its grouping: kind is the key here, title replaces the
+// box's default heading. env is the LaTeX environment the PDF uses.
+export const CALLOUT_KINDS: Record<string, { name: string; color: string; env: string }> = {
+  note: { name: 'Note', color: '1F6FB5', env: 'kNoteBox' },
+  tip: { name: 'Tip', color: '2E7D32', env: 'kTipBox' },
+  info: { name: 'Information', color: '00838F', env: 'kInfoBox' },
+  important: { name: 'Important', color: '6A1B9A', env: 'kImportantBox' },
+  warning: { name: 'Warning', color: 'E65100', env: 'kWarningBox' },
+  danger: { name: 'Danger', color: 'C62828', env: 'kDangerBox' },
+  summary: { name: 'Key points', color: '37474F', env: 'kSummaryBox' },
+}
+export const isCallout = (kind: string): boolean => Object.prototype.hasOwnProperty.call(CALLOUT_KINDS, kind)
+
 // ---------------- Constructors (dataclass defaults, field order) ----------------
 
 export const text = (t: string, marks: Mark[] = []): Text => ({ text: t, marks: [...marks], type: 'Text' })

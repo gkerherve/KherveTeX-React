@@ -7,7 +7,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
 import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
 import { Decoration, DecorationSet } from 'prosemirror-view'
-import type { DocMeta } from '../core/model.ts'
+import { CALLOUT_KINDS, isCallout, type DocMeta } from '../core/model.ts'
 import { tableCellStyles } from './views.ts'
 import { BASELINE_AT, anchorTargets, layoutDocument, pdfPageStartBlocks, type PageAnchor, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
 
@@ -113,6 +113,20 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       view.focus()
     }), { side: -1, key, ignoreSelection: true }))
   })
+  // Callout boxes: which paragraphs open and close each box.
+  const callout = new Map<number, { first: boolean; last: boolean; color: string }>()
+  {
+    const tops: { node: PMNode; pos: number }[] = []
+    doc.forEach((node, pos) => tops.push({ node, pos }))
+    tops.forEach(({ node, pos }, i) => {
+      if (node.type.name !== 'theorem' || !isCallout(node.attrs.kind)) return
+      const next = tops[i + 1]?.node
+      const last = !next || next.type.name !== 'theorem' || next.attrs.start || next.attrs.kind !== node.attrs.kind
+      const prev = tops[i - 1]?.node
+      const first = node.attrs.start || !prev || prev.type.name !== 'theorem' || prev.attrs.kind !== node.attrs.kind
+      callout.set(pos, { first, last, color: '#' + CALLOUT_KINDS[node.attrs.kind].color })
+    })
+  }
   let tables = 0
   const visit = (node: PMNode, pos: number) => {
     const L = byPos.get(pos)
@@ -146,6 +160,15 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       if (b === 'box') style += `border:${line};`
       if (b === 'top' || b === 'topbottom') style += `border-top:${line};`
       if (b === 'bottom' || b === 'topbottom') style += `border-bottom:${line};`
+    }
+    const box = callout.get(pos)
+    if (box) {
+      // A titled tcolorbox: coloured frame, a light tint of it inside.
+      style += `--kt-callout:${box.color};background:color-mix(in srgb, ${box.color} 7%, white);`
+        + `border-left:1px solid ${box.color};border-right:1px solid ${box.color};padding:2px 8px;text-indent:0;`
+      if (box.first) style += `border-top:1px solid ${box.color};border-top-left-radius:3px;border-top-right-radius:3px;`
+      else style += 'margin-top:0;padding-top:4px;'
+      if (box.last) style += `border-bottom:1px solid ${box.color};border-bottom-left-radius:3px;border-bottom-right-radius:3px;padding-bottom:6px;`
     }
     if (L.padBottom) style += `padding-bottom:${L.padBottom + (L.tall?.padBottom ?? 0)}px;`
     const attrs: Record<string, string> = { style }
