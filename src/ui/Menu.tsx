@@ -28,8 +28,10 @@ function resolve(e: MenuEntry, cmd: CommandState): Resolved | null {
       command: c.id, checkable: c.checkable, checked: cmd.isChecked(c.id) }
   }
   const c = e.command ? COMMANDS[e.command] : undefined
-  return { ...(e as LiveItem), checked: c?.checkable ? cmd.isChecked(c.id) : e.checked,
-    checkable: e.checkable ?? c?.checkable }
+  // A checkable item ticks from the shared checked state by its command,
+  // whether or not that command is a ribbon button (titlestyle:band...).
+  const checked = c?.checkable ? cmd.isChecked(c.id) : e.checkable && e.command ? cmd.isChecked(e.command) || !!e.checked : e.checked
+  return { ...(e as LiveItem), checked, checkable: e.checkable ?? c?.checkable }
 }
 
 // Qt mnemonics: "&File" underlines F, "&&" is a literal ampersand.
@@ -130,7 +132,7 @@ export function Popup({ entries, anchor, placement = 'below', cmd, onClose,
             )}
             {/* Big pictures (Margins): the details under the name, as Word's. */}
             {iconSize >= 32 && it.detail
-              ? <span className='qmenu-text qmenu-two'><Mnemonic text={it.text} /><span className='qmenu-sub'>{it.detail}</span></span>
+              ? <span className={'qmenu-text qmenu-two' + (it.checked ? ' qmenu-chosen' : '')}><span><Mnemonic text={it.text} />{it.checked && <span className='qmenu-tick'> ✓</span>}</span><span className='qmenu-sub'>{it.detail}</span></span>
               : <span className='qmenu-text'><Mnemonic text={it.text} /></span>}
             {hasDetail && !(iconSize >= 32 && it.detail) && <span className='qmenu-detail'>{it.detail ?? ''}</span>}
             {it.items && <span className='qmenu-arrow'>

@@ -1936,7 +1936,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
-  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon, element: ElementIcon,
+  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon, element: ElementIcon, design_preview: DesignPreview,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
   repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,
@@ -2092,6 +2092,79 @@ export function ElementIcon({ arg = 'checklist', ...p }: IconProps) {
     case 'icon': return <Svg {...p}>{T([1, 1, 11, 11], '☎', { size: 10, color: BLUE })}{T([12, 1, 11, 11], '✉', { size: 10, color: '#E65100' })}{T([1, 12, 11, 11], '★', { size: 10, color: '#F9A825' })}{T([12, 12, 11, 11], '⚠', { size: 10, color: RED })}</Svg>
     default: return <Svg {...p}>{R(4, 4, 16, 16, { color: BLUE })}</Svg>
   }
+}
+
+// Design ▸ Title Page, Chapter Titles and Header Style: a little page that
+// shows the look. arg "title:band", "chapter:bignumber", "edge:thumb"...
+export function DesignPreview({ arg = 'title:default', size = 40 }: IconProps) {
+  const [what, style] = arg.split(':')
+  const W = 30, H = 38
+  const acc = '#2F5496', ink = '#555', lite = '#c9c9c9'
+  const page = <rect x={0.75} y={0.75} width={W - 1.5} height={H - 1.5} rx={1} fill='#fff' stroke='#9a9a9a' strokeWidth={0.8} />
+  const ln = (x1: number, y: number, x2: number, color = lite, lw = 1) => <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth={lw} strokeLinecap='round' />
+  const body = (y0: number, n = 5, gap = 2.6) => Array.from({ length: n }, (_, i) => <g key={`b${i}`}>{ln(4, y0 + i * gap, i === n - 1 ? 18 : W - 4)}</g>)
+  const out: ReactElement[] = [page]
+  const push = (...e: ReactElement[]) => e.forEach((x, i) => out.push(<g key={`${out.length}-${i}`}>{x}</g>))
+  if (what === 'title') {
+    switch (style) {
+      case 'band':
+        push(<rect x={0.75} y={0.75} width={W - 1.5} height={13} fill={acc} />, ln(4, 6, 22, '#fff', 2.2), ln(4, 10, 15, '#fff', 1.1), ln(4, 33, 11, ink, 0.8))
+        break
+      case 'centered':
+        push(ln(4, 13, W - 4, acc, 0.9), ln(7, 17, W - 7, ink, 2.2), ln(4, 21, W - 4, acc, 0.9), ln(10, 25, W - 10, ink, 0.9), ln(12, 28, W - 12, lite, 0.9))
+        break
+      case 'leftbar':
+        push(<rect x={0.75} y={0.75} width={5} height={H - 1.5} fill={acc} />, ln(9, 12, 25, acc, 2.2), ln(9, 16, 20, acc, 2.2), ln(9, 21, 17, ink, 0.9), ln(9, 33, 15, ink, 0.8))
+        break
+      case 'minimal':
+        push(ln(4, 22, 24, ink, 2.6), <rect x={4} y={25} width={7} height={1.3} fill={acc} />, ln(4, 29, 14, ink, 0.9), ln(4, 31.5, 11, lite, 0.8))
+        break
+      case 'framed':
+        push(<rect x={3} y={3} width={W - 6} height={H - 6} fill='none' stroke={acc} strokeWidth={1.4} />, <rect x={4.6} y={4.6} width={W - 9.2} height={H - 9.2} fill='none' stroke={acc} strokeWidth={0.5} />,
+          ln(8, 16, W - 8, acc, 2.2), ln(10, 21, W - 10, ink, 0.9), ln(12, 24, W - 12, lite, 0.9))
+        break
+      default:
+        push(ln(7, 8, W - 7, ink, 1.8), ln(10, 11.5, W - 10, ink, 0.9), ln(11, 14, W - 11, lite, 0.8), ...body(19, 6))
+    }
+  } else if (what === 'chapter') {
+    switch (style) {
+      case 'bignumber':
+        push(<text x={W - 4} y={13} textAnchor='end' fontFamily='Georgia, serif' fontWeight={700} fontSize={12} fill={acc}>1</text>, ln(10, 17, W - 4, ink, 2), ...body(23, 5))
+        break
+      case 'band':
+        push(<rect x={3} y={4} width={W - 6} height={7} fill={acc} />, <text x={5} y={9.4} fontFamily='Arial, sans-serif' fontWeight={700} fontSize={4.4} fill='#fff'>1</text>, ln(9, 7.5, 22, '#fff', 1.6), ...body(16, 6))
+        break
+      case 'ruled':
+        push(ln(4, 5, 13, acc, 0.9), ln(4, 9.5, 22, ink, 2), ln(4, 12.5, W - 4, acc, 0.9), ...body(17, 6))
+        break
+      case 'boxed':
+        push(<rect x={4} y={4} width={6} height={6} fill={acc} />, <text x={7} y={8.9} textAnchor='middle' fontFamily='Arial, sans-serif' fontWeight={700} fontSize={4.4} fill='#fff'>1</text>, ln(12, 7, 24, ink, 2), ...body(15, 7))
+        break
+      case 'bar':
+        push(<rect x={4} y={3.6} width={1.6} height={7} fill={acc} />, <text x={7.5} y={9} fontFamily='Arial, sans-serif' fontWeight={700} fontSize={4.6} fill={ink}>1</text>, ln(12, 7, 24, ink, 2), ...body(15, 7))
+        break
+      case 'centered':
+        push(ln(10, 5, W - 10, acc, 0.9), ln(6, 9.5, W - 6, ink, 2), ln(11, 13, W - 11, acc, 0.6), ...body(18, 6))
+        break
+      default:
+        push(ln(4, 5, 12, ink, 0.9), ln(4, 9.5, 22, ink, 2), ...body(15, 7))
+    }
+  } else {
+    switch (style) {
+      case 'band':
+        push(<rect x={0.75} y={0.75} width={W - 1.5} height={4.5} fill={acc} />, ln(3, 3, 11, '#fff', 0.8), <circle cx={W - 3.5} cy={3} r={0.8} fill='#fff' />, ...body(9, 9))
+        break
+      case 'rule':
+        push(ln(3, 3.4, 11, acc, 0.7), <circle cx={W - 3.5} cy={3.2} r={0.7} fill={acc} />, ln(3, 5, W - 3, acc, 0.6), ...body(9, 9))
+        break
+      case 'thumb':
+        push(<rect x={W - 4} y={9} width={3.3} height={6} rx={0.8} fill={acc} />, ...Array.from({ length: 9 }, (_, i) => <g key={`t${i}`}>{ln(4, 6 + i * 3, i === 8 ? 16 : W - 7)}</g>))
+        break
+      default:
+        push(...body(6, 10))
+    }
+  }
+  return <svg className='kicon' width={Math.round(size * W / H)} height={size} viewBox={`0 0 ${W} ${H}`} aria-hidden='true'>{out}</svg>
 }
 
 // Insert ▸ Contents: a page of entries with dotted leaders and page numbers.

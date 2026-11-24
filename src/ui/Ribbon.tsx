@@ -66,8 +66,18 @@ function Chevron({ className = '' }: { className?: string }) {
   )
 }
 
+// Design ▸ Title Page, Chapter Titles, Header Style: the button shows the
+// document's current choice, as the Styles gallery does.
+function DesignPick({ c }: { c: Command }) {
+  const d = useRibbonWidgets().design
+  const arg = c.id === 'title_page' ? `title:${d.title_style ?? 'default'}`
+    : c.id === 'chapter_titles' ? `chapter:${d.chapter_style ?? 'default'}` : `edge:${d.page_edge ?? 'none'}`
+  return <Icon name='design_preview' arg={arg} size={32} />
+}
+
 function iconOf(c: Command, ctx: Ctx, size: number) {
   if (!c.icon) return null
+  if (c.icon === 'design_preview' && ['title_page', 'chapter_titles', 'page_edge'].includes(c.id)) return <DesignPick c={c} />
   const arg = c.id === 'doc_class' ? ctx.docClass : c.iconArg
   return <Icon name={c.icon} arg={arg} size={size} width={c.iconW} height={c.iconH} />
 }
@@ -76,6 +86,7 @@ function menuSize(c: Command): number {
   if (c.id === 'margins') return 36
   if (c.id === 'size' || c.id === 'orientation' || c.id === 'columns') return 28
   if (c.id.startsWith('gallery_')) return 26
+  if (c.id === 'title_page' || c.id === 'chapter_titles' || c.id === 'page_edge') return 44
   return 16
 }
 

@@ -489,3 +489,7 @@
 .menubar-fill { flex: 1; }
 .menubar .rb-search { margin: 0 4px 0 8px; }
 .menubar .rb-search input { height: 20px; }
+/* A picture menu's chosen item (Design ▸ Title Page...): framed and ticked. */
+.qmenu-icon.on:has(> .kicon) { outline: 2px solid #2b579a; outline-offset: 1px; border-radius: 2px; }
+.qmenu-chosen > :first-child { font-weight: 700; }
+.qmenu-tick { color: #2b579a; font-weight: 700; }
