@@ -49,7 +49,7 @@ const nodes: Record<string, NodeSpec> = {
   frame: textBlock('div', 'kt-frame'),
   box: textBlock('div', 'kt-box'),
   theorem: textBlock('div', 'kt-theorem', {
-    kind: { default: 'theorem' }, title: { default: '' }, start: { default: true },
+    kind: { default: 'theorem' }, title: { default: '' }, start: { default: true }, color: { default: null },
   }),
   math_block: {
     group: 'block', atom: true, selectable: true, draggable: false,

@@ -267,6 +267,16 @@ export async function gitAuthor(): Promise<string> {
   }
 }
 
+// Insert > Box > Custom: the name, then the colour, both your own.
+async function insertCustomBox(): Promise<void> {
+  if (!ed()) return
+  const name = await promptText('Custom box', 'Name shown in the title bar:', '')
+  if (name === null) return
+  const c = await pickColor('#455A64')
+  if (!c) return
+  run(C.insertCustomBox(name.trim(), c.toUpperCase())); sync()
+}
+
 async function boxTitle(): Promise<void> {
   const e = ed()
   if (!e) return
@@ -382,6 +392,13 @@ const actions: Record<string, Handler> = {
   thm_title: theoremTitle,
   callout: () => { run(C.insertTheorem('note')); sync() },
   box_title: boxTitle,
+  box_insert_custom: insertCustomBox,
+  box_color: async () => {
+    const e = ed()
+    if (!e) return
+    const c = await pickColor(C.currentCalloutColor(e.view.state) || '#455A64')
+    if (c) { run(C.setCalloutColor(c.toUpperCase())); sync() }
+  },
 
   highlight,
   remove_highlight: () => { run(C.removeHighlight) },
@@ -436,7 +453,7 @@ for (const [k] of [['theorem'], ['lemma'], ['proposition'], ['corollary'], ['def
 }
 
 for (const [k] of CALLOUT_MENU) {
-  actions[`box_insert_${k}`] = () => { run(C.insertTheorem(k)); sync() }
+  if (k !== 'custom') actions[`box_insert_${k}`] = () => { run(C.insertTheorem(k)); sync() }
   actions[`box_kind_${k}`] = () => { run(C.setTheoremKind(k)); sync() }
 }
 

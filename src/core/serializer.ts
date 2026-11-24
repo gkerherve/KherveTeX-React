@@ -6,7 +6,7 @@ import { designPreamble } from './design.ts'
 import { inkPreamble, placeInk } from './ink.ts'
 import { dateCommand } from './dateFormat.ts'
 import {
-  HF_FIELD_RE, HIGHLIGHT_COLORS, hfPlacement, THEOREM_KINDS, CALLOUT_KINDS, isCallout, citedKeys, classSupportsChapter,
+  HF_FIELD_RE, HIGHLIGHT_COLORS, hfPlacement, THEOREM_KINDS, CALLOUT_KINDS, calloutColor, isCallout, citedKeys, classSupportsChapter,
 } from './model.ts'
 import type {
   Block, ChapterEntry, DocMeta, Document, Figure, Inline, Keywords, List, Paragraph, Project, Table,
@@ -339,6 +339,7 @@ export interface TheoremEnv {
   kind: string
   title: string
   paragraphs: Inline[][]
+  color?: string
 }
 
 type Grouped = Block | TheoremEnv
@@ -353,7 +354,7 @@ export function groupTheorems(blocks: Block[]): Grouped[] {
       if (!b.start && prev?.type === '_TheoremEnv' && prev.kind === b.kind) {
         prev.paragraphs.push(b.children)
       } else {
-        out.push({ type: '_TheoremEnv', kind: b.kind, title: b.title, paragraphs: [b.children] })
+        out.push({ type: '_TheoremEnv', kind: b.kind, title: b.title, paragraphs: [b.children], ...(b.color ? { color: b.color } : {}) })
       }
     } else {
       out.push(b)
@@ -365,8 +366,14 @@ export function groupTheorems(blocks: Block[]): Grouped[] {
 function serializeTheorem(env: TheoremEnv): string {
   if (isCallout(env.kind)) {
     const box = CALLOUT_KINDS[env.kind]
+    const body = env.paragraphs.map(serializeInlines).join('\n\n')
+    // A colour of its own (or a custom box): kCustomBox takes the colour.
+    if (env.color || env.kind === 'custom') {
+      const title = env.title || box.name
+      return `\\begin{kCustomBox}[{${title}}]{kBoxC${calloutColor(env.kind, env.color)}}\n${body}\n\\end{kCustomBox}\n`
+    }
     const opt = env.title ? `[{${env.title}}]` : ''
-    return `\\begin{${box.env}}${opt}\n${env.paragraphs.map(serializeInlines).join('\n\n')}\n\\end{${box.env}}\n`
+    return `\\begin{${box.env}}${opt}\n${body}\n\\end{${box.env}}\n`
   }
   const opt = env.title ? `[${env.title}]` : ''
   const body = env.paragraphs.map(serializeInlines).join('\n\n')
@@ -483,9 +490,12 @@ function paraFormatPreamble(doc: Document): [string[], string] {
   }
   // Callout boxes: one \newtcolorbox per kind used, its title the kind's name
   // unless the box gives its own.
+  const boxes = doc.children.filter((b) => b.type === 'Theorem' && isCallout(b.kind))
+  const own = (b: Block) => b.type === 'Theorem' && (!!b.color || b.kind === 'custom')
   const callouts = Object.keys(CALLOUT_KINDS).filter((k) =>
-    doc.children.some((b) => b.type === 'Theorem' && b.kind === k))
-  if (callouts.length) {
+    k !== 'custom' && boxes.some((b) => b.type === 'Theorem' && b.kind === k && !own(b)))
+  const ownColors = [...new Set(boxes.filter(own).map((b) => b.type === 'Theorem' ? calloutColor(b.kind, b.color) : ''))]
+  if (callouts.length || ownColors.length) {
     for (const p of ['xcolor', 'tcolorbox']) if (!need.includes(p)) need.push(p)
   }
   if (need.includes('tcolorbox')) defs.push('\\tcbuselibrary{breakable,skins}')
@@ -494,6 +504,12 @@ function paraFormatPreamble(doc: Document): [string[], string] {
     const { name, color, env } = CALLOUT_KINDS[k]
     defs.push(`\\definecolor{${env}C}{HTML}{${color}}`)
     defs.push(`\\newtcolorbox{${env}}[1][${name}]{breakable,enhanced,colback=${env}C!7!white,colframe=${env}C,`
+      + 'coltitle=white,fonttitle=\\bfseries,title={#1},arc=2pt,boxrule=0.8pt,left=6pt,right=6pt,'
+      + 'before skip=8pt,after skip=8pt}')
+  }
+  for (const c of ownColors) defs.push(`\\definecolor{kBoxC${c}}{HTML}{${c}}`)
+  if (ownColors.length) {
+    defs.push('\\newtcolorbox{kCustomBox}[2][Box]{breakable,enhanced,colback=#2!7!white,colframe=#2,'
       + 'coltitle=white,fonttitle=\\bfseries,title={#1},arc=2pt,boxrule=0.8pt,left=6pt,right=6pt,'
       + 'before skip=8pt,after skip=8pt}')
   }

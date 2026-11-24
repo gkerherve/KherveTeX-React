@@ -7,7 +7,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
 import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
 import { Decoration, DecorationSet } from 'prosemirror-view'
-import { CALLOUT_KINDS, isCallout, type DocMeta } from '../core/model.ts'
+import { calloutColor, isCallout, type DocMeta } from '../core/model.ts'
 import { tableCellStyles } from './views.ts'
 import { BASELINE_AT, anchorTargets, layoutDocument, pdfPageStartBlocks, type PageAnchor, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
 
@@ -124,7 +124,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       const last = !next || next.type.name !== 'theorem' || next.attrs.start || next.attrs.kind !== node.attrs.kind
       const prev = tops[i - 1]?.node
       const first = node.attrs.start || !prev || prev.type.name !== 'theorem' || prev.attrs.kind !== node.attrs.kind
-      callout.set(pos, { first, last, color: '#' + CALLOUT_KINDS[node.attrs.kind].color })
+      callout.set(pos, { first, last, color: '#' + calloutColor(node.attrs.kind, node.attrs.color) })
     })
   }
   let tables = 0

@@ -485,13 +485,46 @@ function theoremGroup(state: EditorState): { pos: number; node: PMNode }[] {
   return out
 }
 
+// A callout box's own colour ('#RRGGBB', null: its kind's), on every paragraph of it.
+export function setCalloutColor(color: string | null): Command {
+  return (state, dispatch) => {
+    const group = theoremGroup(state)
+    if (!group.length || !M.isCallout(group[0].node.attrs.kind)) return false
+    if (dispatch) {
+      const tr = state.tr
+      for (const b of group) tr.setNodeMarkup(b.pos, null, { ...b.node.attrs, color })
+      dispatch(tr)
+    }
+    return true
+  }
+}
+
+export function currentCalloutColor(state: EditorState): string {
+  const t = currentTheorem(state)
+  return t && M.isCallout(t.node.attrs.kind) ? '#' + M.calloutColor(t.node.attrs.kind, t.node.attrs.color) : ''
+}
+
+// insert_theorem for a box with its own name and colour.
+export function insertCustomBox(title: string, color: string): Command {
+  return (state, dispatch) => {
+    const h = here(state)
+    const attrs = { kind: 'custom', title, start: true, color }
+    if (h.block && h.block === h.top && STYLED_TEXT.has(h.block.type.name) && !h.block.textContent.trim()) {
+      if (dispatch) dispatch(state.tr.setNodeMarkup(h.blockPos, N.theorem, attrs))
+      return true
+    }
+    return insertBlocks([N.theorem.create(attrs)], { select: 0 })(state, dispatch)
+  }
+}
+
 export function setTheoremKind(kind: string): Command {
   return (state, dispatch) => {
     const group = theoremGroup(state)
     if (!group.length) return false
     if (dispatch) {
       const tr = state.tr
-      for (const b of group) tr.setNodeMarkup(b.pos, null, { ...b.node.attrs, kind })
+      // A preset colour replaces the box's own; Custom keeps it.
+      for (const b of group) tr.setNodeMarkup(b.pos, null, { ...b.node.attrs, kind, color: kind === 'custom' ? b.node.attrs.color : null })
       dispatch(tr)
     }
     return true

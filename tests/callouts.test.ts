@@ -42,3 +42,24 @@ describe('callout round trip', () => {
     expect(again.split('\\definecolor{kNoteBoxC}').length - 1).toBe(1)
   })
 })
+
+describe('custom callout boxes', () => {
+  it('writes its own name and colour, and reads them back', () => {
+    const tex = serializeDocument(doc(
+      theorem('custom', 'Lab safety', [text('A.')], true, '#12AB34'),
+      theorem('custom', 'Lab safety', [text('B.')], false, '#12AB34'),
+      theorem('note', '', [text('C.')], true, '#ff0000')))
+    expect(tex).toContain('\\begin{kCustomBox}[{Lab safety}]{kBoxC12AB34}\nA.\n\nB.\n\\end{kCustomBox}')
+    expect(tex).toContain('\\begin{kCustomBox}[{Note}]{kBoxCFF0000}')
+    const pre = tex.split('\\begin{document}')[0]
+    expect(pre).toContain('\\definecolor{kBoxC12AB34}{HTML}{12AB34}')
+    expect(pre).toContain('\\newtcolorbox{kCustomBox}[2][Box]')
+    expect(pre).not.toContain('kNoteBox')
+    const back = importTex(tex)
+    const boxes = back.children.filter(b => b.type === 'Theorem')
+    expect(boxes[0]).toMatchObject({ kind: 'custom', title: 'Lab safety', color: '#12AB34', start: true })
+    const again = serializeDocument(back)
+    expect(again.split('\\newtcolorbox{kCustomBox}').length - 1).toBe(1)
+    expect(again.split('\\definecolor{kBoxC12AB34}').length - 1).toBe(1)
+  })
+})

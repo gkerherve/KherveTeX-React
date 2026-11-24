@@ -110,7 +110,7 @@ export const THEOREM_KINDS: [string, string][] = [
 // Coloured callout boxes (CALLOUT_KINDS in model.ts), in menu order.
 export const CALLOUT_MENU: [string, string][] = [
   ['note', 'Note'], ['tip', 'Tip'], ['info', 'Information'], ['important', 'Important'],
-  ['warning', 'Warning'], ['danger', 'Danger'], ['summary', 'Key points'],
+  ['warning', 'Warning'], ['danger', 'Danger'], ['summary', 'Key points'], ['custom', 'Custom'],
 ]
 
 // Word's margin presets, in cm: top, bottom, left, right.
@@ -451,7 +451,7 @@ const cmds: Command[] = [
   { id: 'show_date', text: 'Date', icon: 'title_date', checkable: true, checked: true },
   { id: 'multicol', text: '&Multi-column region (2)...' },
   { id: 'callout', text: 'Box', icon: 'callout', popup: 'split',
-    menu: CALLOUT_MENU.map(([k, name]) => ({ text: name, command: `box_insert_${k}` })) },
+    menu: CALLOUT_MENU.map(([k, name]) => ({ text: k === 'custom' ? 'Custom name and colour…' : name, command: `box_insert_${k}` })) },
   { id: 'theorem', text: 'Theorem', icon: 'theorem', popup: 'split',
     menu: THEOREM_KINDS.map(([k, name]) => ({ text: name, command: `thm_insert_${k}` })) },
 
@@ -760,6 +760,7 @@ const cmds: Command[] = [
   })),
   ...CALLOUT_MENU.map(([k, name]): Command => ({ id: `box_insert_${k}`, text: name })),
   { id: 'box_title', text: 'Title…', icon: 'picture_edit', tooltip: 'The text in the box\'s title bar' },
+  { id: 'box_color', text: 'Colour…', icon: 'callout', tooltip: 'Any colour for this box (frame, title bar and tint)' },
 
   // View tab: the Visual / Code / Console pages and where the PDF lives.
   { id: 'page_visual', text: 'Visual', icon: 'page_view', checkable: true, group: 'page', checked: true },
@@ -935,8 +936,8 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Name', large: ['thm_title'] },
   ] },
   { name: 'Box', context: 'callout', groups: [
-    { label: 'Colour', rows: [boxKinds.slice(0, 3), boxKinds.slice(3, 5), boxKinds.slice(5)], text: true },
-    { label: 'Title', large: ['box_title'] },
+    { label: 'Type', rows: [boxKinds.slice(0, 3), boxKinds.slice(3, 6), boxKinds.slice(6)], text: true },
+    { label: 'Custom', large: ['box_title', 'box_color'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },

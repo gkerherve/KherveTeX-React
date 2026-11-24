@@ -112,7 +112,8 @@ export interface Frame { children: Inline[]; type: 'Frame' }
 export interface Box { children: Inline[]; type: 'Box' }
 // One paragraph of a theorem-like environment; start=false continues the
 // previous one of the same kind.
-export interface Theorem { kind: string; title: string; children: Inline[]; start: boolean; type: 'Theorem' }
+// color (callout boxes only): '#RRGGBB' in place of the kind's own colour.
+export interface Theorem { kind: string; title: string; children: Inline[]; start: boolean; type: 'Theorem'; color?: string }
 
 export type Block = Paragraph | Section | MathBlock | List | Figure | Table | RawLatex
   | Title | Author | Affiliation | Correspondence | Abstract | Keywords | Frame | Theorem | Box
@@ -134,7 +135,13 @@ export const CALLOUT_KINDS: Record<string, { name: string; color: string; env: s
   warning: { name: 'Warning', color: 'E65100', env: 'kWarningBox' },
   danger: { name: 'Danger', color: 'C62828', env: 'kDangerBox' },
   summary: { name: 'Key points', color: '37474F', env: 'kSummaryBox' },
+  // Your own name (the title) and colour (Theorem.color).
+  custom: { name: 'Box', color: '455A64', env: 'kCustomBox' },
 }
+
+// The colour a callout box is drawn in, as RRGGBB.
+export const calloutColor = (kind: string, color?: string | null): string =>
+  (color && /^#?[0-9a-fA-F]{6}$/.test(color) ? color.replace('#', '') : CALLOUT_KINDS[kind]?.color ?? '455A64').toUpperCase()
 export const isCallout = (kind: string): boolean => Object.prototype.hasOwnProperty.call(CALLOUT_KINDS, kind)
 
 // ---------------- Constructors (dataclass defaults, field order) ----------------
@@ -205,8 +212,8 @@ export const abstract = (children: Inline[] = []): Abstract => ({ children, type
 export const keywords = (children: Inline[] = []): Keywords => ({ children, type: 'Keywords' })
 export const frame = (children: Inline[] = []): Frame => ({ children, type: 'Frame' })
 export const box = (children: Inline[] = []): Box => ({ children, type: 'Box' })
-export const theorem = (kind = 'theorem', t = '', children: Inline[] = [], start = true): Theorem =>
-  ({ kind, title: t, children, start, type: 'Theorem' })
+export const theorem = (kind = 'theorem', t = '', children: Inline[] = [], start = true, color?: string): Theorem =>
+  ({ kind, title: t, children, start, type: 'Theorem', ...(color ? { color } : {}) })
 
 // ---------------- Project (multi-chapter) ----------------
 

@@ -362,7 +362,7 @@ function buildBlock(b: M.Block): PMNode {
     case 'Keywords': return textNode('keywords', null, b.children)
     case 'Frame': return textNode('frame', null, b.children)
     case 'Box': return textNode('box', null, b.children)
-    case 'Theorem': return textNode('theorem', { kind: b.kind, title: b.title, start: b.start }, b.children)
+    case 'Theorem': return textNode('theorem', { kind: b.kind, title: b.title, start: b.start, color: b.color ?? null }, b.children)
     case 'MathBlock': return schema.nodes.math_block.create({ latex: b.latex, numbered: b.numbered, label: b.label })
     case 'List': return schema.nodes.list.create({ ordered: b.ordered, style: b.style ?? '' },
       b.items.map(it => schema.nodes.list_item.create({ level: it.level ?? 0 }, inlineNodes(it.children, []))))
@@ -541,7 +541,7 @@ export function canonicalBlock(node: PMNode): M.Block | null {
     case 'keywords': return M.keywords(inlinesFromPM(node))
     case 'frame': return M.frame(inlinesFromPM(node))
     case 'box': return M.box(inlinesFromPM(node))
-    case 'theorem': return M.theorem(a.kind, a.title, inlinesFromPM(node), a.start)
+    case 'theorem': return M.theorem(a.kind, a.title, inlinesFromPM(node), a.start, a.color || undefined)
     case 'math_block': return M.mathBlock(a.latex, a.numbered, a.label)
     case 'list': {
       const items: M.ListItem[] = []

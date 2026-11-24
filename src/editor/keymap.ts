@@ -37,7 +37,7 @@ const theoremEnter: Command = (state, dispatch) => {
     } else {
       tr.deleteSelection()
       const at = tr.selection.from
-      tr.split(at, 1, [{ type: N.theorem, attrs: { kind: block.attrs.kind, title: block.attrs.title, start: false } }])
+      tr.split(at, 1, [{ type: N.theorem, attrs: { kind: block.attrs.kind, title: block.attrs.title, start: false, color: block.attrs.color } }])
     }
     dispatch(tr.scrollIntoView())
   }
