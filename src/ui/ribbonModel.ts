@@ -1070,14 +1070,18 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
   ] },
   // Science: equations, theorems and chemistry, out of the crowded Insert tab.
-  { name: 'Science', groups: [
-    { label: 'Equations', large: ['math_block', 'equation_builder'],
-      rows: [['math_inline', 'sci_matrix'], ['symbol', 'sci_physics']], text: true },
-    { label: 'Numbers', rows: [['sci_units', 'sci_constants'], ['sci_sigfig', 'sci_nuclear']], text: true },
+  // Math: equations, numbers, theorems and algorithms, graphs and data.
+  { name: 'Math', groups: [
+    { label: 'Equations', large: ['math_block', 'equation_builder'], rows: [['math_inline'], ['symbol'], ['sci_matrix']], text: true },
+    { label: 'Numbers', rows: [['sci_units'], ['sci_constants']], text: true },
     { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
+    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_triangle', 'sci_unitcircle']], text: true },
+  ] },
+  // Science: notation, chemistry, physics and data, safety and the lab.
+  { name: 'Science', groups: [
+    { label: 'Notation', rows: [['sci_physics'], ['sci_sigfig'], ['sci_nuclear']], text: true },
     { label: 'Chemistry', large: ['chemistry', 'chemfig'], rows: [['sci_scheme', 'sci_mo'], ['sci_hazard', 'sci_bohr'], ['sci_element']], text: true },
     { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
-    { label: 'Maths', large: ['sci_function'], rows: [['sci_stats', 'sci_venn'], ['sci_numberline', 'sci_triangle'], ['sci_unitcircle']], text: true },
     { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },
   ] },
   { name: 'Draw', groups: [
