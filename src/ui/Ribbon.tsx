@@ -89,8 +89,9 @@ function BigButton({ c, ctx }: { c: Command, ctx: Ctx }) {
     owner: c.id, rect: el.getBoundingClientRect(), entries: c.menu,
     iconSize: menuSize(c), kind: c.menuKind,
   })
+  // rb-label-1: the same label on one line, for a narrow window's small buttons.
   const label = (
-    <span className='rb-label'>{l1}<br />{l2 || ' '}</span>
+    <><span className='rb-label'>{l1}<br />{l2 || ' '}</span><span className='rb-label-1'>{text}</span></>
   )
   if (c.popup === 'split') {
     return (
@@ -540,12 +541,31 @@ function Item({ it, ctx, large, text }: {
   return large ? <BigButton c={c} ctx={ctx} /> : <SmallButton c={c} ctx={ctx} text={text} />
 }
 
-function Group({ g, ctx }: { g: RibbonGroup, ctx: Ctx }) {
+// The steps a group can shrink through when the window is narrow, as
+// Word's ribbon: 1 its big buttons become small ones with labels, three
+// high; 2 the labels go; 3 the whole group becomes one button that drops
+// it down. A gallery or a lone button skips straight to 3 (or never shrinks).
+export function shrinkSteps(g: RibbonGroup): number[] {
+  const large = g.large ?? []
+  const items = large.length + (g.rows ?? []).reduce((n, r) => n + r.length, 0)
+  const widgets = large.some(it => typeof it !== 'string')
+  const steps: number[] = []
+  if (!widgets && large.length) steps.push(1)
+  if (!widgets && (large.length || g.text)) steps.push(2)
+  if (items > 1) steps.push(3)
+  return steps
+}
+
+// The command whose icon stands for a folded group.
+function groupIcon(g: RibbonGroup): Command | undefined {
+  const ids = [...(g.large ?? []), ...(g.rows ?? []).flat()].filter((it): it is string => typeof it === 'string')
+  return ids.map(id => COMMANDS[id]).find(c => c?.icon)
+}
+
+function GroupBody({ g, ctx }: { g: RibbonGroup, ctx: Ctx }) {
   return (
-    <>
-      <div className='rb-group' data-group={g.label}>
         <div className='rb-group-body'>
-          {g.large?.map((it, i) => <Item key={i} it={it} ctx={ctx} large text />)}
+          <div className='rb-large'>{g.large?.map((it, i) => <Item key={i} it={it} ctx={ctx} large text />)}</div>
           {g.rows && (g.text
             ? (
               <div className='rb-text-rows'
@@ -567,11 +587,71 @@ function Group({ g, ctx }: { g: RibbonGroup, ctx: Ctx }) {
               </div>
             ))}
         </div>
+  )
+}
+
+function Group({ g, ctx }: { g: RibbonGroup, ctx: Ctx }) {
+  const [drop, setDrop] = useState<DOMRect | null>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  // The dropped-down group closes on a click outside it, or once one of
+  // its commands has run (a button that opens a menu keeps it open).
+  useEffect(() => {
+    if (!drop) return
+    const away = (e: MouseEvent) => {
+      const t = e.target as Element
+      if (panel.current?.contains(t) || t.closest?.('.rb-collapsed')) return
+      // A pick in a menu opened from the group: close once it has run.
+      if (t.closest?.('.kt-menu, [role=menu]')) setTimeout(() => setDrop(null), 250)
+      else setDrop(null)
+    }
+    const close = () => setDrop(null)
+    window.addEventListener('mousedown', away, true)
+    window.addEventListener('resize', close)
+    return () => { window.removeEventListener('mousedown', away, true); window.removeEventListener('resize', close) }
+  }, [drop])
+  const icon = groupIcon(g)
+  return (
+    <>
+      <div className='rb-group' data-group={g.label}>
+        <GroupBody g={g} ctx={ctx} />
+        <button type='button' className={'rb-btn rb-big rb-collapsed' + (drop ? ' on' : '')} title={g.label}
+          onClick={e => setDrop(drop ? null : e.currentTarget.getBoundingClientRect())}>
+          <span className='rb-icon32'>{icon && iconOf(icon, ctx, 32)}</span>
+          <span className='rb-label'>{bigLabel(g.label)[0]}<br />
+            <span className='rb-collapsed-l2'>{bigLabel(g.label)[1]}<Chevron /></span></span>
+        </button>
+        {drop && (
+          <div ref={panel} className='rb-drop' style={{ left: Math.max(4, Math.min(drop.left, window.innerWidth - 40)), top: drop.bottom + 2 }}
+            onClick={e => { if (!(e.target as Element).closest('[data-menu-owner]')) setDrop(null) }}>
+            <div className='rb-group rb-group-dropped'>
+              <GroupBody g={g} ctx={ctx} />
+              <div className='rb-caption'>{g.label}</div>
+            </div>
+          </div>
+        )}
         <div className='rb-caption'>{g.label}</div>
       </div>
       <div className='rb-sep' />
     </>
   )
+}
+
+// Fits the groups of the tab shown in the ribbon's width: shrinks them one
+// step at a time, the rightmost first, until nothing is cut off. The steps
+// are set on the DOM (data-level) and measured at once, so there is no flicker.
+function fitGroups(body: HTMLElement, groups: RibbonGroup[]): void {
+  const els = [...body.children].filter(el => el.classList.contains('rb-group')) as HTMLElement[]
+  for (const el of els) el.removeAttribute('data-level')
+  const over = () => body.scrollWidth > body.clientWidth + 1
+  if (!over()) return
+  const steps = groups.map(shrinkSteps)
+  for (const level of [1, 2, 3]) {
+    for (let i = els.length - 1; i >= 0; i--) {
+      if (!steps[i]?.includes(level)) continue
+      els[i].setAttribute('data-level', String(level))
+      if (!over()) return
+    }
+  }
 }
 
 function CornerButton({ id, ctx }: { id: string, ctx: Ctx }) {
@@ -836,6 +916,19 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
     return () => window.removeEventListener('kt-tool-go', on)
   }, [])
 
+  // A narrow window: the groups shrink to fit (fitGroups), and grow back.
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const fit = () => fitGroups(body, shown.groups)
+    fit()
+    let last = body.clientWidth
+    const ro = new ResizeObserver(() => { if (body.clientWidth !== last) { last = body.clientWidth; fit() } })
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [shown, folded])
+
   return (
     <div className={'ribbon' + (folded ? ' rb-folded' : '') + (pref('ribbon/group_titles') ? '' : ' rb-no-titles')}>
       <div className='rb-bar'>
@@ -856,7 +949,7 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
         <Corner ids={CORNER_RIGHT} ctx={ctx} side='right' />
       </div>
       {!folded && (
-        <div className='rb-body' role='tabpanel' aria-label={shown.name}>
+        <div className='rb-body' role='tabpanel' aria-label={shown.name} ref={bodyRef}>
           {shown.groups.map((g, i) => <Group key={`${shown.name}-${i}`} g={g} ctx={ctx} />)}
         </div>
       )}

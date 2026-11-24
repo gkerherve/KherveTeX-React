@@ -517,3 +517,62 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
    under it in grey, as Word's. */
 .qmenu-text.qmenu-two { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
 .qmenu-two .qmenu-sub { font-size: 11px; color: #6b6b6b; white-space: nowrap; }
+
+/* ----- a narrow window: groups shrink in steps (fitGroups in Ribbon.tsx) ----- */
+
+/* Narrower still than every group folded: the ribbon scrolls sideways. */
+.rb-body { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.rb-large { display: contents; }
+.rb-label-1 { display: none; }
+.rb-collapsed { display: none; }
+
+/* 1: big buttons become small ones with their label, three high. */
+.rb-group[data-level] > .rb-group-body > .rb-large {
+  display: grid;
+  grid-template-rows: repeat(3, 24px);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-content: center;
+  gap: 2px;
+  height: 100%;
+}
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-big {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 3px;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px 0 3px;
+}
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-split > .rb-big { padding-right: 16px; }
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-icon32 { height: 18px; min-width: 18px; }
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-icon32 svg { width: 18px; height: 18px; }
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-label { display: none; }
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-label-1 { display: inline; white-space: nowrap; }
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-split-arrow { height: 24px; }
+.rb-group[data-level] > .rb-group-body > .rb-large .rb-chevron-under { position: static; transform: none; margin-left: 2px; }
+
+/* 2: icons only. */
+.rb-group[data-level="2"] > .rb-group-body > .rb-large .rb-label-1,
+.rb-group[data-level="2"] > .rb-group-body .rb-text > span:not(.beta-tag) { display: none; }
+.rb-group[data-level="2"] > .rb-group-body > .rb-large .rb-big { padding: 0 3px; }
+.rb-group[data-level="2"] > .rb-group-body > .rb-large .rb-split > .rb-big { padding-right: 14px; }
+.rb-group[data-level="2"] > .rb-group-body .rb-text { padding-right: 3px; }
+
+/* 3: one button with the group's name; it drops the whole group down. */
+.rb-group[data-level="3"] > .rb-group-body { display: none; }
+.rb-group[data-level="3"] > .rb-collapsed { display: inline-flex; }
+.rb-group[data-level="3"] > .rb-caption { display: none; }
+.rb-collapsed .rb-label { margin-top: 6px; }
+
+.rb-drop {
+  position: fixed;
+  z-index: 50;
+  padding: 3px 4px 0;
+  background: var(--chrome);
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.rb-drop .rb-group { height: 93px; }
+.rb-collapsed-l2 { display: inline-flex; align-items: center; gap: 3px; }
