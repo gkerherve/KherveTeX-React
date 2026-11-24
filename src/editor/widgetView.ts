@@ -14,6 +14,7 @@ import {
   riskDrawing, signsDrawing, forcesDrawing, opticsDrawing, waveDrawing, levelsDrawing, functionDrawing, numberLineDrawing, vennDrawing, triangleDrawing, statsDrawing, unitCircleDrawing,
 } from '../core/science2.ts'
 import { geometryDrawing } from '../core/geometry.ts'
+import { isOfficeKind, officeView } from './officeView.ts'
 import {
   chartDrawing, ganttDrawing, gaugeDrawing, ratingDrawing, type ChartData, type GanttData, type GaugeData,
   type PullQuoteData, type RatingData, type SidebarData, type StepsData,
@@ -45,7 +46,8 @@ export function widgetElement(w: Widget, opts: { select: () => void; remove: () 
   box.contentEditable = 'false'
   box.title = `${WIDGET_NAMES[w.kind]}: click to select (its tab opens), double-click to edit`
   const body = el('div', 'kt-widget-body')
-  switch (w.kind) {
+  if (isOfficeKind(w.kind)) officeView(body, w.kind, w.data)
+  else switch (w.kind) {
     case 'checklist': checklist(body, w.data as ChecklistData, opts.toggle); break
     case 'progress': progress(body, w.data as ProgressData); break
     case 'timeline': timeline(body, w.data as TimelineData); break

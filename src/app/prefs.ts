@@ -17,6 +17,8 @@ export const PREF_DEFAULTS = {
   // View
   'ribbon/group_titles': true,
   'ribbon/hidden_tabs': [] as string[],
+  // The optional tabs (Admin & Office, Accountants, Architect) switched on.
+  'ribbon/shown_tabs': [] as string[],
   'ribbon/hidden_quick': [] as string[],
   // Edit
   'edit/picture_width': 'natural',

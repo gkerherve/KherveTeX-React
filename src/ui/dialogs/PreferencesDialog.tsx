@@ -2,6 +2,7 @@
 // three sections (Authoring and Proofing Tools, Output and Sharing,
 // Personal Settings), each opening in place with Back / Forward, Show All
 // and a search box. Every choice applies at once, as in Word.
+import { OPTIONAL_TABS } from '../officeRibbon.ts'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { LayoutMode } from '../../app/store'
 import { runAction } from '../../app/actions'
@@ -141,6 +142,7 @@ function View() {
 function RibbonPane() {
   const [tab, setTab] = useState<'ribbon' | 'quick'>('ribbon')
   const [hidden, setHidden] = usePref('ribbon/hidden_tabs')
+  const [shown, setShown] = usePref('ribbon/shown_tabs')
   const [quick, setQuick] = usePref('ribbon/hidden_quick')
   const main = RIBBON_TABS.filter(t => !t.context)
   return (<>
@@ -151,10 +153,20 @@ function RibbonPane() {
     {tab === 'ribbon' ? (
       <Group title='Customise the Ribbon: Main Tabs'>
         <div className='pf-list'>
-          {main.map(t => (
+          {main.filter(t => !OPTIONAL_TABS.includes(t.name)).map(t => (
             <label key={t.name} className='pf-list-row'>
               <input type='checkbox' checked={!hidden.includes(t.name)} disabled={t.name === 'Home'}
                 onChange={e => setHidden(e.target.checked ? hidden.filter(x => x !== t.name) : [...hidden, t.name])} />
+              <span>{t.name}</span><span className='pf-note'>{t.groups.map(g => g.label).join(', ')}</span>
+            </label>
+          ))}
+        </div>
+        <div className='pf-note' style={{ marginTop: 10, fontWeight: 600 }}>Extra tabs for your work (off until you tick them):</div>
+        <div className='pf-list'>
+          {main.filter(t => OPTIONAL_TABS.includes(t.name)).map(t => (
+            <label key={t.name} className='pf-list-row'>
+              <input type='checkbox' checked={shown.includes(t.name)}
+                onChange={e => setShown(e.target.checked ? [...shown, t.name] : shown.filter(x => x !== t.name))} />
               <span>{t.name}</span><span className='pf-note'>{t.groups.map(g => g.label).join(', ')}</span>
             </label>
           ))}

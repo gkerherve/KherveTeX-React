@@ -2,6 +2,8 @@
 // QAction of _build_actions / _build_context_actions becomes a Command
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
+import type { OfficeKind } from '../core/office.ts'
+import { OFFICE_AUTO_TABS, OFFICE_COMMANDS, OFFICE_CONTEXT_TABS, OFFICE_MAIN_TABS } from './officeRibbon.ts'
 import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
@@ -89,6 +91,7 @@ export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
   | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle' | 'geometry'
+  | OfficeKind
 
 // The contextual tab a selected element opens at once (as the Box tab).
 export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
@@ -100,6 +103,7 @@ export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
   hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
   risk: 'Risk Matrix', signs: 'Safety Signs', forces: 'Forces', optics: 'Ray Diagram', wave: 'Wave', levels: 'Energy Levels',
   function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle', geometry: 'Geometry',
+  ...OFFICE_AUTO_TABS,
 }
 
 export interface RibbonTab {
@@ -1040,6 +1044,8 @@ function slug(s: string): string {
   if (entry && typeof entry !== 'string') entry.items = shapes
 }
 
+cmds.push(...OFFICE_COMMANDS)
+
 export const COMMANDS: Record<string, Command> = Object.fromEntries(
   cmds.map(c => [c.id, c]))
 
@@ -1111,6 +1117,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
     { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },
   ] },
+  ...OFFICE_MAIN_TABS,
   { name: 'Draw', groups: [
     { label: 'Drawing Tools', large: ['draw_tool', 'eraser_tool'] },
     { label: 'Pens', large: [{ widget: 'pens' }, 'add_pen'] },
@@ -1458,6 +1465,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Unit Circle', large: ['w_delete', 'w_close'] },
   ] },
+  ...OFFICE_CONTEXT_TABS,
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },
     { label: 'Insert', large: ['symbol', 'equation_builder'] },

@@ -2,6 +2,7 @@
 // labelled groups of big 32 px buttons and rows of small 18 px buttons,
 // three small rows as tall as one big button. Its contents come from
 // ribbonModel.ts.
+import { OPTIONAL_TABS } from './officeRibbon.ts'
 import { runAction } from '../app/actions'
 import { setSetting, setting } from '../platform/settings'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -882,7 +883,9 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   }, [])
   const hiddenTabs = pref('ribbon/hidden_tabs')
   const hiddenQuick = pref('ribbon/hidden_quick')
-  const visible = RIBBON_TABS.filter(t => (!t.context || t.context === context) && (t.context || !hiddenTabs.includes(t.name)))
+  const shownTabs = pref('ribbon/shown_tabs')
+  const visible = RIBBON_TABS.filter(t => (!t.context || t.context === context)
+    && (t.context || (OPTIONAL_TABS.includes(t.name) ? shownTabs.includes(t.name) : !hiddenTabs.includes(t.name))))
   const shown = visible.find(t => t.name === current) ?? visible[0]
   // Editing a header or footer opens its tab, as in Word; leaving goes back.
   useEffect(() => {

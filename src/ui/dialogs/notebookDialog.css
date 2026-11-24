@@ -24,3 +24,15 @@
 .nb-mini:hover { background: #eef3fa; border-color: #9fb6d8; }
 .nb-danger:hover { background: #fde7e7; border-color: #e0a0a0; color: #b71c1c; }
 .nb-add-sec { align-self: flex-start; font: inherit; padding: 4px 10px; border: 1px dashed #7a9cc9; background: #f3f7fc; border-radius: 4px; cursor: pointer; }
+
+/* Office / Accountants / Architect Edit… (OfficeDialog.tsx). */
+.of-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.of-field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #444; }
+.of-field.of-wide { grid-column: 1 / -1; }
+.of-field input, .of-field select, .of-field textarea { font: inherit; font-size: 13px; padding: 3px 6px; color: #111; }
+.of-field small, .of-help { color: #777; font-size: 11px; }
+.of-grid { border-collapse: collapse; }
+.of-grid th { font-size: 11px; color: #5a6b80; text-align: left; font-weight: 600; padding: 0 2px; }
+.of-grid td { padding: 1px 2px; }
+.of-grid input, .of-grid select { font: inherit; font-size: 13px; padding: 2px 4px; }
+.of-rowbtns { white-space: nowrap; }

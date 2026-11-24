@@ -1936,7 +1936,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
-  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon, element: ElementIcon, design_preview: DesignPreview,
+  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon, element: ElementIcon, design_preview: DesignPreview, office: OfficeIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
   repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,
@@ -2317,4 +2317,33 @@ export function InkPen({ arg = 'pen|#000000', width = 26, height = 52 }: IconPro
 export function Icon({ name, ...p }: IconProps & { name: string }) {
   const Draw = ICONS[name]
   return Draw ? <Draw {...p} /> : null
+}
+
+// Admin & Office, Accountants and Architect: one picture per element.
+export function OfficeIcon({ arg = 'fintable', ...p }: IconProps) {
+  const l = (x1: number, y1: number, x2: number, y2: number, c: string = INK, w = 1.2) => <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={c} strokeWidth={w} strokeLinecap='round' />
+  const page = <rect x={4} y={2} width={16} height={20} rx={1} fill='#fff' stroke={INK} strokeWidth={1} />
+  const rows = (y0: number, n: number, gap = 3) => Array.from({ length: n }, (_, i) => <g key={i}>{l(7, y0 + i * gap, 17, y0 + i * gap, '#999', 1)}</g>)
+  switch (arg) {
+    case 'letterhead': return <Svg {...p}>{page}<rect x={4} y={2} width={16} height={5} fill={BLUE} />{l(6, 4.5, 13, 4.5, '#fff', 1.5)}{rows(11, 4)}</Svg>
+    case 'signature': return <Svg {...p}><path d='M3 15 C6 6, 8 18, 11 11 S 15 15, 21 9' fill='none' stroke={BLUE} strokeWidth={1.4} />{l(3, 19, 21, 19)}</Svg>
+    case 'formfields': return <Svg {...p}>{l(3, 6, 8, 6, '#999')}<rect x={10} y={3.5} width={11} height={5} fill='#eef4fb' stroke={BLUE} />{l(3, 14, 8, 14, '#999')}<rect x={10} y={11.5} width={11} height={5} fill='#eef4fb' stroke={BLUE} /><rect x={10} y={18.5} width={3.5} height={3.5} fill='#fff' stroke={BLUE} />{l(10.8, 20.2, 11.8, 21.2, GREEN, 1)}{l(11.8, 21.2, 13, 19.2, GREEN, 1)}</Svg>
+    case 'agenda': return <Svg {...p}>{page}{[7, 11, 15, 19].map(y => <g key={y}><circle cx={7.5} cy={y} r={1} fill={BLUE} />{l(10, y, 17, y, '#999', 1)}</g>)}</Svg>
+    case 'actions': return <Svg {...p}>{[5, 12, 19].map((y, i) => <g key={y}><rect x={3} y={y - 2.5} width={5} height={5} rx={1} fill={i === 0 ? '#e5f3e5' : '#fff'} stroke={i === 0 ? GREEN : INK} />{i === 0 && l(4, y, 5.5, y + 1.3, GREEN)}{i === 0 && l(5.5, y + 1.3, 7.2, y - 1.3, GREEN)}{l(10.5, y, 21, y, '#999')}</g>)}</Svg>
+    case 'certificate': return <Svg {...p}><rect x={2} y={4} width={20} height={14} fill='#fff' stroke={BLUE} strokeWidth={1.6} /><rect x={3.5} y={5.5} width={17} height={11} fill='none' stroke={BLUE} strokeWidth={0.5} />{l(7, 9, 17, 9, BLUE, 1.6)}{l(8, 12.5, 16, 12.5, '#999', 1)}<circle cx={12} cy={18} r={2.6} fill='#E65100' /><path d='M10.6 20 L10 23 L12 22 L14 23 L13.4 20' fill='#E65100' /></Svg>
+    case 'stamp': return <Svg {...p}><g transform='rotate(-14 12 12)'><rect x={2.5} y={7} width={19} height={10} rx={1.5} fill='none' stroke={RED} strokeWidth={1.8} /><text x={12} y={14.3} textAnchor='middle' fontSize={6} fontWeight={800} fill={RED} fontFamily='Arial'>OK</text></g></Svg>
+    case 'calendar': return <Svg {...p}><rect x={3} y={4} width={18} height={17} rx={1.5} fill='#fff' stroke={INK} /><rect x={3} y={4} width={18} height={4.5} fill={BLUE} />{l(7.5, 2.5, 7.5, 6, INK, 1.4)}{l(16.5, 2.5, 16.5, 6, INK, 1.4)}{[0, 1, 2].map(r => [0, 1, 2, 3].map(c => <rect key={`${r}${c}`} x={5 + c * 3.8} y={10.5 + r * 3.4} width={2.6} height={2.2} fill={r === 1 && c === 2 ? '#E65100' : '#c9d6e6'} />))}</Svg>
+    case 'fintable': return <Svg {...p}>{page}{l(6, 6, 18, 6, INK, 1.4)}{[9, 12].map(y => <g key={y}>{l(7, y, 11, y, '#999', 1)}{l(14, y, 18, y, BLUE, 1)}</g>)}{l(13, 14.5, 18, 14.5, INK, 0.8)}{l(7, 17, 11, 17, INK, 1.4)}{l(14, 17, 18, 17, INK, 1.4)}{l(13, 19, 18, 19, INK, 0.7)}{l(13, 20, 18, 20, INK, 0.7)}</Svg>
+    case 'invoice': return <Svg {...p}>{page}<text x={7} y={8} fontSize={5} fontWeight={800} fill={BLUE} fontFamily='Arial'>£</text>{l(12, 6, 17, 6, '#999', 1)}{rows(11, 3)}{l(12, 19.5, 17, 19.5, INK, 1.6)}</Svg>
+    case 'budget': return <Svg {...p}>{[[4, 12, 9], [10, 8, 12], [16, 14, 11]].map(([x, b, a]) => <g key={x}><rect x={x} y={21 - b} width={2.6} height={b} fill='#c9d6e6' /><rect x={x + 2.6} y={21 - a} width={2.6} height={a} fill={a > b ? RED : GREEN} /></g>)}{l(2, 21, 22, 21)}</Svg>
+    case 'loan': return <Svg {...p}><path d='M3 5 Q 12 7, 21 20' fill='none' stroke={BLUE} strokeWidth={1.6} /><path d='M3 20 Q 12 18, 21 5' fill='none' stroke='#E65100' strokeWidth={1.2} strokeDasharray='2 1.5' />{l(3, 21, 21, 21)}{l(3, 3, 3, 21)}</Svg>
+    case 'kpi': return <Svg {...p}><rect x={2} y={5} width={9} height={14} rx={1.5} fill='#fff' stroke={INK} /><rect x={13} y={5} width={9} height={14} rx={1.5} fill='#fff' stroke={INK} />{l(4, 9, 9, 9, '#999', 1)}{l(4, 13, 9, 13, INK, 2.2)}{l(15, 9, 20, 9, '#999', 1)}{l(15, 13, 20, 13, INK, 2.2)}<polygon points='4,17.5 6,17.5 5,15.8' fill={GREEN} /><polygon points='15,15.8 17,15.8 16,17.5' fill={RED} /></Svg>
+    case 'waterfall': return <Svg {...p}><rect x={2} y={8} width={3.5} height={13} fill={BLUE} /><rect x={6.5} y={4} width={3.5} height={4} fill={GREEN} /><rect x={11} y={4} width={3.5} height={7} fill={RED} /><rect x={15.5} y={11} width={3.5} height={3} fill={RED} /><rect x={20} y={14} width={2.5} height={7} fill={BLUE} />{l(1.5, 21, 22.5, 21, INK, 0.8)}</Svg>
+    case 'floorplan': return <Svg {...p}><rect x={3} y={3} width={18} height={18} fill='#fff' stroke={INK} strokeWidth={2} />{l(12, 3, 12, 13, INK, 2)}{l(3, 13, 8, 13, INK, 2)}{l(11, 13, 21, 13, INK, 2)}<path d='M8 13 A3 3 0 0 1 11 16' fill='none' stroke={BLUE} strokeWidth={0.8} />{l(14, 21, 19, 21, '#fff', 2)}{l(14, 21, 19, 21, BLUE, 0.7)}</Svg>
+    case 'titleblock': return <Svg {...p}><rect x={2} y={6} width={20} height={12} fill='#fff' stroke={INK} strokeWidth={1.2} /><rect x={2} y={6} width={6} height={12} fill={BLUE} />{l(8, 10, 22, 10, INK, 0.6)}{l(8, 14, 22, 14, INK, 0.6)}{l(12.7, 14, 12.7, 18, INK, 0.6)}{l(17.3, 14, 17.3, 18, INK, 0.6)}{l(9.5, 8, 15, 8, INK, 1.4)}</Svg>
+    case 'scalebar': return <Svg {...p}>{[0, 1, 2, 3].map(i => <rect key={i} x={2 + i * 3.5} y={17} width={3.5} height={2.2} fill={i % 2 ? '#fff' : INK} stroke={INK} strokeWidth={0.6} />)}<polygon points='18.5,3 16,12 18.5,10.5' fill={INK} /><polygon points='18.5,3 21,12 18.5,10.5' fill='#fff' stroke={INK} strokeWidth={0.6} /><text x={18.5} y={16} textAnchor='middle' fontSize={4.5} fontWeight={700} fill={INK} fontFamily='Arial'>N</text></Svg>
+    case 'rooms': return <Svg {...p}>{page}{l(6, 6, 18, 6, INK, 1.2)}{[9, 12, 15].map(y => <g key={y}>{l(7, y, 12, y, '#999', 1)}{l(14.5, y, 17, y, BLUE, 1)}</g>)}<text x={15.5} y={20.5} textAnchor='middle' fontSize={4} fontWeight={700} fill={BLUE} fontFamily='Arial'>m²</text></Svg>
+    case 'revisions': return <Svg {...p}>{page}{[7, 11, 15, 19].map((y, i) => <g key={y}><circle cx={8} cy={y} r={1.6} fill='#fff' stroke={i === 3 ? '#E65100' : BLUE} /><text x={8} y={y + 1} textAnchor='middle' fontSize={2.6} fontWeight={700} fill={INK} fontFamily='Arial'>{'ABCD'[i]}</text>{l(11, y, 17, y, '#999', 1)}</g>)}</Svg>
+    default: return <Svg {...p}>{page}{rows(7, 5)}</Svg>
+  }
 }

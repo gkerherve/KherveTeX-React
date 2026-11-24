@@ -23,11 +23,13 @@ import {
   type RiskData, type SignsData, type ForcesData, type OpticsData, type WaveData, type LevelsData, type FunctionData, type NumberLineData, type VennData, type TriangleData, type StatsData, type UnitCircleData,
 } from './science2.ts'
 import { geometryDrawing, GEOMETRY_DEFAULT, type GeometryData } from './geometry.ts'
+import { OFFICE_DEFAULTS, OFFICE_KINDS, OFFICE_NAMES, officeLatex, officePackages, type OfficeData, type OfficeKind } from './office.ts'
 
 export type WidgetKind = 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
   | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle' | 'geometry'
+  | OfficeKind
 
 export const WIDGET_NAMES: Record<WidgetKind, string> = {
   checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code', code: 'Code Listing',
@@ -35,6 +37,7 @@ export const WIDGET_NAMES: Record<WidgetKind, string> = {
   plot: 'Data Plot', circuit: 'Circuit', feynman: 'Feynman Diagram', mo: 'MO Diagram', bohr: 'Bohr Model', element: 'Element Tiles',
   hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
   risk: 'Risk Matrix', signs: 'Safety Signs', forces: 'Free-body Diagram', optics: 'Ray Diagram', wave: 'Wave', levels: 'Energy Levels', function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle', geometry: 'Geometry',
+  ...OFFICE_NAMES,
 }
 
 export interface ChecklistData { title: string; items: { text: string; done: boolean }[]; style: 'box' | 'circle'; columns: number; grey_done: boolean; color: string }
@@ -49,7 +52,7 @@ export type WidgetData = {
   plot: PlotData; circuit: CircuitData; feynman: FeynmanData; mo: MoData; bohr: BohrData; element: ElementTileData
   hazard: HazardData; scheme: SchemeData; algorithm: AlgorithmData; notebook: NotebookData
   risk: RiskData; signs: SignsData; forces: ForcesData; optics: OpticsData; wave: WaveData; levels: LevelsData; function: FunctionData; numberline: NumberLineData; venn: VennData; triangle: TriangleData; stats: StatsData; unitcircle: UnitCircleData; geometry: GeometryData
-}
+} & OfficeData
 
 export interface Widget<K extends WidgetKind = WidgetKind> { kind: K; data: WidgetData[K] }
 
@@ -90,9 +93,10 @@ export const DEFAULTS: WidgetData = {
   ...SCIENCE_DEFAULTS,
   ...SCIENCE2_DEFAULTS,
   geometry: GEOMETRY_DEFAULT,
+  ...OFFICE_DEFAULTS,
 }
 
-const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart|plot|circuit|feynman|mo|bohr|element|hazard|scheme|algorithm|notebook|risk|signs|forces|optics|wave|levels|function|numberline|venn|triangle|stats|unitcircle|geometry)\s+(\{.*\})\s*$/
+const MARK_RE = new RegExp(String.raw`^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart|plot|circuit|feynman|mo|bohr|element|hazard|scheme|algorithm|notebook|risk|signs|forces|optics|wave|levels|function|numberline|venn|triangle|stats|unitcircle|geometry|${OFFICE_KINDS.join('|')})\s+(\{.*\})\s*$`)
 
 // The element a raw block holds, or null.
 export function parseWidget(text: string): Widget | null {
@@ -125,6 +129,7 @@ const hex = (c: string) => (/^#?[0-9a-fA-F]{6}$/.test(c) ? c.replace('#', '') : 
 const pct = (v: number) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)))
 
 export function widgetLatex<K extends WidgetKind>(kind: K, data: WidgetData[K]): string {
+  if ((OFFICE_KINDS as readonly string[]).includes(kind)) return officeLatex(kind as OfficeKind, data)
   switch (kind) {
     case 'checklist': return checklistLatex(data as ChecklistData)
     case 'progress': return progressLatex(data as ProgressData)
@@ -324,6 +329,7 @@ export function widgetPreamble(texts: string[]): [string[], string] {
   if (kinds.has('pullquote') || kinds.has('sidebar')) { pkgs.push('tcolorbox'); defs.push('\\tcbuselibrary{breakable,skins}') }
   if (kinds.has('sidebar')) pkgs.push('wrapfig')
   if (icons) { pkgs.push('fontawesome5'); defs.push(ICON_DEF) }
+  pkgs.push(...officePackages(kinds))
   if (kinds.has('qrcode')) pkgs.push('qrcode')
   if (kinds.has('code')) pkgs.push('listings')
   if (margin) {

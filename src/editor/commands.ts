@@ -2,6 +2,7 @@
 // commands: paragraph styles, marks, alignment, lists, theorems, tables,
 // figures, equations, raw blocks, highlights and comments. Each takes the
 // state and an optional dispatch, so they run in tests without a view.
+import type { OfficeKind } from '../core/office.ts'
 import { Fragment, type Mark, type MarkType, type Node as PMNode, type NodeType, type ResolvedPos } from 'prosemirror-model'
 import { AllSelection, EditorState, NodeSelection, Selection, TextSelection, type Transaction } from 'prosemirror-state'
 import { CellSelection, TableMap, addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn,
@@ -89,6 +90,7 @@ export type ObjectContext = 'table' | 'figure' | 'equation' | 'theorem' | 'callo
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
   | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle' | 'geometry'
+  | OfficeKind
 
 export function contextObject(state: EditorState): ObjectContext | null {
   const w = currentWidget(state)

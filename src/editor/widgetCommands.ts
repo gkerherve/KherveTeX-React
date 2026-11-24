@@ -2,6 +2,7 @@
 // code, code listing: raw blocks holding their settings, core/widgets.ts)
 // and the inline margin notes and drop caps. Each element, once selected,
 // opens its own contextual ribbon tab (contextObject in commands.ts).
+import { officeChecks } from '../ui/officeRibbon.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import { NodeSelection, TextSelection, type EditorState } from 'prosemirror-state'
 import {
@@ -281,6 +282,7 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
       case 'stats': check(d.kind === 'boxplot' ? 'st_box' : 'st_hist', true); break
       case 'unitcircle': check('uc_proj', !!d.projections); break
       case 'geometry': check(`geo_${d.shape}`, true); check('geo_sides', !!d.sides); check('geo_angles', !!d.angles); check('geo_ticks', !!d.ticks); check('geo_fill', !!d.fill); break
+      default: officeChecks(w.widget.kind, d, check); break
       case 'code':
         check(`cd_${d.theme}`, true)
         check('cd_numbers', !!d.numbers)

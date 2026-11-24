@@ -8,11 +8,13 @@ import { SIGNS, WAVE_KINDS } from '../core/science2.ts'
 import { GEO_SHAPES } from '../core/geometry.ts'
 import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
 import { CALLOUT_KINDS } from '../core/model.ts'
+import { OFFICE_TIPS } from './officeRibbon.ts'
 
 const T = (title: string, what: string, latex = ''): Tip => ({ title, what, latex })
 const ELEMENT = ' Click it on the page to select it: its own tab opens with all its options, Edit… (or a double-click) changes its contents, Move up / Move down or the grip in the left margin moves it, Delete or the × in its corner removes it, and Close puts the caret after it.'
 
 export const MORE_TIPS: Record<string, Tip> = {
+  ...OFFICE_TIPS,
   // ------------------------------------------------- shared element buttons
   act_w_edit: T('Edit…', 'Opens the editor of the selected element: its items, text, data, labels or sizes, all in one dialog. A double-click on the element does the same. Ctrl+Enter in a text field closes the dialog with OK.', 'The element\'s LaTeX is rewritten from what you enter.'),
   act_w_color: T('Colour', 'The main colour of the selected element: its ticks, bars, lines, frame, dots or letter. Pick one of the eight colours, or Other colour… for any colour with the colour picker.', 'Becomes a \\definecolor used by the element\'s drawing.'),

@@ -441,6 +441,45 @@ ${show('Science', 'Chemistry')}
 `,
   },
   {
+    id: 'worktabs', part: 'Insert', title: 'Admin & Office, Accountants, Architect',
+    blurb: 'Three extra tabs, off until you switch them on: letters and meetings, statements and invoices, plans and schedules.',
+    html: `
+<p>Three extra tabs are there for particular kinds of work. They are hidden until you tick them in
+<b>Settings ▸ Ribbon &amp; Toolbar</b> (under <i>Extra tabs for your work</i>). Everything they insert works like the other
+elements: click it and its own tab opens (Edit…, its options, Colour, Move up / Move down, Delete, Close), even when its main tab
+is hidden; a double-click opens Edit…, the grip in the margin moves it and the × removes it. <b>Edit…</b> is a window with
+fields and a grid of rows: add, remove and move rows with buttons, no codes to type.</p>
+<h3>Admin &amp; Office</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Letterhead</b>', 'Organisation, tagline, address and contact line: on a coloured band, centred, or beside a side bar.'],
+  ['<b>Signature Block</b>', 'One to four signature lines with names, roles and dated lines.'],
+  ['<b>Stamp</b>', 'A tilted rubber stamp: APPROVED, PAID, DRAFT… with a date.'],
+  ['<b>Meeting Agenda</b>', 'Numbered items with times and who leads each.'],
+  ['<b>Action Items</b>', 'Action, owner, due date and a coloured status (Open, In progress, Done, Late).'],
+  ['<b>Calendar</b>', 'A month with your events on their days.'],
+  ['<b>Fillable Form</b>', 'Text boxes, tick boxes and drop-downs that are filled in in any PDF reader.'],
+  ['<b>Certificate</b>', 'A framed certificate with the name, what it is for, the date and signature.'],
+])}
+<h3>Accountants</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Financial Statement</b>', 'Headings, lines, subtotals and totals for up to three years; empty subtotals and totals add themselves up; negatives in brackets, thousands separators, a double-ruled total.'],
+  ['<b>Budget vs Actual</b>', 'Variance (green under, red over), % used and totals worked out.'],
+  ['<b>Invoice</b>', 'From and to, number and dates, items × price; subtotal, VAT and total due worked out.'],
+  ['<b>Loan Schedule</b>', 'Amount, rate, term and frequency: the payment, total interest and the balance year by year.'],
+  ['<b>KPI Cards</b>', 'Key figures as cards with their change in green or red.'],
+  ['<b>Waterfall Chart</b>', 'How a starting figure becomes the end one, rises in green and falls in red.'],
+])}
+<h3>Architect</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Floor Plan</b>', 'Rooms in metres (position, width, depth) drawn with walls, doors, windows, names, areas and overall dimensions.'],
+  ['<b>Scale &amp; North</b>', 'A scale bar true to 1:50, 1:100… and a north arrow.'],
+  ['<b>Title Block</b>', 'Practice, project, client, drawing title and number, scale, date, drawn, checked, revision.'],
+  ['<b>Room Schedule</b>', 'Rooms with sizes, areas worked out, finishes and the total floor area.'],
+  ['<b>Revisions</b>', 'Revision letter, date, description and initials.'],
+])}
+`,
+  },
+  {
     id: 'contents', part: 'Insert', title: 'Tables of contents and lists',
     blurb: 'Contents, lists of figures and tables, updating and removing them.',
     html: `
