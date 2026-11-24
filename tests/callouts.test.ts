@@ -63,3 +63,21 @@ describe('custom callout boxes', () => {
     expect(again.split('\\definecolor{kBoxC12AB34}').length - 1).toBe(1)
   })
 })
+
+describe('callout boxes in Word', () => {
+  it('exports a title bar in the colour and a framed, tinted body', async () => {
+    const { exportDocx } = await import('../src/core/docxExport.ts')
+    const { memFs } = await import('./docxMemFs.ts')
+    const { strFromU8, unzipSync } = await import('fflate')
+    const bytes = await exportDocx(doc(
+      theorem('custom', 'Lab safety', [text('One.')], true, '#C2185B'),
+      theorem('custom', 'Lab safety', [text('Two.')], false, '#C2185B')), '', memFs())
+    const xml = strFromU8(unzipSync(bytes)['word/document.xml'])
+    expect(xml).toContain('Lab safety')
+    expect(xml).toContain('w:fill="C2185B"')
+    expect(xml).toContain('w:fill="FBEFF4"')
+    expect(xml.split('<w:tbl>').length - 1).toBe(1)  // both paragraphs in one box
+    expect(xml.split('w:color="C2185B"').length - 1).toBe(5)  // its four sides and the rule under the title
+    expect(xml).toContain('<w:color w:val="FFFFFF"/>')
+  })
+})

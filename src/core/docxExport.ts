@@ -13,7 +13,7 @@
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import type { Zippable } from 'fflate'
-import { CALLOUT_KINDS, THEOREM_KINDS } from './model.ts'
+import { CALLOUT_KINDS, calloutColor, isCallout, THEOREM_KINDS } from './model.ts'
 import type { Document, Inline, Table } from './model.ts'
 import type { FileAccess } from './kdocz.ts'
 import { DOCX_TEMPLATE_B64 } from './docxTemplate.ts'
@@ -227,6 +227,40 @@ function setBoxBorder(p: El): void {
     setAttr(e, 'w:color', '000000')
     append(bdr, e)
   }
+}
+
+// A callout box as Word draws it the same everywhere: a one-column table
+// in the box's colour, the title row filled with it (white bold text), the
+// body row a light tint. Returns the body cell, for the box's paragraphs.
+function calloutTable(b: Builder, title: string, color: string): El {
+  const width = (b.pageWidth || Inches(8.5)) - (b.leftMargin || Inches(1)) - (b.rightMargin || Inches(1))
+  const tbl = newTable(2, 1, width)
+  b.body.push(tbl)
+  const tblPr = findChild(tbl, 'w:tblPr')!
+  // Across the text width, as the PDF's box.
+  const tblW = findChild(tblPr, 'w:tblW')!
+  setAttr(tblW, 'w:type', 'dxa')
+  setAttr(tblW, 'w:w', String(twips(width)))
+  const borders = insertBefore(tblPr, new El('w:tblBorders'), ['w:shd', 'w:tblLayout', 'w:tblCellMar', 'w:tblLook'])
+  insertBefore(tblPr, new El('w:tblLayout', [['w:type', 'fixed']]), ['w:tblCellMar', 'w:tblLook'])
+  for (const side of ['top', 'left', 'bottom', 'right', 'insideH']) {
+    append(borders, new El(`w:${side}`, [['w:val', 'single'], ['w:sz', '8'], ['w:space', '0'], ['w:color', color]]))
+  }
+  const [head, body] = trList(tbl).map((tr) => rowCells(tr)[0])
+  _shadeCell(head, color)
+  _shadeCell(body, tint(color))
+  const hp = findChild(head, 'w:p')!
+  const run = addRun(hp, title)
+  setBold(run, true)
+  setAttr(getOrAdd(getOrAddRPr(run), 'w:color', RPR_SEQ), 'w:val', 'FFFFFF')
+  detach(findChild(body, 'w:p')!)
+  return body
+}
+
+// The box colour mixed with white, as the PDF's colback=C!7!white.
+function tint(hex: string, part = 0.07): string {
+  const c = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  return c.map((v) => Math.round(v * part + 255 * (1 - part)).toString(16).padStart(2, '0')).join('').toUpperCase()
 }
 
 function setPStyle(p: El, style: string): void {
@@ -1178,8 +1212,10 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
   const hasTitle = doc.children.some(bl => bl.type === 'Title')
   const textTwips = () => Math.round((b.pageWidth - b.leftMargin - b.rightMargin) / EMUS_PER_TWIP)
 
+  let boxCell: El | null = null  // the callout box paragraphs go into
   for (let i = 0; i < doc.children.length; i++) {
     const block = doc.children[i]
+    if (block.type !== 'Theorem' || !isCallout(block.kind)) boxCell = null
     if (i === lastFront + 1 && hasTitle && meta.show_date !== false) {
       // A DATE field, as \\today: Word writes the day the file is opened.
       const pic: Record<string, string> = {
@@ -1217,6 +1253,16 @@ export async function exportDocx(doc: Document, baseDir: string, fs: FileAccess,
       const n = numbers.get(i)
       if (n && block.numbered && Math.max(block.level, 1) <= numberDepth) addRun(para, `${n}\u2003`)
       _addInlines(b, para, block.children)
+    } else if (block.type === 'Theorem' && isCallout(block.kind)) {
+      // Its first paragraph opens the box; the ones continuing it go in the same cell.
+      if (block.start || !boxCell) {
+        boxCell = calloutTable(b, block.title || CALLOUT_KINDS[block.kind].name, calloutColor(block.kind, block.color))
+      }
+      const para = append(boxCell, new El('w:p'))
+      _addInlines(b, para, block.children)
+      // A gap after the box, as the PDF's after skip: Word would join two tables.
+      const nx = doc.children[i + 1]
+      if (!nx || nx.type !== 'Theorem' || !isCallout(nx.kind) || nx.start) b.addParagraph()
     } else if (block.type === 'Theorem') {
       const para = b.addParagraph()
       if (block.start) {
