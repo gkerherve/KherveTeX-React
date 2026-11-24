@@ -7,6 +7,7 @@ import { AllSelection, EditorState, NodeSelection, Selection, TextSelection, typ
 import { CellSelection, TableMap, addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn,
   deleteRow, deleteTable, selectedRect, splitCell } from 'prosemirror-tables'
 import * as M from '../core/model.ts'
+import { blockUnits, moveBlocks } from './blockMover.ts'
 import { blockToPM, cellDisplayText, newGid } from './convert.ts'
 import { mathBlockIsNumbered } from './layout.ts'
 import { STYLED_TEXT, schema } from './schema.ts'
@@ -549,6 +550,22 @@ export const deleteCallout: Command = (state, dispatch) => {
     dispatch(tr.scrollIntoView())
   }
   return true
+}
+
+// Move the box or table holding the caret one block up (-1) or down (1).
+export function moveBlock(dir: -1 | 1): Command {
+  return (state, dispatch) => {
+    const units = blockUnits(state)
+    const pos = state.selection.from
+    const i = units.findIndex(u => u.movable && pos >= u.from && pos <= u.to)
+    if (i < 0) return false
+    const other = units[i + dir]
+    if (!other) return false
+    const tr = moveBlocks(state, units[i].from, units[i].to, dir < 0 ? other.from : other.to)
+    if (!tr) return false
+    if (dispatch) dispatch(tr.scrollIntoView())
+    return true
+  }
 }
 
 // A new ordinary paragraph after the box, the caret in it.

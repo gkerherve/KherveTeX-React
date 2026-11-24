@@ -1283,6 +1283,16 @@ export function Theorem(p: IconProps) {
     {[14, 17].map(y => <g key={y}>{L(5.5, y, 18.5, y, INK, 1)}</g>)}</Svg>
 }
 
+// Move a box or table up / down a block: the block and an arrow.
+function MoveBlock(p: IconProps & { down?: boolean }) {
+  const d = !!p.down
+  return <Svg {...p}>{R(9, d ? 3 : 12, 12, 9, { fill: TINT, color: BLUE, r: 1 })}
+    {L(5, d ? 4 : 20, 5, d ? 19 : 5, INK, 1.6)}
+    {P(d ? [[2, 15.5], [5, 19.5], [8, 15.5]] : [[2, 8.5], [5, 4.5], [8, 8.5]], { color: INK, lw: 1.6 })}</Svg>
+}
+export const MoveUp = (p: IconProps) => <MoveBlock {...p} />
+export const MoveDown = (p: IconProps) => <MoveBlock {...p} down />
+
 // A coloured box with a title bar (Insert > Box).
 export function Callout(p: IconProps) {
   return <Svg {...p}>{R(3, 4, 18, 16, { fill: TINT, color: BLUE, r: 1.5 })}
@@ -1910,7 +1920,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
-  theorem: Theorem, callout: Callout, caption: Caption, table_style_icon: TableStyleIcon,
+  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
   repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,

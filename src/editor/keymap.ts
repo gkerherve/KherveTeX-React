@@ -7,7 +7,8 @@ import { redo, undo } from 'prosemirror-history'
 import { keymap } from 'prosemirror-keymap'
 import { TextSelection, type Plugin } from 'prosemirror-state'
 import { addRowAfter, goToNextCell } from 'prosemirror-tables'
-import { liftListItem, type Command } from './commands.ts'
+import { liftListItem, paragraphAfterCallout, type Command } from './commands.ts'
+import { isCallout } from '../core/model.ts'
 import { schema, STYLED_TEXT } from './schema.ts'
 
 const N = schema.nodes
@@ -129,6 +130,14 @@ const selectAll: Command = (state, dispatch) => {
   return true
 }
 
+// In a box, Cmd/Ctrl+Enter or Shift+Enter: out of it, into a new ordinary
+// paragraph after it (Enter adds a paragraph inside the box).
+const leaveCallout: Command = (state, dispatch) => {
+  const $p = state.selection.$from
+  if ($p.depth !== 1 || $p.parent.type !== N.theorem || !isCallout($p.parent.attrs.kind)) return false
+  return paragraphAfterCallout(state, dispatch)
+}
+
 export interface Shortcuts {
   // A ribbon command by id (bold, find, link...).
   run(id: string): boolean
@@ -138,7 +147,8 @@ export function keyCommands(sc: Shortcuts): Record<string, Command> {
   const cmd = (id: string): Command => (_s, dispatch) => { if (dispatch) return sc.run(id); return true }
   const keys: Record<string, Command> = {
     Enter: chainCommands(cellEnter, theoremEnter, listEnter, styledEnter, newlineInCode),
-    'Shift-Enter': lineBreak,
+    'Shift-Enter': chainCommands(leaveCallout, lineBreak),
+    'Mod-Enter': leaveCallout,
     Backspace: chainCommands(deleteSelection, cellEdge(-1), listBackspace, joinBackward, selectNodeBackward),
     Delete: chainCommands(deleteSelection, cellEdge(1), joinForward, selectNodeForward),
     Tab: chainCommands(tableTab, insertTab),

@@ -171,6 +171,8 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
       ...Object.entries(M.CALLOUT_KINDS).filter(([k]) => k !== 'custom').map(([k, v]): Item => ({
         text: v.name, checked: k === kind, run: () => { void runAction(`box_kind_${k}`) },
       })), '-',
+      { text: 'Move up', run: () => { void runAction('block_up') } },
+      { text: 'Move down', run: () => { void runAction('block_down') } },
       { text: 'Text after box', run: () => { void runAction('box_para_after') } },
       { text: 'Remove box (keep text)', run: () => { void runAction('box_remove') } },
       { text: 'Delete box', run: () => { void runAction('box_delete') } }, '-')
@@ -183,7 +185,9 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
       { text: 'Insert column right', run: () => ed.run(C.tableInsertColumn(true)) }, '-',
       { text: 'Delete row', run: () => ed.run(C.tableDeleteRow) },
       { text: 'Delete column', run: () => ed.run(C.tableDeleteColumn) },
-      { text: 'Delete table', run: () => ed.run(C.tableDelete) })
+      { text: 'Delete table', run: () => ed.run(C.tableDelete) }, '-',
+      { text: 'Move table up', run: () => { void runAction('block_up') } },
+      { text: 'Move table down', run: () => { void runAction('block_down') } })
     const cell = currentCell(ed)
     if (cell) {
       const pics = cellPictures(cellLatex(cell.node))

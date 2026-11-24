@@ -17,6 +17,7 @@ import { AllSelection, EditorState, NodeSelection, Selection, TextSelection, typ
 import { tableEditing } from 'prosemirror-tables'
 import { EditorView } from 'prosemirror-view'
 import { runAction } from '../app/actions.ts'
+import { blockMoverPlugin } from './blockMover.ts'
 import type { EquationEditing } from '../app/actions/math.ts'
 import type { PageEditing } from '../app/actions/page.ts'
 import type { PageFurniture, PdfTypography } from '../app/pageAnchors.ts'
@@ -369,7 +370,7 @@ export class EditorController implements ViewHost {
       layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
-      history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(),
+      history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(), blockMoverPlugin(),
     ]
   }
 
