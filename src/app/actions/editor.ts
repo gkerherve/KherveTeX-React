@@ -14,7 +14,7 @@ import * as C from '../../editor/commands.ts'
 import * as T from '../../editor/track.ts'
 import { editor } from '../../editor/controller.ts'
 import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
-import { askCrossRef, promptItem, promptText, type CrossRefEntry } from '../../ui/dialogs/EditorDialogs.tsx'
+import { askCrossRef, boxStyleDialog, promptItem, promptText, type CrossRefEntry } from '../../ui/dialogs/EditorDialogs.tsx'
 import { documentLabels } from '../../core/labels.ts'
 import { setCommandChecked } from '../../ui/commands.ts'
 import { CALLOUT_MENU } from '../../ui/ribbonModel.ts'
@@ -270,11 +270,9 @@ export async function gitAuthor(): Promise<string> {
 // Insert > Box > Custom: the name, then the colour, both your own.
 async function insertCustomBox(): Promise<void> {
   if (!ed()) return
-  const name = await promptText('Custom box', 'Name shown in the title bar:', '')
-  if (name === null) return
-  const c = await pickColor('#455A64')
-  if (!c) return
-  run(C.insertCustomBox(name.trim(), c.toUpperCase())); sync()
+  const r = await boxStyleDialog('Custom box', '#455A64', '')
+  if (!r) return
+  run(C.insertCustomBox(r.name, r.color)); sync()
 }
 
 async function boxTitle(): Promise<void> {
@@ -396,8 +394,8 @@ const actions: Record<string, Handler> = {
   box_color: async () => {
     const e = ed()
     if (!e) return
-    const c = await pickColor(C.currentCalloutColor(e.view.state) || '#455A64')
-    if (c) { run(C.setCalloutColor(c.toUpperCase())); sync() }
+    const r = await boxStyleDialog('Box colour', C.currentCalloutColor(e.view.state) || '#455A64', null)
+    if (r) { run(C.setCalloutColor(r.color)); sync() }
   },
 
   highlight,

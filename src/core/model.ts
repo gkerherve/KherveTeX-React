@@ -480,7 +480,7 @@ function buildBlock(d: Json): Block {
     case 'Keywords': return keywords(kids())
     case 'Frame': return frame(kids())
     case 'Box': return box(kids())
-    case 'Theorem': return theorem(get(d, 'kind', 'theorem'), get(d, 'title', ''), kids(), get(d, 'start', true))
+    case 'Theorem': return theorem(get(d, 'kind', 'theorem'), get(d, 'title', ''), kids(), get(d, 'start', true), get(d, 'color', undefined) || undefined)
   }
   throw new Error(`Unknown block node type: ${JSON.stringify(t)}`)
 }

@@ -130,7 +130,7 @@ const PAGE_SIZES: [string, number, number][] = [
 // examples.GALLERY by category: the class of the first example (the
 // button's preview) and every example's label, in gallery order.
 export const GALLERY: [string, string, string[]][] = [
-  ['Start', 'article', ['Welcome tour', 'Blank document']],
+  ['Start', 'article', ['Welcome tour', 'Blank document', 'Coloured boxes']],
   ['Articles', 'article', ['Single-column article', 'Two-column article',
     'Three-column document', 'Maths-heavy document', 'KOMA-Script article',
     'White paper', 'Literature review', 'Research proposal']],

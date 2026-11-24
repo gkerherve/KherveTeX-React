@@ -424,3 +424,46 @@ export function askCrossRef(labels: CrossRefEntry[],
     return <Pick />
   }, { modeless: !!onInsert })
 }
+
+// Insert ▸ Box ▸ Custom and the Box tab's Colour…: a name (when asked
+// for) and a colour, in one dialog. The colour field is clicked by the
+// user, never opened from code: WebKit (the macOS app) ignores a
+// programmatic click on <input type=color> once an await has passed.
+export const BOX_SWATCHES = ['#1F6FB5', '#2E7D32', '#00838F', '#6A1B9A', '#E65100', '#C62828',
+  '#37474F', '#7B1FA2', '#00897B', '#F9A825', '#5D4037', '#1A237E']
+
+export function boxStyleDialog(title: string, color: string, name: string | null): Promise<{ name: string; color: string } | null> {
+  return openDialog<{ name: string; color: string }>(close => {
+    function Dlg() {
+      const [n, setN] = useState(name ?? '')
+      const [c, setC] = useState(/^#[0-9a-fA-F]{6}$/.test(color) ? color.toUpperCase() : '#455A64')
+      return (
+        <Frame title={title} close={close as Close<never>} className='dlg-ed'
+          onOk={() => close({ name: n.trim(), color: c.toUpperCase() })}>
+          <div className='dlg-form'>
+            {name !== null && <>
+              <label>Name:</label>
+              <input autoFocus value={n} placeholder='e.g. Exercise' onChange={e => setN(e.target.value)} />
+            </>}
+            <label>Colour:</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+              {BOX_SWATCHES.map(s => (
+                <button key={s} type='button' title={s} aria-label={`Colour ${s}`} onClick={() => setC(s)}
+                  style={{ width: 22, height: 22, padding: 0, background: s, cursor: 'pointer',
+                    border: s === c ? '2px solid #000' : '1px solid #999', borderRadius: 3 }} />
+              ))}
+              <input type='color' aria-label='Other colour' title='Other colour…' value={c.toLowerCase()}
+                onChange={e => setC(e.target.value.toUpperCase())} style={{ width: 34, height: 24, padding: 0 }} />
+            </div>
+            <label>Preview:</label>
+            <div style={{ border: `1.5px solid ${c}`, borderRadius: 4, overflow: 'hidden', minWidth: 220 }}>
+              <div style={{ background: c, color: '#fff', fontWeight: 600, padding: '2px 8px' }}>{n.trim() || 'Box'}</div>
+              <div style={{ background: `${c}14`, padding: '4px 8px', fontSize: 12 }}>The text of the box.</div>
+            </div>
+          </div>
+        </Frame>
+      )
+    }
+    return <Dlg />
+  })
+}
