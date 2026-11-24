@@ -836,13 +836,13 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Header & Footer', large: ['hf_header', 'hf_footer'] },
-    { label: 'Tables', large: ['table_menu'] },
+    { label: 'Tables & Boxes', large: ['table_menu', 'callout'] },
     { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes'], ['flowchart', 'smartart'], ['chart', 'screenshot']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
       rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },
-    { label: 'Boxes', large: ['callout', 'theorem'] },
+    { label: 'Theorems', large: ['theorem'] },
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig']], text: true },
   ] },
   { name: 'Draw', groups: [
