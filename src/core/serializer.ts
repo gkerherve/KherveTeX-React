@@ -180,6 +180,20 @@ function fontMarkPackages(doc: Document): string[] {
   return [...(color ? ['xcolor'] : []), ...(uline ? ['ulem'] : []), ...authors.map(a => `author:${a}`)]
 }
 
+// The change authors (their changeAuthorId) of tracked insertions and
+// deletions kept inside table cells, which are LaTeX: \added[id=X] and
+// \deleted[id=X] there need the changes package and \definechangesauthor{X}.
+function tableChangeAuthors(doc: Document): string[] {
+  const ids: string[] = []
+  for (const b of doc.children) {
+    if (b.type !== 'Table') continue
+    for (const row of b.rows) for (const cell of row) {
+      for (const m of cell.matchAll(/\\(?:added|deleted)\[id=([A-Za-z]+)\]/g)) if (!ids.includes(m[1])) ids.push(m[1])
+    }
+  }
+  return ids
+}
+
 // The changes package and its authors, as the markup shown asks.
 const CHANGE_COLORS = ['blue', 'red!80!black', 'green!50!black', 'orange', 'violet', 'teal']
 function changesPreamble(authors: string[], mode: string): string {
@@ -931,9 +945,16 @@ function collectReviewUsage(doc: Document): [Set<string>, boolean] {
   const walk = (v: unknown): void => {
     if (Array.isArray(v)) { for (const x of v) walk(x); return }
     if (!v || typeof v !== 'object') return
-    const node = v as { type?: unknown; color?: unknown }
+    const node = v as { type?: unknown; color?: unknown; rows?: unknown }
     if (node.type === 'Highlight' && typeof node.color === 'string') colors.add(node.color)
     else if (node.type === 'Comment') hasComments = true
+    // A table's cells are LaTeX already (an import from Word keeps its
+    // highlights there): their \colorbox{hlYellow} needs the colour too.
+    if (node.type === 'Table' && Array.isArray(node.rows)) {
+      for (const row of node.rows) for (const cell of row) {
+        for (const m of String(cell).matchAll(/\\colorbox\{hl([A-Za-z]+)\}/g)) colors.add(m[1].toLowerCase())
+      }
+    }
     for (const x of Object.values(v)) if (x && typeof x === 'object') walk(x)
   }
   walk(doc.children)
@@ -1385,7 +1406,13 @@ export function serializeDocument(doc: Document): string {
   if (paraDefs) packages += '\n' + paraDefs
   // ulem with normalem, so \emph stays italic.
   if (fontPkgs.includes('ulem') && !m.preamble_extras.includes('{ulem}')) packages += '\n\\usepackage[normalem]{ulem}'
-  const changes = changesPreamble(fontPkgs.filter(p => p.startsWith('author:')).map(p => p.slice(7)), m.markup ?? '')
+  const paraAuthors = fontPkgs.filter(p => p.startsWith('author:')).map(p => p.slice(7))
+  const tableAuthors = tableChangeAuthors(doc)
+  const allAuthors = [...paraAuthors, ...tableAuthors.filter(a => !paraAuthors.includes(a))]
+  let changes = changesPreamble(allAuthors, m.markup ?? '')
+  // Original markup removes no change in a table cell (it is LaTeX already),
+  // so the changes package is loaded for them as the simple markup shows it.
+  if (!changes && tableAuthors.length) changes = changesPreamble(allAuthors, 'simple')
   if (changes) packages += '\n' + changes
   // User preamble (\lstset, \definecolor, \hypersetup, \newcommand...),
   // preserved verbatim from the imported .tex.

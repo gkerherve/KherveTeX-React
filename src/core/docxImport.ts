@@ -25,6 +25,7 @@ import {
   openPackage, paragraphStyle, partWithReltype, pStyleId, relTargetRef, rowCells,
 } from './docxPackage.ts'
 import type { Package, Part, XElement } from './docxPackage.ts'
+import { unzlibSync } from 'fflate'
 
 // python-docx is always available here.
 export function docxAvailable(): boolean {
@@ -321,6 +322,13 @@ export async function importDocx(bytes: Uint8Array, imageDir: string, fs: FileAc
       continue
     }
 
+    // A block-level content control (w:sdt: a box Word wraps around its
+    // text, often with its text boxes): its content is the body's content.
+    if (is(childElem, NS.w, 'sdt')) {
+      const content = find(childElem, NS.w, 'sdtContent')
+      if (content !== null) await walk(iterChildren(content))
+      continue
+    }
     if (tag !== 'p') continue
     if (!is(childElem, NS.w, 'p')) continue
     const para = childElem
@@ -1039,7 +1047,7 @@ function _hfParagraph(p: XElement): [string, string, string] | null {
     if (par && par.localName === 'fldSimple') {
       // <w:fldSimple w:instr="PAGE">: its runs are the shown number.
       const f = (get(par, NS.w, 'instr') ?? '').trim().split(/\s+/)[0]?.toUpperCase()
-      const cmd = f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today{}' : ''
+      const cmd = f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref{LastPage}' : f === 'DATE' ? '\\today{}' : ''
       if (cmd) {
         if (!simpleDone.has(par)) parts[parts.length - 1] += cmd
         simpleDone.add(par)
@@ -1058,8 +1066,8 @@ function _hfParagraph(p: XElement): [string, string, string] | null {
         else if (t === 'separate') {
           inInstr = false; inResult = true
           const f = field.trim().split(/\s+/)[0]?.toUpperCase()
-          const cmd = f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref*{LastPage}' : f === 'DATE' ? '\\today{}' : ''
-          if (cmd) parts[parts.length - 1] += marks.includes('bold') ? `\\textbf{${cmd}}` : cmd
+          const cmd = f === 'PAGE' ? '\\thepage{}' : f === 'NUMPAGES' ? '\\pageref{LastPage}' : f === 'DATE' ? '\\today{}' : ''
+if (cmd) parts[parts.length - 1] += marks.includes('bold') ? `\\textbf{${cmd}}` : cmd
           else inResult = false  // another field: its shown text stays
         } else if (t === 'end') { inInstr = false; inResult = false }
       } else if (e.localName === 'instrText') field += lxmlText(e) ?? ''
@@ -1378,14 +1386,16 @@ export function runText(r: XElement): string {
   return s
 }
 
-// Paragraph.text: its w:r and w:hyperlink children (a hyperlink's own w:r).
+// Paragraph.text: its w:r, w:hyperlink's w:r and w:ins's w:r children. A
+// tracked insertion is text the author kept (Word shows it as an insert
+// until it is accepted), so it counts; a deletion (w:delText) does not.
 export function paragraphText(p: XElement): string {
   let s = ''
   for (let n = p.firstChild; n; n = n.nextSibling) {
     if (n.nodeType !== 1) continue
     const e = n as XElement
     if (is(e, NS.w, 'r')) s += runText(e)
-    else if (is(e, NS.w, 'hyperlink')) s += findall(e, NS.w, 'r').map(runText).join('')
+    else if (is(e, NS.w, 'hyperlink') || is(e, NS.w, 'ins')) s += findall(e, NS.w, 'r').map(runText).join('')
   }
   return s
 }
@@ -1931,6 +1941,8 @@ async function _imagesInParagraph(para: XElement, src: Src, imageDir: string, st
       if (blob === null) continue
       ext = '.png'
     }
+    // A PNG the engine would draw blank (palette, 1-bit, alpha): opaque RGB.
+    if (blob && ext.toLowerCase() === '.png') blob = _pngOpaqueRgb(blob)
     const outPath = join(imageDir, `image_${zpad(startIdx + paths.length, 3)}${ext}`)
     await fs.write(outPath, blob)
     paths.push([outPath, widths.get(blip) ?? ''])
@@ -2281,6 +2293,93 @@ function _pngRgb(width: number, height: number, raw: Uint8Array): Uint8Array {
   chunk('IDAT', z.subarray(0, o))
   chunk('IEND', new Uint8Array(0))
   return new Uint8Array(out)
+}
+
+// A PNG the typesetting engine draws blank: a palette or 1-bit picture (a
+// QR code, a line drawing, as Word saves them), or one with an alpha
+// channel. Decoded and written again as 8-bit RGB over white, which is
+// what it shows on the page. A PNG already in that form, or one this
+// cannot read (interlaced, 16-bit), comes back as it is.
+export function _pngOpaqueRgb(png: Uint8Array): Uint8Array {
+  if (png.length < 33) return png
+  const dv = new DataView(png.buffer, png.byteOffset, png.byteLength)
+  if (dv.getUint32(12) !== 0x49484452) return png  // not IHDR first
+  const width = dv.getUint32(16), height = dv.getUint32(20)
+  const depth = png[24], ctype = png[25], interlace = png[28]
+  if (ctype === 2 && depth === 8) return png
+  const chans = ({ 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 } as Record<number, number>)[ctype]
+  if (chans === undefined || interlace !== 0 || !width || !height) return png
+  if (![1, 2, 4, 8].includes(depth) || (depth < 8 && chans !== 1)) return png
+  let pal: Uint8Array | null = null, trns: Uint8Array | null = null
+  const idat: Uint8Array[] = []
+  for (let i = 8; i + 8 <= png.length;) {
+    const n = dv.getUint32(i)
+    const kind = String.fromCharCode(png[i + 4], png[i + 5], png[i + 6], png[i + 7])
+    const body = png.subarray(i + 8, i + 8 + n)
+    if (kind === 'PLTE') pal = body
+    else if (kind === 'tRNS') trns = body
+    else if (kind === 'IDAT') idat.push(body)
+    else if (kind === 'IEND') break
+    i += 12 + n
+  }
+  if (!idat.length || (ctype === 3 && pal === null)) return png
+  const joined = new Uint8Array(idat.reduce((s, b) => s + b.length, 0))
+  let o = 0
+  for (const b of idat) { joined.set(b, o); o += b.length }
+  let raw: Uint8Array
+  try { raw = unzlibSync(joined) } catch { return png }
+  const stride = Math.ceil(width * chans * depth / 8)
+  const bpp = Math.max(1, (chans * depth) >> 3)
+  if (raw.length < (stride + 1) * height) return png
+  // Undo the scanline filters.
+  const px = new Uint8Array(stride * height)
+  for (let y = 0; y < height; y++) {
+    const type = raw[y * (stride + 1)], src = y * (stride + 1) + 1, row = y * stride
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? px[row + x - bpp] : 0
+      const b = y > 0 ? px[row - stride + x] : 0
+      const c = y > 0 && x >= bpp ? px[row - stride + x - bpp] : 0
+      let pred = 0
+      if (type === 1) pred = a
+      else if (type === 2) pred = b
+      else if (type === 3) pred = (a + b) >> 1
+      else if (type === 4) {
+        const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c)
+        pred = pa <= pb && pa <= pc ? a : pb <= pc ? b : c
+      }
+      px[row + x] = (raw[src + x] + pred) & 255
+    }
+  }
+  // The sample at index (of the row's samples), read at its bit depth.
+  const maxV = (1 << depth) - 1
+  const readAt = (y: number, index: number): number => {
+    if (depth === 8) return px[y * stride + index]
+    const bit = index * depth
+    return (px[y * stride + (bit >> 3)] >> (8 - depth - (bit & 7))) & maxV
+  }
+  const out = new Uint8Array((width * 3 + 1) * height)
+  for (let y = 0; y < height; y++) {
+    out[y * (width * 3 + 1)] = 0
+    for (let x = 0; x < width; x++) {
+      let r: number, g: number, bl: number, alpha = 255
+      if (ctype === 3) {
+        const v = readAt(y, x)
+        r = pal![3 * v] ?? 0; g = pal![3 * v + 1] ?? 0; bl = pal![3 * v + 2] ?? 0
+        alpha = trns && v < trns.length ? trns[v] : 255
+      } else if (ctype === 0 || ctype === 4) {
+        const gray = readAt(y, x * chans) * 255 / maxV
+        r = g = bl = gray
+        if (ctype === 4) alpha = readAt(y, x * chans + 1)
+      } else {
+        r = readAt(y, x * chans); g = readAt(y, x * chans + 1); bl = readAt(y, x * chans + 2)
+        if (ctype === 6) alpha = readAt(y, x * chans + 3)
+      }
+      const mix = (c: number) => Math.round((c * alpha + 255 * (255 - alpha)) / 255)
+      const at = y * (width * 3 + 1) + 1 + 3 * x
+      out[at] = mix(r); out[at + 1] = mix(g); out[at + 2] = mix(bl)
+    }
+  }
+  return _pngRgb(width, height, out)
 }
 
 // A table that holds only equations (and their "(n)" numbers), as kTeX's
