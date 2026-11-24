@@ -4,7 +4,7 @@
 import { TextSelection } from 'prosemirror-state'
 import type { DocMeta } from '../../core/model.ts'
 import {
-  COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, STYLE_SETS, THEMES, WATERMARKS, type Design, type StyleSet,
+  CHAPTER_STYLES, COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, STYLE_SETS, THEMES, WATERMARKS, type Design, type StyleSet,
 } from '../../core/design.ts'
 import { editor } from '../../editor/controller.ts'
 import * as C from '../../editor/commands.ts'
@@ -53,6 +53,7 @@ export function syncDesignChecks(m: DocMeta = meta()): void {
     setCommandChecked(`pspacing:${k}`, m.paragraph_indent === indent && (d.para_space_pt ?? 0) === sp && m.line_spacing === ls)
   }
   for (const w of WATERMARKS) setCommandChecked(`watermark:${w}`, d.watermark === w)
+  for (const [k] of CHAPTER_STYLES) setCommandChecked(`chapterstyle:${k}`, (d.chapter_style ?? 'default') === k)
   setCommandChecked('pageborder:none', !d.page_border)
   for (const [k] of PAGE_BORDERS) setCommandChecked(`pageborder:${k}`, d.page_border === k)
 }
@@ -148,6 +149,7 @@ for (const [k, , colors, fonts, set] of THEMES) {
   }
 }
 for (const w of WATERMARKS) actions[`watermark:${w}`] = () => setDesign({ watermark: w })
+for (const [k] of CHAPTER_STYLES) actions[`chapterstyle:${k}`] = () => setDesign({ chapter_style: k === 'default' ? undefined : k })
 for (const [k] of PAGE_BORDERS) actions[`pageborder:${k}`] = () => setDesign({ page_border: k })
 for (const c of ['#FFF2CC', '#FBE5D6', '#E2EFDA', '#DDEBF7', '#EDE7F6', '#F2F2F2', '#FFFFE0']) {
   actions[`pagecolor:${c}`] = () => setDesign({ page_color: c })

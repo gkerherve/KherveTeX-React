@@ -8,7 +8,7 @@ import type { Misspelling } from '../editor/spellList'
 
 export interface EditorSelectionInfo {
   // The object the caret is in, which picks the contextual ribbon tab.
-  context: 'table' | 'figure' | 'theorem' | 'callout' | 'equation' | null
+  context: import('../editor/commands').ObjectContext | null
   // LaTeX of the equation under the caret (for Equation ▸ Edit).
   mathLatex: string | null
   // Selected plain text, '' when collapsed.

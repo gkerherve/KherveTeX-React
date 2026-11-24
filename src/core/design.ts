@@ -5,6 +5,16 @@
 // designPreamble (titlesec for headings, a shipout hook for the page).
 
 export type StyleSet = 'default' | 'basic' | 'elegant' | 'shaded' | 'lines' | 'lines_accent' | 'centered' | 'casual'
+export type ChapterStyle = 'default' | 'bignumber' | 'band' | 'ruled' | 'boxed' | 'bar' | 'centered'
+export const CHAPTER_STYLES: [ChapterStyle, string, string][] = [
+  ['default', 'As the class', 'The document class\'s own chapter titles'],
+  ['bignumber', 'Big number', 'A large number in the accent colour, the title under it, on the right'],
+  ['band', 'Coloured band', 'The number and title in white on a band of the accent colour'],
+  ['ruled', 'Ruled', '"Chapter 2" in small capitals, the title, a rule in the accent colour'],
+  ['boxed', 'Boxed number', 'The number in a coloured square beside the title'],
+  ['bar', 'Side bar', 'A thick coloured bar before the number and title'],
+  ['centered', 'Centred', 'Centred, the chapter line in the accent colour and a short rule under'],
+]
 export type PageBorder = 'box' | 'double' | 'thick' | 'shadow' | 'art'
 
 export interface Design {
@@ -16,6 +26,8 @@ export interface Design {
   watermark?: string
   page_color?: string       // #RRGGBB
   page_border?: PageBorder
+  // Design ▸ Chapter Titles: how a chapter (a section, without chapters) opens.
+  chapter_style?: ChapterStyle
 }
 
 // Colours: the accent (headings, shaded bands) and a second colour.
@@ -217,6 +229,10 @@ export function designPreamble(d: Design | undefined, cls: string): string {
       }
     }
   }
+  if (D.chapter_style && D.chapter_style !== 'default' && headingsByTitlesec(cls)) {
+    if (!out.includes('\\usepackage{titlesec}')) out.push('\\usepackage{titlesec}')
+    out.push(...chapterStyleLatex(D.chapter_style, CHAPTER_CLASSES.includes(cls)))
+  }
   if (D.para_space_pt !== undefined) out.push(`\\setlength{\\parskip}{${D.para_space_pt}pt}`)
   if (D.page_color) out.push(`\\pagecolor[HTML]{${hex(D.page_color)}}`)
   if (D.watermark || D.page_border) {
@@ -241,6 +257,54 @@ export function designPreamble(d: Design | undefined, cls: string): string {
     out.push(`\\AddToHook{shipout/background}{\\put(0,0){\\begin{tikzpicture}[overlay]${draw.join('')}\\end{tikzpicture}}}`)
   }
   return out.join('\n')
+}
+
+// Design ▸ Chapter Titles: titlesec formats for the top heading (the
+// chapter, or the section in a class without chapters), numbered and not.
+// After the style set's, so they win.
+function chapterStyleLatex(style: ChapterStyle, chapters: boolean): string[] {
+  const cmd = chapters ? 'chapter' : 'section'
+  const num = chapters ? '\\thechapter' : '\\thesection'
+  const big = chapters ? '\\Huge' : '\\LARGE'
+  const nPt = chapters ? 72 : 40
+  const line = chapters ? `\\chaptertitlename\\ ${num}` : num
+  const f = (shape: string, fmt: string, label: string, sep: string, before: string, after = '') =>
+    `\\titleformat{\\${cmd}}[${shape}]{${fmt}}{${label}}{${sep}}{${before}}${after ? `[${after}]` : ''}`
+  const n = (shape: string, fmt: string, before: string, after = '') =>
+    `\\titleformat{name=\\${cmd},numberless}[${shape}]{${fmt}}{}{0pt}{${before}}${after ? `[${after}]` : ''}`
+  const out: string[] = []
+  switch (style) {
+    case 'bignumber':
+      out.push(f('display', '\\normalfont\\bfseries', `\\filleft\\fontsize{${nPt}}{${nPt}}\\selectfont\\color{kAccent}${num}`, '0pt', `\\filleft${big}`),
+        n('display', '\\normalfont\\bfseries', `\\filleft${big}`))
+      break
+    case 'band':
+      out.push(`\\providecommand{\\kTopBand}[1]{\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut\\hspace{0.2em}${num}\\quad #1\\strut}}}`,
+        '\\providecommand{\\kTopBandN}[1]{\\colorbox{kAccent}{\\parbox{\\dimexpr\\linewidth-2\\fboxsep}{\\color{white}\\strut\\hspace{0.2em}#1\\strut}}}',
+        f('block', `\\normalfont${big}\\bfseries`, '', '0pt', '\\kTopBand'), n('block', `\\normalfont${big}\\bfseries`, '\\kTopBandN'))
+      break
+    case 'ruled':
+      out.push(chapters
+        ? f('display', '\\normalfont\\Large\\scshape\\color{kAccent}', line, '6pt', `\\color{black}${big}\\bfseries\\upshape`, '{\\color{kAccent}\\titlerule[1.2pt]}')
+        : f('block', `\\normalfont${big}\\bfseries`, `\\color{kAccent}${num}`, '0.8em', '', '{\\color{kAccent}\\titlerule[1.2pt]}'),
+      n('block', `\\normalfont${big}\\bfseries`, '', '{\\color{kAccent}\\titlerule[1.2pt]}'))
+      break
+    case 'boxed':
+      out.push(f('hang', `\\normalfont${big}\\bfseries`, `\\colorbox{kAccent}{\\color{white}\\makebox[1em]{${num}}}`, '0.5em', ''),
+        n('hang', `\\normalfont${big}\\bfseries`, ''))
+      break
+    case 'bar':
+      out.push(f('hang', `\\normalfont${big}\\bfseries`, `{\\color{kAccent}\\vrule width 4pt}\\hspace{0.5em}${num}`, '0.6em', ''),
+        n('hang', `\\normalfont${big}\\bfseries`, '{\\color{kAccent}\\vrule width 4pt}\\hspace{0.5em}'))
+      break
+    case 'centered':
+      out.push(f('display', '\\normalfont\\filcenter', `\\Large\\scshape\\color{kAccent}${line}`, '8pt', `${big}\\bfseries`, '{\\filcenter\\color{kAccent}\\rule{3cm}{0.8pt}}'),
+        n('display', '\\normalfont\\filcenter', `${big}\\bfseries`, '{\\filcenter\\color{kAccent}\\rule{3cm}{0.8pt}}'))
+      break
+    default: break
+  }
+  if (style !== 'default') out.push(`\\titlespacing*{\\${cmd}}{0pt}{${chapters ? '40pt' : '3.5ex plus 1ex'}}{${chapters ? '30pt' : '2.3ex'}}`)
+  return out
 }
 
 // The editor's look for a style set: CSS for the headings (the page's
@@ -279,6 +343,17 @@ export function designCss(d: Design | undefined, cls = 'article'): string {
       const lab = set === 'casual' ? second : set === 'default' && !D.colors ? 'inherit' : accent
       css.push(`${sel(lv)} .kt-label { color: ${lab} !important; text-transform: none; letter-spacing: normal; }`)
     }
+  }
+  // Chapter Titles, on the page's top heading.
+  const top = `.kt-design .kt-section[data-level="1"]`
+  if (reach === 'all') switch (D.chapter_style) {
+    case 'bignumber': css.push(`${top} { text-align: right !important; } ${top}::before { display: block; font-size: 2.4em; line-height: 1.1; color: ${accent}; }`); break
+    case 'band': css.push(`${top} { background: ${accent}; color: #fff !important; padding: 3px 8px !important; } ${top}::before { color: #fff !important; }`); break
+    case 'ruled': css.push(`${top} { border-bottom: 2px solid ${accent}; padding-bottom: 3px; } ${top}::before { color: ${accent}; }`); break
+    case 'boxed': css.push(`${top}::before { background: ${accent}; color: #fff !important; padding: 0 .2em; margin-right: .3em; }`); break
+    case 'bar': css.push(`${top} { border-left: 4px solid ${accent}; padding-left: 8px !important; }`); break
+    case 'centered': css.push(`${top} { text-align: center !important; border-bottom: 1px solid ${accent}; padding-bottom: 4px; } ${top}::before { color: ${accent}; }`); break
+    default: break
   }
   return css.join('\n')
 }

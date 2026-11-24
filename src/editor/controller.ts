@@ -2,6 +2,7 @@
 // paged_edit.py) over ProseMirror. It owns the view, keeps the store's
 // document in step with it, lays the pages out, paints the sheets, the
 // headers, footers and footnotes, and offers the EditorApi.
+import { syncElementChecks } from './widgetCommands.ts'
 import { designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
 import { InkLayer, anchorAtPos, posOfAnchor } from './ink.ts'
@@ -38,7 +39,7 @@ import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
 import { computeColumnSpacers, computeSpacers, refreshColumns, sameSpacers, type PageStart } from './paginate.ts'
-import { layoutKey, layoutPlugin, pagesKey, pagesPlugin } from './plugins.ts'
+import { layoutKey, layoutPlugin, widgetGuardPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { bibliographyPlugin } from './bibView.ts'
 import { moderncvPlugin } from './cvView.ts'
 import { posterBackground, posterPlugin } from './posterView.ts'
@@ -367,7 +368,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
+      layoutPlugin(meta), widgetGuardPlugin(), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(), blockMoverPlugin(),
@@ -1216,6 +1217,7 @@ export class EditorController implements ViewHost {
     setCommandChecked('hf_oddeven', !!hfs?.odd_even)
     setCommandChecked('hf_showtext', this.hf ? this.hf.showText : true)
     setRibbonWidgets({ hf: { header_cm: hfs?.header_cm ?? 1.25, footer_cm: hfs?.footer_cm ?? 1.25 } })
+    syncElementChecks(s, setCommandChecked)
     if (ctx === 'table') {
       const col = C.currentColumnAlignment(s)
       setCommandChecked(`tbl_align_${col || 'l'}`, true)

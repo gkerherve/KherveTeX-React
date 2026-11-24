@@ -467,3 +467,51 @@ export function boxStyleDialog(title: string, color: string, name: string | null
     return <Dlg />
   })
 }
+
+// Insert ▸ Elements' Edit…: a few labelled fields; resolves with their values.
+export interface FormField {
+  key: string; label: string; value: string
+  type?: 'text' | 'textarea' | 'code' | 'select' | 'number'
+  options?: string[]; help?: string; rows?: number
+}
+
+export function formDialog(title: string, fields: FormField[], okText = 'OK'): Promise<Record<string, string> | null> {
+  return openDialog<Record<string, string>>(close => {
+    function Dlg() {
+      const [v, setV] = useState<Record<string, string>>(Object.fromEntries(fields.map(f => [f.key, f.value])))
+      const set = (k: string, x: string) => setV(o => ({ ...o, [k]: x }))
+      return (
+        <Frame title={title} close={close as Close<never>} className='dlg-ed' okText={okText} onOk={() => close(v)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 420 }}>
+            {fields.map((f, i) => (
+              <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <label className='dlg-label'>{f.label}</label>
+                {f.type === 'textarea' || f.type === 'code'
+                  ? <textarea autoFocus={i === 0} rows={f.rows ?? 8} value={v[f.key]} spellCheck={f.type !== 'code'}
+                    style={f.type === 'code' ? { fontFamily: 'Menlo, Consolas, monospace', fontSize: 12, whiteSpace: 'pre', tabSize: 4 } : undefined}
+                    onChange={e => set(f.key, e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); close(v) }
+                      if (e.key === 'Tab' && f.type === 'code') {
+                        e.preventDefault()
+                        const t = e.currentTarget, a = t.selectionStart, b = t.selectionEnd
+                        set(f.key, t.value.slice(0, a) + '    ' + t.value.slice(b))
+                        requestAnimationFrame(() => { t.selectionStart = t.selectionEnd = a + 4 })
+                      }
+                    }} />
+                  : f.type === 'select'
+                    ? <select autoFocus={i === 0} value={v[f.key]} onChange={e => set(f.key, e.target.value)}>
+                      {(f.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    : <input autoFocus={i === 0} type={f.type === 'number' ? 'number' : 'text'} value={v[f.key]}
+                      onChange={e => set(f.key, e.target.value)} />}
+                {f.help && <div style={{ fontSize: 11, color: '#666' }}>{f.help}</div>}
+              </div>
+            ))}
+          </div>
+        </Frame>
+      )
+    }
+    return <Dlg />
+  })
+}

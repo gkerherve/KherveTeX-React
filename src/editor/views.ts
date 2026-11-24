@@ -2,6 +2,8 @@
 // frames, tables with LaTeX's rules, citations and references as the PDF
 // numbers them, footnotes, raw LaTeX. The looks follow editor.py's char
 // and block formats (_link_format, _citation_format, _figure_block_format...).
+import { parseDropCap, parseMarginNote } from '../core/widgets.ts'
+import { dropCapElement, marginNoteElement } from './widgetView.ts'
 import { FANCY_RULE_GREY, parseFancy, tint } from '../core/fancyTable.ts'
 import { autoTableAlignment } from '../core/serializer.ts'
 import type { Node as PMNode } from 'prosemirror-model'
@@ -607,6 +609,11 @@ export function rawFloatSummary(text: string): string {
 // break, nothing for \noindent), with the source kept beside it: the
 // View > Show LaTeX source toggle (body.kt-latex-source) swaps the two.
 function renderInlineRaw(dom: HTMLElement, latex: string, host: ViewHost) {
+  // Layout ▸ Margin Note and Insert ▸ Drop Cap: drawn as the PDF shows them.
+  const note = parseMarginNote(latex)
+  if (note) { marginNoteElement(dom, note); return }
+  const cap = parseDropCap(latex)
+  if (cap) { dropCapElement(dom, cap); return }
   dom.title = latex
   const source = document.createElement('span')
   source.className = 'kt-raw-source'

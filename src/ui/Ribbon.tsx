@@ -14,7 +14,7 @@ import { classTip } from './classInfo'
 import {
   bigLabel, COMMANDS, CORNER_LABELLED, CORNER_LEFT, CORNER_RIGHT, FONT_SIZES,
   GALLERY_INLINE, PARAGRAPH_STYLES, RIBBON_TABS, shortText, TEMPLATE_CHOICES,
-  type Command, type ContextKind, type MenuEntry, type RibbonGroup, type RibbonItem,
+  AUTO_TABS, type Command, type ContextKind, type MenuEntry, type RibbonGroup, type RibbonItem,
 } from './ribbonModel'
 import { lookupTip, useTipProps, type TipContent } from './Tooltip'
 import { FEEDBACK_EMAIL, SHORT_NAME } from '../version'
@@ -876,9 +876,9 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   // Editing a header or footer opens its tab, as in Word; leaving goes back.
   useEffect(() => {
     if (context === 'headerfooter') setCurrent('Header & Footer')
-    // Into a box: its Box tab, where everything about it is.
-    else if (context === 'callout') setCurrent('Box')
-    else setCurrent(c => (c === 'Header & Footer' ? 'Home' : c === 'Box' ? 'Insert' : c))
+    // Into a box or an element: its tab, where everything about it is.
+    else if (context && AUTO_TABS[context]) setCurrent(AUTO_TABS[context]!)
+    else setCurrent(c => (c === 'Header & Footer' ? 'Home' : Object.values(AUTO_TABS).includes(c) ? 'Insert' : c))
   }, [context])
   // Leaving the Draw tab puts the pen (or the eraser) down: back to typing.
   useEffect(() => { if (shown.name !== 'Draw' && inkTool()) setInkTool(null) }, [shown.name])

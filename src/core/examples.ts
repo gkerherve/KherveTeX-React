@@ -71,6 +71,7 @@ import {
   xrdNanoparticles,
 } from './exampleDocs/science.ts'
 import { calloutBoxes } from './exampleDocs/boxes.ts'
+import { fancyElements } from './exampleDocs/elements.ts'
 import {
   article,
   blank,
@@ -178,6 +179,8 @@ export const GALLERY: [string, string, Factory, string][] = [
 
   ['Teaching', 'Coloured boxes', calloutBoxes,
     'Every Insert > Box kind (Note, Tip, Warning, Danger...), renamed headings and boxes in your own colours.'],
+  ['Teaching', 'Fancy elements', fancyElements,
+    'Drop caps, margin notes, checklists, progress bars, timelines, QR codes, code listings, coloured tables and chapter titles.'],
   ['Teaching', 'Lab report', labReport,
     'An undergraduate lab report with data tables and uncertainties.'],
   ['Teaching', 'Exam (exam class)', examPaper,

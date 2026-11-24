@@ -2,7 +2,9 @@
 // QAction of _build_actions / _build_context_actions becomes a Command
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
+import { CHAPTER_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
+import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 import { COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, THEMES, WATERMARKS } from '../core/design.ts'
@@ -79,6 +81,13 @@ export interface RibbonGroup {
 }
 
 export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation' | 'headerfooter'
+  | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
+
+// The contextual tab a selected element opens at once (as the Box tab).
+export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
+  callout: 'Box', checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code',
+  code: 'Code', marginnote: 'Margin Note', dropcap: 'Drop Cap',
+}
 
 export interface RibbonTab {
   name: string
@@ -146,7 +155,7 @@ export const GALLERY: [string, string, string[]][] = [
     'Monograph (AMS book)', 'Book (elegantbook)', 'Thesis (mimosis)',
     'Thesis (hepthesis, particle physics)', 'Thesis (suftesi, humanities)',
     'Thesis (toptesi, engineering)', 'Dissertation (disser)']],
-  ['Teaching', 'article', ['Coloured boxes', 'Lab report', 'Exam (exam class)',
+  ['Teaching', 'article', ['Coloured boxes', 'Fancy elements', 'Lab report', 'Exam (exam class)',
     'Homework / problem set', 'Lecture notes', 'Handout (Tufte)',
     'Quantum mechanics lecture']],
   ['Science', 'article', ['XPS surface-science paper',
@@ -427,6 +436,9 @@ const cmds: Command[] = [
         .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: c, command: `pagecolor:${c}` })),
       '-', { text: 'More Colours…', command: 'pagecolor_more' },
     ] },
+  { id: 'chapter_titles', text: 'Chapter Titles', icon: 'element', iconArg: 'chapter', popup: 'instant',
+    tooltip: 'How each chapter opens (a section, in a document without chapters), in the accent colour (Colours)',
+    menu: CHAPTER_STYLES.map(([k, name, tip]): MenuItem => ({ text: name, command: `chapterstyle:${k}`, checkable: true, detail: tip })) },
   { id: 'page_borders', text: 'Page Borders', icon: 'page_borders', popup: 'instant',
     menu: [
       { text: 'None', command: 'pageborder:none', checkable: true },
@@ -717,6 +729,62 @@ const cmds: Command[] = [
       '-', { text: 'Other colour…', command: 'tbl_fancy_custom' }] },
   ...FANCY_COLORS.map(([c, name]): Command => ({ id: `tbl_fancy_c_${c}`, text: name })),
   { id: 'tbl_fancy_custom', text: 'Other colour…' },
+  // Insert ▸ Elements, Layout ▸ Margin Note (elements.ts) and their tabs.
+  { id: 'ins_checklist', text: 'Checklist', icon: 'element', iconArg: 'checklist', tooltip: 'A list with tick boxes: a click opens its Checklist tab' },
+  { id: 'ins_progress', text: 'Progress Bars', icon: 'element', iconArg: 'progress', tooltip: 'Labelled bars showing percentages' },
+  { id: 'ins_timeline', text: 'Timeline', icon: 'element', iconArg: 'timeline', tooltip: 'Dated events on a line, down or across the page' },
+  { id: 'ins_qrcode', text: 'QR Code', icon: 'element', iconArg: 'qrcode', tooltip: 'A QR code for a link, readers scan it with a phone' },
+  { id: 'ins_code', text: 'Code Listing', icon: 'element', iconArg: 'code', tooltip: 'Program code with colours and line numbers' },
+  { id: 'ins_dropcap', text: 'Drop Cap', icon: 'element', iconArg: 'dropcap', tooltip: 'A large first letter over several lines, at the start of the paragraph' },
+  { id: 'ins_marginnote', text: 'Margin Note', icon: 'element', iconArg: 'marginnote', tooltip: 'A note in the right margin, beside the line it belongs to' },
+  { id: 'w_edit', text: 'Edit…', icon: 'element', iconArg: 'edit', tooltip: 'Change the text (also: double-click it)' },
+  { id: 'w_color', text: 'Colour', icon: 'element', iconArg: 'color', popup: 'instant', tooltip: 'Its colour',
+    menu: [...WIDGET_COLORS.map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: `#${c}`, command: `w_color_${c}` })),
+      '-', { text: 'Other colour…', command: 'w_color_custom' }] },
+  ...WIDGET_COLORS.map(([c, name]): Command => ({ id: `w_color_${c}`, text: name })),
+  { id: 'w_color_custom', text: 'Other colour…' },
+  { id: 'w_delete', text: 'Delete', icon: 'element', iconArg: 'delete', tooltip: 'Remove it from the document (Ctrl+Z brings it back)' },
+  { id: 'w_close', text: 'Close', icon: 'element', iconArg: 'close', tooltip: 'Leave it: the caret goes after it and this tab closes' },
+  { id: 'ck_box', text: 'Boxes', icon: 'element', iconArg: 'ck_box', checkable: true, group: 'ckstyle' },
+  { id: 'ck_circle', text: 'Circles', icon: 'element', iconArg: 'ck_circle', checkable: true, group: 'ckstyle' },
+  { id: 'ck_cols_1', text: '1 column', checkable: true, group: 'ckcols' },
+  { id: 'ck_cols_2', text: '2 columns', checkable: true, group: 'ckcols' },
+  { id: 'ck_cols_3', text: '3 columns', checkable: true, group: 'ckcols' },
+  { id: 'ck_grey', text: 'Grey done items', checkable: true, checkbox: true, tooltip: 'Ticked items in grey' },
+  { id: 'ck_tick_all', text: 'Tick all', icon: 'element', iconArg: 'ck_tick' },
+  { id: 'ck_untick_all', text: 'Untick all', icon: 'element', iconArg: 'ck_untick' },
+  { id: 'pg_rounded', text: 'Rounded', icon: 'element', iconArg: 'pg_rounded', checkable: true, group: 'pgstyle' },
+  { id: 'pg_square', text: 'Square', icon: 'element', iconArg: 'pg_square', checkable: true, group: 'pgstyle' },
+  { id: 'pg_thin', text: 'Thin', icon: 'element', iconArg: 'pg_thin', checkable: true, group: 'pgstyle' },
+  { id: 'pg_short', text: 'Short (4 cm)', checkable: true, group: 'pglen' },
+  { id: 'pg_medium', text: 'Medium (7 cm)', checkable: true, group: 'pglen' },
+  { id: 'pg_long', text: 'Long (10 cm)', checkable: true, group: 'pglen' },
+  { id: 'pg_percent', text: 'Show percentages', checkable: true, checkbox: true },
+  { id: 'tl_vertical', text: 'Down the page', icon: 'element', iconArg: 'tl_vertical', checkable: true, group: 'tllayout' },
+  { id: 'tl_horizontal', text: 'Across', icon: 'element', iconArg: 'tl_horizontal', checkable: true, group: 'tllayout' },
+  { id: 'tl_add', text: 'Add Event', icon: 'element', iconArg: 'tl_add' },
+  { id: 'qr_small', text: 'Small', icon: 'element', iconArg: 'qr_small', checkable: true, group: 'qrsize' },
+  { id: 'qr_medium', text: 'Medium', icon: 'element', iconArg: 'qr_medium', checkable: true, group: 'qrsize' },
+  { id: 'qr_large', text: 'Large', icon: 'element', iconArg: 'qr_large', checkable: true, group: 'qrsize' },
+  { id: 'qr_left', text: 'Left', icon: 'element', iconArg: 'align_left', checkable: true, group: 'qralign' },
+  { id: 'qr_center', text: 'Centre', icon: 'element', iconArg: 'align_center', checkable: true, group: 'qralign' },
+  { id: 'qr_right', text: 'Right', icon: 'element', iconArg: 'align_right', checkable: true, group: 'qralign' },
+  { id: 'cd_lang', text: 'Language', icon: 'element', iconArg: 'cd_lang', popup: 'instant', tooltip: 'The programming language, for its colours',
+    menu: CODE_LANGUAGES.map(([n], i): MenuItem => ({ text: n, command: `cd_lang_${i}` })) },
+  ...CODE_LANGUAGES.map(([n], i): Command => ({ id: `cd_lang_${i}`, text: n })),
+  { id: 'cd_light', text: 'Light', icon: 'element', iconArg: 'cd_light', checkable: true, group: 'cdtheme' },
+  { id: 'cd_dark', text: 'Dark', icon: 'element', iconArg: 'cd_dark', checkable: true, group: 'cdtheme' },
+  { id: 'cd_plain', text: 'Plain', icon: 'element', iconArg: 'cd_plain', checkable: true, group: 'cdtheme' },
+  { id: 'cd_numbers', text: 'Line numbers', checkable: true, checkbox: true },
+  { id: 'cd_frame', text: 'Frame', checkable: true, checkbox: true },
+  { id: 'mn_plain', text: 'Text only', icon: 'element', iconArg: 'mn_plain', checkable: true, group: 'mnstyle' },
+  { id: 'mn_line', text: 'Line beside', icon: 'element', iconArg: 'mn_line', checkable: true, group: 'mnstyle' },
+  { id: 'mn_box', text: 'Box', icon: 'element', iconArg: 'mn_box', checkable: true, group: 'mnstyle' },
+  { id: 'mn_room', text: 'Wide Margin', icon: 'element', iconArg: 'mn_room', tooltip: 'Right margin 4.5 cm, room for the notes (again: back to 2.5 cm)' },
+  ...[2, 3, 4, 5].map((n): Command => ({ id: `dc_lines_${n}`, text: `${n} lines`, checkable: true, group: 'dclines' })),
+  { id: 'dc_dropped', text: 'Dropped', icon: 'element', iconArg: 'dc_dropped', checkable: true, group: 'dcpos', tooltip: 'The letter inside the text' },
+  { id: 'dc_margin', text: 'In margin', icon: 'element', iconArg: 'dc_margin', checkable: true, group: 'dcpos', tooltip: 'The letter hanging in the left margin' },
+  { id: 'dc_smallcaps', text: 'Small capitals after', checkable: true, checkbox: true, tooltip: 'The rest of the word in small capitals' },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -853,6 +921,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Header & Footer', large: ['hf_header', 'hf_footer'] },
     { label: 'Tables & Boxes', large: ['table_menu', 'callout'] },
     { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes'], ['flowchart', 'smartart'], ['chart', 'screenshot']], text: true },
+    { label: 'Elements', rows: [['ins_checklist', 'ins_progress', 'ins_dropcap'], ['ins_timeline', 'ins_qrcode'], ['ins_code']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
@@ -865,7 +934,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Pens', large: [{ widget: 'pens' }, 'add_pen'] },
   ] },
   { name: 'Design', groups: [
-    { label: 'Document Formatting', large: ['design_themes', { widget: 'stylesets' }] },
+    { label: 'Document Formatting', large: ['design_themes', { widget: 'stylesets' }, 'chapter_titles'] },
     { label: 'Formatting', large: ['design_colors', 'design_fonts'], rows: [['para_spacing'], ['set_default']], text: true },
     { label: 'Page Background', large: ['watermark', 'page_color', 'page_borders'] },
     { label: 'Document type', large: [{ widget: 'classes' }] },
@@ -876,6 +945,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Indent', rows: [[{ widget: 'parafield', field: 'left_cm' }], [{ widget: 'parafield', field: 'right_cm' }]] },
     { label: 'Spacing', rows: [[{ widget: 'parafield', field: 'before_pt' }], [{ widget: 'parafield', field: 'after_pt' }]] },
     { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum'] },
+    { label: 'Margin Notes', large: ['ins_marginnote', 'mn_room'] },
   ] },
   { name: 'Header & Footer', context: 'headerfooter', groups: [
     { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum'] },
@@ -957,6 +1027,57 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Style', large: ['box_style'], rows: [['box_title'], ['box_color']], text: true },
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Box', rows: [['box_para_after'], ['box_remove'], ['box_delete']], text: true },
+  ] },
+  { name: 'Checklist', context: 'checklist', groups: [
+    { label: 'Items', large: ['w_edit'], rows: [['ck_tick_all'], ['ck_untick_all']], text: true },
+    { label: 'Style', large: ['ck_box', 'ck_circle', 'w_color'] },
+    { label: 'Layout', rows: [['ck_cols_1'], ['ck_cols_2'], ['ck_cols_3']], text: true },
+    { label: 'Options', rows: [['ck_grey']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Checklist', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Progress Bars', context: 'progress', groups: [
+    { label: 'Bars', large: ['w_edit'] },
+    { label: 'Style', large: ['pg_rounded', 'pg_square', 'pg_thin', 'w_color'] },
+    { label: 'Length', rows: [['pg_short'], ['pg_medium'], ['pg_long']], text: true },
+    { label: 'Options', rows: [['pg_percent']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Progress Bars', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Timeline', context: 'timeline', groups: [
+    { label: 'Events', large: ['w_edit', 'tl_add'] },
+    { label: 'Layout', large: ['tl_vertical', 'tl_horizontal'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Timeline', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'QR Code', context: 'qrcode', groups: [
+    { label: 'Link', large: ['w_edit'] },
+    { label: 'Size', large: ['qr_small', 'qr_medium', 'qr_large'] },
+    { label: 'Position', large: ['qr_left', 'qr_center', 'qr_right'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'QR Code', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Code', context: 'code', groups: [
+    { label: 'Code', large: ['w_edit', 'cd_lang'] },
+    { label: 'Theme', large: ['cd_light', 'cd_dark', 'cd_plain'] },
+    { label: 'Options', rows: [['cd_numbers'], ['cd_frame']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Code Listing', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Margin Note', context: 'marginnote', groups: [
+    { label: 'Note', large: ['w_edit'] },
+    { label: 'Style', large: ['mn_plain', 'mn_line', 'mn_box', 'w_color'] },
+    { label: 'Page', large: ['mn_room'] },
+    { label: 'Margin Note', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Drop Cap', context: 'dropcap', groups: [
+    { label: 'Letter', large: ['w_edit'] },
+    { label: 'Position', large: ['dc_dropped', 'dc_margin'] },
+    { label: 'Height', rows: [['dc_lines_2', 'dc_lines_3'], ['dc_lines_4', 'dc_lines_5']], text: true },
+    { label: 'Style', large: ['w_color'], rows: [['dc_smallcaps']], text: true },
+    { label: 'Drop Cap', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },

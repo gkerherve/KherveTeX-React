@@ -2,6 +2,7 @@
 // pure functions, one serializer per node type, no I/O. The output must stay
 // byte-identical to the Python app's (tests/serializer.parity.test.ts).
 
+import { rawTexts, widgetPreamble } from './widgets.ts'
 import { FANCY_RULE_GREY, parseFancy, tint } from './fancyTable.ts'
 import { designPreamble } from './design.ts'
 import { inkPreamble, placeInk } from './ink.ts'
@@ -1449,10 +1450,14 @@ export function serializeDocument(doc: Document): string {
     if (p === 'colortbl' && !pkgList.includes('xcolor')) pkgList.push('xcolor')  // \cellcolor[HTML]
     if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
   }
+  // Insert ▸ Illustrations' elements, margin notes and drop caps.
+  const [widgetPkgs, widgetDefs] = widgetPreamble(rawTexts(doc.children))
+  for (const p of widgetPkgs) if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
   const pkgLines = pkgList.map((p) => `\\usepackage{${p}}`).join('\n')
   let packages = geometry ? strip(geometry + '\n' + pkgLines) : pkgLines
   if (preambleExtras) packages += '\n' + preambleExtras
   if (paraDefs) packages += '\n' + paraDefs
+  if (widgetDefs) packages += '\n' + widgetDefs
   // ulem with normalem, so \emph stays italic.
   if (fontPkgs.includes('ulem') && !m.preamble_extras.includes('{ulem}')) packages += '\n\\usepackage[normalem]{ulem}'
   const paraAuthors = fontPkgs.filter(p => p.startsWith('author:')).map(p => p.slice(7))
@@ -1947,8 +1952,12 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
   // Chapters are serialized separately, so their tables can't be inspected
   // here; booktabs is cheap and always available.
   if (!pkgList.includes('booktabs') && !isJournal) pkgList.push('booktabs')
+  // Insert ▸ Illustrations' elements, margin notes and drop caps.
+  const [widgetPkgs, widgetDefs] = widgetPreamble((chapterDocs ?? []).flatMap(d => rawTexts(d.children)))
+  for (const p of widgetPkgs) if (!pkgList.includes(p) && !m.preamble_extras.includes(`{${p}}`)) pkgList.push(p)
   const pkgLines = pkgList.map((p) => `\\usepackage{${p}}`).join('\n')
   let packages = geometry ? strip(geometry + '\n' + pkgLines) : pkgLines
+  if (widgetDefs) packages += '\n' + widgetDefs
   if (preambleExtras) packages += '\n' + preambleExtras
   if (m.preamble_extras && strip(m.preamble_extras)) packages += '\n' + strip(m.preamble_extras)
   // Chapters are body-only, so packages and macros a chapter added to its

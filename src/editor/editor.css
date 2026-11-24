@@ -753,3 +753,70 @@ body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-pagebreak { font-size: 13.33px
   pointer-events: none;
 }
 body.kt-moving, body.kt-moving * { cursor: grabbing !important; user-select: none; }
+
+/* ----- Insert ▸ Elements (widgetView.ts): the drawing over hidden LaTeX ----- */
+.kt-flow > pre.kt-raw.kt-raw-widget {
+  font-size: 0; line-height: 0; height: 0; min-height: 0; padding: 0; border: 0; overflow: hidden; color: transparent; background: transparent; caret-color: transparent;
+}
+body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-widget { font-size: 11px; line-height: normal; height: auto; color: #8a8a8a; }
+.kt-widget { position: relative; margin: 6px -7px 8px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; user-select: none; cursor: default; }
+.kt-widget:hover { border-color: #d5dde9; }
+pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget { border-color: #6d93cf; background: rgba(43, 87, 154, .035); box-shadow: 0 0 0 1px rgba(43, 87, 154, .18); }
+.kt-widget-tag { position: absolute; top: -9px; left: 6px; display: none; font: 10px/14px Arial, sans-serif; color: #fff; background: #6d93cf; padding: 0 5px; border-radius: 2px; }
+pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display: block; }
+.kt-widget-close { position: absolute; top: 4px; right: 4px; display: none; width: 22px; height: 22px; border: 1px solid #c8c8c8;
+  border-radius: 3px; background: #fff; color: #555; font: 16px/18px Arial, sans-serif; cursor: pointer; padding: 0; z-index: 2; }
+.kt-widget-close:hover { background: #fde7e7; color: #b71c1c; border-color: #e0a0a0; }
+.kt-widget:hover .kt-widget-close, pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-close { display: block; }
+.kt-w-title { font-weight: 700; margin-bottom: 4px; }
+.kt-w-checks { column-gap: 2em; }
+.kt-w-check { display: flex; align-items: center; gap: .5em; padding: 1px 0 1px 1em; break-inside: avoid; }
+.kt-w-check svg { flex: none; }
+.kt-w-bars { display: inline-grid; column-gap: 1em; row-gap: .55em; align-items: center; }
+.kt-w-bar { display: inline-flex; overflow: hidden; }
+.kt-w-bar > span { display: block; height: 100%; }
+.kt-w-bar-pct { text-align: right; }
+.kt-w-tl-v { display: flex; flex-direction: column; gap: .9em; margin: 0 auto; width: fit-content; position: relative; }
+.kt-w-tl-v .kt-w-ev { display: grid; grid-template-columns: 4.5em 1.2em minmax(0, 24em); align-items: start; position: relative; }
+.kt-w-tl-v .kt-w-ev-date { text-align: right; padding-right: .5em; font-weight: 700; color: var(--kt-w); }
+.kt-w-tl-v .kt-w-ev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kt-w); margin: .45em auto 0; position: relative; z-index: 1; }
+.kt-w-tl-v .kt-w-ev:not(:last-child)::after { content: ''; position: absolute; left: calc(4.5em + .6em - 1px); top: .7em; height: calc(100% + .9em);
+  border-left: 2px solid color-mix(in srgb, var(--kt-w) 40%, white); }
+.kt-w-ev-title { font-weight: 700; }
+.kt-w-ev-body { font-size: .9em; }
+.kt-w-tl-h { display: flex; position: relative; }
+.kt-w-tl-h::before { content: ''; position: absolute; left: 0; right: 0; top: calc(1.4em + 3px); border-top: 2px solid color-mix(in srgb, var(--kt-w) 40%, white); }
+.kt-w-tl-h .kt-w-ev { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 .3em; }
+.kt-w-tl-h .kt-w-ev-date { font-weight: 700; font-size: .9em; color: var(--kt-w); height: 1.4em; }
+.kt-w-tl-h .kt-w-ev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kt-w); position: relative; z-index: 1; margin-bottom: .4em; }
+.kt-w-qr svg { display: inline-block; }
+.kt-w-qr-cap { font-size: .9em; margin-top: 2px; }
+.kt-w-qr-err { color: #b71c1c; font-style: italic; }
+.kt-w-code-title { text-align: center; margin-bottom: 3px; }
+.kt-w-code { font: 12px/1.45 Menlo, Consolas, monospace; padding: 4px 6px; white-space: pre-wrap; }
+.kt-w-code-line { display: flex; }
+.kt-w-code-num { flex: none; width: 2em; text-align: right; padding-right: 1em; color: #999; font-size: 9px; line-height: 17px; }
+.kt-w-code-text { flex: 1; min-width: 0; }
+
+/* Layout ▸ Margin Note: a small flag in the text, the note in the right margin. */
+.kt-marginnote { cursor: pointer; }
+.kt-marginnote-flag { display: inline-block; width: 6px; height: 6px; border-radius: 50%; vertical-align: super; margin: 0 1px; }
+.kt-marginnote-text { position: absolute; left: calc(100% + 4mm); width: 2.1cm; font-size: 9.5px; line-height: 1.25; text-indent: 0;
+  white-space: normal; text-align: left; font-style: normal; font-weight: 400; color: #222; }
+.kt-mn-plain { color: var(--kt-mn); }
+.kt-mn-line { border-left: 2px solid var(--kt-mn); padding-left: 4px; }
+.kt-mn-box { border: 1px solid var(--kt-mn); background: color-mix(in srgb, var(--kt-mn) 8%, white); padding: 2px 3px; }
+.kt-marginnote.ProseMirror-selectednode .kt-marginnote-text, .kt-marginnote:hover .kt-marginnote-text { outline: 1px solid #6d93cf; outline-offset: 1px; }
+.kt-marginnote.ProseMirror-selectednode .kt-marginnote-flag { box-shadow: 0 0 0 2px #6d93cf; }
+
+/* Insert ▸ Drop Cap: the letter over N lines, the rest of the word in small capitals. */
+.kt-dropcap { cursor: pointer; }
+.kt-dropcap-letter { float: left; font-size: calc(((var(--kt-dc-lines) - 1) * 1.42em + 0.68em) / 0.68); line-height: .7; padding: .1em .06em 0 0; margin-top: .02em; }
+.kt-dropcap-letter.kt-dropcap-margin { margin-left: -.75em; }
+.kt-dropcap-sc { font-variant: small-caps; }
+.kt-dropcap.ProseMirror-selectednode .kt-dropcap-letter { outline: 1px solid #6d93cf; }
+/* Margin notes and drop caps are drawn, not shown as LaTeX source. */
+.kt-flow .kt-inline-raw.kt-marginnote, .kt-flow .kt-inline-raw.kt-dropcap {
+  font-family: inherit; font-size: inherit; color: inherit; background: none; border: 0; padding: 0; border-radius: 0; white-space: normal;
+}
+.kt-flow .kt-marginnote-text { font-family: var(--kt-body-font, inherit); }

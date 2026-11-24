@@ -11,6 +11,7 @@ import { blockUnits, moveBlocks } from './blockMover.ts'
 import { blockToPM, cellDisplayText, newGid } from './convert.ts'
 import { mathBlockIsNumbered } from './layout.ts'
 import { STYLED_TEXT, schema } from './schema.ts'
+import { currentInlineSpecial, currentWidget } from './widgetCommands.ts'
 import { columnSpecTokens, parseColumnSpec } from './views.ts'
 
 export type Dispatch = (tr: Transaction) => void
@@ -83,7 +84,14 @@ export function currentTheorem(state: EditorState): { node: PMNode; pos: number 
 }
 
 // "table", "figure", "equation", "theorem" or null (context_object).
-export function contextObject(state: EditorState): 'table' | 'figure' | 'equation' | 'theorem' | 'callout' | null {
+export type ObjectContext = 'table' | 'figure' | 'equation' | 'theorem' | 'callout'
+  | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
+
+export function contextObject(state: EditorState): ObjectContext | null {
+  const w = currentWidget(state)
+  if (w) return w.widget.kind
+  const sp = currentInlineSpecial(state)
+  if (sp) return sp.kind
   if (currentFigure(state)) return 'figure'
   if (currentTable(state)) return 'table'
   if (currentMathBlock(state) || currentMathInline(state)) return 'equation'

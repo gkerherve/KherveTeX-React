@@ -6,6 +6,34 @@ import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
 import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
+import { parseWidget } from '../core/widgets.ts'
+import { deleteBlockAt, selectBlockAt } from './widgetCommands.ts'
+import { widgetElement } from './widgetView.ts'
+
+// A double-click on an element: the app opens its edit dialog.
+export const WIDGET_EDIT_EVENT = 'kt-widget-edit'
+
+// Typing never lands in an element's hidden LaTeX: it is changed from its
+// tab. Backspace / Delete there remove the element.
+export function widgetGuardPlugin(): Plugin {
+  const inWidget = (state: EditorState) => {
+    const $p = state.selection.$from
+    return $p.parent.type.name === 'raw_latex' && !!parseWidget($p.parent.textContent)
+  }
+  return new Plugin({
+    props: {
+      handleTextInput: (view) => inWidget(view.state),
+      handlePaste: (view) => inWidget(view.state),
+      handleKeyDown: (view, ev) => {
+        if (!inWidget(view.state) || (ev.key !== 'Backspace' && ev.key !== 'Delete' && ev.key !== 'Enter')) return false
+        const $p = view.state.selection.$from
+        if (ev.key === 'Enter') return true
+        deleteBlockAt($p.before())(view.state, view.dispatch)
+        return true
+      },
+    },
+  })
+}
 import { Decoration, DecorationSet } from 'prosemirror-view'
 import { calloutColor, isCallout, type DocMeta } from '../core/model.ts'
 import { tableCellStyles } from './views.ts'
@@ -88,6 +116,25 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
   let starts: { page: number; pos: number }[] | null = null
   doc.forEach((node, pos) => {
     if (node.type.name !== 'raw_latex') return
+    // Insert ▸ Elements: the drawing over the hidden LaTeX.
+    const w = parseWidget(node.textContent)
+    if (w) {
+      decos.push(Decoration.widget(pos + node.nodeSize, view => {
+        const at = () => {
+          const p = view.posAtDOM(dom, 0)
+          const before = view.state.doc.resolve(p).nodeBefore
+          return before ? p - before.nodeSize : -1
+        }
+        const act = (fn: (p: number) => void) => () => { const p = at(); if (p >= 0) { fn(p); view.focus() } }
+        const dom: HTMLElement = widgetElement(w, {
+          select: act(p => selectBlockAt(p)(view.state, view.dispatch)),
+          remove: act(p => deleteBlockAt(p)(view.state, view.dispatch)),
+          edit: act(p => { selectBlockAt(p)(view.state, view.dispatch); window.dispatchEvent(new CustomEvent(WIDGET_EDIT_EVENT)) }),
+        })
+        return dom
+      }, { side: -1, key: 'w' + node.textContent, ignoreSelection: true, stopEvent: () => true }))
+      return
+    }
     const t = tocBlock(node.textContent)
     if (!t) return
     const numbers = new Map<number, string>()
@@ -181,7 +228,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     if (node.type.name === 'raw_latex') {
       // _code_block_format / _bibliography_block_format / _raw_block_format.
       const t = node.textContent
-      attrs.class = t.includes('\\begin{lstlisting}') || t.includes('\\begin{verbatim}') ? 'kt-raw-code'
+      attrs.class = parseWidget(t) ? 'kt-raw-widget' : t.includes('\\begin{lstlisting}') || t.includes('\\begin{verbatim}') ? 'kt-raw-code'
         : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : tocBlock(t) ? 'kt-raw-toc' : /^\s*\\(?:newpage|clearpage|pagebreak|cleardoublepage)\s*$/.test(t) ? 'kt-raw-pagebreak' : ''
     }
     if (L.breakBefore) attrs['data-break'] = '1'

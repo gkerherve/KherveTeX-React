@@ -1,7 +1,7 @@
 {
   "name": "khervetex",
   "private": true,
-  "version": "507.0.0",
+  "version": "508.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -31,6 +31,7 @@
     "prosemirror-tables": "^1.8.5",
     "prosemirror-transform": "^1.12.4",
     "prosemirror-view": "^1.42.9",
+    "qrcode-generator": "^1.4.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

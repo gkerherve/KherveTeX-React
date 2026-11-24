@@ -1936,7 +1936,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
-  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon,
+  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon, element: ElementIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
   repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,
@@ -1952,6 +1952,89 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   eq_environments: EqEnvironments,
 }
 
+
+// Insert ▸ Elements, Layout ▸ Margin Note, Design ▸ Chapter Titles and
+// their tabs' options. arg picks the picture.
+export function ElementIcon({ arg = 'checklist', ...p }: IconProps) {
+  const box = (x: number, y: number, on: boolean, round = false) => round
+    ? <g><circle cx={x + 2.5} cy={y + 2.5} r={2.5} stroke={BLUE} strokeWidth={1.1} fill={on ? '#d6e4f3' : 'none'} />
+      {on && <polyline points={`${x + 1},${y + 2.6} ${x + 2.2},${y + 3.8} ${x + 4.2},${y + 1.4}`} stroke={BLUE} strokeWidth={1.2} fill='none' />}</g>
+    : <g>{R(x, y, 5, 5, { color: BLUE, lw: 1.1, r: 0.8, fill: on ? '#d6e4f3' : 'none' })}
+      {on && <polyline points={`${x + 1},${y + 2.6} ${x + 2.2},${y + 3.8} ${x + 4.2},${y + 1.4}`} stroke={BLUE} strokeWidth={1.2} fill='none' />}</g>
+  const bar = (y: number, w: number, h = 3, r = 1.5) => <g><rect x={3} y={y} width={18} height={h} rx={r} fill='#d6e4f3' /><rect x={3} y={y} width={w} height={h} rx={r} fill={BLUE} /></g>
+  switch (arg) {
+    case 'checklist': case 'ck_box': case 'ck_circle': {
+      const round = arg === 'ck_circle'
+      return <Svg {...p}>{box(3, 3, true, round)}{L(10, 5.5, 21, 5.5, INK, 1.2)}{box(3, 10, true, round)}{L(10, 12.5, 19, 12.5, INK, 1.2)}
+        {box(3, 17, false, round)}{L(10, 19.5, 20, 19.5, INK, 1.2)}</Svg>
+    }
+    case 'ck_cols': return <Svg {...p}>{box(2, 4, true)}{L(8, 6.5, 11, 6.5)}{box(2, 13, false)}{L(8, 15.5, 11, 15.5)}{box(13, 4, true)}{L(19, 6.5, 22, 6.5)}{box(13, 13, false)}{L(19, 15.5, 22, 15.5)}</Svg>
+    case 'ck_grey': return <Svg {...p}>{box(3, 6, true)}{L(10, 8.5, 21, 8.5, '#aaaaaa', 1.6)}{box(3, 14, false)}{L(10, 16.5, 19, 16.5, INK, 1.6)}</Svg>
+    case 'ck_tick': return <Svg {...p}>{box(3, 4, true)}{box(3, 11, true)}{box(3, 18, true)}{L(10, 6.5, 20, 6.5)}{L(10, 13.5, 20, 13.5)}{L(10, 20.5, 20, 20.5)}</Svg>
+    case 'ck_untick': return <Svg {...p}>{box(3, 4, false)}{box(3, 11, false)}{box(3, 18, false)}{L(10, 6.5, 20, 6.5)}{L(10, 13.5, 20, 13.5)}{L(10, 20.5, 20, 20.5)}</Svg>
+    case 'progress': case 'pg_rounded': return <Svg {...p}>{bar(4, 16)}{bar(10.5, 11)}{bar(17, 6)}</Svg>
+    case 'pg_square': return <Svg {...p}>{bar(4, 16, 3, 0)}{bar(10.5, 11, 3, 0)}{bar(17, 6, 3, 0)}</Svg>
+    case 'pg_thin': return <Svg {...p}>{bar(5, 16, 1.4, 0.7)}{bar(11.5, 11, 1.4, 0.7)}{bar(18, 6, 1.4, 0.7)}</Svg>
+    case 'pg_short': return <Svg {...p}><rect x={3} y={10.5} width={8} height={3} rx={1.5} fill={BLUE} /></Svg>
+    case 'pg_medium': return <Svg {...p}><rect x={3} y={10.5} width={13} height={3} rx={1.5} fill={BLUE} /></Svg>
+    case 'pg_long': return <Svg {...p}><rect x={3} y={10.5} width={18} height={3} rx={1.5} fill={BLUE} /></Svg>
+    case 'pg_percent': return <Svg {...p}>{T([2, 4, 20, 16], '%', { size: 15, bold: true, color: BLUE })}</Svg>
+    case 'timeline': case 'tl_vertical': return <Svg {...p}>{L(8, 4, 8, 20, '#9fb6d8', 1.6)}{D(8, 5, 2, BLUE)}{D(8, 12, 2, BLUE)}{D(8, 19, 2, BLUE)}
+      {L(12, 5, 21, 5, INK, 1.2)}{L(12, 12, 19, 12, INK, 1.2)}{L(12, 19, 20, 19, INK, 1.2)}{L(2, 5, 5, 5, BLUE, 1.2)}{L(2, 12, 5, 12, BLUE, 1.2)}{L(2, 19, 5, 19, BLUE, 1.2)}</Svg>
+    case 'tl_horizontal': return <Svg {...p}>{L(2, 12, 22, 12, '#9fb6d8', 1.6)}{D(5, 12, 2, BLUE)}{D(12, 12, 2, BLUE)}{D(19, 12, 2, BLUE)}
+      {L(3.5, 7, 6.5, 7, BLUE, 1.2)}{L(10.5, 7, 13.5, 7, BLUE, 1.2)}{L(17.5, 7, 20.5, 7, BLUE, 1.2)}{L(3, 17, 7, 17)}{L(10, 17, 14, 17)}{L(17, 17, 21, 17)}</Svg>
+    case 'tl_add': return <Svg {...p}>{L(8, 4, 8, 20, '#9fb6d8', 1.6)}{D(8, 6, 2, BLUE)}{D(8, 13, 2, BLUE)}{L(12, 6, 20, 6)}{L(12, 13, 18, 13)}
+      {L(16, 19, 22, 19, GREEN, 1.8)}{L(19, 16, 19, 22, GREEN, 1.8)}</Svg>
+    case 'qrcode': case 'qr_medium': case 'qr_small': case 'qr_large': {
+      const k = arg === 'qr_small' ? 0.7 : arg === 'qr_large' ? 1.15 : 1
+      const o = 12 - 9 * k, u = 18 * k / 9
+      const cells = [[0, 0], [0, 1], [1, 0], [0, 2], [2, 0], [1, 2], [2, 1], [2, 2], [4, 4], [5, 3], [3, 5], [6, 6], [4, 6], [6, 4], [8, 8], [7, 5], [5, 7]]
+      const finder = (x: number, y: number) => <g>{R(o + x * u, o + y * u, 3 * u, 3 * u, { color: INK, lw: 1, r: 0 })}{F(o + (x + 1) * u, o + (y + 1) * u, u, u, INK)}</g>
+      return <Svg {...p}>{finder(0, 0)}{finder(6, 0)}{finder(0, 6)}{cells.filter(([a, b]) => a > 3 || b > 3).map(([a, b], i) => <g key={i}>{F(o + a * u, o + b * u, u, u, INK)}</g>)}</Svg>
+    }
+    case 'align_left': return <Svg {...p}>{R(3, 6, 9, 9, { color: BLUE, lw: 1.2, r: 0 })}{L(3, 19, 21, 19, '#aaaaaa', 1)}</Svg>
+    case 'align_center': return <Svg {...p}>{R(7.5, 6, 9, 9, { color: BLUE, lw: 1.2, r: 0 })}{L(3, 19, 21, 19, '#aaaaaa', 1)}</Svg>
+    case 'align_right': return <Svg {...p}>{R(12, 6, 9, 9, { color: BLUE, lw: 1.2, r: 0 })}{L(3, 19, 21, 19, '#aaaaaa', 1)}</Svg>
+    case 'caption': return <Svg {...p}>{R(6, 3, 12, 12, { color: BLUE, lw: 1.2, r: 0 })}{L(5, 19, 19, 19, INK, 1.4)}</Svg>
+    case 'code': case 'cd_light': case 'cd_dark': case 'cd_plain': {
+      const bg = arg === 'cd_dark' ? '#263238' : arg === 'cd_plain' ? 'none' : '#eef2f6'
+      const fg = arg === 'cd_dark' ? '#82aaff' : BLUE
+      return <Svg {...p}>{R(2.5, 4, 19, 16, { color: arg === 'cd_plain' ? '#aaaaaa' : '#8a9bb0', fill: bg, lw: 1, r: 1.5 })}
+        <polyline points='9,8.5 5.5,12 9,15.5' stroke={fg} strokeWidth={1.6} fill='none' /><polyline points='15,8.5 18.5,12 15,15.5' stroke={fg} strokeWidth={1.6} fill='none' />
+        {L(13, 8, 11, 16, arg === 'cd_dark' ? '#eceff1' : INK, 1.3)}</Svg>
+    }
+    case 'cd_numbers': return <Svg {...p}>{T([1, 2, 6, 6], '1', { size: 6, color: '#888' })}{T([1, 9, 6, 6], '2', { size: 6, color: '#888' })}{T([1, 16, 6, 6], '3', { size: 6, color: '#888' })}
+      {L(8, 5, 20, 5, BLUE, 1.3)}{L(8, 12, 17, 12, INK, 1.3)}{L(8, 19, 19, 19, INK, 1.3)}</Svg>
+    case 'cd_frame': return <Svg {...p}>{R(3, 4, 18, 16, { color: INK, lw: 1.2, r: 0 })}{L(6, 9, 16, 9, BLUE, 1.3)}{L(6, 14, 18, 14, INK, 1.3)}</Svg>
+    case 'cd_title': return <Svg {...p}>{L(7, 3.5, 17, 3.5, INK, 1.6)}{R(3, 7, 18, 13, { color: '#8a9bb0', fill: '#eef2f6', lw: 1, r: 1 })}{L(6, 11, 15, 11, BLUE, 1.2)}{L(6, 15, 17, 15, INK, 1.2)}</Svg>
+    case 'cd_lang': return <Svg {...p}>{T([1, 3, 22, 18], 'Py', { size: 11, bold: true, color: BLUE })}</Svg>
+    case 'dropcap': case 'dc_dropped': case 'dc_margin': {
+      const x = arg === 'dc_margin' ? 0 : 2
+      return <Svg {...p}>{T([x, 2, 10, 13], 'A', { size: 15, bold: true, color: BLUE, family: 'Georgia, serif' })}
+        {L(13, 5, 22, 5)}{L(13, 9.5, 22, 9.5)}{L(arg === 'dc_margin' ? 10 : 13, 14, 22, 14)}{L(2, 18.5, 22, 18.5)}</Svg>
+    }
+    case 'dc_lines': return <Svg {...p}>{T([1, 1, 11, 15], 'A', { size: 17, bold: true, color: BLUE, family: 'Georgia, serif' })}{L(13, 4, 22, 4)}{L(13, 8.5, 22, 8.5)}{L(13, 13, 22, 13)}{L(2, 18, 22, 18)}</Svg>
+    case 'dc_smallcaps': return <Svg {...p}>{T([1, 4, 22, 16], 'Aᴀ', { size: 12, color: INK, family: 'Georgia, serif' })}</Svg>
+    case 'marginnote': case 'mn_box': case 'mn_line': case 'mn_plain': {
+      const note = arg === 'mn_line' ? <g>{L(15, 5, 15, 13, BLUE, 1.6)}{L(17, 6, 22, 6)}{L(17, 9, 21, 9)}{L(17, 12, 22, 12)}</g>
+        : arg === 'mn_plain' ? <g>{L(15, 6, 22, 6, BLUE, 1.2)}{L(15, 9, 21, 9, BLUE, 1.2)}{L(15, 12, 22, 12, BLUE, 1.2)}</g>
+          : <g>{R(14.5, 4, 8, 10, { color: BLUE, fill: '#d6e4f3', lw: 1, r: 0.8 })}{L(16, 7, 21, 7, INK, 0.9)}{L(16, 10, 20, 10, INK, 0.9)}</g>
+      return <Svg {...p}>{R(1.5, 2, 21, 20, { color: '#aaaaaa', lw: 0.9, r: 0.5 })}{L(4, 6, 12, 6)}{L(4, 9.5, 12, 9.5)}{L(4, 13, 12, 13)}{L(4, 16.5, 12, 16.5)}
+        {D(12.6, 9.2, 1, BLUE)}{note}</Svg>
+    }
+    case 'mn_room': return <Svg {...p}>{R(2, 3, 20, 18, { color: '#aaaaaa', lw: 0.9, r: 0.5 })}{L(13, 3, 13, 21, BLUE, 1, '1.5 1.5')}{L(4, 7, 11, 7)}{L(4, 11, 11, 11)}{L(4, 15, 11, 15)}
+      <polyline points='15,12 20,12' stroke={GREEN} strokeWidth={1.4} fill='none' /><polyline points='18,10 20,12 18,14' stroke={GREEN} strokeWidth={1.4} fill='none' /></Svg>
+    case 'chapter': return <Svg {...p}>{Page(3, 2, 18, 20, 3.5)}{T([5, 4, 7, 10], '1', { size: 11, bold: true, color: BLUE })}{L(6, 15, 17, 15, INK, 1.8)}{L(6, 18.5, 15, 18.5, '#aaaaaa', 1)}</Svg>
+    case 'edit': return <Svg {...p}>{R(3, 5, 13, 15, { color: '#8a9bb0', lw: 1, r: 1 })}{L(6, 9, 13, 9)}{L(6, 12.5, 12, 12.5)}
+      <polygon points='19,4 22,7 14,15 11,16 12,13' stroke={BLUE} strokeWidth={1.2} fill='#d6e4f3' /></Svg>
+    case 'close': return <Svg {...p}>{R(3, 3, 18, 18, { color: '#8a9bb0', lw: 1, r: 2 })}{L(8, 8, 16, 16, RED, 1.8)}{L(16, 8, 8, 16, RED, 1.8)}</Svg>
+    case 'delete': return <Svg {...p}>{R(6, 7, 12, 14, { color: INK, lw: 1.3, r: 1 })}{L(4, 6, 20, 6, INK, 1.4)}{L(10, 3.5, 14, 3.5, INK, 1.4)}{L(10, 10, 10, 18, RED, 1.2)}{L(14, 10, 14, 18, RED, 1.2)}</Svg>
+    case 'after': return <Svg {...p}>{R(3, 3, 18, 8, { color: BLUE, fill: '#d6e4f3', lw: 1, r: 1 })}{L(4, 16, 20, 16)}{L(4, 20, 14, 20)}<polyline points='12,12 12,14' stroke={GREEN} strokeWidth={1.4} /></Svg>
+    case 'color': return <Svg {...p}><circle cx={12} cy={12} r={8} fill='none' stroke={INK} strokeWidth={1} />
+      <path d='M12 4 A8 8 0 0 1 19.4 15 L12 12 Z' fill='#1F6FB5' /><path d='M19.4 15 A8 8 0 0 1 4.6 15 L12 12 Z' fill='#2E7D32' /><path d='M4.6 15 A8 8 0 0 1 12 4 L12 12 Z' fill='#E65100' /></Svg>
+    default: return <Svg {...p}>{R(4, 4, 16, 16, { color: BLUE })}</Svg>
+  }
+}
 
 // Insert ▸ Contents: a page of entries with dotted leaders and page numbers.
 export function Toc(p: IconProps) {
