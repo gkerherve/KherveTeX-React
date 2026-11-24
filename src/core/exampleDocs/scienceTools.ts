@@ -139,8 +139,14 @@ export function chemistryPractical(): KDocument {
       w('bohr', { element: 'O', color: 'C62828' }),
       w('element', { elements: 'H, C, O, Cr, K' }),
       h('Results'),
-      w('notebook', { date: '24 Nov 2026', title: 'Reflux, 20 min', color: '38761D', aim: 'Make ethanoic acid from ethanol.',
-        method: 'Reflux 2 cm³ ethanol with 10 cm³ acidified K$_2$Cr$_2$O$_7$, then distil.', observations: 'Orange to green within 5 min; a vinegar smell.', result: '1.4 cm³ of distillate, pH 3.' }),
+      w('notebook', { date: '24 Nov 2026', title: 'Reflux, 20 min', color: '38761D', layout: 'above', signature: true, sections: [
+        { heading: 'Aim', text: 'Make ethanoic acid from ethanol.' },
+        { heading: 'Reagents', text: '| Reagent | Amount | Hazard |\n| ethanol | 2 cm³ | flammable |\n| K$_2$Cr$_2$O$_7$ (acidified) | 10 cm³ | toxic, oxidiser |' },
+        { heading: 'Method', text: '1. Reflux for 20 min.\n2. Set up for distillation.\n3. Collect the distillate below 120 °C.' },
+        { heading: 'Observations', text: 'Orange to **green** within 5 min; a vinegar smell.' },
+        { heading: 'Checks', text: '[x] Fume cupboard on\n[x] Goggles and gloves\n[ ] Waste in the chromium bottle' },
+        { heading: 'Result', text: '1.4 cm³ of distillate, pH 3.' },
+      ] }),
     ],
   })
 }

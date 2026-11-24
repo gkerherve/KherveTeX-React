@@ -8,7 +8,7 @@ import { type Drawing } from '../core/draw.ts'
 import {
   bohrDrawing, circuitDrawing, elementTilesDrawing, feynmanDrawing, hazardDrawing, hazardLines, moDrawing, plotDrawing,
   type AlgorithmData, type BohrData, type CircuitData, type ElementTileData, type FeynmanData, type HazardData, type MoData,
-  type NotebookData, type PlotData, type SchemeData,
+  type NotebookData, type PlotData, type SchemeData, notebookSections, parseNoteText,
 } from '../core/science.ts'
 import {
   riskDrawing, signsDrawing, forcesDrawing, opticsDrawing, waveDrawing, levelsDrawing, functionDrawing, numberLineDrawing, vennDrawing, triangleDrawing, statsDrawing, unitCircleDrawing,
@@ -416,17 +416,52 @@ function algorithm(body: HTMLElement, d: AlgorithmData) {
   body.appendChild(box)
 }
 
+// **bold**, *italic*, $maths$ (shown as typed) as DOM.
+function noteInlineEl(text: string): Node[] {
+  const out: Node[] = []
+  for (const part of text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/)) {
+    if (/^\*\*.+\*\*$/.test(part)) out.push(el('b', '', part.slice(2, -2)))
+    else if (/^\*.+\*$/.test(part)) out.push(el('i', '', part.slice(1, -1)))
+    else if (part) out.push(document.createTextNode(part))
+  }
+  return out
+}
+
+function noteBody(text: string): HTMLElement {
+  const box = el('div', 'kt-w-nb-body')
+  for (const b of parseNoteText(text)) {
+    if (b.t === 'p') { const p = el('div', 'kt-w-nb-p'); p.append(...noteInlineEl(b.text)); box.appendChild(p) }
+    else if (b.t === 'ul' || b.t === 'ol') {
+      const l = el(b.t)
+      for (const it of b.items) { const li = el('li'); li.append(...noteInlineEl(it)); l.appendChild(li) }
+      box.appendChild(l)
+    } else if (b.t === 'check') {
+      for (const [on, it] of b.items) { const r = el('div', 'kt-w-nb-check'); r.append(el('span', '', on ? '☒ ' : '☐ '), ...noteInlineEl(it)); box.appendChild(r) }
+    } else if (b.t === 'table') {
+      const tb = el('table', 'kt-w-nb-table')
+      b.rows.forEach((r, i) => { const tr = el('tr'); for (const c of r) { const td = el(i ? 'td' : 'th'); td.append(...noteInlineEl(c)); tr.appendChild(td) } tb.appendChild(tr) })
+      box.appendChild(tb)
+    }
+  }
+  return box
+}
+
 function notebook(body: HTMLElement, d: NotebookData) {
   const box = el('div', 'kt-w-nb')
   box.style.setProperty('--kt-w', '#' + d.color)
   const head = el('div', 'kt-w-nb-head')
   head.append(el('span', '', d.title), el('span', '', d.date))
   box.appendChild(head)
-  for (const [k, v] of [['Aim', d.aim], ['Method', d.method], ['Observations', d.observations], ['Result', d.result]] as const) {
-    if (!v.trim()) continue
-    const row = el('div', 'kt-w-nb-row')
-    row.append(el('b', '', k), document.createTextNode('  ' + v))
+  for (const s of notebookSections(d)) {
+    if (!s.heading.trim() && !s.text.trim()) continue
+    const blocks = parseNoteText(s.text)
+    const simple = d.layout !== 'above' && blocks.length <= 1 && (blocks[0]?.t ?? 'p') === 'p'
+    const row = el('div', simple ? 'kt-w-nb-row' : 'kt-w-nb-row kt-w-nb-above')
+    const h = el('b', 'kt-w-nb-h', s.heading)
+    if (simple) { row.append(h, document.createTextNode('  '), ...noteInlineEl(blocks[0]?.t === 'p' ? blocks[0].text : '')) }
+    else row.append(h, noteBody(s.text))
     box.appendChild(row)
   }
+  if (d.signature) box.appendChild(el('div', 'kt-w-nb-sign', 'Signed: ____________________      Witness: ____________________      Date: __________'))
   body.appendChild(box)
 }

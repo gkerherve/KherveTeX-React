@@ -6,7 +6,7 @@ import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
 import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
-import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES } from '../core/science.ts'
+import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES, NOTEBOOK_TEMPLATES } from '../core/science.ts'
 import { SIGNS } from '../core/science2.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
@@ -922,6 +922,13 @@ const cmds: Command[] = [
   { id: 'tri_angles', text: 'Angles', checkable: true, checkbox: true },
   { id: 'st_hist', text: 'Histogram', checkable: true, group: 'stkind' }, { id: 'st_box', text: 'Box plot', checkable: true, group: 'stkind' },
   { id: 'uc_proj', text: 'Sine and cosine lines', checkable: true, checkbox: true },
+  { id: 'nb_add', text: 'Add Section', icon: 'element', iconArg: 'nb_add', tooltip: 'A new section with its own heading: Hypothesis, Reagents, Safety, anything' },
+  { id: 'nb_templates', text: 'Templates', icon: 'element', iconArg: 'sci_notebook', popup: 'instant', tooltip: 'Start from a set of sections; text under a heading of the same name is kept',
+    menu: NOTEBOOK_TEMPLATES.map(([name, heads]): MenuItem => ({ text: name, command: `nb_tpl_${name.replace(/\W/g, '')}`, detail: heads.join(', ') })) },
+  ...NOTEBOOK_TEMPLATES.map(([name]): Command => ({ id: `nb_tpl_${name.replace(/\W/g, '')}`, text: name })),
+  { id: 'nb_beside', text: 'Headings beside', checkable: true, group: 'nblayout' },
+  { id: 'nb_above', text: 'Headings above', checkable: true, group: 'nblayout' },
+  { id: 'nb_signature', text: 'Signature lines', checkable: true, checkbox: true, tooltip: 'Signed, witness and date lines at the foot, as a lab book needs' },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -1340,7 +1347,8 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Algorithm', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Lab Notebook', context: 'notebook', groups: [
-    { label: 'Entry', large: ['w_edit'] },
+    { label: 'Entry', large: ['w_edit', 'nb_add', 'nb_templates'] },
+    { label: 'Layout', rows: [['nb_beside'], ['nb_above'], ['nb_signature']], text: true },
     { label: 'Style', large: ['w_color'] },
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Entry', large: ['w_delete', 'w_close'] },

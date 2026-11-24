@@ -22,7 +22,16 @@ export interface ElementTileData { elements: string; show_mass: boolean }
 export interface HazardData { pictograms: string[]; signal: 'Danger' | 'Warning' | ''; statements: string }
 export interface SchemeData { steps: { name: string; chemfig: string }[]; arrows: { above: string; below: string }[] }
 export interface AlgorithmData { title: string; code: string; numbers: boolean }
-export interface NotebookData { date: string; title: string; aim: string; method: string; observations: string; result: string; color: string }
+// The notebook's sections are free: any headings, any number. Older
+// entries kept aim / method / observations / result as fields; they still
+// read as four sections (notebookSections).
+export interface NotebookData {
+  date: string; title: string; color: string
+  sections?: { heading: string; text: string }[]
+  layout?: 'beside' | 'above'
+  signature?: boolean
+  aim?: string; method?: string; observations?: string; result?: string
+}
 
 export const SCIENCE_DEFAULTS = {
   plot: {
@@ -50,10 +59,13 @@ export const SCIENCE_DEFAULTS = {
   } as AlgorithmData,
   notebook: {
     date: '24 Nov 2026', title: 'Sample 12: annealing in air', color: '37474F',
-    aim: 'Find whether 2 h at 450 °C removes the carbon contamination.',
-    method: 'Anneal in the tube furnace, 5 °C/min ramp, then XPS survey and C 1s region.',
-    observations: 'C 1s fell from 18 at.% to 4 at.%; the Ti 2p shape did not change.',
-    result: 'Annealing works; use it for samples 13-20.',
+    layout: 'beside', signature: false,
+    sections: [
+      { heading: 'Aim', text: 'Find whether 2 h at 450 °C removes the carbon contamination.' },
+      { heading: 'Method', text: 'Anneal in the tube furnace, 5 °C/min ramp, then XPS survey and C 1s region.' },
+      { heading: 'Observations', text: 'C 1s fell from 18 at.% to 4 at.%; the Ti 2p shape did not change.' },
+      { heading: 'Result', text: 'Annealing works; use it for samples 13-20.' },
+    ],
   } as NotebookData,
 }
 
@@ -553,12 +565,101 @@ export function algorithmLatex(d: AlgorithmData): string {
 
 // ---------------------------------------------------------- lab notebook
 
+export function notebookSections(d: NotebookData): { heading: string; text: string }[] {
+  if (d.sections) return d.sections
+  return ([['Aim', d.aim], ['Method', d.method], ['Observations', d.observations], ['Result', d.result]] as [string, string | undefined][])
+    .filter(([, v]) => v && v.trim()).map(([heading, text]) => ({ heading, text: text! }))
+}
+
+// Section text: blank lines part paragraphs; "- " bullets, "1. " numbered
+// items, "[ ] " / "[x] " tick boxes, "| a | b |" table rows (the first
+// row the header), **bold**, *italic*, $maths$.
+export type NoteBlock = { t: 'p'; text: string } | { t: 'ul' | 'ol'; items: string[] } | { t: 'check'; items: [boolean, string][] } | { t: 'table'; rows: string[][] }
+
+export function parseNoteText(text: string): NoteBlock[] {
+  const out: NoteBlock[] = []
+  let para: string[] = []
+  const flush = () => { if (para.length) { out.push({ t: 'p', text: para.join(' ') }); para = [] } }
+  for (const raw of text.split('\n')) {
+    const l = raw.trim()
+    const last = out[out.length - 1]
+    let m
+    if (!l) { flush(); continue }
+    if ((m = /^\[( |x|X|✓)\]\s+(.*)$/.exec(l))) { flush(); const it: [boolean, string] = [m[1] !== ' ', m[2]]; if (last?.t === 'check') last.items.push(it); else out.push({ t: 'check', items: [it] }) }
+    else if ((m = /^[-•*]\s+(.*)$/.exec(l))) { flush(); if (last?.t === 'ul') last.items.push(m[1]); else out.push({ t: 'ul', items: [m[1]] }) }
+    else if ((m = /^\d+[.)]\s+(.*)$/.exec(l))) { flush(); if (last?.t === 'ol') last.items.push(m[1]); else out.push({ t: 'ol', items: [m[1]] }) }
+    else if (l.startsWith('|')) {
+      flush()
+      const cells = l.replace(/^\||\|$/g, '').split('|').map(c => c.trim())
+      if (cells.every(c => /^:?-{2,}:?$/.test(c))) continue
+      if (last?.t === 'table') last.rows.push(cells); else out.push({ t: 'table', rows: [cells] })
+    } else para.push(l)
+  }
+  flush()
+  return out
+}
+
+// Text with **bold**, *italic* and $maths$, as LaTeX.
+function noteInline(s: string): string {
+  return s.split(/(\$[^$]*\$)/).map((p, i) => i % 2 ? p
+    : tex(p).replace(/\*\*([^*]+)\*\*/g, '\\textbf{$1}').replace(/\*([^*]+)\*/g, '\\emph{$1}')).join('')
+}
+
+function noteBodyLatex(text: string): string {
+  return parseNoteText(text).map(b => {
+    switch (b.t) {
+      case 'p': return noteInline(b.text) + '\\par'
+      case 'ul': return `\\begin{itemize}\\setlength{\\itemsep}{0pt}\\setlength{\\topsep}{2pt}\n${b.items.map(x => `\\item ${noteInline(x)}`).join('\n')}\n\\end{itemize}`
+      case 'ol': return `\\begin{enumerate}\\setlength{\\itemsep}{0pt}\\setlength{\\topsep}{2pt}\n${b.items.map(x => `\\item ${noteInline(x)}`).join('\n')}\n\\end{enumerate}`
+      case 'check': return b.items.map(([on, x]) => `\\noindent\\makebox[1.3em][l]{${on ? '$\\boxtimes$' : '$\\square$'}}${noteInline(x)}\\par`).join('\n')
+      case 'table': {
+        const n = Math.max(...b.rows.map(r => r.length))
+        const row = (r: string[], head: boolean) => Array.from({ length: n }, (_, i) => head ? `\\textbf{${noteInline(r[i] ?? '')}}` : noteInline(r[i] ?? '')).join(' & ') + ' \\\\'
+        return `\\par\\smallskip{\\small\\begin{tabular}{${'l'.repeat(n)}}\\hline\n${row(b.rows[0], true)}\\hline\n${b.rows.slice(1).map(r => row(r, false)).join('\n')}\n\\hline\\end{tabular}}\\par\\smallskip`
+      }
+    }
+  }).join('\n')
+}
+
+
+// The sections as editable text: "## Heading" lines, the text under each.
+export function notebookToText(n: NotebookData): string {
+  return notebookSections(n).map(s => `## ${s.heading}\n${s.text}`).join('\n\n')
+}
+export function textToNotebook(t: string): { heading: string; text: string }[] {
+  const out: { heading: string; text: string }[] = []
+  for (const line of t.split('\n')) {
+    const m = /^#{1,3}\s*(.*)$/.exec(line.trim())
+    if (m) out.push({ heading: m[1].trim(), text: '' })
+    else if (out.length) out[out.length - 1].text += (out[out.length - 1].text ? '\n' : '') + line
+    else if (line.trim()) out.push({ heading: '', text: line })
+  }
+  return out.map(s => ({ heading: s.heading, text: s.text.replace(/\s+$/, '') }))
+}
+
+export const NOTEBOOK_TEMPLATES: [string, string[]][] = [
+  ['Experiment', ['Aim', 'Hypothesis', 'Materials', 'Method', 'Observations', 'Results', 'Conclusion']],
+  ['Synthesis', ['Reaction', 'Reagents', 'Procedure', 'Work-up', 'Yield', 'Characterisation']],
+  ['Measurement', ['Instrument', 'Settings', 'Samples', 'Data files', 'Notes']],
+  ['Field work', ['Location', 'Weather', 'Team', 'Observations', 'Samples taken']],
+  ['Meeting', ['Attendees', 'Discussed', 'Decisions', 'Actions']],
+  ['Simple', ['Aim', 'Method', 'Observations', 'Result']],
+]
+
 export function notebookLatex(d: NotebookData): string {
   const C = hex(d.color)
-  const row = (k: string, v: string) => v.trim() ? `\\textbf{${k}}\\quad ${texMath(v.trim())}\\par\\smallskip\n` : ''
+  const above = d.layout === 'above'
+  const sec = notebookSections(d).filter(x => x.heading.trim() || x.text.trim()).map(x => {
+    const body = noteBodyLatex(x.text)
+    const simple = !/\\begin|\\par\n|\\noindent/.test(body.replace(/\\par$/, ''))
+    return above || !simple
+      ? `{\\sffamily\\bfseries\\color{kW}${tex(x.heading)}}\\par\\nopagebreak\\smallskip\n${body}\\par\\medskip\n`
+      : `\\textbf{${tex(x.heading)}}\\quad ${body}\\smallskip\n`
+  }).join('')
+  const sign = d.signature ? '\\par\\bigskip\\noindent Signed: \\rule{5cm}{0.4pt}\\hfill Witness: \\rule{5cm}{0.4pt}\\par\\smallskip\n\\noindent Date: \\rule{3cm}{0.4pt}\\par\n' : ''
   return `\\begingroup\\definecolor{kW}{HTML}{${C}}\n\\begin{tcolorbox}[enhanced,breakable,colback=kW!4,colframe=kW,boxrule=0.6pt,arc=1pt,fonttitle=\\bfseries\\sffamily,`
     + `title={${tex(d.title)}\\hfill ${tex(d.date)}},left=6pt,right=6pt]\n`
-    + row('Aim', d.aim) + row('Method', d.method) + row('Observations', d.observations) + row('Result', d.result)
+    + sec + sign
     + '\\end{tcolorbox}\n\\endgroup\n'
 }
 

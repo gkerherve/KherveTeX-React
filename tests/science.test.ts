@@ -58,3 +58,18 @@ describe('energy levels', () => {
     expect(polys.length).toBe(3)
   })
 })
+
+describe('lab notebook', () => {
+  it('reads free sections and their markup', async () => {
+    const { parseNoteText, notebookSections } = await import('../src/core/science.ts')
+    const b = parseNoteText('Text **bold**.\n\n- a\n- b\n1. one\n[x] done\n[ ] not\n| A | B |\n|---|---|\n| 1 | 2 |')
+    expect(b.map(x => x.t)).toEqual(['p', 'ul', 'ol', 'check', 'table'])
+    expect((b[4] as { rows: string[][] }).rows).toEqual([['A', 'B'], ['1', '2']])
+    expect(notebookSections({ date: '', title: '', color: '000000', aim: 'x', result: 'y' }).map(s => s.heading)).toEqual(['Aim', 'Result'])
+  })
+  it('round-trips the dialog text', async () => {
+    const { notebookToText, textToNotebook } = await import('../src/core/science.ts')
+    const sections = [{ heading: 'Aim', text: 'one\ntwo' }, { heading: 'Safety', text: '- goggles' }]
+    expect(textToNotebook(notebookToText({ date: '', title: '', color: '000000', sections }))).toEqual(sections)
+  })
+})

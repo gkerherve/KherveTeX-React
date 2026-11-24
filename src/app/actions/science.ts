@@ -19,6 +19,8 @@ import { editor } from '../../editor/controller.ts'
 import * as W from '../../editor/widgetCommands.ts'
 import { formDialog } from '../../ui/dialogs/EditorDialogs.tsx'
 import { registerActions, type Handler } from '../actions.ts'
+import { NOTEBOOK_TEMPLATES, notebookSections, notebookToText, textToNotebook } from '../../core/science.ts'
+
 import { editorApi } from '../editorApi.ts'
 import { appStore } from '../store.ts'
 
@@ -143,10 +145,10 @@ export async function editScience(): Promise<boolean> {
       const n = d as NotebookData
       const r = await formDialog('Lab notebook entry', [
         { key: 'date', label: 'Date:', value: n.date }, { key: 'title', label: 'Title:', value: n.title },
-        { key: 'aim', label: 'Aim:', value: n.aim, type: 'textarea', rows: 2 }, { key: 'method', label: 'Method:', value: n.method, type: 'textarea', rows: 3 },
-        { key: 'observations', label: 'Observations:', value: n.observations, type: 'textarea', rows: 3 }, { key: 'result', label: 'Result:', value: n.result, type: 'textarea', rows: 2 },
+        { key: 'sections', label: 'Sections:', value: notebookToText(n), type: 'textarea', rows: 16,
+          help: 'Any sections you like: a line starting with ## is a heading, the lines under it its text. In the text: - bullet, 1. numbered, [ ] or [x] tick box, | a | b | table row (the first row is the header), **bold**, *italic*, $maths$; a blank line starts a paragraph.' },
       ])
-      if (r) run(W.updateWidget<'notebook'>(x => { Object.assign(x, r) }))
+      if (r) run(W.updateWidget<'notebook'>(x => { x.date = r.date; x.title = r.title; x.sections = textToNotebook(r.sections); delete x.aim; delete x.method; delete x.observations; delete x.result }))
       break
     }
     default: return false
@@ -243,6 +245,23 @@ const actions: Record<string, Handler> = {
   hz_danger: upd('hazard', (d: HazardData) => { d.signal = 'Danger' }),
   hz_warning: upd('hazard', (d: HazardData) => { d.signal = 'Warning' }),
   alg_numbers: upd('algorithm', (d: AlgorithmData) => { d.numbers = !d.numbers }),
+  // Lab notebook: add a section, start from a template, layout, signature.
+  nb_add: async () => {
+    const r = await formDialog('Add a section', [
+      { key: 'heading', label: 'Heading:', value: '' },
+      { key: 'text', label: 'Text:', value: '', type: 'textarea', rows: 5, help: '- bullet, 1. numbered, [ ] tick box, | a | b | table row, **bold**, $maths$.' },
+    ], 'Add')
+    if (r && (r.heading.trim() || r.text.trim())) upd('notebook', (d: NotebookData) => { d.sections = [...notebookSections(d), { heading: r.heading.trim(), text: r.text }] })()
+  },
+  nb_templates: () => {},
+  ...Object.fromEntries(NOTEBOOK_TEMPLATES.map(([name, heads]) => [`nb_tpl_${name.replace(/\W/g, '')}`, upd('notebook', (d: NotebookData) => {
+    // Keep any text already written under a heading of the same name.
+    const old = new Map(notebookSections(d).map(x => [x.heading.toLowerCase(), x.text]))
+    d.sections = heads.map(h => ({ heading: h, text: old.get(h.toLowerCase()) ?? '' }))
+  })])),
+  nb_beside: upd('notebook', (d: NotebookData) => { d.layout = 'beside' }),
+  nb_above: upd('notebook', (d: NotebookData) => { d.layout = 'above' }),
+  nb_signature: upd('notebook', (d: NotebookData) => { d.signature = !d.signature }),
 }
 void ELEMENTS
 

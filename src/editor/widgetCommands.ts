@@ -271,6 +271,7 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
       case 'element': check('el_mass', !!d.show_mass); break
       case 'hazard': for (const k of ['explos', 'flame', 'flame-O', 'bottle', 'acid', 'skull', 'exclam', 'health', 'aqpol']) check(`ghs_${k}`, (d.pictograms as string[]).includes(k)); check(d.signal === 'Warning' ? 'hz_warning' : 'hz_danger', true); break
       case 'algorithm': check('alg_numbers', !!d.numbers); break
+      case 'notebook': check(d.layout === 'above' ? 'nb_above' : 'nb_beside', true); check('nb_signature', !!d.signature); break
       case 'signs': check('sg_captions', !!d.captions); for (const k of (d.signs as string[])) check(`sg_${k}`, true); break
       case 'forces': check(`fb_${d.object}`, true); break
       case 'optics': check(`op_${d.lens}`, true); break
