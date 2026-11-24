@@ -1,6 +1,15 @@
 // Word's "Search" box: every ribbon tool (and every item of its menus)
 // with where it lives, "Insert ▸ Illustrations ▸ Shapes".
 import { COMMANDS, RIBBON_TABS, shortText, type MenuEntry, type RibbonItem } from './ribbonModel.ts'
+import { TIPS } from './tooltips.ts'
+import { MORE_TIPS } from './tooltipsMore.ts'
+
+// What a search also matches: the tool's long hover help, so "spectrum"
+// finds Data Plot and "inequality" the Number Line.
+const helpOf = (id: string, tipKey?: string) => {
+  const t = TIPS[tipKey ?? `act_${id}`] ?? MORE_TIPS[tipKey ?? `act_${id}`] ?? TIPS[`act_${id}`] ?? MORE_TIPS[`act_${id}`]
+  return t ? ` ${t.title} ${t.what}` : ''
+}
 
 export interface ToolHit {
   label: string
@@ -24,6 +33,7 @@ const FIELD_NAMES: Record<string, string> = {
 }
 
 let cache: ToolHit[] | null = null
+const CONTEXT_TABS = new Set(RIBBON_TABS.filter(t => t.context).map(t => t.name))
 
 export function toolIndex(): ToolHit[] {
   if (cache) return cache
@@ -40,15 +50,18 @@ export function toolIndex(): ToolHit[] {
       if (typeof e === 'string') {
         if (e === '-') continue
         const c = COMMANDS[e]
-        if (c) add({ label: shortText(c.text), where, tab, group, command: c.id, icon: c.icon, iconArg: c.iconArg, keywords: `${c.tooltip ?? ''}` })
+        if (c) add({ label: shortText(c.text), where, tab, group, command: c.id, icon: c.icon, iconArg: c.iconArg, keywords: `${c.tooltip ?? ''}${helpOf(c.id, c.tip)}` })
         continue
       }
       if (e.disabled) continue
       const label = shortText(e.text || '')
       if (e.items) menu(e.items, `${where} ▸ ${label}`, tab, group)
-      else if (label && e.command) add({ label, where, tab, group, command: e.command, icon: e.icon, iconArg: e.iconArg, keywords: e.detail ?? '' })
+      else if (label && e.command) add({ label, where, tab, group, command: e.command, icon: e.icon, iconArg: e.iconArg, keywords: `${e.detail ?? ''}${helpOf(e.command)}` })
     }
   }
+  // The buttons every element's tab shares (Edit, Colour, Move, Delete,
+  // Close) would answer every search: they are left out.
+  const SHARED = /^(w_|block_up$|block_down$)/
   for (const t of RIBBON_TABS) {
     for (const g of t.groups) {
       const where = `${t.name} ▸ ${g.label}`
@@ -60,11 +73,11 @@ export function toolIndex(): ToolHit[] {
           continue
         }
         const c = COMMANDS[it]
-        if (!c) continue
+        if (!c || (t.context && SHARED.test(c.id))) continue
         const label = shortText(c.text)
         add({
           label, where, tab: t.name, group: g.label, command: c.menu && c.popup === 'instant' ? undefined : c.id,
-          icon: c.icon, iconArg: c.iconArg, keywords: `${c.tooltip ?? ''}`,
+          icon: c.icon, iconArg: c.iconArg, keywords: `${c.tooltip ?? ''}${helpOf(c.id, c.tip)}`,
         })
         if (c.menu) menu(c.menu, `${where} ▸ ${label}`, t.name, g.label)
       }
@@ -91,6 +104,8 @@ export function searchTools(query: string, limit = 12): ToolHit[] {
     else if (label.split(/[\s(/-]+/).some(w => w.startsWith(words[0]))) s = 1
     else if (label.includes(q)) s = 2
     else if (where.includes(q)) s = 3
+    // A contextual tab's tools after the ribbon's own.
+    if (CONTEXT_TABS.has(h.tab)) s += 5
     scored.push([s * 1000 + label.length, h])
   }
   return scored.sort((a, b) => a[0] - b[0]).slice(0, limit).map(([, h]) => h)

@@ -166,8 +166,9 @@ ${([
 ] as [string, string, string, string][]).map(([f, name, text, group]) =>
   `<div class="g-tabrow"><div class="g-tabhead"><b>${name}</b><span>${text}</span>${show(name, group, 'Show me')}</div><img src="${IMG(`tab-${f}.webp`)}" alt="The ${name} tab" loading="lazy"></div>`).join('')}
 </div>
+<p><b>Help</b> (this guide, keyboard shortcuts, the welcome page, updates, About) is the <b>?</b> menu by Settings, top right.</p>
 <h3>Contextual tabs</h3>
-<p>Click inside a table, a picture, an equation or a theorem and its own tabs appear on the right of the others,
+<p>Click inside a table, a picture, an equation, a theorem, a box or any element and its own tab appears on the right of the others,
 coloured, as in Word.</p>
 ${pair(['table-context.webp', 'Click in a table: <b>Table Design</b> (styles, header row, shading) and <b>Table Layout</b> (rows, columns, merge, sort) appear.'],
   ['equation-context.webp', 'Click on an equation: the <b>Equation</b> tab edits it, numbers it, labels it or deletes it.'])}
@@ -219,14 +220,24 @@ ${show('Home', 'Styles')}
   },
   {
     id: 'insert', part: 'Insert', title: 'Tables, pictures and diagrams',
-    blurb: 'Tables, figures, drawings, flowcharts, charts and SmartArt.',
+    blurb: 'Tables, figures, drawings, flowcharts, charts and SmartArt; where everything is on the Insert tab.',
     html: `
 ${fig('tab-insert.webp', 'The Insert tab.', { wide: true })}
+${table(['Group', 'What is in it'], [
+  ['<b>Pages</b>', 'Page break, page number, horizontal rule, the date.'],
+  ['<b>Tables &amp; Boxes</b>', 'Table, coloured Box, Checklist.'],
+  ['<b>Illustrations</b>', 'Figure; <b>Drawing</b> (drawing canvas, shapes, flowchart builder, SmartArt); <b>Charts</b> (chart editor, quick chart, Gantt chart, chart from a table); Icon; Screenshot.'],
+  ['<b>Plan</b>', 'Timeline, Progress Bars, Steps.'],
+  ['<b>Elements</b>', 'Pull Quote, Sidebar, Rating, Gauge, QR Code, Code Listing, Drop Cap.'],
+  ['<b>Contents</b>, <b>Links</b>', 'Tables of contents and figures; links, cross-references, citations.'],
+])}
+${note('Equations, theorems and chemistry have moved to their own <b>Math</b> and <b>Science</b> tabs; headers and footers to the <b>Layout</b> tab.')}
 <h3>Tables</h3>
 <p><b>Table</b> opens Word's grid: move over it to choose the size and click. The table is a real LaTeX table with a
 caption and a label for cross-references. While the caret is in it, <b>Table Design</b> picks a style (plain, grid,
-booktabs, striped, no lines), a header row, repeated header rows and shading; <b>Table Layout</b> adds and deletes rows
-and columns, merges and splits cells, aligns and sorts.</p>
+booktabs, striped, no lines), a <b>Fancy Style</b> in one colour (banded, coloured header, accent lines), a header row,
+repeated header rows and shading; <b>Table Layout</b> adds and deletes rows and columns, merges and splits cells, aligns,
+sorts, moves the table and makes a <b>Chart from Table</b>.</p>
 ${pair(['insert-table-menu.webp', 'Insert ▸ Table: drag over the grid, or choose Insert Table… for exact numbers.'],
   ['table-context.webp', 'A table in the tour, with the Table Design tab open.'])}
 <h3>Figures</h3>
@@ -244,7 +255,7 @@ added after the selected box and joined by an arrow. Drag boxes to move them, ed
 right, choose the direction and the colours, and <b>Tidy up</b> lays it out for you.</p>
 ${fig('flowchart.webp', 'The flowchart builder: shapes along the top, the chart in the middle, its text and links on the right.', { wide: true })}
 <h3>Charts</h3>
-<p><b>Chart</b> opens the chart editor. Pick one of ten types on the left (each says what it is for), type or paste
+<p><b>Charts ▸ Chart…</b> opens the chart editor. Pick one of ten types on the left (each says what it is for), type or paste
 your numbers in the sheet below the chart (as in Excel: ${k('Tab')} and ${k('Enter')} move between cells, a block
 pasted from Excel fills the sheet), and format it on the right: titles, axis titles, legend, gridlines, data labels,
 colours and the value range; on the <b>Series</b> tab, each series' colour, line style, width, marker and a smooth line.
@@ -264,35 +275,169 @@ ${show('Insert', 'Illustrations')}
 `,
   },
   {
-    id: 'maths', part: 'Insert', title: 'Equations and chemistry',
-    blurb: 'Inline and displayed maths, the builder, symbols, chemistry and theorems.',
+    id: 'boxes', part: 'Insert', title: 'Coloured boxes and checklists',
+    blurb: 'Note, Tip, Warning and Danger boxes, your own boxes, and tick-box lists.',
     html: `
-<p>Mathematics is where LaTeX shines, and kTeX gives you three ways in:</p>
+<p>A box sets text apart in a coloured frame with a title bar, as textbooks and manuals do. It is on
+<b>Insert ▸ Tables &amp; Boxes ▸ Box</b>: the button inserts a Note, the arrow offers every kind.</p>
+${table(['Box', 'Use it for'], [
+  ['<b>Note</b>', 'Something worth knowing that is not part of the main line of the text.'],
+  ['<b>Tip</b>', 'A shortcut or a better way to do something.'],
+  ['<b>Information</b>', 'Background or context.'],
+  ['<b>Important</b>', 'What must not be missed: a deadline, a requirement.'],
+  ['<b>Warning</b>', 'A risk of a wrong result or lost work.'],
+  ['<b>Danger</b>', 'Harm to people or equipment.'],
+  ['<b>Key points</b>', 'A summary at the end of a section.'],
+  ['<b>Custom…</b>', 'Your own heading (Exercise, Did you know?) in any colour.'],
+])}
+${steps(
+  'Put the caret where the box should go and choose <b>Insert ▸ Box</b> (or a kind from its arrow).',
+  'Type inside it. <b>Enter</b> starts another paragraph in the same box; <b>Enter</b> on an empty line, <b>Shift+Enter</b> or <b>Text after box</b> leaves it.',
+  'While the caret is in the box, its <b>Box</b> tab is open: change its <b>Type</b>, its <b>Name &amp; Colour</b> (or click its title bar), move it, remove the frame but keep the text, or delete it.',
+)}
+${tip('Hover over a box: a grip (⋮⋮) appears in the left margin. Drag it to move the whole box; a line shows where it will land. Tables, theorems and every element move the same way.')}
+<h3>Checklists</h3>
+<p><b>Insert ▸ Tables &amp; Boxes ▸ Checklist</b> adds a list with tick boxes, e.g. "Before you submit". <b>Click a box on the
+page to tick or untick it.</b> Click elsewhere on the checklist to select it: its <b>Checklist</b> tab offers square boxes or
+circles, one to three columns, ticked items in grey, Tick all and Untick all, and the colour. <b>Edit…</b> (or a
+double-click) takes one item per line; start a line with <code>[x]</code> to tick it.</p>
+${show('Insert', 'Tables & Boxes')}
+`,
+  },
+  {
+    id: 'elements', part: 'Insert', title: 'Elements: timelines, quotes, QR codes…',
+    blurb: 'Plan and Elements: drawn, editable blocks with their own tabs.',
+    html: `
+<p>The <b>Plan</b> and <b>Elements</b> groups of the Insert tab add drawn blocks that look the same on the page as in
+the PDF. They all work the same way:</p>
+${steps(
+  'Click the button: the element goes in at the caret, with example content, already selected.',
+  'Its own tab opens on the ribbon with all its options. Change any of them and the element redraws at once.',
+  '<b>Edit…</b> (or a double-click on the element) opens its contents: items, text, data, labels.',
+  '<b>Move up</b> / <b>Move down</b>, or drag the grip (⋮⋮) in the left margin, moves it. It never splits across a page.',
+  '<b>Delete</b>, or the <b>×</b> in its top-right corner, removes it (Ctrl+Z brings it back). <b>Close</b> puts the caret after it.',
+)}
+${table(['Element', 'What it is', 'Edit… takes'], [
+  ['<b>Timeline</b>', 'Dated events down the page or across it.', 'Date | Title | Text, one per line'],
+  ['<b>Progress Bars</b>', 'Labelled bars with percentages: rounded, square or thin, three lengths.', 'Label: 70, one per line'],
+  ['<b>Steps</b>', 'Numbered circles joined by arrows: across or down.', 'Title | text, one per line'],
+  ['<b>Pull Quote</b>', 'A sentence set large in colour: rules, side bar or quote marks.', 'The quotation and who said it'],
+  ['<b>Sidebar</b>', 'A tinted panel beside the text (right or left), or across it.', 'A title and the text'],
+  ['<b>Rating</b>', 'Stars or dots out of 5 or 10, halves allowed.', 'Item: 4.5, one per line'],
+  ['<b>Gauge</b>', 'Round meters for percentages: half circles or rings.', 'Label: 64, one per line'],
+  ['<b>QR Code</b>', 'A code readers scan with a phone: three sizes, any colour.', 'The link and a caption'],
+  ['<b>Code Listing</b>', 'Program code in colour, 13 languages, light, dark or plain, line numbers.', 'The code itself (Tab indents)'],
+  ['<b>Drop Cap</b>', 'A large first letter over 2 to 5 lines, in the text or the margin.', 'The letter and the rest of the word'],
+])}
+<h3>Charts, Gantt charts and icons</h3>
+<p><b>Insert ▸ Illustrations ▸ Charts</b> holds <b>Chart…</b> (the full chart editor), <b>Quick Chart</b> (columns, bars,
+a line or a pie from a few numbers, edited on the page), <b>Gantt Chart</b> (tasks and milestones over days, weeks,
+months, quarters or years) and <b>Chart from Table</b>. <b>Icon</b> puts a small picture in the text (phone, e-mail,
+star, warning, flask…): 54 icons with a search box, four sizes, any colour.</p>
+${tip('Click in a table, then <b>Table Layout ▸ Chart from Table</b>: a chart of its numbers appears under it. The first row names the series, the first column the labels.')}
+<h3>Coloured tables</h3>
+<p>In a table, <b>Table Design ▸ Fancy Styles</b> draws it in one colour: <b>Banded</b> (a filled header and tinted
+alternate rows), <b>Coloured header</b> (a filled header and grey rules) or <b>Accent lines</b> (coloured rules only).
+<b>Colour</b> picks the colour.</p>
+${show('Insert', 'Elements')}
+`,
+  },
+  {
+    id: 'maths', part: 'Insert', title: 'The Math tab',
+    blurb: 'Equations, units and constants, theorems and algorithms, graphs, statistics and geometry.',
+    html: `
+<p>Mathematics is where LaTeX shines. The <b>Math</b> tab gathers everything for it.</p>
 ${table(['Tool', 'Shortcut', 'What it does'], [
   ['<b>Inline math</b>', k('Ctrl+M'), 'Maths inside a sentence, like <i>E</i> = <i>mc</i>².'],
   ['<b>Math block</b>', k('Ctrl+Shift+M'), 'A displayed, numbered equation.'],
   ['<b>Equation builder</b>', k('Ctrl+Shift+E'), 'Build an equation visually from templates, with a live preview.'],
   ['<b>Symbol</b>', k('Ctrl+Shift+G'), 'Greek letters, operators, arrows, relations…'],
+  ['<b>Matrix</b>', '', 'Any size; round, square, curly or determinant brackets; symbols, zeros, identity or a general m × n with dots.'],
 ])}
 <h3>The equation builder</h3>
 <p>Click a template (fractions, sums, integrals, matrices, brackets, functions, multi-line) or simply type:
-<code>/</code> makes a fraction, <code>^</code> a superscript, <code>_</code> a subscript, and <code>\\alpha</code> a
-Greek letter. ${k('Tab')} jumps to the next empty box. <b>Show LaTeX</b> reveals the code. Choose whether the equation
-is on its own line, numbered, and its label for cross-references.</p>
+<code>/</code> makes a fraction, <code>^</code> a superscript, <code>_</code> a subscript, and a backslash name such as
+<code>alpha</code> a Greek letter. ${k('Tab')} jumps to the next empty box. <b>Show LaTeX</b> reveals the code.</p>
 ${fig('equation-builder.webp', 'The equation builder, with Euler’s identity typed in.', { wide: true })}
 ${tip('Double-click any equation on the page to reopen it in the builder; <b>Insert</b> then replaces it in place.')}
-<h3>Symbols</h3>
-${fig('symbols.webp', 'The symbol palette.', { small: true })}
-<h3>Chemistry</h3>
-<p><b>Chemical reaction</b> (${k('Ctrl+Shift+R')}) types reactions in mhchem syntax: <code>2H2 + O2 -&gt; 2H2O</code>
-becomes a typeset reaction. Palettes cover arrows, charges, states, conditions, equilibria and nuclear decay.
-<b>Chemical structure</b> (${k('Ctrl+Shift+T')}) draws molecules with chemfig, with a library of common molecules,
-rings and functional groups.</p>
-${fig('chemistry.webp', 'The chemistry editor: palettes above, the formula below, the typeset reaction on top.', { wide: true })}
-<h3>Theorems</h3>
-<p><b>Theorem</b> inserts a theorem, lemma, proposition, corollary, definition, example, remark or proof, numbered by
-LaTeX. Click in one for the <b>Theorem</b> tab, to change its kind or give it a name.</p>
+<h3>Numbers</h3>
+<p><b>Units</b> sets a value with its unit and uncertainty as SI quantities are: type <code>9.81</code>,
+<code>0.02</code> and <code>m/s^2</code> for (9.81 ± 0.02) m s⁻²; <code>6.02e23</code> becomes 6.02 × 10²³.
+<b>Constants</b> inserts 19 physical constants with their values and units.</p>
+<h3>Theorems and algorithms</h3>
+<p><b>Theorem</b> inserts a theorem; its arrow offers lemma, proposition, corollary, definition, example, remark and
+proof. They are numbered as in the PDF, and theorems are set in italics. While the caret is in one, its <b>Theorem</b> tab
+changes its kind, gives it a <b>Name</b> (shown in brackets), adds a <b>Proof After</b> it, leaves it with
+<b>Text after</b>, moves, removes or deletes it.</p>
+<p><b>Algorithm</b> sets pseudocode as papers print it: write it with indented blocks, and <code>function</code>,
+<code>if … then</code>, <code>else</code>, <code>for</code>, <code>while</code> and <code>return</code> become bold, numbered
+lines; <code>x = …</code> shows as x ← ….</p>
+<h3>Graphs &amp; Data</h3>
+${table(['Tool', 'What it draws'], [
+  ['<b>Function Plot</b>', 'Graphs of y = f(x): type <code>sin(x)</code>, <code>0.5*x^2 - 2</code>, <code>exp(-x^2)</code>… one per line, with axes, a grid and a legend.'],
+  ['<b>Statistics</b>', 'A histogram or a box plot of your numbers, with n, the mean, the median and s worked out.'],
+  ['<b>Venn Diagram</b>', 'Two or three sets; A, B, AB, ABC… say what each region holds.'],
+  ['<b>Number Line</b>', 'Open and closed points and intervals, for inequalities.'],
+  ['<b>Geometry</b>', 'Any figure: see below.'],
+  ['<b>Unit Circle</b>', 'Your angles with their (cos, sin) values and the sine and cosine lines.'],
+])}
+<h3>Geometry</h3>
+<p>Pick a shape (triangle from three sides, right triangle, square, rectangle, parallelogram, trapezium, regular
+polygon, circle) and its sizes: side lengths, angles, right-angle marks and equal-side ticks are worked out and drawn.
+To change anything, <b>Edit as Points</b> turns the figure into a short script, one instruction per line:</p>
+${table(['Write', 'To get'], [
+  ['<code>A = (0, 0)</code>', 'a point A'],
+  ['<code>polygon A B C fill</code>', 'a shaded polygon through the points'],
+  ['<code>segment A B dashed</code>, <code>arrow A B</code>', 'a line (dashed), an arrow'],
+  ['<code>circle O 2</code>', 'a circle of radius 2 around O'],
+  ['<code>angle A B C</code>, <code>right A B C</code>', 'the angle at B with its value, a right-angle mark'],
+  ['<code>length A B 5 cm</code>', 'a length (or your label) beside AB'],
+  ['<code>tick A B 2</code>', 'two equal-side ticks on AB'],
+  ['<code>dot A</code>, <code>text A "words" below</code>', 'a dot, a label'],
+])}
 ${show('Math', 'Equations')}
+`,
+  },
+  {
+    id: 'science', part: 'Insert', title: 'The Science tab',
+    blurb: 'Notation, chemistry, physics and data, safety and the lab notebook.',
+    html: `
+<p>The <b>Science</b> tab holds the tools of the lab and the lecture room. Every drawn one works like the elements: it
+opens its own tab, <b>Edit…</b> changes its contents, it moves with the grip and deletes with the ×.</p>
+<h3>Notation</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Physics</b>', 'Bra-kets, matrix elements, operators, commutators, derivatives, ∇, norms, the Schrödinger equation.'],
+  ['<b>Sig. Figures</b>', 'Rounds a value to its uncertainty (1 significant figure, 2 if it starts with 1); with a second value and + − × ÷, combines them and propagates the errors.'],
+  ['<b>Nuclide</b>', '²³⁸₉₂U from the element and mass number; choose alpha, beta or gamma decay and the whole equation is written, the daughter found for you.'],
+])}
+<h3>Chemistry</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Chemical reaction</b>', 'Type <code>2H2 + O2 -&gt; 2H2O</code>: a typeset reaction (mhchem).'],
+  ['<b>Chemical structure</b>', 'Structural formulas with chemfig, from a palette, with a live preview.'],
+  ['<b>Reaction Scheme</b>', 'Molecules joined by arrows, reagents above and conditions below.'],
+  ['<b>MO Diagram</b>', 'The molecular orbital diagram of H₂ to Ne₂, filled with electrons.'],
+  ['<b>Hazard Labels</b>', 'GHS red diamonds, Danger or Warning, and the H and P statements written out from their codes.'],
+  ['<b>Bohr Model</b>, <b>Element Tiles</b>', 'An atom with its shells; periodic-table tiles. All 118 elements.'],
+])}
+<h3>Physics &amp; Data</h3>
+${table(['Tool', 'What it draws'], [
+  ['<b>Data Plot</b>', 'Your measured data (XPS, XRD, IR…): paste columns, reverse the x axis, label the peaks.'],
+  ['<b>Circuit</b>', 'Batteries, resistors, lamps, switches, capacitors, diodes, meters, in series or parallel.'],
+  ['<b>Ray Diagram</b>', 'A converging or diverging lens, the rays, and the image worked out.'],
+  ['<b>Feynman</b>', 'Four processes, with your particle labels.'],
+  ['<b>Wave</b>', 'Sine, square, triangle, sawtooth, damped, standing, beats, wave packet or longitudinal; λ or T, A, crests or nodes, a direction arrow, a second wave.'],
+  ['<b>Forces</b>', 'A free-body diagram: a box, a ball or a block on a slope.'],
+  ['<b>Energy Levels</b>', 'Levels and transitions, as for hydrogen.'],
+])}
+<h3>Safety &amp; the lab</h3>
+<p><b>Risk Matrix</b> places your risks on a 5 × 5 likelihood × severity grid; <b>Safety Signs</b> draws mandatory,
+prohibition, warning, emergency and fire signs. <b>Lab Notebook</b> is a dated entry with any sections you like:
+<b>Edit…</b> shows it as text where <code>## Heading</code> starts a section, and in a section <code>-</code> makes
+bullets, <code>1.</code> numbered steps, <code>[ ]</code> and <code>[x]</code> tick boxes, <code>| a | b |</code> table
+rows, <code>**bold**</code> and <code>$…$</code> maths. Its tab adds a section, starts from a template (Experiment,
+Synthesis, Measurement, Field work, Meeting), and adds signature lines.</p>
+${fig('chemistry.webp', 'The chemical reaction editor: palettes above, the formula below, the typeset reaction on top.', { wide: true })}
+${show('Science', 'Chemistry')}
 `,
   },
   {
@@ -360,6 +505,9 @@ ${table(['Tool', 'What it changes'], [
   ['<b>Paragraph Spacing</b>', 'Indented paragraphs (LaTeX) or spaced paragraphs (Word), and line spacing.'],
   ['<b>Watermark</b>', 'CONFIDENTIAL, DRAFT, SAMPLE… or your own text, across every page.'],
   ['<b>Page Colour</b>, <b>Page Borders</b>', 'A tinted page; a line or box round each page.'],
+  ['<b>Title Page</b>', 'A designed title page in the accent colour: coloured band, centred with rules, side bar, minimal or framed.'],
+  ['<b>Chapter Titles</b>', 'How each chapter (or section) opens: big number, coloured band, ruled, boxed number, side bar or centred.'],
+  ['<b>Header Style</b>', 'A coloured band, a title and rule, or a thumb tab on the page edge, on every page after the first.'],
   ['<b>Set as Default</b>', 'New documents start with this design.'],
   ['<b>Document type</b>', 'article, report, book, letter, beamer slides, memoir, KOMA-Script and journal classes.'],
 ])}
@@ -385,8 +533,14 @@ ${fig('tab-layout.webp', 'The Layout tab.', { wide: true })}
 the whole document at once, on the page and in the PDF. <b>Indent</b> and <b>Spacing</b> set the left and right
 indents and the space before and after the current paragraph.</p>
 ${pair(['layout-margins.webp', 'Margins: Normal, Narrow, Moderate, Wide, or Custom Margins.'], ['layout-columns.webp', 'Columns.'])}
+<h3>Header, footer and margin notes</h3>
+<p><b>Header</b>, <b>Footer</b> and <b>Page Number</b> set what is printed at the top and bottom of every page, in three
+zones (left, centre, right) with fields such as the title or the date; <b>Header Style</b> adds a coloured band, a rule or
+a thumb tab. <b>Margin Note</b> puts a note in the right margin, beside the line it belongs to, as plain coloured text,
+with a line beside it or in a tinted box; <b>Wide Margin</b> makes the right margin 4.5 cm so notes have room.</p>
 ${tip('For a two-column block inside a single-column page (a list of authors, a comparison), use <b>Insert ▸ Multi-column region</b>.')}
 ${show('Layout', 'Page Setup')}
+${show('Layout', 'Margin Notes')}
 `,
   },
   {
@@ -522,6 +676,10 @@ ${fig('tab-examples.webp', 'The Examples tab: each button opens a gallery of pag
 <p>The Examples tab holds ready-made documents of every kind: articles in one, two or three columns, journal
 preprints (Elsevier, IEEE, ACM, Springer…), theses and books, reports, lab reports, letters and CVs, slides, posters,
 planners and more. Each opens in its own window, so what you are working on stays open.</p>
+<p><b>Boxes &amp; elements</b> shows the boxes and elements in real documents (a status report, a CV, a programming tutorial,
+a magazine feature, a business plan…); <b>Science</b> starts with the Science toolkit (every Math and Science tool),
+an XPS lab report, a physics problem sheet and revision notes, a chemistry practical, a maths worksheet, an algorithms
+handout and a risk assessment.</p>
 <p>Made a document you will want again? <b>Save as Template</b> keeps it; it then appears under <b>My templates</b>
 and in <b>File ▸ New from Template</b>.</p>
 ${note('Examples marked <span class="beta-tag">beta</span> use newer classes; check the PDF and tell us if something looks wrong.')}
