@@ -7,6 +7,7 @@ import {
   type StatsData, type TriangleData, type UnitCircleData, type VennData, type WaveData,
 } from '../../core/science2.ts'
 import type { WidgetKind } from '../../core/widgets.ts'
+import { GEO_HELP, GEO_PARAMS, GEO_SHAPES, presetScript, type GeoShape, type GeometryData } from '../../core/geometry.ts'
 import * as C from '../../editor/commands.ts'
 import { editor } from '../../editor/controller.ts'
 import * as W from '../../editor/widgetCommands.ts'
@@ -177,3 +178,45 @@ const actions: Record<string, Handler> = {
 }
 
 registerActions(actions)
+
+// ---------------------------------------------------------------- Geometry
+
+
+export async function editGeometry(): Promise<boolean> {
+  const s = state()
+  const w = s && W.currentWidget(s)
+  if (!w || w.widget.kind !== 'geometry') return false
+  const g = w.widget.data as GeometryData
+  if (g.shape === 'custom') {
+    const r = await formDialog('Geometry: your own figure', [{ key: 'script', label: 'Points and shapes:', value: g.script, type: 'code', rows: 16, help: GEO_HELP }])
+    if (r) run(W.updateWidget<'geometry'>(x => { x.script = r.script }))
+  } else {
+    const r = await formDialog('Geometry', [
+      { key: 'shape', label: 'Shape:', value: GEO_SHAPES.find(([k]) => k === g.shape)![1], type: 'select', options: GEO_SHAPES.map(([, n]) => n) },
+      ...GEO_PARAMS[g.shape].map(([k, label]) => ({ key: String(k), label: `${label}:`, value: String(g[k]), type: 'number' as const })),
+      { key: 'names', label: 'Corner names, in order:', value: g.names, help: 'To change anything else (move a corner, add a line, a circle, a label), use Edit as Points on the Geometry tab.' },
+    ])
+    if (r) run(W.updateWidget<'geometry'>(x => {
+      x.shape = GEO_SHAPES.find(([, n]) => n === r.shape)![0]
+      for (const [k] of GEO_PARAMS[g.shape]) if (r[String(k)] !== undefined) (x as unknown as Record<string, number>)[String(k)] = num(r[String(k)], Number(x[k]))
+      x.names = r.names
+      if (x.shape === 'custom' && !x.script.trim()) x.script = presetScript({ ...x, shape: g.shape })
+    }))
+  }
+  sync()
+  return true
+}
+
+registerActions({
+  sci_geometry: insert('geometry'),
+  ...Object.fromEntries(GEO_SHAPES.map(([k]) => [`geo_${k}`, upd('geometry', (d: GeometryData) => {
+    // Free mode starts from the figure on the page.
+    if (k === 'custom' && d.shape !== 'custom') d.script = presetScript(d)
+    d.shape = k as GeoShape
+  })])),
+  geo_points: upd('geometry', (d: GeometryData) => { if (d.shape !== 'custom') { d.script = presetScript(d); d.shape = 'custom' } }),
+  geo_sides: upd('geometry', (d: GeometryData) => { d.sides = !d.sides }),
+  geo_angles: upd('geometry', (d: GeometryData) => { d.angles = !d.angles }),
+  geo_ticks: upd('geometry', (d: GeometryData) => { d.ticks = !d.ticks }),
+  geo_fill: upd('geometry', (d: GeometryData) => { d.fill = !d.fill }),
+})

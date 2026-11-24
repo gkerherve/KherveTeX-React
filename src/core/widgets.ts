@@ -22,18 +22,19 @@ import {
   riskDrawing, signsDrawing, forcesDrawing, opticsDrawing, waveDrawing, levelsDrawing, functionDrawing, numberLineDrawing, vennDrawing, triangleDrawing, statsDrawing, unitCircleDrawing, SCIENCE2_DEFAULTS,
   type RiskData, type SignsData, type ForcesData, type OpticsData, type WaveData, type LevelsData, type FunctionData, type NumberLineData, type VennData, type TriangleData, type StatsData, type UnitCircleData,
 } from './science2.ts'
+import { geometryDrawing, GEOMETRY_DEFAULT, type GeometryData } from './geometry.ts'
 
 export type WidgetKind = 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
-  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle'
+  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle' | 'geometry'
 
 export const WIDGET_NAMES: Record<WidgetKind, string> = {
   checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code', code: 'Code Listing',
   pullquote: 'Pull Quote', sidebar: 'Sidebar', rating: 'Rating', gauge: 'Gauge', steps: 'Steps', gantt: 'Gantt Chart', chart: 'Chart',
   plot: 'Data Plot', circuit: 'Circuit', feynman: 'Feynman Diagram', mo: 'MO Diagram', bohr: 'Bohr Model', element: 'Element Tiles',
   hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
-  risk: 'Risk Matrix', signs: 'Safety Signs', forces: 'Free-body Diagram', optics: 'Ray Diagram', wave: 'Wave', levels: 'Energy Levels', function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle',
+  risk: 'Risk Matrix', signs: 'Safety Signs', forces: 'Free-body Diagram', optics: 'Ray Diagram', wave: 'Wave', levels: 'Energy Levels', function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle', geometry: 'Geometry',
 }
 
 export interface ChecklistData { title: string; items: { text: string; done: boolean }[]; style: 'box' | 'circle'; columns: number; grey_done: boolean; color: string }
@@ -47,7 +48,7 @@ export type WidgetData = {
   pullquote: PullQuoteData; sidebar: SidebarData; rating: RatingData; gauge: GaugeData; steps: StepsData; gantt: GanttData; chart: ChartData
   plot: PlotData; circuit: CircuitData; feynman: FeynmanData; mo: MoData; bohr: BohrData; element: ElementTileData
   hazard: HazardData; scheme: SchemeData; algorithm: AlgorithmData; notebook: NotebookData
-  risk: RiskData; signs: SignsData; forces: ForcesData; optics: OpticsData; wave: WaveData; levels: LevelsData; function: FunctionData; numberline: NumberLineData; venn: VennData; triangle: TriangleData; stats: StatsData; unitcircle: UnitCircleData
+  risk: RiskData; signs: SignsData; forces: ForcesData; optics: OpticsData; wave: WaveData; levels: LevelsData; function: FunctionData; numberline: NumberLineData; venn: VennData; triangle: TriangleData; stats: StatsData; unitcircle: UnitCircleData; geometry: GeometryData
 }
 
 export interface Widget<K extends WidgetKind = WidgetKind> { kind: K; data: WidgetData[K] }
@@ -88,9 +89,10 @@ export const DEFAULTS: WidgetData = {
   },  ...MORE_DEFAULTS,
   ...SCIENCE_DEFAULTS,
   ...SCIENCE2_DEFAULTS,
+  geometry: GEOMETRY_DEFAULT,
 }
 
-const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart|plot|circuit|feynman|mo|bohr|element|hazard|scheme|algorithm|notebook|risk|signs|forces|optics|wave|levels|function|numberline|venn|triangle|stats|unitcircle)\s+(\{.*\})\s*$/
+const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart|plot|circuit|feynman|mo|bohr|element|hazard|scheme|algorithm|notebook|risk|signs|forces|optics|wave|levels|function|numberline|venn|triangle|stats|unitcircle|geometry)\s+(\{.*\})\s*$/
 
 // The element a raw block holds, or null.
 export function parseWidget(text: string): Widget | null {
@@ -157,6 +159,7 @@ export function widgetLatex<K extends WidgetKind>(kind: K, data: WidgetData[K]):
     case 'triangle': return scienceDrawn(triangleDrawing(data as TriangleData))
     case 'stats': return scienceDrawn(statsDrawing(data as StatsData))
     case 'unitcircle': return scienceDrawn(unitCircleDrawing(data as UnitCircleData))
+    case 'geometry': return scienceDrawn(geometryDrawing(data as GeometryData))
     default: return codeLatex(data as CodeData)
   }
 }
@@ -310,7 +313,7 @@ export function widgetPreamble(texts: string[]): [string[], string] {
   const defs: string[] = []
   if (kinds.size || margin) pkgs.push('xcolor')
   const TIKZ = ['checklist', 'progress', 'timeline', 'rating', 'gauge', 'steps', 'gantt', 'chart', 'pullquote', 'sidebar',
-    'plot', 'circuit', 'feynman', 'mo', 'bohr', 'element', 'notebook', 'risk', 'signs', 'forces', 'optics', 'wave', 'levels', 'function', 'numberline', 'venn', 'triangle', 'stats', 'unitcircle']
+    'plot', 'circuit', 'feynman', 'mo', 'bohr', 'element', 'notebook', 'risk', 'signs', 'forces', 'optics', 'wave', 'levels', 'function', 'numberline', 'venn', 'triangle', 'stats', 'unitcircle', 'geometry']
   if (kinds.has('signs')) pkgs.push('fontawesome5')
   if (kinds.has('notebook')) { pkgs.push('tcolorbox'); defs.push('\\tcbuselibrary{breakable,skins}') }
   if (kinds.has('hazard')) { pkgs.push('tikz', 'fontawesome5') }

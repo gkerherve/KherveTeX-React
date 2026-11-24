@@ -73,3 +73,16 @@ describe('lab notebook', () => {
     expect(textToNotebook(notebookToText({ date: '', title: '', color: '000000', sections }))).toEqual(sections)
   })
 })
+
+describe('geometry', () => {
+  it('turns a shape into an editable script and draws it', async () => {
+    const { presetScript, parseGeometry, geometryDrawing, GEOMETRY_DEFAULT } = await import('../src/core/geometry.ts')
+    const sq = presetScript({ ...GEOMETRY_DEFAULT, shape: 'square', a: 3 })
+    expect(sq).toContain('polygon A B C D fill')
+    expect(sq.match(/^right /gm)?.length).toBe(4)
+    expect(sq.match(/^tick /gm)?.length).toBe(4)
+    const g = parseGeometry('A = (0,0)\nB = (4,0)\npolygon A B Z\nfoo')
+    expect(g.errors.length).toBe(2)
+    expect(geometryDrawing({ ...GEOMETRY_DEFAULT, shape: 'custom', script: sq }).shapes.length).toBeGreaterThan(10)
+  })
+})

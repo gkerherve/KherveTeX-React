@@ -73,7 +73,7 @@ export const MENU_BAR: MenuBarMenu[] = [
       { text: '&Physics notation', items: PHYSICS.map((_, i) => `sci_phys_${i}`) },
       'sci_nuclear', 'sci_matrix', '-',
       'sci_plot', 'sci_circuit', 'sci_feynman', 'sci_forces', 'sci_optics', 'sci_wave', 'sci_levels', '-',
-      'sci_function', 'sci_stats', 'sci_venn', 'sci_numberline', 'sci_triangle', 'sci_unitcircle', '-',
+      'sci_function', 'sci_stats', 'sci_venn', 'sci_numberline', 'sci_geometry', 'sci_unitcircle', '-',
       'sci_algorithm', 'sci_notebook', 'sci_risk', 'sci_signs'] },
     '-',
     'link', 'footnote', 'citation', 'manage_references', 'crossref', 'captions', 'comment', '-',

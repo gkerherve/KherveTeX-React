@@ -1,5 +1,6 @@
 // Qt-style hover help: rich text (tooltips.html) after a short delay,
 // placed under the pointer and kept on screen.
+import { MORE_TIPS } from './tooltipsMore'
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState,
   type MouseEvent, type ReactNode,
@@ -18,7 +19,7 @@ interface TipApi {
 const TipContext = createContext<TipApi>({ show: () => {}, hide: () => {} })
 
 export function lookupTip(key: string): Tip | undefined {
-  return TIPS[key] ?? WIDGET_TIPS[key]
+  return TIPS[key] ?? MORE_TIPS[key] ?? WIDGET_TIPS[key]
 }
 
 export function TooltipProvider({ children }: { children: ReactNode }) {

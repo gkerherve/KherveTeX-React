@@ -280,6 +280,7 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
       case 'triangle': check('tri_angles', !!d.angles); break
       case 'stats': check(d.kind === 'boxplot' ? 'st_box' : 'st_hist', true); break
       case 'unitcircle': check('uc_proj', !!d.projections); break
+      case 'geometry': check(`geo_${d.shape}`, true); check('geo_sides', !!d.sides); check('geo_angles', !!d.angles); check('geo_ticks', !!d.ticks); check('geo_fill', !!d.fill); break
       case 'code':
         check(`cd_${d.theme}`, true)
         check('cd_numbers', !!d.numbers)

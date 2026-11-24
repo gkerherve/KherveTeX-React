@@ -13,6 +13,7 @@ import {
 import {
   riskDrawing, signsDrawing, forcesDrawing, opticsDrawing, waveDrawing, levelsDrawing, functionDrawing, numberLineDrawing, vennDrawing, triangleDrawing, statsDrawing, unitCircleDrawing,
 } from '../core/science2.ts'
+import { geometryDrawing } from '../core/geometry.ts'
 import {
   chartDrawing, ganttDrawing, gaugeDrawing, ratingDrawing, type ChartData, type GanttData, type GaugeData,
   type PullQuoteData, type RatingData, type SidebarData, type StepsData,
@@ -76,6 +77,7 @@ export function widgetElement(w: Widget, opts: { select: () => void; remove: () 
     case 'triangle': body.appendChild(drawingSvg(triangleDrawing(w.data as never))); break
     case 'stats': body.appendChild(drawingSvg(statsDrawing(w.data as never))); break
     case 'unitcircle': body.appendChild(drawingSvg(unitCircleDrawing(w.data as never))); break
+    case 'geometry': body.appendChild(drawingSvg(geometryDrawing(w.data as never))); break
     case 'scheme': scheme(body, w.data as SchemeData); break
     case 'algorithm': algorithm(body, w.data as AlgorithmData); break
     case 'notebook': notebook(body, w.data as NotebookData); break

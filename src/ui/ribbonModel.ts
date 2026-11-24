@@ -8,6 +8,7 @@ import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
 import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
 import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES, NOTEBOOK_TEMPLATES } from '../core/science.ts'
 import { SIGNS } from '../core/science2.ts'
+import { GEO_SHAPES } from '../core/geometry.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 import { COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, THEMES, WATERMARKS } from '../core/design.ts'
@@ -87,7 +88,7 @@ export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
-  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle'
+  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle' | 'geometry'
 
 // The contextual tab a selected element opens at once (as the Box tab).
 export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
@@ -98,7 +99,7 @@ export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
   plot: 'Data Plot', circuit: 'Circuit', feynman: 'Feynman', mo: 'MO Diagram', bohr: 'Bohr Model', element: 'Element Tiles',
   hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
   risk: 'Risk Matrix', signs: 'Safety Signs', forces: 'Forces', optics: 'Ray Diagram', wave: 'Wave', levels: 'Energy Levels',
-  function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle',
+  function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle', geometry: 'Geometry',
 }
 
 export interface RibbonTab {
@@ -929,6 +930,15 @@ const cmds: Command[] = [
   { id: 'nb_beside', text: 'Headings beside', checkable: true, group: 'nblayout' },
   { id: 'nb_above', text: 'Headings above', checkable: true, group: 'nblayout' },
   { id: 'nb_signature', text: 'Signature lines', checkable: true, checkbox: true, tooltip: 'Signed, witness and date lines at the foot, as a lab book needs' },
+  { id: 'sci_geometry', text: 'Geometry', icon: 'element', iconArg: 'sci_geometry' },
+  ...GEO_SHAPES.map(([k, name]): Command => ({ id: `geo_${k}`, text: name, checkable: true, group: 'geoshape' })),
+  { id: 'geo_shape', text: 'Shape', icon: 'element', iconArg: 'sci_geometry', popup: 'instant',
+    menu: GEO_SHAPES.map(([k, name]): MenuItem => ({ text: name, command: `geo_${k}`, checkable: true })) },
+  { id: 'geo_points', text: 'Edit as Points', icon: 'element', iconArg: 'geo_points' },
+  { id: 'geo_sides', text: 'Side lengths', checkable: true, checkbox: true },
+  { id: 'geo_angles', text: 'Angles', checkable: true, checkbox: true },
+  { id: 'geo_ticks', text: 'Equal-side ticks', checkable: true, checkbox: true },
+  { id: 'geo_fill', text: 'Shaded', checkable: true, checkbox: true },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -1082,7 +1092,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Equations', large: ['math_block', 'equation_builder'], rows: [['math_inline'], ['symbol'], ['sci_matrix']], text: true },
     { label: 'Numbers', rows: [['sci_units'], ['sci_constants']], text: true },
     { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
-    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_triangle', 'sci_unitcircle']], text: true },
+    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_geometry', 'sci_unitcircle']], text: true },
   ] },
   // Science: notation, chemistry, physics and data, safety and the lab.
   { name: 'Science', groups: [
@@ -1419,6 +1429,13 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Style', large: ['w_color'] },
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Statistics', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Geometry', context: 'geometry', groups: [
+    { label: 'Figure', large: ['w_edit', 'geo_shape', 'geo_points'] },
+    { label: 'Show', rows: [['geo_sides', 'geo_angles'], ['geo_ticks', 'geo_fill']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Geometry', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Unit Circle', context: 'unitcircle', groups: [
     { label: 'Angles', large: ['w_edit'], rows: [['uc_proj']], text: true },

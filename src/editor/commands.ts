@@ -88,7 +88,7 @@ export type ObjectContext = 'table' | 'figure' | 'equation' | 'theorem' | 'callo
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
-  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle'
+  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle' | 'geometry'
 
 export function contextObject(state: EditorState): ObjectContext | null {
   const w = currentWidget(state)
