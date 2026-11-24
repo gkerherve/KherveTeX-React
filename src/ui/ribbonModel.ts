@@ -368,6 +368,18 @@ const cmds: Command[] = [
       { text: 'Stars', items: [{ text: '5-point star', command: 'shape:star' }, { text: '6-point star', command: 'shape:star6' }] },
     ] },
   { id: 'smartart', text: 'SmartArt', icon: 'smartart' },
+  // Insert ▸ Illustrations: the drawing tools and the charts, each in one drop-down.
+  { id: 'ill_drawing', text: 'Drawing', icon: 'drawing', popup: 'instant', tooltip: 'Draw a picture, add shapes, build a flowchart or a SmartArt diagram',
+    menu: [{ text: 'Drawing…', command: 'drawing', icon: 'drawing' },
+      { text: 'Shapes', icon: 'shapes', items: [] },
+      { text: 'Flowchart builder…', command: 'flowchart', icon: 'flowchart_builder' },
+      { text: 'SmartArt', command: 'smartart', icon: 'smartart' }] },
+  { id: 'ill_charts', text: 'Charts', icon: 'chart', popup: 'instant', tooltip: 'A chart, a quick bar, line or pie chart, a Gantt chart, or a chart from a table',
+    menu: [{ text: 'Chart…', command: 'chart', icon: 'chart' },
+      { text: 'Quick Chart', command: 'ins_chart', icon: 'element', iconArg: 'chart' },
+      { text: 'Gantt Chart', command: 'ins_gantt', icon: 'element', iconArg: 'gantt' },
+      '-',
+      { text: 'Chart from Table', command: 'tbl_chart', icon: 'element', iconArg: 'ch_hbar' }] },
   // Draw tab (Word's): ink on the page.
   { id: 'draw_tool', text: 'Draw', icon: 'draw_tool', checkable: true,
     tooltip: 'Draw: write and draw on the page with the chosen pen; click again (or Esc) to go back to typing. The ink prints in the PDF at its word. BETA: in the PDF a stroke may often miss the word it marks (LaTeX lays out the page differently), so check its position after compiling.' },
@@ -927,6 +939,13 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 }
 
+// Insert ▸ Drawing ▸ Shapes: the Shapes button's own menu.
+{
+  const shapes = cmds.find(c => c.id === 'shapes')?.menu ?? []
+  const entry = cmds.find(c => c.id === 'ill_drawing')?.menu?.find(m => typeof m !== 'string' && m.text === 'Shapes')
+  if (entry && typeof entry !== 'string') entry.items = shapes
+}
+
 export const COMMANDS: Record<string, Command> = Object.fromEntries(
   cmds.map(c => [c.id, c]))
 
@@ -977,10 +996,10 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'page_edge'] },
-    { label: 'Tables & Boxes', large: ['table_menu', 'callout'] },
-    { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes', 'ins_icon'], ['flowchart', 'smartart', 'ins_gantt'], ['chart', 'ins_chart', 'screenshot']], text: true },
-    { label: 'Elements', rows: [['ins_checklist', 'ins_progress', 'ins_timeline', 'ins_rating'], ['ins_pullquote', 'ins_sidebar', 'ins_gauge', 'ins_steps'],
-      ['ins_qrcode', 'ins_code', 'ins_dropcap']], text: true },
+    { label: 'Tables & Boxes', large: ['table_menu', 'callout', 'ins_checklist'] },
+    { label: 'Illustrations', large: ['figure', 'ill_drawing', 'ill_charts'], rows: [['ins_icon'], ['screenshot']], text: true },
+    { label: 'Plan', large: ['ins_timeline', 'ins_progress', 'ins_steps'] },
+    { label: 'Elements', rows: [['ins_pullquote', 'ins_sidebar', 'ins_rating'], ['ins_gauge', 'ins_qrcode'], ['ins_code', 'ins_dropcap']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
@@ -1037,14 +1056,13 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'],
       rows: [['overleaf_open'], ['overleaf_link']], text: true },
   ] },
-  { name: 'History', groups: [
-    { label: 'Versions', large: ['commit_now', 'history'] },
-    { label: 'Cloud', large: ['github'] },
-  ] },
+  // Compile and History in one tab: make the PDF, keep its versions.
   { name: 'Compile', groups: [
     { label: 'Compile', large: ['compile_now', 'auto_compile'] },
     { label: 'Options', large: ['compile_range', 'skip_images'] },
     { label: 'Output', large: ['export_pdf', 'print_preview'] },
+    { label: 'Versions', large: ['commit_now', 'history'] },
+    { label: 'Cloud', large: ['github'] },
   ] },
   { name: 'Examples', groups: [
     { label: 'Start', large: ['new', 'tour'] },

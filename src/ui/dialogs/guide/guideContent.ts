@@ -152,17 +152,15 @@ ${note('Contextual tabs appear only when you need them: click in a table and <b>
 <div class="g-tabs">
 ${([
   ['home', 'Home', 'Export, the clipboard, fonts and character styles, paragraphs and lists, and the <b>Styles</b> gallery (Normal, Title, Heading 1–3…).', 'Styles'],
-  ['insert', 'Insert', 'Page breaks and the date, tables, figures, drawings, flowcharts, charts, SmartArt, tables of contents, links, equations, theorems and chemistry.', 'Illustrations'],
+  ['insert', 'Insert', 'Page breaks and the date, tables, coloured boxes and checklists, figures, drawings and charts, timelines, progress bars and steps (Plan), pull quotes, sidebars, ratings, gauges, QR codes, code and drop caps (Elements), tables of contents, links, equations, theorems and chemistry.', 'Illustrations'],
   ['draw', 'Draw', 'Draw on the page with a pen, pencil or highlighter; erase; add your own pens. <span class="beta-tag">beta</span>', 'Pens'],
   ['design', 'Design', 'Themes, style sets, colours, fonts, paragraph spacing, watermark, page colour and borders, and the document type.', 'Document Formatting'],
   ['layout', 'Layout', 'Margins, orientation, paper size, columns, indents and spacing.', 'Page Setup'],
   ['view', 'View', 'Visual, Code and Console; the PDF panel and detached PDF; zoom; LaTeX source; the Documents panel.', 'Views'],
   ['references', 'References', 'Citations, the reference library and style; import from Zotero, Mendeley, EndNote, KherveRef or a file; footnotes; captions and cross-references.', 'Citations'],
   ['review', 'Review', 'Spelling, comments, Track Changes, Accept / Reject, and sharing with Overleaf.', 'Comments'],
-  ['history', 'History', 'Version snapshots, the version history, and GitHub.', 'Versions'],
-  ['compile', 'Compile', 'Compile now, auto-compile, compile range, skip images, export PDF and print preview.', 'Compile'],
+  ['compile', 'Compile', 'Compile now, auto-compile, compile range, skip images, export PDF and print preview; version snapshots, the version history and GitHub.', 'Compile'],
   ['examples', 'Examples', 'Ready-made documents and templates of every kind, and your own templates.', 'Examples & templates'],
-  ['help', 'Help', 'This guide, keyboard shortcuts, the welcome page, updates and About.', 'Help'],
 ] as [string, string, string, string][]).map(([f, name, text, group]) =>
   `<div class="g-tabrow"><div class="g-tabhead"><b>${name}</b><span>${text}</span>${show(name, group, 'Show me')}</div><img src="${IMG(`tab-${f}.webp`)}" alt="The ${name} tab" loading="lazy"></div>`).join('')}
 </div>
@@ -490,7 +488,7 @@ ${show('Review', 'Comments')}
     id: 'history', part: 'Together', title: 'Versions and Git',
     blurb: 'Snapshots, version history, branches and GitHub.',
     html: `
-${fig('tab-history.webp', 'The History tab.', { wide: true })}
+${fig('tab-history.webp', 'Versions and Cloud, on the Compile tab.', { wide: true })}
 <p>Every saved document lives in a Git repository, so you can always go back. <b>Save snapshot and upload</b> records
 a version (and uploads it if the document is connected to the cloud). <b>View version history</b> lists every
 snapshot with its date and author; click one to see what changed, in red and green, and to go back to it.
@@ -498,7 +496,7 @@ snapshot with its date and author; click one to see what changed, in red and gre
 <p><b>GitHub</b> signs you in, publishes the document to a repository or connects it to one of yours, and opens a
 document from GitHub. <i>Other cloud connections</i> handles GitLab and other servers.</p>
 ${note('Snapshots use your usual Git name and email, so they look the same as commits made from the command line.')}
-${show('History', 'Versions')}
+${show('Compile', 'Versions')}
 `,
   },
   {
