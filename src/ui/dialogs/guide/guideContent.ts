@@ -155,7 +155,7 @@ ${([
   ['insert', 'Insert', 'Page breaks and the date, tables, coloured boxes and checklists, figures, drawings and charts, timelines, progress bars and steps (Plan), pull quotes, sidebars, ratings, gauges, QR codes, code and drop caps (Elements), tables of contents, links, equations, theorems and chemistry.', 'Illustrations'],
   ['draw', 'Draw', 'Draw on the page with a pen, pencil or highlighter; erase; add your own pens. <span class="beta-tag">beta</span>', 'Pens'],
   ['design', 'Design', 'Themes, style sets, colours, fonts, paragraph spacing, watermark, page colour and borders, and the document type.', 'Document Formatting'],
-  ['layout', 'Layout', 'Margins, orientation, paper size, columns, indents and spacing.', 'Page Setup'],
+  ['layout', 'Layout', 'Margins, orientation, paper size, columns, indents and spacing; header, footer, page numbers and header style; margin notes.', 'Page Setup'],
   ['view', 'View', 'Visual, Code and Console; the PDF panel and detached PDF; zoom; LaTeX source; the Documents panel.', 'Views'],
   ['references', 'References', 'Citations, the reference library and style; import from Zotero, Mendeley, EndNote, KherveRef or a file; footnotes; captions and cross-references.', 'Citations'],
   ['review', 'Review', 'Spelling, comments, Track Changes, Accept / Reject, and sharing with Overleaf.', 'Comments'],

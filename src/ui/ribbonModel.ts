@@ -995,7 +995,6 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
-    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'page_edge'] },
     { label: 'Tables & Boxes', large: ['table_menu', 'callout', 'ins_checklist'] },
     { label: 'Illustrations', large: ['figure', 'ill_drawing', 'ill_charts'], rows: [['ins_icon'], ['screenshot']], text: true },
     { label: 'Plan', large: ['ins_timeline', 'ins_progress', 'ins_steps'] },
@@ -1022,7 +1021,7 @@ export const RIBBON_TABS: RibbonTab[] = [
       rows: [['line_numbers'], ['hyphenation']], text: true },
     { label: 'Indent', rows: [[{ widget: 'parafield', field: 'left_cm' }], [{ widget: 'parafield', field: 'right_cm' }]] },
     { label: 'Spacing', rows: [[{ widget: 'parafield', field: 'before_pt' }], [{ widget: 'parafield', field: 'after_pt' }]] },
-    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum'] },
+    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum', 'page_edge'] },
     { label: 'Margin Notes', large: ['ins_marginnote', 'mn_room'] },
   ] },
   { name: 'Header & Footer', context: 'headerfooter', groups: [
