@@ -14,6 +14,7 @@ import { boxStyleDialog, formDialog } from '../../ui/dialogs/EditorDialogs.tsx'
 import { registerActions, type Handler } from '../actions.ts'
 import { editMore } from './elements2.ts'
 import { editScience } from './science.ts'
+import { editScience2 } from './science2.ts'
 import { appStore, editDoc } from '../store.ts'
 
 const run = (cmd: C.Command): boolean => editor()?.run(cmd) ?? false
@@ -37,6 +38,7 @@ const lines = (s: string) => s.split('\n').map(l => l.trim()).filter(l => l)
 async function editWidget(): Promise<void> {
   if (await editMore()) return
   if (await editScience()) return
+  if (await editScience2()) return
   const s = state()
   if (!s) return
   const sp = W.currentInlineSpecial(s)

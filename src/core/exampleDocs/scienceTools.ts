@@ -46,6 +46,12 @@ export function scienceToolkit(): KDocument {
       w('bohr', { element: 'Cl' }),
       w('element'),
       w('hazard'),
+      h('More physics'),
+      w('forces'), w('optics'), w('wave'), w('levels'),
+      h('Maths'),
+      w('function'), w('numberline'), w('venn'), w('triangle'), w('stats'), w('unitcircle'),
+      h('Safety'),
+      w('risk'), w('signs'),
       h('Computing and the lab'),
       w('algorithm'),
       w('notebook'),
@@ -155,6 +161,82 @@ export function algorithmsHandout(): KDocument {
       eq('A = ' + matrixTex(4, 4, 'pmatrix', 'general')),
       w('algorithm', { title: 'Gaussian elimination', code: 'function Solve(A, b)\n  for k = 1 to n - 1\n    for i = k + 1 to n\n      m = A[i][k] / A[k][k]\n      for j = k to n\n        A[i][j] = A[i][j] - m * A[k][j]\n      b[i] = b[i] - m * b[k]\n  return BackSubstitute(A, b)' }),
       _p('The cost is about 2n³/3 operations: doubling n makes it eight times slower.'),
+    ],
+  })
+}
+
+// ------------------------------------------------ lab safety: risk assessment
+export function riskAssessment(): KDocument {
+  return Document({
+    meta: _meta({ title: 'Risk assessment', author: '', documentclass: 'article', body_font_pt: 11, preamble_extras: '\\date{}\n', design: { chapter_style: 'band', colors: 'red' } }),
+    children: [
+      Title({ children: [Text({ text: 'Risk assessment: wet etching of silicon wafers' })] }),
+      Author({ children: [Text({ text: 'Clean room 2 - reviewed 24 November 2026 - review again in 12 months' })] }),
+      h('In this room'),
+      w('signs', { signs: ['goggles', 'gloves', 'coat', 'nofood', 'nophone', 'toxic', 'hot', 'firstaid', 'eyewash', 'shower', 'extinguisher'], captions: true }),
+      h('Chemicals'),
+      w('hazard', { pictograms: ['acid', 'skull'], signal: 'Danger', statements: 'H300\nH310\nH314\nH330\nP260\nP280\nP310' }),
+      box('danger', 'Hydrofluoric acid', 'HF passes through skin without pain at first and attacks bone. Never work alone; calcium gluconate gel must be on the bench before the bottle is opened.'),
+      h('Risks before and after controls'),
+      w('risk', { risks: 'HF splash on skin (no controls): 3, 5\nHF splash (double gloves, apron, gel): 1, 5\nBurn from hot bath: 3, 3\nInhaling acid fumes (fume cupboard): 2, 3\nDropped wafer, cut: 2, 2' }),
+      h('Training record'),
+      w('checklist', { title: '', style: 'box', columns: 2, grey_done: false, color: 'A61C1C',
+        items: [{ text: 'HF awareness course', done: true }, { text: 'Clean-room induction', done: true }, { text: 'Spill drill this year', done: false }, { text: 'First-aid refresher', done: false }] }),
+    ],
+  })
+}
+
+// ------------------------------------------------------------ maths worksheet
+export function mathsWorksheet(): KDocument {
+  return Document({
+    meta: _meta({ title: 'Maths worksheet', author: '', documentclass: 'article', body_font_pt: 11, preamble_extras: '\\date{}\n', design: { chapter_style: 'boxed', colors: 'blue' } }),
+    children: [
+      Title({ children: [Text({ text: 'Worksheet 9: graphs, sets, triangles and data' })] }),
+      Author({ children: [Text({ text: 'Year 10 maths' })] }),
+      h('Graphs'),
+      para(t('Sketch '), m('y = \\sin x'), t(' and '), m('y = \\tfrac12 x^2 - 2'), t(' on the same axes. Where do they cross?')),
+      w('function'),
+      h('Inequalities'),
+      para(t('Show '), m('-2 \\le x < 3'), t(' on a number line:')),
+      w('numberline'),
+      h('Sets'),
+      _p('In a class, 12 study only physics, 9 only chemistry and 15 only biology. How many study at least two sciences?'),
+      w('venn'),
+      h('Triangles'),
+      _p('A triangle has sides 6, 7 and 8 cm. Find its angles with the cosine rule, then check them against the drawing.'),
+      w('triangle', { a: 6, b: 7, c: 8 }),
+      w('unitcircle'),
+      h('Data'),
+      _p('The heights of 30 students are below. Find the mean, median and interquartile range.'),
+      w('stats'),
+      w('stats', { kind: 'boxplot' }),
+      h('Matrices'),
+      eq('\\begin{pmatrix} 2 & 1 \\\\ 1 & 3 \\end{pmatrix}\\begin{pmatrix} x \\\\ y \\end{pmatrix} = \\begin{pmatrix} 5 \\\\ 10 \\end{pmatrix}'),
+    ],
+  })
+}
+
+// ---------------------------------------------------------- physics revision
+export function physicsRevision(): KDocument {
+  return Document({
+    meta: _meta({ title: 'Physics revision', author: '', documentclass: 'article', body_font_pt: 11, preamble_extras: '\\date{}\n', design: { chapter_style: 'ruled', colors: 'violet' } }),
+    children: [
+      Title({ children: [Text({ text: 'Physics revision: forces, light, waves and atoms' })] }),
+      Author({ children: [Text({ text: 'A-level summary sheet' })] }),
+      h('Forces on a slope'),
+      w('forces'),
+      para(t('Along the slope: '), m('F = mg\\sin\\theta'), t(' when the block is about to slide, so '), m('\\mu = \\tan\\theta'), t('.')),
+      h('Lenses'),
+      para(t('The lens equation: '), m('\\frac{1}{f} = \\frac{1}{u} + \\frac{1}{v}'), t(', magnification '), m('m = -v/u'), t('.')),
+      w('optics'),
+      w('optics', { object: 2.5 }),
+      h('Waves'),
+      para(m('v = f\\lambda'), t('; two waves a quarter of a cycle apart:')),
+      w('wave', { second: true }),
+      h('The hydrogen atom'),
+      para(t('Levels '), m('E_n = -13.6\\,\\mathrm{eV}/n^2'), t('; a photon carries the difference between two levels.')),
+      w('levels'),
+      w('feynman', { process: 'beta', labels: ['d', 'u', 'e⁻', 'ν̄', 'W⁻'] }),
     ],
   })
 }

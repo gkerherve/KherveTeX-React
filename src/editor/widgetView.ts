@@ -11,6 +11,9 @@ import {
   type NotebookData, type PlotData, type SchemeData,
 } from '../core/science.ts'
 import {
+  riskDrawing, signsDrawing, forcesDrawing, opticsDrawing, waveDrawing, levelsDrawing, functionDrawing, numberLineDrawing, vennDrawing, triangleDrawing, statsDrawing, unitCircleDrawing,
+} from '../core/science2.ts'
+import {
   chartDrawing, ganttDrawing, gaugeDrawing, ratingDrawing, type ChartData, type GanttData, type GaugeData,
   type PullQuoteData, type RatingData, type SidebarData, type StepsData,
 } from '../core/widgetsMore.ts'
@@ -61,6 +64,18 @@ export function widgetElement(w: Widget, opts: { select: () => void; remove: () 
     case 'bohr': body.appendChild(drawingSvg(bohrDrawing(w.data as BohrData))); break
     case 'element': body.appendChild(drawingSvg(elementTilesDrawing(w.data as ElementTileData))); break
     case 'hazard': hazard(body, w.data as HazardData); break
+    case 'risk': body.appendChild(drawingSvg(riskDrawing(w.data as never))); break
+    case 'signs': body.appendChild(drawingSvg(signsDrawing(w.data as never))); break
+    case 'forces': body.appendChild(drawingSvg(forcesDrawing(w.data as never))); break
+    case 'optics': body.appendChild(drawingSvg(opticsDrawing(w.data as never))); break
+    case 'wave': body.appendChild(drawingSvg(waveDrawing(w.data as never))); break
+    case 'levels': body.appendChild(drawingSvg(levelsDrawing(w.data as never))); break
+    case 'function': body.appendChild(drawingSvg(functionDrawing(w.data as never))); break
+    case 'numberline': body.appendChild(drawingSvg(numberLineDrawing(w.data as never))); break
+    case 'venn': body.appendChild(drawingSvg(vennDrawing(w.data as never))); break
+    case 'triangle': body.appendChild(drawingSvg(triangleDrawing(w.data as never))); break
+    case 'stats': body.appendChild(drawingSvg(statsDrawing(w.data as never))); break
+    case 'unitcircle': body.appendChild(drawingSvg(unitCircleDrawing(w.data as never))); break
     case 'scheme': scheme(body, w.data as SchemeData); break
     case 'algorithm': algorithm(body, w.data as AlgorithmData); break
     case 'notebook': notebook(body, w.data as NotebookData); break
@@ -256,8 +271,10 @@ export function drawingSvg(d: Drawing): HTMLElement {
         const a = s.anchor ?? 'center'
         const ta = a.includes('west') ? 'start' : a.includes('east') ? 'end' : 'middle'
         const db = a.startsWith('north') ? 'hanging' : a.startsWith('south') ? 'alphabetic' : 'central'
-        const size = (s.size ?? 10) / 28.35
-        out.push(`<text x="${s.x}" y="${Y(s.y)}" font-size="${size}" text-anchor="${ta}" dominant-baseline="${db}" fill="${c(s.color ?? '000000')}"${s.bold ? ' font-weight="700"' : ''}>${esc(s.s)}</text>`)
+        // 99 is the PDF's \\Large (draw.ts FONT): 17 pt.
+        const size = Math.min(s.size ?? 10, 17.3) / 28.35
+        const rot = s.rotate ? ` transform="rotate(${-s.rotate} ${s.x} ${Y(s.y)})"` : ''
+        out.push(`<text x="${s.x}" y="${Y(s.y)}" font-size="${size}" text-anchor="${ta}" dominant-baseline="${db}" fill="${c(s.color ?? '000000')}"${s.bold ? ' font-weight="700"' : ''}${rot}>${esc(s.s)}</text>`)
         break
       }
       case 'wedge': {

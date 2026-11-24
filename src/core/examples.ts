@@ -72,7 +72,7 @@ import {
 } from './exampleDocs/science.ts'
 import { calloutBoxes } from './exampleDocs/boxes.ts'
 import { fancyElements } from './exampleDocs/elements.ts'
-import { algorithmsHandout, chemistryPractical, physicsSheet, scienceToolkit, xpsLabReport } from './exampleDocs/scienceTools.ts'
+import { algorithmsHandout, chemistryPractical, mathsWorksheet, physicsRevision, physicsSheet, riskAssessment, scienceToolkit, xpsLabReport } from './exampleDocs/scienceTools.ts'
 import { businessPlan, codeTutorial, cvTimeline, eventFlyer, magazineArticle, productReview, researchPlan, statusReport } from './exampleDocs/showcase.ts'
 import {
   article,
@@ -214,7 +214,7 @@ export const GALLERY: [string, string, Factory, string][] = [
     'Perturbation theory with an exact-versus-series table and problems.'],
 
   ['Science', 'Science toolkit', scienceToolkit,
-    'Every Science tab tool: units, significant figures, constants, nuclides, physics notation, matrices, plots, circuits, Feynman and MO diagrams, Bohr models, element tiles, hazard labels, reaction schemes, algorithms and a lab notebook.'],
+    'Every Science tab tool: numbers and units, physics notation, matrices, data plots, circuits, forces, optics, waves, energy levels, Feynman and MO diagrams, Bohr models, element tiles, function plots, statistics, Venn diagrams, triangles, safety signs, risk matrices, hazard labels, reaction schemes, algorithms and a lab notebook.'],
   ['Science', 'XPS lab report', xpsLabReport,
     'An O 1s spectrum with fit and peak labels, element tiles, HF hazard labels, quantities with uncertainties and a notebook entry.'],
   ['Science', 'Physics problem sheet', physicsSheet,
@@ -223,6 +223,12 @@ export const GALLERY: [string, string, Factory, string][] = [
     'Hazard labels, an oxidation reaction scheme, the O₂ MO diagram, a Bohr model, element tiles and the results.'],
   ['Science', 'Algorithms handout', algorithmsHandout,
     'Bisection, insertion sort and Gaussian elimination as numbered pseudocode, with a general matrix.'],
+  ['Science', 'Physics revision', physicsRevision,
+    'A block on a slope, ray diagrams for real and virtual images, waves, hydrogen energy levels and beta decay.'],
+  ['Science', 'Maths worksheet', mathsWorksheet,
+    'Function plots, a number line, a three-set Venn diagram, a triangle, the unit circle, a histogram and a box plot.'],
+  ['Science', 'Risk assessment', riskAssessment,
+    'Safety signs, GHS hazard labels, a danger box, a risk matrix before and after controls, and a training checklist.'],
   ['Science', 'XPS surface-science paper', xpsSurfaceStudy,
     'Ti 2p and O 1s fitting with a Shirley background and quantification.'],
   ['Science', 'XRD / nanomaterials paper', xrdNanoparticles,

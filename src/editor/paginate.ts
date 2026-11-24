@@ -146,6 +146,16 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
       })
       return
     }
+    // An element (Insert ▸ Elements, Science) and a table of contents are
+    // drawn by the widget after their hidden LaTeX: one whole unit, moved
+    // to the next sheet rather than cut by it.
+    const drawn = dom.nextElementSibling
+    if (node.type.name === 'raw_latex' && drawn instanceof HTMLElement && drawn.classList.contains('kt-widget')) {
+      const dr = drawn.getBoundingClientRect()
+      const top = Math.min(dom.getBoundingClientRect().top, dr.top)
+      units.push({ top: y(top), bottom: y(dr.bottom), pos: offset, kind: 'block', forced: dom.dataset.break === '1', gap: cssGap(dom) })
+      return
+    }
     if (node.isTextblock) {
       textUnits(dom, offset, dom.dataset.break === '1', cssGap(dom), node.type.name === 'section' ? offset : undefined)
       return

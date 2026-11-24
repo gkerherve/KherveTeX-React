@@ -271,6 +271,14 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
       case 'element': check('el_mass', !!d.show_mass); break
       case 'hazard': for (const k of ['explos', 'flame', 'flame-O', 'bottle', 'acid', 'skull', 'exclam', 'health', 'aqpol']) check(`ghs_${k}`, (d.pictograms as string[]).includes(k)); check(d.signal === 'Warning' ? 'hz_warning' : 'hz_danger', true); break
       case 'algorithm': check('alg_numbers', !!d.numbers); break
+      case 'signs': check('sg_captions', !!d.captions); for (const k of (d.signs as string[])) check(`sg_${k}`, true); break
+      case 'forces': check(`fb_${d.object}`, true); break
+      case 'optics': check(`op_${d.lens}`, true); break
+      case 'wave': check('wv_labels', !!d.labels); check('wv_second', !!d.second); break
+      case 'function': check('fn_grid', !!d.grid); break
+      case 'triangle': check('tri_angles', !!d.angles); break
+      case 'stats': check(d.kind === 'boxplot' ? 'st_box' : 'st_hist', true); break
+      case 'unitcircle': check('uc_proj', !!d.projections); break
       case 'code':
         check(`cd_${d.theme}`, true)
         check('cd_numbers', !!d.numbers)

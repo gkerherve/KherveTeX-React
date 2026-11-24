@@ -38,3 +38,23 @@ describe('science tools', () => {
     expect(a.indexOf('\\EndIf')).toBeGreaterThan(a.indexOf('\\Else'))
   })
 })
+
+describe('function plot expressions', () => {
+  it('reads maths precedence', async () => {
+    const { compileExpr } = await import('../src/core/science2.ts')
+    expect(compileExpr('exp(-x^2)')!(1)).toBeCloseTo(Math.exp(-1))
+    expect(compileExpr('-x^2')!(3)).toBe(-9)
+    expect(compileExpr('2x + 1')!(2)).toBe(5)
+    expect(compileExpr('0.5*x^2 - 2')!(2)).toBe(0)
+    expect(compileExpr('sin(pi/2)')!(0)).toBeCloseTo(1)
+    expect(compileExpr('x^2^')).toBeNull()
+  })
+})
+
+describe('energy levels', () => {
+  it('draws each transition', async () => {
+    const { levelsDrawing, SCIENCE2_DEFAULTS } = await import('../src/core/science2.ts')
+    const polys = levelsDrawing(SCIENCE2_DEFAULTS.levels).shapes.filter(s => s.t === 'poly')
+    expect(polys.length).toBe(3)
+  })
+})

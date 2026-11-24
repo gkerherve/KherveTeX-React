@@ -7,6 +7,7 @@ import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
 import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
 import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES } from '../core/science.ts'
+import { SIGNS } from '../core/science2.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 import { COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, THEMES, WATERMARKS } from '../core/design.ts'
@@ -86,6 +87,7 @@ export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
   | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
+  | 'risk' | 'signs' | 'forces' | 'optics' | 'wave' | 'levels' | 'function' | 'numberline' | 'venn' | 'triangle' | 'stats' | 'unitcircle'
 
 // The contextual tab a selected element opens at once (as the Box tab).
 export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
@@ -95,6 +97,8 @@ export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
   chart: 'Chart Design', icon: 'Icon',
   plot: 'Data Plot', circuit: 'Circuit', feynman: 'Feynman', mo: 'MO Diagram', bohr: 'Bohr Model', element: 'Element Tiles',
   hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
+  risk: 'Risk Matrix', signs: 'Safety Signs', forces: 'Forces', optics: 'Ray Diagram', wave: 'Wave', levels: 'Energy Levels',
+  function: 'Function Plot', numberline: 'Number Line', venn: 'Venn Diagram', triangle: 'Triangle', stats: 'Statistics', unitcircle: 'Unit Circle',
 }
 
 export interface RibbonTab {
@@ -168,7 +172,7 @@ export const GALLERY: [string, string, string[]][] = [
   ['Teaching', 'article', ['Lab report', 'Exam (exam class)',
     'Homework / problem set', 'Lecture notes', 'Handout (Tufte)',
     'Quantum mechanics lecture']],
-  ['Science', 'article', ['Science toolkit', 'XPS lab report', 'Physics problem sheet', 'Chemistry practical', 'Algorithms handout', 'XPS surface-science paper',
+  ['Science', 'article', ['Science toolkit', 'XPS lab report', 'Physics problem sheet', 'Chemistry practical', 'Algorithms handout', 'Physics revision', 'Maths worksheet', 'Risk assessment', 'XPS surface-science paper',
     'XRD / nanomaterials paper', 'DFT computational study',
     'Battery / electrochemistry paper', 'Clinical trial (CONSORT)',
     'Ecology field study', 'Grant proposal (work packages)',
@@ -893,6 +897,31 @@ const cmds: Command[] = [
   { id: 'hz_danger', text: 'Danger', checkable: true, group: 'hzsignal' },
   { id: 'hz_warning', text: 'Warning', checkable: true, group: 'hzsignal' },
   { id: 'alg_numbers', text: 'Line numbers', checkable: true, checkbox: true },
+  { id: 'sci_risk', text: 'Risk Matrix', icon: 'element', iconArg: 'sci_risk', tooltip: 'A 5 × 5 likelihood × severity grid with your risks placed on it' },
+  { id: 'sci_signs', text: 'Safety Signs', icon: 'element', iconArg: 'sci_signs', tooltip: 'Mandatory, prohibition, warning, emergency and fire signs (ISO 7010 style)' },
+  { id: 'sci_forces', text: 'Forces', icon: 'element', iconArg: 'sci_forces', tooltip: 'A free-body diagram: an object (on a slope) with labelled force arrows' },
+  { id: 'sci_optics', text: 'Ray Diagram', icon: 'element', iconArg: 'sci_optics', tooltip: 'A converging or diverging lens with its rays and the image worked out' },
+  { id: 'sci_wave', text: 'Wave', icon: 'element', iconArg: 'sci_wave', tooltip: 'A wave with its wavelength and amplitude marked' },
+  { id: 'sci_levels', text: 'Energy Levels', icon: 'element', iconArg: 'sci_levels', tooltip: 'Energy levels with transitions, as for hydrogen' },
+  { id: 'sci_function', text: 'Function Plot', icon: 'element', iconArg: 'sci_function', tooltip: 'Graphs of y = f(x): type sin(x), x^2 - 1, exp(-x^2)…' },
+  { id: 'sci_numberline', text: 'Number Line', icon: 'element', iconArg: 'sci_numberline', tooltip: 'A number line with open and closed points and intervals' },
+  { id: 'sci_venn', text: 'Venn Diagram', icon: 'element', iconArg: 'sci_venn', tooltip: 'Two or three sets with what each region holds' },
+  { id: 'sci_triangle', text: 'Triangle', icon: 'element', iconArg: 'sci_triangle', tooltip: 'A triangle from its three sides, with its angles worked out' },
+  { id: 'sci_stats', text: 'Statistics', icon: 'element', iconArg: 'sci_stats', tooltip: 'A histogram or box plot of your numbers, with mean, median and s' },
+  { id: 'sci_unitcircle', text: 'Unit Circle', icon: 'element', iconArg: 'sci_unitcircle', tooltip: 'The unit circle with your angles, their sines and cosines' },
+  { id: 'sg_captions', text: 'Captions', checkable: true, checkbox: true },
+  ...SIGNS.map(([k, cap, , , ch]): Command => ({ id: `sg_${k}`, text: `${ch} ${cap}`, checkable: true, checkbox: true })),
+  { id: 'sg_menu', text: 'Signs', icon: 'element', iconArg: 'sci_signs', popup: 'instant', tooltip: 'Tick the signs to show',
+    menu: (['mandatory', 'prohibition', 'warning', 'emergency', 'fire'] as const).map((fam): MenuItem => ({
+      text: fam[0].toUpperCase() + fam.slice(1), items: SIGNS.filter(sg => sg[2] === fam).map(([k, cap, , , ch]): MenuItem => ({ text: `${ch} ${cap}`, command: `sg_${k}`, checkable: true })) })) },
+  { id: 'fb_box', text: 'Box', checkable: true, group: 'fbobj' }, { id: 'fb_ball', text: 'Ball', checkable: true, group: 'fbobj' },
+  { id: 'fb_slope', text: 'On a slope', checkable: true, group: 'fbobj' },
+  { id: 'op_converging', text: 'Converging', checkable: true, group: 'oplens' }, { id: 'op_diverging', text: 'Diverging', checkable: true, group: 'oplens' },
+  { id: 'wv_labels', text: 'λ and A', checkable: true, checkbox: true }, { id: 'wv_second', text: 'Second wave (90° behind)', checkable: true, checkbox: true },
+  { id: 'fn_grid', text: 'Grid', checkable: true, checkbox: true },
+  { id: 'tri_angles', text: 'Angles', checkable: true, checkbox: true },
+  { id: 'st_hist', text: 'Histogram', checkable: true, group: 'stkind' }, { id: 'st_box', text: 'Box plot', checkable: true, group: 'stkind' },
+  { id: 'uc_proj', text: 'Sine and cosine lines', checkable: true, checkbox: true },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -1047,8 +1076,9 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Numbers', rows: [['sci_units', 'sci_constants'], ['sci_sigfig', 'sci_nuclear']], text: true },
     { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
     { label: 'Chemistry', large: ['chemistry', 'chemfig'], rows: [['sci_scheme', 'sci_mo'], ['sci_hazard', 'sci_bohr'], ['sci_element']], text: true },
-    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit'], ['sci_feynman']], text: true },
-    { label: 'Lab', large: ['sci_notebook'] },
+    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
+    { label: 'Maths', large: ['sci_function'], rows: [['sci_stats', 'sci_venn'], ['sci_numberline', 'sci_triangle'], ['sci_unitcircle']], text: true },
+    { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },
   ] },
   { name: 'Draw', groups: [
     { label: 'Drawing Tools', large: ['draw_tool', 'eraser_tool'] },
@@ -1310,6 +1340,79 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Style', large: ['w_color'] },
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Entry', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Risk Matrix', context: 'risk', groups: [
+    { label: 'Risks', large: ['w_edit'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Risk Matrix', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Safety Signs', context: 'signs', groups: [
+    { label: 'Signs', large: ['w_edit', 'sg_menu'] },
+    { label: 'Options', rows: [['sg_captions']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Safety Signs', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Forces', context: 'forces', groups: [
+    { label: 'Forces', large: ['w_edit'] },
+    { label: 'Object', rows: [['fb_box'], ['fb_ball'], ['fb_slope']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Forces', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Ray Diagram', context: 'optics', groups: [
+    { label: 'Lens', large: ['w_edit'], rows: [['op_converging'], ['op_diverging']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Ray Diagram', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Wave', context: 'wave', groups: [
+    { label: 'Wave', large: ['w_edit'], rows: [['wv_labels'], ['wv_second']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Wave', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Energy Levels', context: 'levels', groups: [
+    { label: 'Levels', large: ['w_edit'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Energy Levels', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Function Plot', context: 'function', groups: [
+    { label: 'Functions', large: ['w_edit'], rows: [['fn_grid']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Function Plot', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Number Line', context: 'numberline', groups: [
+    { label: 'Line', large: ['w_edit'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Number Line', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Venn Diagram', context: 'venn', groups: [
+    { label: 'Sets', large: ['w_edit'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Venn Diagram', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Triangle', context: 'triangle', groups: [
+    { label: 'Sides', large: ['w_edit'], rows: [['tri_angles']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Triangle', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Statistics', context: 'stats', groups: [
+    { label: 'Data', large: ['w_edit'] },
+    { label: 'Chart', rows: [['st_hist'], ['st_box']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Statistics', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Unit Circle', context: 'unitcircle', groups: [
+    { label: 'Angles', large: ['w_edit'], rows: [['uc_proj']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Unit Circle', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },
