@@ -1955,6 +1955,11 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
 
 // Insert ▸ Elements, Layout ▸ Margin Note, Design ▸ Chapter Titles and
 // their tabs' options. arg picks the picture.
+const starPath = (cx: number, cy: number, r: number) => Array.from({ length: 10 }, (_, i) => {
+  const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.42 : r
+  return `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`
+}).join(' ')
+
 export function ElementIcon({ arg = 'checklist', ...p }: IconProps) {
   const box = (x: number, y: number, on: boolean, round = false) => round
     ? <g><circle cx={x + 2.5} cy={y + 2.5} r={2.5} stroke={BLUE} strokeWidth={1.1} fill={on ? '#d6e4f3' : 'none'} />
@@ -2032,6 +2037,26 @@ export function ElementIcon({ arg = 'checklist', ...p }: IconProps) {
     case 'after': return <Svg {...p}>{R(3, 3, 18, 8, { color: BLUE, fill: '#d6e4f3', lw: 1, r: 1 })}{L(4, 16, 20, 16)}{L(4, 20, 14, 20)}<polyline points='12,12 12,14' stroke={GREEN} strokeWidth={1.4} /></Svg>
     case 'color': return <Svg {...p}><circle cx={12} cy={12} r={8} fill='none' stroke={INK} strokeWidth={1} />
       <path d='M12 4 A8 8 0 0 1 19.4 15 L12 12 Z' fill='#1F6FB5' /><path d='M19.4 15 A8 8 0 0 1 4.6 15 L12 12 Z' fill='#2E7D32' /><path d='M4.6 15 A8 8 0 0 1 12 4 L12 12 Z' fill='#E65100' /></Svg>
+    case 'titlepage': return <Svg {...p}>{Page(3, 2, 18, 20, 3.5)}{F(3.7, 2.7, 16.6, 7, BLUE)}{L(6, 6, 15, 6, '#ffffff', 1.8)}{L(6, 13, 12, 13, INK, 1)}{L(6, 18, 10, 18, '#aaaaaa', 1)}</Svg>
+    case 'pageedge': return <Svg {...p}>{Page(3, 2, 18, 20, 3.5)}{F(3.7, 2.7, 16.6, 3, BLUE)}{F(18, 9, 2.3, 4, BLUE)}{L(6, 10, 15, 10)}{L(6, 13.5, 15, 13.5)}{L(6, 17, 13, 17)}</Svg>
+    case 'pullquote': case 'pq_rules': return <Svg {...p}>{L(3, 5, 21, 5, BLUE, 1.2)}{T([3, 6, 18, 12], '“ ”', { size: 13, bold: true, color: BLUE, family: 'Georgia, serif' })}{L(3, 19, 21, 19, BLUE, 1.2)}</Svg>
+    case 'pq_bar': return <Svg {...p}>{L(5, 4, 5, 20, BLUE, 2.6)}{L(9, 8, 20, 8, BLUE, 1.4)}{L(9, 12, 18, 12, BLUE, 1.4)}{L(9, 16, 14, 16, INK, 1)}</Svg>
+    case 'pq_marks': return <Svg {...p}>{R(2.5, 5, 19, 14, { color: 'none', fill: '#e4edf7', r: 1.5 })}{T([2, 2, 9, 12], '“', { size: 16, bold: true, color: BLUE, family: 'Georgia, serif' })}{L(10, 11, 19, 11, BLUE, 1.3)}{L(8, 15, 17, 15, BLUE, 1.3)}</Svg>
+    case 'sidebar': case 'sb_right': return <Svg {...p}>{L(2, 5, 12, 5)}{L(2, 9, 12, 9)}{L(2, 13, 12, 13)}{L(2, 17, 22, 17)}{L(2, 21, 20, 21)}{R(14, 3, 8, 12, { color: 'none', fill: '#d6e4f3', r: 0 })}{L(14, 3, 22, 3, BLUE, 1.6)}</Svg>
+    case 'sb_left': return <Svg {...p}>{R(2, 3, 8, 12, { color: 'none', fill: '#d6e4f3', r: 0 })}{L(2, 3, 10, 3, BLUE, 1.6)}{L(12, 5, 22, 5)}{L(12, 9, 22, 9)}{L(12, 13, 22, 13)}{L(2, 17, 22, 17)}{L(2, 21, 20, 21)}</Svg>
+    case 'sb_full': return <Svg {...p}>{R(2, 5, 20, 14, { color: 'none', fill: '#d6e4f3', r: 0 })}{L(2, 5, 22, 5, BLUE, 1.6)}{L(5, 10, 19, 10)}{L(5, 14, 17, 14)}</Svg>
+    case 'rating': return <Svg {...p}>{[0, 1, 2].map(i => <polygon key={i} points={starPath(4.5 + i * 7.5, 12, 3.6)} fill={i < 2 ? '#F9A825' : 'none'} stroke='#F9A825' strokeWidth={1} />)}</Svg>
+    case 'rt_dots': return <Svg {...p}>{[0, 1, 2, 3].map(i => <circle key={i} cx={4 + i * 5.4} cy={12} r={2.2} fill={i < 3 ? GREEN : 'none'} stroke={GREEN} strokeWidth={1} />)}</Svg>
+    case 'gauge': return <Svg {...p}><path d='M3 17 A9 9 0 0 1 21 17' fill='none' stroke='#d6e4f3' strokeWidth={3.5} /><path d='M3 17 A9 9 0 0 1 16.5 9.2' fill='none' stroke={BLUE} strokeWidth={3.5} />{T([7, 11, 10, 8], '%', { size: 8, bold: true, color: BLUE })}</Svg>
+    case 'gg_ring': return <Svg {...p}><circle cx={12} cy={12} r={8} fill='none' stroke='#d6e4f3' strokeWidth={3.5} /><path d='M12 4 A8 8 0 1 1 4.4 14.5' fill='none' stroke={BLUE} strokeWidth={3.5} /></Svg>
+    case 'steps': return <Svg {...p}>{[0, 1, 2].map(i => <g key={i}><circle cx={4 + i * 8} cy={12} r={3.2} fill={BLUE} />{T([1 + i * 8, 8, 6, 8], String(i + 1), { size: 6, bold: true, color: '#fff' })}</g>)}{L(7.5, 12, 8.6, 12, BLUE, 1.2)}{L(15.5, 12, 16.6, 12, BLUE, 1.2)}</Svg>
+    case 'st_vertical': return <Svg {...p}>{[0, 1, 2].map(i => <g key={i}><circle cx={5} cy={4.5 + i * 7.5} r={2.8} fill={BLUE} />{L(10, 4.5 + i * 7.5, 21, 4.5 + i * 7.5)}</g>)}</Svg>
+    case 'gantt': return <Svg {...p}>{L(2, 3, 2, 21, '#aaaaaa', 1)}{R(4, 4, 8, 3, { color: 'none', fill: BLUE, r: 1 })}{R(8, 10, 9, 3, { color: 'none', fill: BLUE, r: 1 })}{R(13, 16, 7, 3, { color: 'none', fill: BLUE, r: 1 })}<polygon points='21,20.5 22.5,22 21,23.5 19.5,22' fill={RED} /></Svg>
+    case 'chart': return <Svg {...p}>{L(3, 3, 3, 21, '#888', 1)}{L(3, 21, 21, 21, '#888', 1)}{F(5, 12, 3.2, 9, BLUE)}{F(9.5, 7, 3.2, 14, '#E65100')}{F(14, 10, 3.2, 11, BLUE)}{F(18.5, 5, 2.5, 16, '#E65100')}</Svg>
+    case 'ch_hbar': return <Svg {...p}>{L(3, 3, 3, 21, '#888', 1)}{F(3, 5, 14, 3.2, BLUE)}{F(3, 10.4, 18, 3.2, '#E65100')}{F(3, 15.8, 10, 3.2, BLUE)}</Svg>
+    case 'ch_line': return <Svg {...p}>{L(3, 3, 3, 21, '#888', 1)}{L(3, 21, 21, 21, '#888', 1)}<polyline points='5,17 9,11 13,13 17,6 20,8' fill='none' stroke={BLUE} strokeWidth={1.6} /><polyline points='5,19 9,16 13,17 17,12 20,13' fill='none' stroke='#E65100' strokeWidth={1.6} /></Svg>
+    case 'ch_pie': return <Svg {...p}><circle cx={12} cy={12} r={9} fill={BLUE} /><path d='M12 12 L12 3 A9 9 0 0 1 20.6 14.6 Z' fill='#E65100' /><path d='M12 12 L20.6 14.6 A9 9 0 0 1 9 20.5 Z' fill={GREEN} /></Svg>
+    case 'icon': return <Svg {...p}>{T([1, 1, 11, 11], '☎', { size: 10, color: BLUE })}{T([12, 1, 11, 11], '✉', { size: 10, color: '#E65100' })}{T([1, 12, 11, 11], '★', { size: 10, color: '#F9A825' })}{T([12, 12, 11, 11], '⚠', { size: 10, color: RED })}</Svg>
     default: return <Svg {...p}>{R(4, 4, 16, 16, { color: BLUE })}</Svg>
   }
 }

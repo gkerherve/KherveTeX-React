@@ -5,7 +5,7 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import { NodeSelection, TextSelection, type EditorState } from 'prosemirror-state'
 import {
-  defaultWidgetText, dropCapLatex, marginNoteLatex, parseDropCap, parseMarginNote, parseWidget, widgetText,
+  defaultWidgetText, dropCapLatex, iconLatex, parseIcon, type IconRef, marginNoteLatex, parseDropCap, parseMarginNote, parseWidget, widgetText,
   type DropCap, type MarginNote, type Widget, type WidgetData, type WidgetKind,
 } from '../core/widgets.ts'
 import type { Command } from './commands.ts'
@@ -104,6 +104,7 @@ export function deleteBlockAt(pos: number): Command {
 // ---------- inline: margin notes and drop caps ----------
 
 export type InlineSpecial = { kind: 'marginnote'; pos: number; note: MarginNote } | { kind: 'dropcap'; pos: number; cap: DropCap }
+  | { kind: 'icon'; pos: number; icon: IconRef }
 
 export function currentInlineSpecial(state: EditorState): InlineSpecial | null {
   const sel = state.selection
@@ -113,6 +114,8 @@ export function currentInlineSpecial(state: EditorState): InlineSpecial | null {
   if (note) return { kind: 'marginnote', pos: sel.from, note }
   const cap = parseDropCap(latex)
   if (cap) return { kind: 'dropcap', pos: sel.from, cap }
+  const icon = parseIcon(latex)
+  if (icon) return { kind: 'icon', pos: sel.from, icon }
   return null
 }
 
@@ -254,6 +257,13 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
         check(Number(d.size) <= 2 ? 'qr_small' : Number(d.size) >= 4.5 ? 'qr_large' : 'qr_medium', true)
         check(`qr_${d.align}`, true)
         break
+      case 'pullquote': check(`pq_${d.style}`, true); break
+      case 'sidebar': check(`sb_${d.position}`, true); break
+      case 'rating': check(`rt_${d.symbol}`, true); check(`rt_max_${d.max}`, true); check('rt_value', !!d.show_value); break
+      case 'gauge': check(`gg_${d.style}`, true); break
+      case 'steps': check(`st_${d.layout}`, true); break
+      case 'gantt': check('gt_grid', !!d.grid); break
+      case 'chart': check(`ch_${d.type}`, true); check(`ch_${d.size}`, true); check('ch_legend', !!d.legend); break
       case 'code':
         check(`cd_${d.theme}`, true)
         check('cd_numbers', !!d.numbers)
@@ -264,9 +274,70 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
   }
   const sp = currentInlineSpecial(state)
   if (sp?.kind === 'marginnote') check(`mn_${sp.note.style}`, true)
+  if (sp?.kind === 'icon') check(`ic_${sp.icon.size}`, true)
   if (sp?.kind === 'dropcap') {
     check(`dc_lines_${sp.cap.lines}`, true)
     check(sp.cap.margin ? 'dc_margin' : 'dc_dropped', true)
     check('dc_smallcaps', sp.cap.smallcaps)
   }
+}
+
+export function updateIcon(fn: (i: IconRef) => void): Command {
+  return (state, dispatch) => {
+    const s = currentInlineSpecial(state)
+    if (s?.kind !== 'icon') return false
+    const i = { ...s.icon }
+    fn(i)
+    return setInlineLatex(s.pos, iconLatex(i))(state, dispatch)
+  }
+}
+
+// An icon at the caret (replacing the selection), selected.
+export function insertIcon(icon: IconRef): Command {
+  return (state, dispatch) => {
+    const $p = state.selection.$from
+    if (!$p.parent.inlineContent || $p.parent.type === N.raw_latex) return false
+    if (dispatch) {
+      const at = state.selection.from
+      const tr = state.tr.replaceSelectionWith(N.inline_raw.create({ latex: iconLatex(icon) }), false)
+      tr.setSelection(NodeSelection.create(tr.doc, at))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
+// Insert a chart (or any element) with these settings after the table
+// holding the caret, selected.
+export function insertWidgetAfterTable(kind: WidgetKind, data: unknown): Command {
+  return (state, dispatch) => {
+    const $p = state.selection.$from
+    let tablePos = -1, table: PMNode | null = null
+    for (let d = $p.depth; d > 0; d--) if ($p.node(d).type === N.table) { tablePos = $p.before(d); table = $p.node(d) }
+    if (!table) return false
+    if (dispatch) {
+      const at = tablePos + table.nodeSize
+      const node = N.raw_latex.create(null, schema.text(widgetText(kind, data as never)))
+      let tr = state.tr.insert(at, node)
+      const after = at + node.nodeSize
+      const next = tr.doc.resolve(after).nodeAfter
+      if (!next || !next.isTextblock) tr = tr.insert(after, N.paragraph.create({ alignment: 'justify' }))
+      tr = tr.setSelection(NodeSelection.create(tr.doc, at))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
+// The table holding the caret, as rows of cell text.
+export function currentTableRows(state: EditorState): string[][] | null {
+  const $p = state.selection.$from
+  for (let d = $p.depth; d > 0; d--) {
+    const n = $p.node(d)
+    if (n.type !== N.table) continue
+    const rows: string[][] = []
+    n.forEach(r => { const cells: string[] = []; r.forEach(c => cells.push(c.textContent)); rows.push(cells) })
+    return rows
+  }
+  return null
 }

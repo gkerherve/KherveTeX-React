@@ -86,6 +86,7 @@ export function currentTheorem(state: EditorState): { node: PMNode; pos: number 
 // "table", "figure", "equation", "theorem" or null (context_object).
 export type ObjectContext = 'table' | 'figure' | 'equation' | 'theorem' | 'callout'
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
+  | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
 
 export function contextObject(state: EditorState): ObjectContext | null {
   const w = currentWidget(state)

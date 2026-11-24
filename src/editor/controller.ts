@@ -3,7 +3,7 @@
 // document in step with it, lays the pages out, paints the sheets, the
 // headers, footers and footnotes, and offers the EditorApi.
 import { syncElementChecks } from './widgetCommands.ts'
-import { designCss } from '../core/design.ts'
+import { accentOf, designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
 import { InkLayer, anchorAtPos, posOfAnchor } from './ink.ts'
 import { HeaderFooterEditor } from './headerFooter.ts'
@@ -922,6 +922,8 @@ export class EditorController implements ViewHost {
       art: `border:3px solid #000;outline:0.7px solid #000;outline-offset:-6px`, shadow: `border:0.8px solid #000;box-shadow:4px 4px 0 #444`,
     } as Record<string, string>)[D.page_border] : ''
     const wm = D?.watermark ? D.watermark.replace(/[<&]/g, '') : ''
+    const edge = D?.page_edge && D.page_edge !== 'none' ? D.page_edge : ''
+    const accent = D ? accentOf(D) : '#2F5496'
     const wmSize = wm ? Math.max(28, Math.min(130, (geo.widthPx * 1.05) / Math.max(4, wm.length) * 1.25)) : 0
     for (let k = 0; k < n; k++) {
       const top = k * H + (k ? g / 2 : 0)
@@ -929,6 +931,13 @@ export class EditorController implements ViewHost {
       parts.push(`<div class="kt-sheet" style="top:${top}px;height:${bottom - top}px;border-color:${SHEET_EDGE}${bg ? `;background:${bg}` : ''}"></div>`)
       if (border) parts.push(`<div class="kt-sheet-border" style="top:${top + cm}px;height:${bottom - top - 2 * cm}px;left:${cm}px;right:${cm}px;${border}"></div>`)
       if (wm) parts.push(`<div class="kt-sheet-watermark" style="top:${top}px;height:${bottom - top}px;font-size:${wmSize}px"><span style="transform:rotate(-45deg)">${wm}</span></div>`)
+      // Design ▸ Header Style: the band, rule or thumb tab on every page after the first.
+      if (edge && k > 0) {
+        const title = (this.meta.title || '').replace(/[<&]/g, '')
+        if (edge === 'band') parts.push(`<div class="kt-sheet-edge kt-edge-band" style="top:${top}px;background:${accent}"><span>${title}</span><span>${k + 1}</span></div>`)
+        else if (edge === 'rule') parts.push(`<div class="kt-sheet-edge kt-edge-rule" style="top:${top + 0.6 * cm}px;left:${1.5 * cm}px;right:${1.5 * cm}px;color:${accent};border-color:${accent}"><span>${title}</span><span>${k + 1}</span></div>`)
+        else if (edge === 'thumb') parts.push(`<div class="kt-sheet-edge kt-edge-thumb" style="top:${top + (3 + 1.9 * (k % 8)) * cm}px;background:${accent}">${k + 1}</div>`)
+      }
       if (k < n - 1) {
         parts.push(`<div class="kt-sheet-gap" style="top:${bottom}px;height:${g}px;background:${DESK}"></div>`)
       }

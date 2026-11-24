@@ -15,6 +15,22 @@ export const CHAPTER_STYLES: [ChapterStyle, string, string][] = [
   ['bar', 'Side bar', 'A thick coloured bar before the number and title'],
   ['centered', 'Centred', 'Centred, the chapter line in the accent colour and a short rule under'],
 ]
+export type TitleStyle = 'default' | 'band' | 'centered' | 'leftbar' | 'minimal' | 'framed'
+export const TITLE_STYLES: [TitleStyle, string, string][] = [
+  ['default', 'As the class', 'The title as the document class prints it'],
+  ['band', 'Coloured band', 'A title page: the title in white on a band of the accent colour across the top'],
+  ['centered', 'Centred with rules', 'A title page: the title centred between two coloured rules'],
+  ['leftbar', 'Side bar', 'A title page: a thick coloured bar down the left edge, the title in the accent colour'],
+  ['minimal', 'Minimal', 'A title page: a large title low on the page over a short coloured rule'],
+  ['framed', 'Framed', 'A title page: a double coloured frame around the page, the title centred'],
+]
+export type PageEdge = 'none' | 'band' | 'rule' | 'thumb'
+export const PAGE_EDGES: [PageEdge, string, string][] = [
+  ['none', 'None', 'Only the header and footer you set'],
+  ['band', 'Coloured band', 'A band of the accent colour across the top of each page, with the title and page number'],
+  ['rule', 'Title and rule', 'The title and page number over a coloured rule at the top of each page'],
+  ['thumb', 'Thumb tab', 'The page number in a coloured tab on the page edge, lower for each chapter, as in a reference book'],
+]
 export type PageBorder = 'box' | 'double' | 'thick' | 'shadow' | 'art'
 
 export interface Design {
@@ -28,6 +44,10 @@ export interface Design {
   page_border?: PageBorder
   // Design ▸ Chapter Titles: how a chapter (a section, without chapters) opens.
   chapter_style?: ChapterStyle
+  // Design ▸ Title Page: the page \maketitle makes.
+  title_style?: TitleStyle
+  // Design ▸ Header Style: a band, a rule or a thumb tab on every page after the first.
+  page_edge?: PageEdge
 }
 
 // Colours: the accent (headings, shaded bands) and a second colour.
@@ -233,6 +253,8 @@ export function designPreamble(d: Design | undefined, cls: string): string {
     if (!out.includes('\\usepackage{titlesec}')) out.push('\\usepackage{titlesec}')
     out.push(...chapterStyleLatex(D.chapter_style, CHAPTER_CLASSES.includes(cls)))
   }
+  if (D.title_style && D.title_style !== 'default' && headingsByTitlesec(cls)) out.push(...titlePageLatex(D.title_style))
+  if (D.page_edge && D.page_edge !== 'none' && headingsByTitlesec(cls)) out.push(...pageEdgeLatex(D.page_edge))
   if (D.para_space_pt !== undefined) out.push(`\\setlength{\\parskip}{${D.para_space_pt}pt}`)
   if (D.page_color) out.push(`\\pagecolor[HTML]{${hex(D.page_color)}}`)
   if (D.watermark || D.page_border) {
@@ -307,6 +329,75 @@ function chapterStyleLatex(style: ChapterStyle, chapters: boolean): string[] {
   return out
 }
 
+// Design ▸ Title Page: \maketitle makes a page of its own.
+function titlePageLatex(style: TitleStyle): string[] {
+  // Its own (empty) line: inside the title's paragraph, the \\vspace after it fell after the title's first line.
+  const overlay = (draw: string) => `\\noindent\\begin{tikzpicture}[remember picture,overlay]${draw}\\end{tikzpicture}\\par`
+  let body = ''
+  switch (style) {
+    case 'band':
+      body = overlay('\\fill[kAccent] (current page.north west) rectangle ([yshift=-11.5cm]current page.north east);')
+        + '\\vspace*{1.2cm}{\\raggedright\\color{white}\\fontsize{32}{38}\\selectfont\\bfseries\\@title\\par}\\vspace{0.8cm}'
+        + '{\\raggedright\\color{white}\\Large\\@author\\par}\\vfill{\\raggedright\\large\\@date\\par}'
+      break
+    case 'centered':
+      body = '\\centering\\vspace*{\\fill}{\\color{kAccent}\\rule{\\linewidth}{1.5pt}\\par}\\vspace{0.8cm}'
+        + '{\\fontsize{30}{36}\\selectfont\\bfseries\\@title\\par}\\vspace{0.8cm}{\\color{kAccent}\\rule{\\linewidth}{1.5pt}\\par}'
+        + '\\vspace{1.5cm}{\\Large\\@author\\par}\\vspace{0.5cm}{\\large\\@date\\par}\\vspace*{\\fill}'
+      break
+    case 'leftbar':
+      body = overlay('\\fill[kAccent] (current page.north west) rectangle ([xshift=2.2cm]current page.south west);')
+        + '\\vspace*{5cm}{\\raggedright\\fontsize{32}{38}\\selectfont\\bfseries\\color{kAccent}\\@title\\par}\\vspace{1cm}'
+        + '{\\raggedright\\Large\\@author\\par}\\vfill{\\raggedright\\large\\@date\\par}'
+      break
+    case 'minimal':
+      body = '\\vspace*{\\fill}{\\raggedright\\fontsize{36}{42}\\selectfont\\bfseries\\@title\\par}\\vspace{0.6cm}'
+        + '{\\color{kAccent}\\rule{4cm}{3pt}\\par}\\vspace{0.6cm}{\\raggedright\\Large\\@author\\par\\medskip\\large\\@date\\par}\\vspace{2cm}'
+      break
+    case 'framed':
+      body = overlay('\\draw[kAccent,line width=3pt] ([xshift=1.5cm,yshift=-1.5cm]current page.north west) rectangle ([xshift=-1.5cm,yshift=1.5cm]current page.south east);'
+        + '\\draw[kAccent,line width=0.8pt] ([xshift=1.85cm,yshift=-1.85cm]current page.north west) rectangle ([xshift=-1.85cm,yshift=1.85cm]current page.south east);')
+        + '\\centering\\vspace*{\\fill}{\\fontsize{30}{36}\\selectfont\\bfseries\\color{kAccent}\\@title\\par}\\vspace{1.2cm}'
+        + '{\\Large\\@author\\par}\\vspace{0.5cm}{\\large\\@date\\par}\\vspace*{\\fill}'
+      break
+    default: return []
+  }
+  return ['\\usepackage{tikz}', '\\makeatletter',
+    // After a title page, every page has the header style (Header Style).
+    `\\renewcommand{\\maketitle}{\\begin{titlepage}${body}\\end{titlepage}\\setcounter{page}{1}\\ifdefined\\kEdgeAlltrue\\global\\kEdgeAlltrue\\fi}`, '\\makeatother']
+}
+
+// Design ▸ Header Style: drawn on each page after the first (a shipout
+// hook, like the watermark), from the top left corner, y downwards.
+function pageEdgeLatex(edge: PageEdge): string[] {
+  let draw = ''
+  switch (edge) {
+    case 'band':
+      draw = '\\fill[kAccent] (0,0) rectangle (\\paperwidth,-1.1cm);'
+        + '\\node[anchor=west,text=white,font=\\sffamily\\small\\bfseries] at (1.5cm,-0.55cm) {\\kEdgeTitle};'
+        + '\\node[anchor=east,text=white,font=\\sffamily\\small\\bfseries] at (\\paperwidth-1.5cm,-0.55cm) {\\thepage};'
+      break
+    case 'rule':
+      draw = '\\draw[kAccent,line width=0.8pt] (1.5cm,-1.3cm) -- (\\paperwidth-1.5cm,-1.3cm);'
+        + '\\node[anchor=south west,text=kAccent,font=\\sffamily\\small] at (1.5cm,-1.25cm) {\\kEdgeTitle};'
+        + '\\node[anchor=south east,text=kAccent,font=\\sffamily\\small\\bfseries] at (\\paperwidth-1.5cm,-1.25cm) {\\thepage};'
+      break
+    case 'thumb':
+      draw = '\\pgfmathsetmacro{\\kThumbY}{3+1.9*mod(\\kEdgeN,8)}'
+        + '\\fill[kAccent,rounded corners=3pt] (\\paperwidth-1.1cm,-\\kThumbY cm) rectangle (\\paperwidth+0.3cm,-\\kThumbY cm-1.6cm);'
+        + '\\node[text=white,font=\\sffamily\\bfseries] at (\\paperwidth-0.55cm,-\\kThumbY cm-0.8cm) {\\thepage};'
+      break
+    default: return []
+  }
+  return ['\\usepackage{tikz}', '\\makeatletter',
+    '\\AtBeginDocument{\\let\\kEdgeTitle\\@title}',
+    '\\def\\kEdgeN{\\ifcsname c@chapter\\endcsname\\number\\value{chapter}\\else\\number\\value{section}\\fi}',
+    '\\makeatother',
+    '\\newif\\ifkEdgeAll',
+    `\\AddToHook{shipout/background}{\\ifkEdgeAll\\def\\kEdgeGo{1}\\else\\ifnum\\value{page}>1 \\def\\kEdgeGo{1}\\else\\def\\kEdgeGo{0}\\fi\\fi`
+      + `\\ifnum\\kEdgeGo=1 \\put(0,0){\\begin{tikzpicture}[overlay]${draw}\\end{tikzpicture}}\\fi}`]
+}
+
 // The editor's look for a style set: CSS for the headings (the page's
 // .kt-design root), the watermark and border drawn on each sheet.
 export function designCss(d: Design | undefined, cls = 'article'): string {
@@ -343,6 +434,16 @@ export function designCss(d: Design | undefined, cls = 'article'): string {
       const lab = set === 'casual' ? second : set === 'default' && !D.colors ? 'inherit' : accent
       css.push(`${sel(lv)} .kt-label { color: ${lab} !important; text-transform: none; letter-spacing: normal; }`)
     }
+  }
+  // Title Page, on the title block (the PDF gives it a page of its own).
+  const tt = '.kt-design .kt-title'
+  if (reach === 'all') switch (D.title_style) {
+    case 'band': css.push(`${tt} { background: ${accent}; color: #fff !important; padding: 1.2cm 12px 1cm !important; text-align: left !important; }`); break
+    case 'centered': css.push(`${tt} { border-top: 2px solid ${accent}; border-bottom: 2px solid ${accent}; padding: 10px 0 !important; }`); break
+    case 'leftbar': css.push(`${tt} { color: ${accent} !important; border-left: 12px solid ${accent}; padding-left: 14px !important; text-align: left !important; }`); break
+    case 'minimal': css.push(`${tt} { text-align: left !important; border-bottom: 4px solid ${accent}; padding-bottom: 6px !important; width: fit-content; }`); break
+    case 'framed': css.push(`${tt} { color: ${accent} !important; border: 3px double ${accent}; padding: 14px !important; }`); break
+    default: break
   }
   // Chapter Titles, on the page's top heading.
   const top = `.kt-design .kt-section[data-level="1"]`

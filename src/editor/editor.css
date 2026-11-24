@@ -820,3 +820,43 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
   font-family: inherit; font-size: inherit; color: inherit; background: none; border: 0; padding: 0; border-radius: 0; white-space: normal;
 }
 .kt-flow .kt-marginnote-text { font-family: var(--kt-body-font, inherit); }
+
+/* Drawn elements (charts, Gantt, gauges, ratings): centred, never wider than the text. */
+.kt-w-drawing { text-align: center; line-height: 0; }
+.kt-w-drawing svg { font-family: 'Latin Modern Roman', 'CMU Serif', Georgia, serif; }
+/* Pull quote */
+.kt-w-pq { color: var(--kt-w); font-style: italic; font-size: 1.2em; padding: 6px 1cm; text-align: center; }
+.kt-w-pq-rules { border-top: 1px solid var(--kt-w); border-bottom: 1px solid var(--kt-w); }
+.kt-w-pq-bar { border-left: 4px solid var(--kt-w); text-align: left; padding-left: 12px; font-size: 1.1em; }
+.kt-w-pq-marks { background: color-mix(in srgb, var(--kt-w) 6%, white); border-radius: 3px; position: relative; }
+.kt-w-pq-marks::before { content: '\201C'; position: absolute; left: 6px; top: -8px; font-size: 3em; color: color-mix(in srgb, var(--kt-w) 45%, white); font-style: normal; }
+.kt-w-pq-author { font-style: normal; color: #222; font-size: .85em; margin-top: 4px; }
+/* Sidebar */
+.kt-w-side { background: color-mix(in srgb, var(--kt-w) 8%, white); border-top: 2px solid var(--kt-w); padding: 4px 8px; font-size: .9em; }
+.kt-w-side-right { width: 38%; margin-left: auto; }
+.kt-w-side-left { width: 38%; }
+.kt-w-side-title { font-weight: 700; color: var(--kt-w); margin-bottom: 2px; }
+.kt-w-side-hint { font-size: 10px; color: #888; font-style: italic; margin-top: 3px; font-family: Arial, sans-serif; }
+.kt-w-para + .kt-w-para { margin-top: .5em; }
+/* Steps */
+.kt-w-steps-h { display: flex; justify-content: space-around; }
+.kt-w-steps-h .kt-w-step { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; font-size: .9em; }
+.kt-w-steps-h .kt-w-step:not(:last-child)::after { content: ''; position: absolute; top: 15px; left: calc(50% + 20px); right: calc(-50% + 20px);
+  border-top: 2px solid color-mix(in srgb, var(--kt-w) 60%, white); }
+.kt-w-step-num { width: 30px; height: 30px; border-radius: 50%; background: var(--kt-w); color: #fff; font-weight: 700; display: flex;
+  align-items: center; justify-content: center; flex: none; }
+.kt-w-steps-h .kt-w-step-num { margin-bottom: 4px; }
+.kt-w-steps-v { display: flex; flex-direction: column; gap: 6px; width: fit-content; margin: 0 auto; }
+.kt-w-steps-v .kt-w-step { display: flex; gap: 10px; align-items: flex-start; }
+.kt-w-step-title { font-weight: 700; }
+/* Insert ▸ Icon */
+.kt-flow .kt-inline-raw.kt-icon { font-family: inherit; background: none; color: inherit; cursor: pointer; }
+.kt-icon-glyph { font-style: normal; font-family: 'Apple Color Emoji', 'Segoe UI Symbol', sans-serif; }
+.kt-icon-large { font-size: 1.2em; } .kt-icon-Large { font-size: 1.44em; } .kt-icon-huge { font-size: 2.07em; }
+.kt-icon.ProseMirror-selectednode { outline: 1px solid #6d93cf; outline-offset: 1px; }
+/* Design ▸ Header Style on the sheets */
+.kt-sheet-edge { position: absolute; pointer-events: none; z-index: 0; font: 600 11px/1 Helvetica, Arial, sans-serif; }
+.kt-edge-band { left: 0; right: 0; height: 1.1cm; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5cm; box-sizing: border-box; }
+.kt-edge-rule { display: flex; justify-content: space-between; border-bottom: 1px solid; padding-bottom: 3px; font-weight: 400; }
+.kt-edge-thumb { right: 0; width: 1.1cm; height: 1.6cm; color: #fff; display: flex; align-items: center; justify-content: center; border-radius: 4px 0 0 4px; }
+.kt-w-check-box { cursor: pointer; } .kt-w-check-box:hover { filter: brightness(0.8); transform: scale(1.12); }

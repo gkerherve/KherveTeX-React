@@ -2,7 +2,7 @@
 // QAction of _build_actions / _build_context_actions becomes a Command
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
-import { CHAPTER_STYLES } from '../core/design.ts'
+import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
@@ -82,11 +82,14 @@ export interface RibbonGroup {
 
 export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation' | 'headerfooter'
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
+  | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
 
 // The contextual tab a selected element opens at once (as the Box tab).
 export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
   callout: 'Box', checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code',
   code: 'Code', marginnote: 'Margin Note', dropcap: 'Drop Cap',
+  pullquote: 'Pull Quote', sidebar: 'Sidebar', rating: 'Rating', gauge: 'Gauge', steps: 'Steps', gantt: 'Gantt Chart',
+  chart: 'Chart Design', icon: 'Icon',
 }
 
 export interface RibbonTab {
@@ -142,7 +145,7 @@ const PAGE_SIZES: [string, number, number][] = [
 export const GALLERY: [string, string, string[]][] = [
   ['Start', 'article', ['Welcome tour', 'Blank document']],
   ['Boxes & elements', 'article', ['Coloured boxes', 'Fancy elements', 'Project status report', 'CV with timeline',
-    'Programming tutorial', 'Magazine feature', 'Event programme']],
+    'Programming tutorial', 'Magazine feature', 'Event programme', 'Business plan', 'Product review', 'Research project plan']],
   ['Articles', 'article', ['Single-column article', 'Two-column article',
     'Three-column document', 'Maths-heavy document', 'KOMA-Script article',
     'White paper', 'Literature review', 'Research proposal']],
@@ -438,6 +441,12 @@ const cmds: Command[] = [
         .map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: c, command: `pagecolor:${c}` })),
       '-', { text: 'More Colours…', command: 'pagecolor_more' },
     ] },
+  { id: 'title_page', text: 'Title Page', icon: 'element', iconArg: 'titlepage', popup: 'instant',
+    tooltip: 'A designed title page, in the accent colour (Colours)',
+    menu: TITLE_STYLES.map(([k, name, tip]): MenuItem => ({ text: name, command: `titlestyle:${k}`, checkable: true, detail: tip })) },
+  { id: 'page_edge', text: 'Header Style', icon: 'element', iconArg: 'pageedge', popup: 'instant',
+    tooltip: 'A coloured band, a rule or a thumb tab at the top or edge of every page after the first',
+    menu: PAGE_EDGES.map(([k, name, tip]): MenuItem => ({ text: name, command: `pageedge:${k}`, checkable: true, detail: tip })) },
   { id: 'chapter_titles', text: 'Chapter Titles', icon: 'element', iconArg: 'chapter', popup: 'instant',
     tooltip: 'How each chapter opens (a section, in a document without chapters), in the accent colour (Colours)',
     menu: CHAPTER_STYLES.map(([k, name, tip]): MenuItem => ({ text: name, command: `chapterstyle:${k}`, checkable: true, detail: tip })) },
@@ -797,6 +806,43 @@ const cmds: Command[] = [
   { id: 'dc_dropped', text: 'Dropped', icon: 'element', iconArg: 'dc_dropped', checkable: true, group: 'dcpos', tooltip: 'The letter inside the text' },
   { id: 'dc_margin', text: 'In margin', icon: 'element', iconArg: 'dc_margin', checkable: true, group: 'dcpos', tooltip: 'The letter hanging in the left margin' },
   { id: 'dc_smallcaps', text: 'Small capitals after', checkable: true, checkbox: true, tooltip: 'The rest of the word in small capitals' },
+  { id: 'ins_pullquote', text: 'Pull Quote', icon: 'element', iconArg: 'pullquote', tooltip: 'A sentence set large and coloured, to catch the eye' },
+  { id: 'ins_sidebar', text: 'Sidebar', icon: 'element', iconArg: 'sidebar', tooltip: 'A tinted panel beside the text (a fact file, further reading)' },
+  { id: 'ins_rating', text: 'Rating', icon: 'element', iconArg: 'rating', tooltip: 'Stars or dots out of 5 or 10, one row per item' },
+  { id: 'ins_gauge', text: 'Gauge', icon: 'element', iconArg: 'gauge', tooltip: 'Round meters showing percentages' },
+  { id: 'ins_steps', text: 'Steps', icon: 'element', iconArg: 'steps', tooltip: 'Numbered steps joined by arrows: how it works' },
+  { id: 'ins_gantt', text: 'Gantt Chart', icon: 'element', iconArg: 'gantt', tooltip: 'Tasks as bars across months or weeks, with milestones' },
+  { id: 'ins_chart', text: 'Quick Chart', icon: 'element', iconArg: 'chart', tooltip: 'A bar, line or pie chart from a few numbers' },
+  { id: 'ins_icon', text: 'Icon', icon: 'element', iconArg: 'icon', tooltip: 'A small picture in the text: phone, e-mail, star, warning…' },
+  { id: 'tbl_chart', text: 'Chart from Table', icon: 'element', iconArg: 'chart', tooltip: 'A chart of this table\'s numbers, placed under it: the first row names the series, the first column the labels' },
+  { id: 'pq_rules', text: 'Rules', icon: 'element', iconArg: 'pq_rules', checkable: true, group: 'pqstyle' },
+  { id: 'pq_bar', text: 'Side bar', icon: 'element', iconArg: 'pq_bar', checkable: true, group: 'pqstyle' },
+  { id: 'pq_marks', text: 'Quote marks', icon: 'element', iconArg: 'pq_marks', checkable: true, group: 'pqstyle' },
+  { id: 'sb_right', text: 'Right', icon: 'element', iconArg: 'sb_right', checkable: true, group: 'sbpos', tooltip: 'Beside the next paragraph, on the right' },
+  { id: 'sb_left', text: 'Left', icon: 'element', iconArg: 'sb_left', checkable: true, group: 'sbpos', tooltip: 'Beside the next paragraph, on the left' },
+  { id: 'sb_full', text: 'Full width', icon: 'element', iconArg: 'sb_full', checkable: true, group: 'sbpos' },
+  { id: 'rt_stars', text: 'Stars', icon: 'element', iconArg: 'rating', checkable: true, group: 'rtsym' },
+  { id: 'rt_dots', text: 'Dots', icon: 'element', iconArg: 'rt_dots', checkable: true, group: 'rtsym' },
+  { id: 'rt_max_5', text: 'Out of 5', checkable: true, group: 'rtmax' },
+  { id: 'rt_max_10', text: 'Out of 10', checkable: true, group: 'rtmax' },
+  { id: 'rt_value', text: 'Show the score', checkable: true, checkbox: true },
+  { id: 'gg_half', text: 'Half circle', icon: 'element', iconArg: 'gauge', checkable: true, group: 'ggstyle' },
+  { id: 'gg_ring', text: 'Ring', icon: 'element', iconArg: 'gg_ring', checkable: true, group: 'ggstyle' },
+  { id: 'st_horizontal', text: 'Across', icon: 'element', iconArg: 'steps', checkable: true, group: 'stlayout' },
+  { id: 'st_vertical', text: 'Down', icon: 'element', iconArg: 'st_vertical', checkable: true, group: 'stlayout' },
+  { id: 'gt_grid', text: 'Grid lines', checkable: true, checkbox: true },
+  { id: 'ch_bar', text: 'Columns', icon: 'element', iconArg: 'chart', checkable: true, group: 'chtype' },
+  { id: 'ch_hbar', text: 'Bars', icon: 'element', iconArg: 'ch_hbar', checkable: true, group: 'chtype' },
+  { id: 'ch_line', text: 'Line', icon: 'element', iconArg: 'ch_line', checkable: true, group: 'chtype' },
+  { id: 'ch_pie', text: 'Pie', icon: 'element', iconArg: 'ch_pie', checkable: true, group: 'chtype' },
+  { id: 'ch_small', text: 'Small', checkable: true, group: 'chsize' },
+  { id: 'ch_medium', text: 'Medium', checkable: true, group: 'chsize' },
+  { id: 'ch_large', text: 'Large', checkable: true, group: 'chsize' },
+  { id: 'ch_legend', text: 'Legend', checkable: true, checkbox: true },
+  { id: 'ic_normalsize', text: 'Text size', checkable: true, group: 'icsize' },
+  { id: 'ic_large', text: 'Large', checkable: true, group: 'icsize' },
+  { id: 'ic_Large', text: 'Larger', checkable: true, group: 'icsize' },
+  { id: 'ic_huge', text: 'Huge', checkable: true, group: 'icsize' },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -930,10 +976,11 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
-    { label: 'Header & Footer', large: ['hf_header', 'hf_footer'] },
+    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'page_edge'] },
     { label: 'Tables & Boxes', large: ['table_menu', 'callout'] },
-    { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes'], ['flowchart', 'smartart'], ['chart', 'screenshot']], text: true },
-    { label: 'Elements', rows: [['ins_checklist', 'ins_progress', 'ins_dropcap'], ['ins_timeline', 'ins_qrcode'], ['ins_code']], text: true },
+    { label: 'Illustrations', large: ['figure'], rows: [['drawing', 'shapes', 'ins_icon'], ['flowchart', 'smartart', 'ins_gantt'], ['chart', 'ins_chart', 'screenshot']], text: true },
+    { label: 'Elements', rows: [['ins_checklist', 'ins_progress', 'ins_timeline', 'ins_rating'], ['ins_pullquote', 'ins_sidebar', 'ins_gauge', 'ins_steps'],
+      ['ins_qrcode', 'ins_code', 'ins_dropcap']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
     { label: 'Equations', large: ['math_block'],
@@ -946,7 +993,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Pens', large: [{ widget: 'pens' }, 'add_pen'] },
   ] },
   { name: 'Design', groups: [
-    { label: 'Document Formatting', large: ['design_themes', { widget: 'stylesets' }, 'chapter_titles'] },
+    { label: 'Document Formatting', large: ['design_themes', { widget: 'stylesets' }, 'title_page', 'chapter_titles', 'page_edge'] },
     { label: 'Formatting', large: ['design_colors', 'design_fonts'], rows: [['para_spacing'], ['set_default']], text: true },
     { label: 'Page Background', large: ['watermark', 'page_color', 'page_borders'] },
     { label: 'Document type', large: [{ widget: 'classes' }] },
@@ -960,7 +1007,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Margin Notes', large: ['ins_marginnote', 'mn_room'] },
   ] },
   { name: 'Header & Footer', context: 'headerfooter', groups: [
-    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum'] },
+    { label: 'Header & Footer', large: ['hf_header', 'hf_footer', 'hf_pagenum', 'page_edge'] },
     { label: 'Insert', large: ['hf_datetime', 'hf_field', 'hf_picture'] },
     { label: 'Navigation', large: ['hf_goto_header', 'hf_goto_footer'], rows: [['hf_prev'], ['hf_next'], ['hf_link']], text: true },
     { label: 'Options', rows: [['hf_first'], ['hf_oddeven'], ['hf_showtext']], text: true },
@@ -1009,6 +1056,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },
     { label: 'Table Styles', large: ['tbl_plain', 'tbl_grid', 'tbl_booktabs', 'tbl_striped', 'tbl_nolines'] },
     { label: 'Fancy Styles', large: ['tbl_fancy_banded', 'tbl_fancy_header', 'tbl_fancy_accent', 'tbl_fancy_color'] },
+    { label: 'Chart', large: ['tbl_chart'] },
     { label: 'Shading', large: ['tbl_shading'] },
   ] },
   { name: 'Table Layout', context: 'table', groups: [
@@ -1017,7 +1065,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Delete', large: ['tbl_del_row', 'tbl_del_col', 'tbl_delete'] },
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Alignment', large: ['tbl_align_l', 'tbl_align_c', 'tbl_align_r'] },
-    { label: 'Data', large: ['tbl_sort_up', 'tbl_sort_down'] },
+    { label: 'Data', large: ['tbl_sort_up', 'tbl_sort_down', 'tbl_chart'] },
     { label: 'Caption', large: ['caption'] },
   ] },
   { name: 'Picture', context: 'figure', groups: [
@@ -1086,6 +1134,58 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Height', rows: [['dc_lines_2', 'dc_lines_3'], ['dc_lines_4', 'dc_lines_5']], text: true },
     { label: 'Style', large: ['w_color'], rows: [['dc_smallcaps']], text: true },
     { label: 'Drop Cap', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Pull Quote', context: 'pullquote', groups: [
+    { label: 'Quote', large: ['w_edit'] },
+    { label: 'Style', large: ['pq_rules', 'pq_bar', 'pq_marks', 'w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Pull Quote', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Sidebar', context: 'sidebar', groups: [
+    { label: 'Text', large: ['w_edit'] },
+    { label: 'Position', large: ['sb_right', 'sb_left', 'sb_full'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Sidebar', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Rating', context: 'rating', groups: [
+    { label: 'Items', large: ['w_edit'] },
+    { label: 'Symbol', large: ['rt_stars', 'rt_dots', 'w_color'] },
+    { label: 'Scale', rows: [['rt_max_5'], ['rt_max_10'], ['rt_value']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Rating', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Gauge', context: 'gauge', groups: [
+    { label: 'Values', large: ['w_edit'] },
+    { label: 'Style', large: ['gg_half', 'gg_ring', 'w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Gauge', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Steps', context: 'steps', groups: [
+    { label: 'Steps', large: ['w_edit'] },
+    { label: 'Layout', large: ['st_horizontal', 'st_vertical', 'w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Steps', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Gantt Chart', context: 'gantt', groups: [
+    { label: 'Tasks', large: ['w_edit'] },
+    { label: 'Style', large: ['w_color'], rows: [['gt_grid']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Gantt Chart', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Chart Design', context: 'chart', groups: [
+    { label: 'Data', large: ['w_edit'] },
+    { label: 'Type', large: ['ch_bar', 'ch_hbar', 'ch_line', 'ch_pie'] },
+    { label: 'Size', rows: [['ch_small'], ['ch_medium'], ['ch_large']], text: true },
+    { label: 'Style', large: ['w_color'], rows: [['ch_legend']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Chart', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Icon', context: 'icon', groups: [
+    { label: 'Icon', large: ['w_edit'] },
+    { label: 'Size', rows: [['ic_normalsize', 'ic_large'], ['ic_Large', 'ic_huge']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Icon', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },

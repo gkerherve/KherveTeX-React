@@ -7,7 +7,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
 import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
 import { parseWidget } from '../core/widgets.ts'
-import { deleteBlockAt, selectBlockAt } from './widgetCommands.ts'
+import { deleteBlockAt, selectBlockAt, updateWidget } from './widgetCommands.ts'
 import { widgetElement } from './widgetView.ts'
 
 // A double-click on an element: the app opens its edit dialog.
@@ -130,6 +130,10 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
           select: act(p => selectBlockAt(p)(view.state, view.dispatch)),
           remove: act(p => deleteBlockAt(p)(view.state, view.dispatch)),
           edit: act(p => { selectBlockAt(p)(view.state, view.dispatch); window.dispatchEvent(new CustomEvent(WIDGET_EDIT_EVENT)) }),
+          toggle: (i: number) => act(p => {
+            selectBlockAt(p)(view.state, view.dispatch)
+            updateWidget<'checklist'>(d => { if (d.items[i]) d.items[i].done = !d.items[i].done })(view.state, view.dispatch)
+          })(),
         })
         return dom
       }, { side: -1, key: 'w' + node.textContent, ignoreSelection: true, stopEvent: () => true }))

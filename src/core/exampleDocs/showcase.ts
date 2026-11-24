@@ -5,7 +5,7 @@
 import * as M from '../model.ts'
 import type { Document as KDocument } from '../model.ts'
 import { _items, _meta, _p, Author, Document, Section, Text, Title } from '../exampleHelpers.ts'
-import { dropCapLatex, marginNoteLatex, widgetText, type WidgetData, type WidgetKind } from '../widgets.ts'
+import { dropCapLatex, iconLatex, marginNoteLatex, widgetText, type WidgetData, type WidgetKind } from '../widgets.ts'
 
 const h = (t: string, level = 1) => Section({ level, children: [Text({ text: t })] })
 const w = <K extends WidgetKind>(kind: K, data: WidgetData[K]) => M.rawLatex(widgetText(kind, data))
@@ -68,7 +68,9 @@ export function cvTimeline(): KDocument {
     }),
     children: [
       Title({ children: [Text({ text: 'Dr Alex Morgan' })] }),
-      Author({ children: [Text({ text: 'Materials scientist - alex.morgan@example.org - +44 20 7946 0000' })] }),
+      M.author([M.text('Materials scientist   '), M.inlineRaw(iconLatex({ color: '5B2C83', size: 'normalsize', name: 'envelope' })), M.text(' alex.morgan@example.org   '),
+        M.inlineRaw(iconLatex({ color: '5B2C83', size: 'normalsize', name: 'phone' })), M.text(' +44 20 7946 0000   '),
+        M.inlineRaw(iconLatex({ color: '5B2C83', size: 'normalsize', name: 'linkedin' })), M.text(' alexmorgan')]),
       _p('Surface scientist with ten years of X-ray photoelectron spectroscopy, thin-film growth and data analysis, looking for a lead role in battery materials.'),
       h('Experience'),
       w('timeline', {
@@ -189,6 +191,102 @@ export function eventFlyer(): KDocument {
           { text: 'A packed lunch, or the café', done: false }, { text: 'A camera', done: false }],
       }),
       box('info', 'Getting here', 'Five minutes from Central station on foot. There is no parking on site; the Park and Ride bus stops at the door every 15 minutes.'),
+    ],
+  })
+}
+
+const icon = (name: string, color = '1F6FB5', size: 'normalsize' | 'large' | 'Large' | 'huge' = 'normalsize') =>
+  M.inlineRaw(iconLatex({ color, size, name }))
+
+// --------------------------------------------------------------- business plan
+export function businessPlan(): KDocument {
+  return Document({
+    meta: _meta({
+      title: 'Greenleaf Coffee: business plan 2027', author: '', documentclass: 'article', body_font_pt: 11,
+      design: { title_style: 'band', page_edge: 'band', chapter_style: 'bar', colors: 'green' },
+    }),
+    children: [
+      Title({ children: [Text({ text: 'Greenleaf Coffee: business plan 2027' })] }),
+      Author({ children: [Text({ text: 'Three cafés, one roastery, zero waste' })] }),
+      h('Where we are'),
+      _p('Greenleaf opened its first café in 2023. Two years on, the three cafés are profitable and the roastery supplies twelve offices. These are the figures the plan starts from.'),
+      w('gauge', { style: 'ring', color: '38761D', items: [{ label: 'Seats filled (avg.)', value: 72 }, { label: 'Waste recycled', value: 94 }, { label: 'Return customers', value: 61 }] }),
+      w('pullquote', { text: 'Good coffee should leave nothing behind but the taste.', author: 'Maya Chen, founder', style: 'bar', color: '38761D' }),
+      h('Sales'),
+      table([['Quarter', 'Cafés (k€)', 'Roastery (k€)'], ['Q1', '210', '45'], ['Q2', '245', '58'], ['Q3', '262', '71'], ['Q4', '288', '90']], 'Sales in 2026', 'banded:38761D', 'lrr'),
+      w('chart', { type: 'bar', title: 'Sales in 2026 (k€)', size: 'medium', legend: true, color: '38761D', labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+        series: [{ name: 'Cafés', values: [210, 245, 262, 288] }, { name: 'Roastery', values: [45, 58, 71, 90] }] }),
+      h('How the plan works'),
+      w('steps', { layout: 'horizontal', color: '38761D', steps: [{ title: 'Roast', text: 'In-house, small batches' }, { title: 'Sell', text: 'Cafés and offices' },
+        { title: 'Collect', text: 'Cups and grounds back' }, { title: 'Reuse', text: 'Compost and new cups' }] }),
+      w('sidebar', { title: 'In numbers', position: 'right', color: '38761D', text: 'Staff: 34\nCups a day: 2,400\nOffice clients: 12\n\nTarget 2027: a fourth café and 30 office clients.' }),
+      _p('The fourth café opens in spring in the university quarter, where a survey of 600 students found that two in three would switch to a café that takes its cups back. '
+        + 'The roastery doubles its capacity at the same time, so that the office contracts, which pay monthly and in advance, grow from twelve to thirty. '
+        + 'Both steps are paid for from this year\'s profit and a bank loan of 180 k€ over five years.'),
+      h('Timetable'),
+      w('gantt', { periods: 12, unit: 'Month', grid: true, color: '38761D', tasks: [
+        { name: 'Lease and fit-out', start: 1, end: 3 }, { name: 'Hire and train', start: 2, end: 4 }, { name: 'Café 4 opens', start: 4, end: 4, milestone: true },
+        { name: 'Second roaster', start: 3, end: 6 }, { name: 'Office sales drive', start: 5, end: 12 }, { name: 'Year review', start: 12, end: 12, milestone: true }] }),
+      box('important', 'What we ask', 'Approval of the 180 k€ loan and of the lease for the university quarter by the end of January.'),
+    ],
+  })
+}
+
+// --------------------------------------------------------------- product review
+export function productReview(): KDocument {
+  return Document({
+    meta: _meta({
+      title: 'Product review', author: '', documentclass: 'article', body_font_pt: 11, preamble_extras: '\\date{}\n',
+      design: { chapter_style: 'ruled', colors: 'orange' },
+    }),
+    children: [
+      Title({ children: [Text({ text: 'Review: the Trailhead 40 hiking backpack' })] }),
+      Author({ children: [Text({ text: 'Tested over 300 km in the Lake District and the Alps' })] }),
+      w('rating', { max: 5, symbol: 'stars', show_value: true, color: 'F9A825', items: [{ label: 'Comfort', value: 4.5 }, { label: 'Build quality', value: 5 },
+        { label: 'Weather protection', value: 3.5 }, { label: 'Pockets and access', value: 4 }, { label: 'Value for money', value: 4 }] }),
+      w('pullquote', { text: 'The most comfortable 40-litre pack I have carried, let down only by its rain cover.', author: '', style: 'marks', color: 'C55A11' }),
+      h('What we liked'),
+      M.paragraph([icon('check-circle', '2E7D32', 'large'), M.text(' The ventilated back panel kept us cool on long climbs, and the hip belt spreads the load well even at 12 kg.')]),
+      M.paragraph([icon('check-circle', '2E7D32', 'large'), M.text(' The front zip opens the whole pack, so nothing has to come out to reach the bottom.')]),
+      h('What could be better'),
+      M.paragraph([icon('times', 'C62828', 'large'), M.text(' The rain cover is thin and blew off twice in strong wind.')]),
+      M.paragraph([icon('times', 'C62828', 'large'), M.text(' The hip-belt pockets are too small for a modern phone.')]),
+      h('Where the weight goes'),
+      w('chart', { type: 'pie', title: 'Pack weight, 1.35 kg', size: 'medium', legend: true, color: 'C55A11', labels: ['Frame and back', 'Fabric', 'Hip belt', 'Zips and buckles', 'Rain cover'],
+        series: [{ name: 'Grams', values: [480, 390, 230, 170, 80] }] }),
+      box('summary', 'Verdict', 'Four and a half stars: a light, comfortable pack for long days. Buy a better rain cover separately.'),
+    ],
+  })
+}
+
+// --------------------------------------------------------- research project plan
+export function researchPlan(): KDocument {
+  return Document({
+    meta: _meta({
+      title: 'Research project plan', author: '', documentclass: 'article', body_font_pt: 11,
+      design: { title_style: 'framed', page_edge: 'thumb', chapter_style: 'boxed', colors: 'violet' },
+    }),
+    children: [
+      Title({ children: [Text({ text: 'Cleaner Cathodes: a three-year research plan' })] }),
+      Author({ children: [Text({ text: 'PhD project, Department of Materials, 2027-2030' })] }),
+      h('The method'),
+      w('steps', { layout: 'vertical', color: '5B2C83', steps: [
+        { title: 'Make', text: 'Coat NMC811 powders with 1-5 nm of alumina by atomic layer deposition.' },
+        { title: 'Measure', text: 'XPS and ToF-SIMS of the surface before and after cycling.' },
+        { title: 'Cycle', text: 'Coin cells at 1C for 500 cycles, three cells per coating.' },
+        { title: 'Model', text: 'Fit the capacity fade and relate it to the coating thickness.' }] }),
+      h('Results so far'),
+      _p('A table can become a chart: click in the table, then Table Layout > Chart from Table. The chart under this table was made that way.'),
+      table([['Coating', 'Capacity 1st (mAh/g)', 'Capacity 500th (mAh/g)'], ['None', '201', '142'], ['1 nm', '199', '168'], ['2 nm', '196', '177'], ['5 nm', '188', '174']],
+        'Capacity before and after 500 cycles', 'header:5B2C83', 'lcc'),
+      w('chart', { type: 'bar', title: '', size: 'medium', legend: true, color: '5B2C83', labels: ['None', '1 nm', '2 nm', '5 nm'],
+        series: [{ name: 'Capacity 1st (mAh/g)', values: [201, 199, 196, 188] }, { name: 'Capacity 500th (mAh/g)', values: [142, 168, 177, 174] }] }),
+      w('gauge', { style: 'half', color: '5B2C83', items: [{ label: 'Samples made', value: 40 }, { label: 'Cells tested', value: 25 }, { label: 'Thesis written', value: 5 }] }),
+      h('Timetable'),
+      w('gantt', { periods: 12, unit: 'Quarter', grid: true, color: '5B2C83', tasks: [
+        { name: 'Literature review', start: 1, end: 2 }, { name: 'ALD coatings', start: 2, end: 6 }, { name: 'Surface analysis', start: 3, end: 8 },
+        { name: 'Cell cycling', start: 4, end: 10 }, { name: 'First paper', start: 6, end: 6, milestone: true }, { name: 'Modelling', start: 7, end: 11 },
+        { name: 'Thesis', start: 10, end: 12 }, { name: 'Viva', start: 12, end: 12, milestone: true }] }),
     ],
   })
 }

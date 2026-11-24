@@ -72,7 +72,7 @@ import {
 } from './exampleDocs/science.ts'
 import { calloutBoxes } from './exampleDocs/boxes.ts'
 import { fancyElements } from './exampleDocs/elements.ts'
-import { codeTutorial, cvTimeline, eventFlyer, magazineArticle, statusReport } from './exampleDocs/showcase.ts'
+import { businessPlan, codeTutorial, cvTimeline, eventFlyer, magazineArticle, productReview, researchPlan, statusReport } from './exampleDocs/showcase.ts'
 import {
   article,
   blank,
@@ -125,6 +125,12 @@ export const GALLERY: [string, string, Factory, string][] = [
     'A drop cap, margin notes, a Did you know? box, an accent-lined table and a QR code.'],
   ['Boxes & elements', 'Event programme', eventFlyer,
     'An open-day flyer: booking QR code, the day as a timeline, a workshop table and a what-to-bring list.'],
+  ['Boxes & elements', 'Business plan', businessPlan,
+    'A title page and header band, gauges, a pull quote, a sales chart, steps, a sidebar and a Gantt timetable.'],
+  ['Boxes & elements', 'Product review', productReview,
+    'Star ratings, a pull quote, tick and cross icons, a pie chart and a verdict box.'],
+  ['Boxes & elements', 'Research project plan', researchPlan,
+    'A framed title page, thumb tabs, the method as steps, a table with its chart, gauges and a Gantt chart.'],
 
   ['Articles', 'Single-column article', article,
     'A short experimental paper with abstract, equations, a table and citations.'],

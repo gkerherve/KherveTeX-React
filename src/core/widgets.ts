@@ -7,10 +7,17 @@
 //
 // Pure: no DOM. The packages each element needs come from widgetPreamble.
 
+import {
+  chartDrawing, drawnLatex, ganttDrawing, gaugeDrawing, MORE_DEFAULTS, pullQuoteLatex, ratingDrawing, sidebarLatex, stepsLatex,
+  type ChartData, type GanttData, type GaugeData, type PullQuoteData, type RatingData, type SidebarData, type StepsData,
+} from './widgetsMore.ts'
+
 export type WidgetKind = 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code'
+  | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart'
 
 export const WIDGET_NAMES: Record<WidgetKind, string> = {
   checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code', code: 'Code Listing',
+  pullquote: 'Pull Quote', sidebar: 'Sidebar', rating: 'Rating', gauge: 'Gauge', steps: 'Steps', gantt: 'Gantt Chart', chart: 'Chart',
 }
 
 export interface ChecklistData { title: string; items: { text: string; done: boolean }[]; style: 'box' | 'circle'; columns: number; grey_done: boolean; color: string }
@@ -21,6 +28,7 @@ export interface CodeData { code: string; language: string; theme: 'light' | 'da
 
 export type WidgetData = {
   checklist: ChecklistData; progress: ProgressData; timeline: TimelineData; qrcode: QrData; code: CodeData
+  pullquote: PullQuoteData; sidebar: SidebarData; rating: RatingData; gauge: GaugeData; steps: StepsData; gantt: GanttData; chart: ChartData
 }
 
 export interface Widget<K extends WidgetKind = WidgetKind> { kind: K; data: WidgetData[K] }
@@ -58,10 +66,10 @@ export const DEFAULTS: WidgetData = {
   code: {
     language: 'Python', theme: 'light', numbers: true, frame: true, title: '',
     code: 'def mean(values):\n    """The average of a list of numbers."""\n    return sum(values) / len(values)\n\nprint(mean([2, 4, 9]))  # 5.0',
-  },
+  },  ...MORE_DEFAULTS,
 }
 
-const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code)\s+(\{.*\})\s*$/
+const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart)\s+(\{.*\})\s*$/
 
 // The element a raw block holds, or null.
 export function parseWidget(text: string): Widget | null {
@@ -99,6 +107,13 @@ export function widgetLatex<K extends WidgetKind>(kind: K, data: WidgetData[K]):
     case 'progress': return progressLatex(data as ProgressData)
     case 'timeline': return timelineLatex(data as TimelineData)
     case 'qrcode': return qrLatex(data as QrData)
+    case 'pullquote': return pullQuoteLatex(data as PullQuoteData)
+    case 'sidebar': return sidebarLatex(data as SidebarData)
+    case 'steps': return stepsLatex(data as StepsData)
+    case 'rating': return drawnLatex(ratingDrawing(data as RatingData))
+    case 'gauge': return drawnLatex(gaugeDrawing(data as GaugeData))
+    case 'gantt': return drawnLatex(ganttDrawing(data as GanttData))
+    case 'chart': return drawnLatex(chartDrawing(data as ChartData))
     default: return codeLatex(data as CodeData)
   }
 }
@@ -237,7 +252,7 @@ export function rawTexts(node: unknown, out: string[] = []): string[] {
 // the document uses.
 export function widgetPreamble(texts: string[]): [string[], string] {
   const kinds = new Set<string>()
-  let margin = false, drop = false, js = false
+  let margin = false, drop = false, js = false, icons = false
   for (const t of texts) {
     const w = parseWidget(t)
     if (w) {
@@ -246,11 +261,17 @@ export function widgetPreamble(texts: string[]): [string[], string] {
     }
     if (t.includes("\\kMarginNote")) margin = true
     if (/\\lettrine\b/.test(t)) drop = true
+    if (t.includes('\\kIcon')) icons = true
   }
   const pkgs: string[] = []
   const defs: string[] = []
   if (kinds.size || margin) pkgs.push('xcolor')
-  if (kinds.has('checklist') || kinds.has('progress') || kinds.has('timeline')) pkgs.push('tikz')
+  const TIKZ = ['checklist', 'progress', 'timeline', 'rating', 'gauge', 'steps', 'gantt', 'chart', 'pullquote', 'sidebar']
+  if (TIKZ.some(k => kinds.has(k))) pkgs.push('tikz')
+  if (kinds.has('steps')) defs.push('\\usetikzlibrary{arrows.meta,positioning}')
+  if (kinds.has('pullquote') || kinds.has('sidebar')) { pkgs.push('tcolorbox'); defs.push('\\tcbuselibrary{breakable,skins}') }
+  if (kinds.has('sidebar')) pkgs.push('wrapfig')
+  if (icons) { pkgs.push('fontawesome5'); defs.push(ICON_DEF) }
   if (kinds.has('qrcode')) pkgs.push('qrcode')
   if (kinds.has('code')) pkgs.push('listings')
   if (margin) {
@@ -316,4 +337,36 @@ export function parseDropCap(latex: string): DropCap | null {
     lines: Number(/lines=(\d)/.exec(opts)?.[1] ?? 3), margin: /lhang=1/.test(opts),
     color: (m[2] ?? '000000').toUpperCase(), letter: untex(m[3] ?? m[4]), smallcaps: !m[5], rest: untex(m[6]),
   }
+}
+
+// ------------------------------------------------------------------ icons
+
+// Insert ▸ Icon: \kIcon[<colour>]{<size>}{<fontawesome5 name>}.
+export const ICON_DEF = '\\providecommand{\\kIcon}[3][000000]{{\\color[HTML]{#1}\\csname #2\\endcsname\\faIcon{#3}}}'
+export type IconSize = 'normalsize' | 'large' | 'Large' | 'huge'
+export interface IconRef { color: string; size: IconSize; name: string }
+
+// [fontawesome5 name, what it shows, the character the editor draws].
+export const ICONS: [string, string, string][] = [
+  ['phone', 'Phone', '☎'], ['envelope', 'E-mail', '✉'], ['map-marker-alt', 'Location', '📍'], ['globe', 'Web', '🌐'],
+  ['link', 'Link', '🔗'], ['home', 'Home', '⌂'], ['user', 'Person', '👤'], ['users', 'People', '👥'],
+  ['graduation-cap', 'Education', '🎓'], ['briefcase', 'Work', '💼'], ['calendar-alt', 'Calendar', '📅'], ['clock', 'Time', '🕒'],
+  ['star', 'Star', '★'], ['heart', 'Heart', '♥'], ['check', 'Tick', '✓'], ['check-circle', 'Done', '✅'],
+  ['times', 'Cross', '✗'], ['exclamation-triangle', 'Warning', '⚠'], ['info-circle', 'Information', 'ℹ'], ['question-circle', 'Question', '❓'],
+  ['lightbulb', 'Idea', '💡'], ['cog', 'Settings', '⚙'], ['search', 'Search', '🔍'], ['book', 'Book', '📖'],
+  ['flask', 'Chemistry', '⚗'], ['atom', 'Physics', '⚛'], ['microscope', 'Microscope', '🔬'], ['chart-bar', 'Chart', '📊'],
+  ['chart-line', 'Trend', '📈'], ['file-alt', 'Document', '📄'], ['download', 'Download', '⬇'], ['lock', 'Secure', '🔒'],
+  ['car', 'Car', '🚗'], ['plane', 'Flight', '✈'], ['train', 'Train', '🚆'], ['bicycle', 'Bicycle', '🚲'],
+  ['coffee', 'Coffee', '☕'], ['music', 'Music', '♪'], ['camera', 'Camera', '📷'], ['leaf', 'Nature', '🍃'],
+  ['sun', 'Sun', '☀'], ['cloud', 'Cloud', '☁'], ['bolt', 'Energy', '⚡'], ['fire', 'Fire', '🔥'],
+  ['trophy', 'Award', '🏆'], ['flag', 'Flag', '⚑'], ['bell', 'Reminder', '🔔'], ['comment', 'Comment', '💬'],
+  ['thumbs-up', 'Like', '👍'], ['rocket', 'Launch', '🚀'], ['laptop', 'Computer', '💻'], ['code', 'Code', '</>'],
+  ['github', 'GitHub', '🐙'], ['linkedin', 'LinkedIn', 'in'],
+]
+
+export const iconLatex = (i: IconRef): string => `\\kIcon[${hex(i.color)}]{${i.size}}{${i.name}}`
+
+export function parseIcon(latex: string): IconRef | null {
+  const m = /^\\kIcon\[([0-9A-Fa-f]{6})\]\{(normalsize|large|Large|huge)\}\{([a-z0-9-]+)\}$/.exec(latex.trim())
+  return m ? { color: m[1].toUpperCase(), size: m[2] as IconSize, name: m[3] } : null
 }

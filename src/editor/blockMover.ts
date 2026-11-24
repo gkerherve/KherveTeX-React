@@ -1,10 +1,11 @@
-// Moving a box or a table by dragging it, as Word moves a table by its
+// Moving a box, a table or an element (Insert ▸ Elements) by dragging it, as Word moves a table by its
 // handle: hover over one and a grip shows in the left margin; drag the grip
 // and a line shows where it will land between the blocks; let go to move it.
 // A box moves whole (all its paragraphs).
-import { Plugin, TextSelection, type EditorState } from 'prosemirror-state'
+import { NodeSelection, Plugin, TextSelection, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import { isCallout } from '../core/model.ts'
+import { parseWidget } from '../core/widgets.ts'
 
 // A run of top-level blocks that moves as one: a box's paragraphs, a table,
 // or (as a place to drop) any other block.
@@ -21,7 +22,9 @@ export function blockUnits(state: EditorState): Unit[] {
       const before = state.doc.nodeAt(prev.from)
       if (before?.type.name === 'theorem' && before.attrs.kind === node.attrs.kind) { prev.to = end; return }
     }
-    units.push({ from: pos, to: end, movable: box || node.type.name === 'table' })
+    // Insert ▸ Elements (checklists, progress bars, timelines...) move too.
+    const element = node.type.name === 'raw_latex' && !!parseWidget(node.textContent)
+    units.push({ from: pos, to: end, movable: box || element || node.type.name === 'table' })
   })
   return units
 }
@@ -42,7 +45,10 @@ export function moveBlocks(state: EditorState, from: number, to: number, target:
     tr.insert(target, slice.content)
     start = target
   }
-  tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(start + 1, tr.doc.content.size))))
+  // An element stays selected (its tab open); else the caret at its start.
+  const moved = tr.doc.nodeAt(start)
+  if (moved?.type.name === 'raw_latex' && parseWidget(moved.textContent)) tr.setSelection(NodeSelection.create(tr.doc, start))
+  else tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(start + 1, tr.doc.content.size))))
   return tr
 }
 

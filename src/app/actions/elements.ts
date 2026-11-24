@@ -12,6 +12,7 @@ import { WIDGET_EDIT_EVENT } from '../../editor/plugins.ts'
 import * as W from '../../editor/widgetCommands.ts'
 import { boxStyleDialog, formDialog } from '../../ui/dialogs/EditorDialogs.tsx'
 import { registerActions, type Handler } from '../actions.ts'
+import { editMore } from './elements2.ts'
 import { appStore, editDoc } from '../store.ts'
 
 const run = (cmd: C.Command): boolean => editor()?.run(cmd) ?? false
@@ -33,6 +34,7 @@ function upd<K extends WidgetKind>(fn: (d: any) => void, kind?: K): Handler {
 const lines = (s: string) => s.split('\n').map(l => l.trim()).filter(l => l)
 
 async function editWidget(): Promise<void> {
+  if (await editMore()) return
   const s = state()
   if (!s) return
   const sp = W.currentInlineSpecial(s)
@@ -114,6 +116,7 @@ function setColor(hex: string): void {
   const sp = W.currentInlineSpecial(s)
   if (sp?.kind === 'marginnote') run(W.updateMarginNote(n => { n.color = c }))
   else if (sp?.kind === 'dropcap') run(W.updateDropCap(d => { d.color = c }))
+  else if (sp?.kind === 'icon') run(W.updateIcon(i => { i.color = c }))
   else run(W.updateWidget(d => { if ('color' in d) (d as { color: string }).color = c }))
   sync()
 }
@@ -124,6 +127,7 @@ function currentColor(): string {
   const sp = W.currentInlineSpecial(s)
   if (sp?.kind === 'marginnote') return '#' + sp.note.color
   if (sp?.kind === 'dropcap') return '#' + sp.cap.color
+  if (sp?.kind === 'icon') return '#' + sp.icon.color
   const w = W.currentWidget(s)
   const c = w && (w.widget.data as { color?: string }).color
   return '#' + (c ?? '1F6FB5')

@@ -4,8 +4,13 @@
 // drop caps. The block's LaTeX is hidden under the drawing, as a table of
 // contents' is (toc.ts); a click selects it, × removes it.
 import qrcode from 'qrcode-generator'
+import { type Drawing } from '../core/draw.ts'
 import {
-  CODE_THEMES, PROGRESS_CM, WIDGET_NAMES, type ChecklistData, type CodeData, type ProgressData, type QrData,
+  chartDrawing, ganttDrawing, gaugeDrawing, ratingDrawing, type ChartData, type GanttData, type GaugeData,
+  type PullQuoteData, type RatingData, type SidebarData, type StepsData,
+} from '../core/widgetsMore.ts'
+import {
+  CODE_THEMES, ICONS, PROGRESS_CM, WIDGET_NAMES, type ChecklistData, type CodeData, type ProgressData, type QrData,
   type TimelineData, type Widget,
 } from '../core/widgets.ts'
 
@@ -26,17 +31,24 @@ function svg(w: number, h: number, inner: string): SVGSVGElement {
   return s
 }
 
-export function widgetElement(w: Widget, opts: { select: () => void; remove: () => void; edit: () => void }): HTMLElement {
+export function widgetElement(w: Widget, opts: { select: () => void; remove: () => void; edit: () => void; toggle?: (i: number) => void }): HTMLElement {
   const box = el('div', `kt-widget kt-widget-${w.kind}`)
   box.contentEditable = 'false'
   box.title = `${WIDGET_NAMES[w.kind]}: click to select (its tab opens), double-click to edit`
   const body = el('div', 'kt-widget-body')
   switch (w.kind) {
-    case 'checklist': checklist(body, w.data as ChecklistData); break
+    case 'checklist': checklist(body, w.data as ChecklistData, opts.toggle); break
     case 'progress': progress(body, w.data as ProgressData); break
     case 'timeline': timeline(body, w.data as TimelineData); break
     case 'qrcode': qr(body, w.data as QrData); break
     case 'code': code(body, w.data as CodeData); break
+    case 'pullquote': pullQuote(body, w.data as PullQuoteData); break
+    case 'sidebar': sidebar(body, w.data as SidebarData); break
+    case 'steps': steps(body, w.data as StepsData); break
+    case 'rating': body.appendChild(drawingSvg(ratingDrawing(w.data as RatingData))); break
+    case 'gauge': body.appendChild(drawingSvg(gaugeDrawing(w.data as GaugeData))); break
+    case 'gantt': body.appendChild(drawingSvg(ganttDrawing(w.data as GanttData))); break
+    case 'chart': body.appendChild(drawingSvg(chartDrawing(w.data as ChartData))); break
   }
   const x = el('button', 'kt-widget-close', '×')
   x.type = 'button'
@@ -49,7 +61,7 @@ export function widgetElement(w: Widget, opts: { select: () => void; remove: () 
   return box
 }
 
-function checklist(body: HTMLElement, d: ChecklistData) {
+function checklist(body: HTMLElement, d: ChecklistData, toggle?: (i: number) => void) {
   const C = '#' + d.color
   if (d.title.trim()) {
     const t = el('div', 'kt-w-title', d.title)
@@ -58,7 +70,7 @@ function checklist(body: HTMLElement, d: ChecklistData) {
   }
   const list = el('div', 'kt-w-checks')
   list.style.columnCount = String(Math.max(1, Math.min(3, d.columns || 1)))
-  for (const it of d.items) {
+  for (const [idx, it] of d.items.entries()) {
     const row = el('div', 'kt-w-check')
     const circle = d.style === 'circle'
     const shape = circle ? `<circle cx="7" cy="7" r="5.6"` : `<rect x="1.4" y="1.4" width="11.2" height="11.2" rx="1.5"`
@@ -67,6 +79,11 @@ function checklist(body: HTMLElement, d: ChecklistData) {
     const txt = el('span', '', it.text)
     if (it.done && d.grey_done) txt.style.color = '#888'
     row.append(mark, txt)
+    // A click on the box ticks or unticks it, as on paper.
+    if (toggle) {
+      mark.classList.add('kt-w-check-box')
+      mark.addEventListener('mousedown', ev => { ev.preventDefault(); ev.stopPropagation(); toggle(idx) })
+    }
     list.appendChild(row)
   }
   body.appendChild(list)
@@ -191,4 +208,119 @@ export function dropCapElement(dom: HTMLElement, d: { lines: number; letter: str
   if (d.margin) big.classList.add('kt-dropcap-margin')
   const rest = el('span', d.smallcaps ? 'kt-dropcap-rest kt-dropcap-sc' : 'kt-dropcap-rest', d.rest)
   dom.replaceChildren(big, rest)
+}
+
+
+// ------------------------------------------- drawn elements (core/draw.ts)
+
+const CM = 37.8
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+// The shapes as SVG, centred and no wider than the text, as \resizebox does.
+export function drawingSvg(d: Drawing): HTMLElement {
+  const H = d.h
+  const Y = (y: number) => H - y
+  const c = (h?: string) => (h ? '#' + h.replace('#', '') : 'none')
+  const out: string[] = []
+  const pt = (a: number, r: number, x: number, y: number) => [x + r * Math.cos(a * Math.PI / 180), Y(y + r * Math.sin(a * Math.PI / 180))]
+  for (const s of d.shapes) {
+    switch (s.t) {
+      case 'rect':
+        out.push(`<rect x="${s.x}" y="${Y(s.y + s.h)}" width="${Math.max(0, s.w)}" height="${Math.max(0, s.h)}" rx="${s.r ?? 0}" fill="${c(s.fill)}" stroke="${c(s.stroke)}" stroke-width="${(s.lw ?? 0) / 28.35}"/>`)
+        break
+      case 'line':
+        out.push(`<polyline points="${s.pts.map(([x, y]) => `${x},${Y(y)}`).join(' ')}" fill="none" stroke="${c(s.stroke)}" stroke-width="${(s.lw ?? 0.6) / 28.35}" stroke-linecap="round" stroke-linejoin="round"${s.dash ? ' stroke-dasharray="0.1 0.07"' : ''}/>`)
+        break
+      case 'poly':
+        out.push(`<polygon points="${s.pts.map(([x, y]) => `${x},${Y(y)}`).join(' ')}" fill="${c(s.fill)}" stroke="${c(s.stroke)}" stroke-width="${(s.lw ?? 0.5) / 28.35}" stroke-linejoin="round"/>`)
+        break
+      case 'circle':
+        out.push(`<circle cx="${s.x}" cy="${Y(s.y)}" r="${s.r}" fill="${c(s.fill)}" stroke="${c(s.stroke)}" stroke-width="${(s.lw ?? 0.6) / 28.35}"/>`)
+        break
+      case 'text': {
+        const a = s.anchor ?? 'center'
+        const ta = a.includes('west') ? 'start' : a.includes('east') ? 'end' : 'middle'
+        const db = a.startsWith('north') ? 'hanging' : a.startsWith('south') ? 'alphabetic' : 'central'
+        const size = (s.size ?? 10) / 28.35
+        out.push(`<text x="${s.x}" y="${Y(s.y)}" font-size="${size}" text-anchor="${ta}" dominant-baseline="${db}" fill="${c(s.color ?? '000000')}"${s.bold ? ' font-weight="700"' : ''}>${esc(s.s)}</text>`)
+        break
+      }
+      case 'wedge': {
+        const [x0, y0] = pt(s.a0, s.r, s.x, s.y), [x1, y1] = pt(s.a1, s.r, s.x, s.y)
+        const large = Math.abs(s.a1 - s.a0) > 180 ? 1 : 0
+        const sweep = s.a1 < s.a0 ? 1 : 0
+        out.push(Math.abs(s.a1 - s.a0) >= 359.99
+          ? `<circle cx="${s.x}" cy="${Y(s.y)}" r="${s.r}" fill="${c(s.fill)}"/>`
+          : `<path d="M${s.x},${Y(s.y)} L${x0},${y0} A${s.r},${s.r} 0 ${large} ${sweep} ${x1},${y1} Z" fill="${c(s.fill)}" stroke="#fff" stroke-width="0.03"/>`)
+        break
+      }
+      case 'arc': {
+        const span = Math.abs(s.a1 - s.a0)
+        if (span >= 359.99) { out.push(`<circle cx="${s.x}" cy="${Y(s.y)}" r="${s.r}" fill="none" stroke="${c(s.stroke)}" stroke-width="${s.lw / 28.35}"/>`); break }
+        const [x0, y0] = pt(s.a0, s.r, s.x, s.y), [x1, y1] = pt(s.a1, s.r, s.x, s.y)
+        out.push(`<path d="M${x0},${y0} A${s.r},${s.r} 0 ${span > 180 ? 1 : 0} ${s.a1 < s.a0 ? 1 : 0} ${x1},${y1}" fill="none" stroke="${c(s.stroke)}" stroke-width="${s.lw / 28.35}"/>`)
+        break
+      }
+    }
+  }
+  const wrap = el('div', 'kt-w-drawing')
+  const sv = svg(d.w * CM, d.h * CM, out.join(''))
+  sv.setAttribute('viewBox', `0 0 ${d.w} ${d.h}`)
+  sv.style.maxWidth = '100%'
+  sv.style.height = 'auto'
+  wrap.appendChild(sv)
+  return wrap
+}
+
+function paraEls(text: string): HTMLElement[] {
+  return text.split(/\n\s*\n/).map(p => {
+    const e = el('div', 'kt-w-para')
+    p.split('\n').forEach((line, i) => { if (i) e.appendChild(el('br')); e.appendChild(document.createTextNode(line)) })
+    return e
+  })
+}
+
+function pullQuote(body: HTMLElement, d: PullQuoteData) {
+  const C = '#' + d.color
+  const q = el('div', `kt-w-pq kt-w-pq-${d.style}`)
+  q.style.setProperty('--kt-w', C)
+  const t = el('div', 'kt-w-pq-text')
+  t.append(...paraEls(d.text))
+  q.appendChild(t)
+  if (d.author.trim()) q.appendChild(el('div', 'kt-w-pq-author', `— ${d.author.trim()}`))
+  body.appendChild(q)
+}
+
+function sidebar(body: HTMLElement, d: SidebarData) {
+  const box = el('div', `kt-w-side kt-w-side-${d.position}`)
+  box.style.setProperty('--kt-w', '#' + d.color)
+  if (d.title.trim()) box.appendChild(el('div', 'kt-w-side-title', d.title))
+  box.append(...paraEls(d.text))
+  if (d.position !== 'full') box.appendChild(el('div', 'kt-w-side-hint', 'The next paragraph flows beside it in the PDF.'))
+  body.appendChild(box)
+}
+
+function steps(body: HTMLElement, d: StepsData) {
+  const wrap = el('div', d.layout === 'horizontal' ? 'kt-w-steps kt-w-steps-h' : 'kt-w-steps kt-w-steps-v')
+  wrap.style.setProperty('--kt-w', '#' + d.color)
+  d.steps.forEach((s, i) => {
+    const st = el('div', 'kt-w-step')
+    st.appendChild(el('div', 'kt-w-step-num', String(i + 1)))
+    const txt = el('div', 'kt-w-step-text')
+    if (s.title.trim()) txt.appendChild(el('div', 'kt-w-step-title', s.title))
+    if (s.text.trim()) txt.appendChild(el('div', '', s.text))
+    st.appendChild(txt)
+    wrap.appendChild(st)
+  })
+  body.appendChild(wrap)
+}
+
+// Insert ▸ Icon: the FontAwesome icon as a character close to it.
+export function iconElement(dom: HTMLElement, i: { color: string; size: string; name: string }) {
+  dom.className = 'kt-inline-raw kt-icon'
+  const def = ICONS.find(([n]) => n === i.name)
+  dom.title = `Icon: ${def?.[1] ?? i.name} (click to select)`
+  const g = el('span', `kt-icon-glyph kt-icon-${i.size}`, def?.[2] ?? '■')
+  g.style.color = '#' + i.color
+  dom.replaceChildren(g)
 }

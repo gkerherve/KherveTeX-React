@@ -515,3 +515,29 @@ export function formDialog(title: string, fields: FormField[], okText = 'OK'): P
     return <Dlg />
   })
 }
+
+// Insert ▸ Icon: a grid of icons; resolves with the chosen name.
+export function iconPickerDialog(icons: [string, string, string][], current = ''): Promise<string | null> {
+  return openDialog<string>(close => {
+    function Dlg() {
+      const [q, setQ] = useState('')
+      const shown = icons.filter(([n, label]) => !q || (n + ' ' + label).toLowerCase().includes(q.toLowerCase()))
+      return (
+        <Frame title='Insert icon' close={close as Close<never>} className='dlg-ed' onOk={() => { if (shown[0]) close(shown[0][0]) }}>
+          <input autoFocus placeholder='Search icons (phone, mail, star…)' value={q} onChange={e => setQ(e.target.value)} style={{ marginBottom: 6 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 58px)', gap: 4, maxHeight: 300, overflowY: 'auto' }}>
+            {shown.map(([n, label, ch]) => (
+              <button key={n} type='button' title={label} onClick={() => close(n)}
+                style={{ height: 52, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                  border: n === current ? '2px solid #2b579a' : '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', padding: 0 }}>
+                <span style={{ fontSize: 20, lineHeight: 1 }}>{ch}</span>
+                <span style={{ fontSize: 9, color: '#555', maxWidth: 54, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+              </button>
+            ))}
+          </div>
+        </Frame>
+      )
+    }
+    return <Dlg />
+  })
+}

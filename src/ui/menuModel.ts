@@ -2,6 +2,8 @@
 // entries `_extend_menus` adds), in order. Strings are command ids from
 // COMMANDS, or '-' for a separator.
 import { BETA_DETAIL, isBetaExample } from './pageBeta'
+import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design'
+import { FANCY_COLORS } from '../core/fancyTable'
 import { CALLOUT_MENU, GALLERY, THEOREM_KINDS, type MenuEntry, type MenuItem } from './ribbonModel'
 
 export interface MenuBarMenu {
@@ -73,6 +75,13 @@ export const MENU_BAR: MenuBarMenu[] = [
       items: CALLOUT_MENU.map(([k]) => `box_insert_${k}`) },
     { text: '&Theorem-like', icon: 'theorem',
       items: THEOREM_KINDS.map(([k]) => `thm_insert_${k}`) },
+    '-',
+    // Insert ▸ Elements and Illustrations on the ribbon.
+    { text: 'Ele&ments', icon: 'element', iconArg: 'checklist', items: [
+      'ins_checklist', 'ins_progress', 'ins_timeline', 'ins_rating', 'ins_gauge', '-',
+      'ins_pullquote', 'ins_sidebar', 'ins_steps', '-', 'ins_qrcode', 'ins_code', 'ins_dropcap'] },
+    { text: 'Ch&arts', icon: 'element', iconArg: 'chart', items: ['ins_chart', 'ins_gantt', 'tbl_chart'] },
+    'ins_icon', 'ins_marginnote',
   ] },
   { text: 'F&ormat', items: [
     'bold', 'italic', 'underline', 'strike', 'code', 'smallcaps', 'sub', 'super', '-',
@@ -80,6 +89,16 @@ export const MENU_BAR: MenuBarMenu[] = [
     { text: '&Alignment', items: ['align_left', 'align_center', 'align_right', 'align_justify'] },
     { text: '&Style', items: ['h_body', 'heading_1', 'heading_2', 'heading_3', 'heading_4',
       'heading_5'] },
+    '-',
+    { text: '&Table style', items: ['tbl_plain', 'tbl_grid', 'tbl_booktabs', 'tbl_striped', 'tbl_nolines', '-',
+      'tbl_fancy_banded', 'tbl_fancy_header', 'tbl_fancy_accent',
+      { text: 'Fancy table &colour', items: [...FANCY_COLORS.map(([c]) => `tbl_fancy_c_${c}`), 'tbl_fancy_custom'] }] },
+    // Design tab: the document's look.
+    { text: '&Design', items: [
+      { text: '&Title page', items: TITLE_STYLES.map(([k, name]): MenuItem => ({ text: name, command: `titlestyle:${k}`, checkable: true })) },
+      { text: '&Chapter titles', items: CHAPTER_STYLES.map(([k, name]): MenuItem => ({ text: name, command: `chapterstyle:${k}`, checkable: true })) },
+      { text: '&Header style', items: PAGE_EDGES.map(([k, name]): MenuItem => ({ text: name, command: `pageedge:${k}`, checkable: true })) },
+      '-', 'mn_room'] },
     '-',
     'manage_styles',
   ] },
