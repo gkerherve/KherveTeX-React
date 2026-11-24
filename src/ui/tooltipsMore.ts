@@ -186,3 +186,93 @@ for (const [k, { name }] of Object.entries(CALLOUT_KINDS)) {
   MORE_TIPS[`act_box_kind_${k}`] = T(name, k === 'custom' ? 'A box with your own name and colour.' : `Makes this box a ${name} box, in its own colour and with its own heading.`)
   MORE_TIPS[`act_box_insert_${k}`] = T(name, k === 'custom' ? 'A box with your own name and colour: asks for both.' : `Inserts a ${name} box where the caret is.`)
 }
+
+// ------------------------------------------- the rest of the ribbon's buttons
+Object.assign(MORE_TIPS, {
+  // Home: font and paragraph
+  act_grow_font: T('Grow Font', 'Makes the selected text one size bigger (Ctrl+Shift+>), as Word does. With no selection, what you type next is bigger.', 'Becomes a \\fontsize change for that text.'),
+  act_shrink_font: T('Shrink Font', 'Makes the selected text one size smaller (Ctrl+Shift+<).', 'Becomes a \\fontsize change for that text.'),
+  act_change_case: T('Change Case', 'Changes the selected text to Sentence case, lowercase, UPPERCASE, Capitalise Each Word or tOGGLE cASE. The letters themselves change, so it shows the same in the PDF.', ''),
+  act_clear_fmt: T('Clear All Formatting', 'Removes bold, italic, underline, colours, highlights, fonts and sizes from the selection, leaving plain text in the paragraph\'s own style.', 'The text loses its \\textbf, \\textit, \\color… commands.'),
+  act_font_color: T('Font Colour', 'Colours the selected text: the button applies the last colour, the arrow opens the palette (theme colours, standard colours, More Colours…). Automatic goes back to black.', 'Becomes \\textcolor[HTML]{…}{…} (xcolor).'),
+  act_multilevel: T('Multilevel list', 'A list with levels (1, 1.1, 1.1.1 or a, i…): the arrow picks a numbering scheme. Tab moves an item one level in, Shift+Tab one level out.', 'Becomes nested enumerate or itemize environments.'),
+  act_indent_dec: T('Decrease Indent', 'Moves the paragraph (or the list item, one level) to the left.', 'Less left margin (kIndent) or one list level out.'),
+  act_indent_inc: T('Increase Indent', 'Moves the paragraph (or the list item, one level) to the right.', 'More left margin (kIndent) or one list level in.'),
+  act_sort_paras: T('Sort', 'Sorts the selected paragraphs or list items alphabetically, A to Z or Z to A from the arrow, as Word\'s Sort does: for reference lists, glossaries or names.', 'The paragraphs are reordered in the document.'),
+  act_line_spacing: T('Line and Paragraph Spacing', 'The space between the lines of the paragraph (1.0, 1.15, 1.5, 2.0…) and the space before and after it. Line Spacing Options… sets exact values.', 'Becomes setspace\'s spacing and \\vspace before / after.'),
+  act_para_shading: T('Shading', 'A coloured background behind the whole paragraph: the button applies the last colour, the arrow picks another or No Colour.', 'Becomes a tinted tcolorbox around the paragraph.'),
+  act_para_borders: T('Borders', 'A line around the paragraph, or above, below, or above and below it: the arrow picks which; No Border removes it.', 'Becomes a framed tcolorbox around the paragraph.'),
+  // Draw
+  act_draw_tool: T('Draw', 'Draw on the page with the pen chosen under Pens, as on paper: handwritten notes, circles, arrows, signatures. Press again (or choose another tab) to go back to typing. The strokes print in the PDF over the text.', 'Drawn over each page with TikZ.'),
+  act_eraser_tool: T('Eraser', 'Erases drawn strokes: click or drag over a stroke to remove it whole. The arrow offers Erase all strokes on the page or in the document.', ''),
+  act_add_pen: T('Add Pen', 'Adds a pen, pencil or highlighter to the Pens list with its own colour and thickness, to keep for later documents.', ''),
+  // Design
+  act_design_themes: T('Themes', 'A whole look at once: the heading style, the colours and the fonts together, as Word\'s Themes. Choose one to see the page change; the colours, fonts and paragraph spacing can still be changed one by one afterwards.', 'Becomes titlesec heading formats, \\definecolor accents and the font packages.'),
+  act_design_colors: T('Colours', 'The document\'s accent colours: headings, title pages, chapter titles, header styles and shaded bands take them. Office, Blue, Green, Red, Violet, Greyscale and more.', 'Becomes \\definecolor{kAccent} and {kSecond}.'),
+  act_design_fonts: T('Fonts', 'The pair of fonts for the headings and the body text: Latin Modern, Times, Palatino, Charter, Helvetica, Libertine, or a sans heading over a serif body.', 'Loads the matching font packages.'),
+  act_para_spacing: T('Paragraph Spacing', 'How paragraphs are set apart for the whole document: indented first lines with no space (as books), or a gap between paragraphs (Compact, Tight, Open, Relaxed), with the line spacing.', 'Sets \\parindent, \\parskip and setspace.'),
+  act_set_default: T('Set as Default', 'Keeps this document\'s design (theme, colours, fonts, spacing) for every new document.', ''),
+  act_watermark: T('Watermark', 'Large faint text across every page: CONFIDENTIAL, DRAFT, DO NOT COPY, SAMPLE, URGENT, or your own text with Custom Watermark…; Remove Watermark takes it off.', 'Drawn behind each page with TikZ (shipout hook).'),
+  act_page_color: T('Page Colour', 'A background colour for every page, from a light palette or More Colours…; No Colour goes back to white.', 'Becomes \\pagecolor.'),
+  act_page_borders: T('Page Borders', 'A frame 1 cm inside the edge of every page: a single line, double, thick, a shadow or an art border.', 'Drawn on each page with TikZ.'),
+  // Layout
+  act_orientation: T('Orientation', 'Portrait (tall) or landscape (wide) pages for the whole document.', 'The geometry package\'s landscape option.'),
+  act_columns: T('Columns', 'Sets the text in one, two or three columns, as newspapers and many journals do. More Columns… chooses the number and the gap.', 'The class\'s twocolumn option or multicol.'),
+  act_hf_datetime: T('Date & Time', 'Puts today\'s date at the cursor in the header or footer, in the format you choose. It shows the date the PDF is made.', 'Becomes \\today.'),
+  act_hf_field: T('Field', 'Inserts a value kept up to date in the header or footer: the page number, the number of pages, the date, the title or the author.', 'Becomes \\thepage, \\pageref{LastPage}, \\today, \\@title…'),
+  act_hf_picture: T('Picture from File', 'Puts a picture (a logo, a crest) at the cursor in the header or footer, on every page.', 'Becomes \\includegraphics in the header.'),
+  act_hf_goto_header: T('Go to Header', 'Moves the cursor to this page\'s header.', ''),
+  act_hf_goto_footer: T('Go to Footer', 'Moves the cursor to this page\'s footer.', ''),
+  act_hf_prev: T('Previous', 'Goes to the previous different header or footer (the first page\'s, or the odd / even one).', ''),
+  act_hf_next: T('Next', 'Goes to the next different header or footer.', ''),
+  act_hf_link: T('Link to Previous', 'Greyed out: this document is one section, so every page shares its header and footer.', ''),
+  act_hf_first: T('Different First Page', 'Gives the first page its own header and footer, or none: a title page usually has none.', 'fancyhdr\'s plain page style on page 1.'),
+  act_hf_oddeven: T('Different Odd & Even Pages', 'Gives even (left-hand) pages their own header and footer, as printed books do: the chapter on the left, the section on the right.', 'fancyhdr\'s [LE,RO] fields with twoside.'),
+  act_hf_showtext: T('Show Document Text', 'Shows the page\'s text dimmed while you edit the header or footer, or hides it to see the header alone.', ''),
+  act_hf_close: T('Close Header and Footer', 'Leaves the header or footer and goes back to the document\'s text (or double-click the text).', ''),
+  // View
+  act_fit_page_width: T('Fit page width', 'Zooms the page so it fills the width of the window (Ctrl+0).', ''),
+  act_repaginate: T('Fix page layout', 'Lays the pages out again from the last compiled PDF, so the page breaks on screen match the PDF\'s exactly.', ''),
+  act_split_documents: T('Split into documents', 'Turns a long document into a project of smaller ones, one per chapter (or per top heading), compiled together into one PDF: faster to edit and to share out among co-authors.', 'A master document with \\include{} for each chapter.'),
+  act_documents_dock: T('Documents', 'Shows or hides the Documents panel: the chapters of a project, to open one, reorder them or add another (Ctrl+5).', ''),
+  // References
+  act_refs_bib: T('BibTeX file', 'Adds the references of a BibTeX file (.bib), exported from a reference manager, Google Scholar or a journal, to this document\'s reference library.', 'Kept in the document and written as a .bib for biblatex / natbib.'),
+  act_refs_zotero: T('Zotero', 'Imports references from Zotero: from the running app (with the Better BibTeX plugin), or from a Zotero export file.', ''),
+  act_refs_mendeley: T('Mendeley', 'Imports references from a Mendeley export (BibTeX or RIS).', ''),
+  act_refs_import: T('Import file', 'Imports references from a file of any common format: BibTeX (.bib), RIS (.ris), EndNote XML, CSL-JSON or a list of DOIs.', ''),
+  act_refs_kherveref: T('KherveRef', 'Imports references from the KherveRef reference manager.', ''),
+  act_refs_endnote: T('EndNote', 'Imports references from an EndNote library exported as XML or RIS.', ''),
+  // Review
+  act_prev_change: T('Previous', 'Goes to the previous comment or tracked change.', ''),
+  act_next_change: T('Next', 'Goes to the next comment or tracked change.', ''),
+  act_track_changes: T('Track Changes', 'When on, every insertion and deletion is kept and marked with its author, as in Word, so co-authors can Accept or Reject each one. The PDF can show them coloured.', 'Marked with the changes package.'),
+  act_markup_view: T('Display for Review', 'How tracked changes show: All Markup (every change coloured, deletions struck), Simple Markup (the final text with a mark in the margin), No Markup (the final text) or Original (the text before the changes).', 'The changes package\'s final / markup options.'),
+  act_markup_options: T('Markup Options', 'Which marks show: comments, insertions and deletions, formatting changes, and whose changes.', ''),
+  act_overleaf_send: T('Send to Overleaf', 'Uploads the document to its linked Overleaf project (asking for one the first time), so co-authors can work on it there.', 'Sends the LaTeX source, figures and bibliography.'),
+  act_overleaf_get: T('Get changes from Overleaf', 'Brings back the changes made in Overleaf and merges them into this document, as tracked changes you can review.', ''),
+  act_overleaf_zip: T('Download for Overleaf', 'Saves a .zip of the LaTeX source, figures and bibliography to upload to Overleaf (or a journal) by hand.', ''),
+  act_overleaf_open: T('Open in Overleaf', 'Opens the linked Overleaf project in your web browser.', ''),
+  act_overleaf_link: T('Link to Overleaf project', 'Connects this document to an existing Overleaf project by its address, for Send and Get changes.', ''),
+  // Compile
+  act_print_preview: T('Print preview', 'Shows the compiled pages as they will print, before printing (Ctrl+Shift+P).', ''),
+  // Examples
+  act_tour: T('Guided tour', 'A ten-minute tour of the editor: formatting, maths, tables, history, review, import and export, as a document to try things in.', ''),
+  act_save_as_template: T('Save as Template', 'Keeps this document (its type, design, header and footer and contents) as a template of your own, under My templates, to start new documents from.', ''),
+  act_gallery_mine: T('My templates', 'The documents you saved as templates: choose one to start a new document from it.', ''),
+  // Theorem tab
+  act_eq_label: T('Label', 'Gives this equation a name (e.g. eq:energy) so References ▸ Cross-reference can point to it: "see equation (3)" then follows the equation if it moves.', 'Becomes \\label{…}.'),
+})
+
+// Examples galleries and theorem kinds, from their lists.
+import { GALLERY } from './ribbonModel.ts'
+for (const [cat, , items] of GALLERY) {
+  const slug = cat.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+  if (!MORE_TIPS[`act_gallery_${slug}`]) MORE_TIPS[`act_gallery_${slug}`] = T(cat, `${items.length} ready-made documents to start from: ${items.join(', ')}. Choose one to open it; your current document is offered for saving first.`)
+}
+const THM: Record<string, string> = {
+  theorem: 'A statement proved from earlier results, numbered by section.', lemma: 'A small result used to prove a theorem.',
+  proposition: 'A result of some interest, less important than a theorem.', corollary: 'A result that follows directly from a theorem.',
+  definition: 'Defines a term; set upright, not in italics.', example: 'An example that illustrates a definition or result.',
+  remark: 'A comment or aside on the text.', proof: 'The proof of the result before it, ended by a ∎ square.',
+}
+for (const [k, what] of Object.entries(THM)) MORE_TIPS[`act_thm_kind_${k}`] = T(k[0].toUpperCase() + k.slice(1), `Makes this block a ${k}: ${what}`, `Becomes \\begin{${k}} … \\end{${k}} (amsthm).`)

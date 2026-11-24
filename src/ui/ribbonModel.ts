@@ -197,7 +197,7 @@ const cmds: Command[] = [
   { id: 'close_doc', text: '&Close document' },
   { id: 'new_project', text: 'New &project...' },
   { id: 'split_documents', text: '&Split into documents...', icon: 'split_documents',
-    tip: 'Split into documents: one per chapter or per section, as a project' },
+    tooltip: 'Split into documents: one per chapter or per section, as a project' },
   { id: 'open_project', text: 'Open pro&ject...', icon: 'project_open' },
   { id: 'save_project', text: 'Save projec&t' },
   { id: 'close_project', text: 'Close project' },
