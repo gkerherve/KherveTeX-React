@@ -876,7 +876,9 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   // Editing a header or footer opens its tab, as in Word; leaving goes back.
   useEffect(() => {
     if (context === 'headerfooter') setCurrent('Header & Footer')
-    else setCurrent(c => (c === 'Header & Footer' ? 'Home' : c))
+    // Into a box: its Box tab, where everything about it is.
+    else if (context === 'callout') setCurrent('Box')
+    else setCurrent(c => (c === 'Header & Footer' ? 'Home' : c === 'Box' ? 'Insert' : c))
   }, [context])
   // Leaving the Draw tab puts the pen (or the eraser) down: back to typing.
   useEffect(() => { if (shown.name !== 'Draw' && inkTool()) setInkTool(null) }, [shown.name])

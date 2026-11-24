@@ -1,7 +1,7 @@
 {
   "name": "khervetex",
   "private": true,
-  "version": "502.0.0",
+  "version": "503.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

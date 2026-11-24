@@ -760,6 +760,10 @@ const cmds: Command[] = [
   })),
   ...CALLOUT_MENU.map(([k, name]): Command => ({ id: `box_insert_${k}`, text: name })),
   { id: 'box_title', text: 'Title…', icon: 'picture_edit', tooltip: 'The text in the box\'s title bar' },
+  { id: 'box_style', text: 'Name & Colour…', icon: 'callout', tooltip: 'Change the box\'s name and colour (also: click its title bar)' },
+  { id: 'box_para_after', text: 'Text after box', icon: 'formatting_marks', tooltip: 'A new ordinary paragraph after the box' },
+  { id: 'box_remove', text: 'Remove box', icon: 'clear_format', tooltip: 'Remove the box, keep its text' },
+  { id: 'box_delete', text: 'Delete box', icon: 'table_delete', tooltip: 'Delete the box and its text' },
   { id: 'box_color', text: 'Colour…', icon: 'callout', tooltip: 'Any colour for this box (frame, title bar and tint)' },
 
   // View tab: the Visual / Code / Console pages and where the PDF lives.
@@ -937,7 +941,8 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   { name: 'Box', context: 'callout', groups: [
     { label: 'Type', rows: [boxKinds.slice(0, 3), boxKinds.slice(3, 6), boxKinds.slice(6)], text: true },
-    { label: 'Custom', large: ['box_title', 'box_color'] },
+    { label: 'Style', large: ['box_style'], rows: [['box_title'], ['box_color']], text: true },
+    { label: 'Box', rows: [['box_para_after'], ['box_remove'], ['box_delete']], text: true },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },

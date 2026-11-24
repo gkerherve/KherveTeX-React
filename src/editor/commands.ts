@@ -499,9 +499,70 @@ export function setCalloutColor(color: string | null): Command {
   }
 }
 
+// The box's own colour ('#RRGGBB'), or '' when it has its type's.
+export function currentCalloutOwnColor(state: EditorState): string {
+  const t = currentTheorem(state)
+  return t && M.isCallout(t.node.attrs.kind) ? t.node.attrs.color || '' : ''
+}
+
 export function currentCalloutColor(state: EditorState): string {
   const t = currentTheorem(state)
   return t && M.isCallout(t.node.attrs.kind) ? '#' + M.calloutColor(t.node.attrs.kind, t.node.attrs.color) : ''
+}
+
+// A box's name and colour together (name '': its type's own).
+export function setCalloutStyle(title: string, color: string | null): Command {
+  return (state, dispatch) => {
+    const group = theoremGroup(state)
+    if (!group.length || !M.isCallout(group[0].node.attrs.kind)) return false
+    if (dispatch) {
+      const tr = state.tr
+      for (const b of group) tr.setNodeMarkup(b.pos, null, { ...b.node.attrs, title, color })
+      dispatch(tr)
+    }
+    return true
+  }
+}
+
+// Remove box: its paragraphs stay, as ordinary text.
+export const removeCallout: Command = (state, dispatch) => {
+  const group = theoremGroup(state)
+  if (!group.length) return false
+  if (dispatch) {
+    const tr = state.tr
+    for (const b of group) tr.setNodeMarkup(b.pos, N.paragraph, { alignment: 'justify' })
+    dispatch(tr)
+  }
+  return true
+}
+
+// Delete box: the box and everything in it.
+export const deleteCallout: Command = (state, dispatch) => {
+  const group = theoremGroup(state)
+  if (!group.length) return false
+  if (dispatch) {
+    const from = group[0].pos
+    const last = group[group.length - 1]
+    const tr = state.tr.delete(from, last.pos + last.node.nodeSize)
+    if (!tr.doc.childCount) tr.insert(0, N.paragraph.create())
+    tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(from, tr.doc.content.size))))
+    dispatch(tr.scrollIntoView())
+  }
+  return true
+}
+
+// A new ordinary paragraph after the box, the caret in it.
+export const paragraphAfterCallout: Command = (state, dispatch) => {
+  const group = theoremGroup(state)
+  if (!group.length) return false
+  if (dispatch) {
+    const last = group[group.length - 1]
+    const at = last.pos + last.node.nodeSize
+    const tr = state.tr.insert(at, N.paragraph.create())
+    tr.setSelection(TextSelection.near(tr.doc.resolve(at + 1)))
+    dispatch(tr.scrollIntoView())
+  }
+  return true
 }
 
 // insert_theorem for a box with its own name and colour.

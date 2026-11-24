@@ -6,6 +6,7 @@ import { runAction } from '../app/actions.ts'
 import { DATE_FORMATS } from '../core/dateFormat.ts'
 import { spellHighlighter } from '../spell/shared.ts'
 import * as C from './commands.ts'
+import * as M from '../core/model.ts'
 import { cellDisplayText, cellPictures, displayToCellLatex, isStructuredCell } from './convert.ts'
 import { columnFractions } from './views.ts'
 import type { Node as PMNode } from 'prosemirror-model'
@@ -161,6 +162,18 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
         run: () => { void runAction(`fig_w${f * 100}`) },
       })), '-',
       { text: 'Delete picture', run: () => { void runAction('fig_delete') } }, '-')
+  }
+  // A right-click in a box: its name and colour, its type, remove or delete it.
+  const kind = C.currentTheoremKind(state)
+  if (M.isCallout(kind)) {
+    entries.unshift(
+      { text: 'Box name and colour…', run: () => { void runAction('box_style') } }, '-',
+      ...Object.entries(M.CALLOUT_KINDS).filter(([k]) => k !== 'custom').map(([k, v]): Item => ({
+        text: v.name, checked: k === kind, run: () => { void runAction(`box_kind_${k}`) },
+      })), '-',
+      { text: 'Text after box', run: () => { void runAction('box_para_after') } },
+      { text: 'Remove box (keep text)', run: () => { void runAction('box_remove') } },
+      { text: 'Delete box', run: () => { void runAction('box_delete') } }, '-')
   }
   if (C.currentTable(state)) {
     entries.push('-', captionItem, '-',

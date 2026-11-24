@@ -391,6 +391,25 @@ const actions: Record<string, Handler> = {
   callout: () => { run(C.insertTheorem('note')); sync() },
   box_title: boxTitle,
   box_insert_custom: insertCustomBox,
+  // The box's name and colour in one dialog: the Box tab, a click on its
+  // title bar, its right-click menu.
+  box_style: async () => {
+    const e = ed()
+    if (!e) return
+    const st = e.view.state
+    const kind = C.currentTheoremKind(st)
+    if (!M.isCallout(kind)) return
+    const own = C.currentTheoremTitle(st)
+    const r = await boxStyleDialog('Box name and colour', C.currentCalloutColor(st) || '#455A64', own || M.CALLOUT_KINDS[kind].name)
+    if (!r) return
+    // The type's own name and colour stay "its own" (they follow the type).
+    const name = r.name === M.CALLOUT_KINDS[kind].name ? '' : r.name
+    const color = r.color.replace('#', '').toUpperCase() === M.CALLOUT_KINDS[kind].color && !C.currentCalloutOwnColor(st) ? null : r.color
+    run(C.setCalloutStyle(name, color)); sync()
+  },
+  box_remove: () => { run(C.removeCallout); sync() },
+  box_delete: () => { run(C.deleteCallout); sync() },
+  box_para_after: () => { run(C.paragraphAfterCallout); sync() },
   box_color: async () => {
     const e = ed()
     if (!e) return

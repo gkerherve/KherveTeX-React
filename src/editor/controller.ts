@@ -238,6 +238,19 @@ export class EditorController implements ViewHost {
       transformCopied: slice => absoluteFigurePaths(slice, resolvedSourceDir()),
       handleDOMEvents: {
         focus: () => { this.syncToolbar(); return false },
+        // A click on a box's title bar (drawn above its first line) opens
+        // its name and colour, as a click on a table's caption does.
+        mousedown: (v, e) => {
+          const el = (e.target as HTMLElement | null)?.closest?.('.kt-num-callout') as HTMLElement | null
+          if (!el || e.button !== 0) return false
+          const bar = parseFloat(getComputedStyle(el, '::before').height) || 18
+          if (e.clientY > el.getBoundingClientRect().top + bar + 2) return false
+          e.preventDefault()
+          const pos = v.posAtDOM(el, 0)
+          v.dispatch(v.state.tr.setSelection(TextSelection.near(v.state.doc.resolve(pos))))
+          void runAction('box_style')
+          return true
+        },
         // A double-click on a table's caption (drawn under the table)
         // edits it, as on a figure's.
         dblclick: (v, e) => {
