@@ -5,7 +5,8 @@ import { escapeText } from '../../core/serializer.ts'
 import * as C from '../../editor/commands.ts'
 import { editor } from '../../editor/controller.ts'
 import { information } from '../../platform/MessageBox.tsx'
-import { captionDialog, insertTableDialog } from '../../ui/dialogs/EditorDialogs.tsx'
+import { boxStyleDialog, captionDialog, insertTableDialog } from '../../ui/dialogs/EditorDialogs.tsx'
+import { FANCY_COLORS, FANCY_DEFAULT, FANCY_KINDS, fancyStyle, parseFancy, type FancyKind } from '../../core/fancyTable.ts'
 import { registerActions, type Handler } from '../actions.ts'
 import { appStore } from '../store.ts'
 
@@ -41,6 +42,17 @@ export function pickColor(initial: string): Promise<string | null> {
   })
 }
 
+function currentFancy() {
+  const e = editor()
+  return e ? parseFancy(C.currentTableStyle(e.view.state)) : null
+}
+
+function setFancy(kind: FancyKind | null, color: string | null): void {
+  const cur = currentFancy()
+  run(C.setTableStyle(fancyStyle(kind ?? cur?.kind ?? 'banded', color ?? cur?.color ?? FANCY_DEFAULT)))
+  sync()
+}
+
 const actions: Record<string, Handler> = {
   // insert_table: "cell" in every cell; the caption is escaped LaTeX.
   table: async () => {
@@ -71,6 +83,15 @@ const actions: Record<string, Handler> = {
   tbl_booktabs: act(C.setTableStyle('booktabs')),
   tbl_striped: act(C.setTableStyle('striped')),
   tbl_nolines: act(C.setTableStyle('plain')),
+  // Fancy styles: the kind keeps the table's colour, a colour keeps its kind.
+  ...Object.fromEntries(FANCY_KINDS.map(([k]) => [`tbl_fancy_${k}`, () => setFancy(k, null)])),
+  ...Object.fromEntries(FANCY_COLORS.map(([c]) => [`tbl_fancy_c_${c}`, () => setFancy(null, c)])),
+  tbl_fancy_color: () => {},
+  tbl_fancy_custom: async () => {
+    const cur = currentFancy()
+    const r = await boxStyleDialog('Table colour', '#' + (cur?.color ?? FANCY_DEFAULT), null)
+    if (r) setFancy(null, r.color)
+  },
   tbl_header: on => { run(C.setTableHeader(on !== false)); sync() },
   tbl_repeat: on => { run(C.setTableRepeatHeader(on !== false)); sync() },
   // _merge_cells: a hint when fewer than two cells are selected.

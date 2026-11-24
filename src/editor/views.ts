@@ -2,6 +2,7 @@
 // frames, tables with LaTeX's rules, citations and references as the PDF
 // numbers them, footnotes, raw LaTeX. The looks follow editor.py's char
 // and block formats (_link_format, _citation_format, _figure_block_format...).
+import { FANCY_RULE_GREY, parseFancy, tint } from '../core/fancyTable.ts'
 import { autoTableAlignment } from '../core/serializer.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView } from 'prosemirror-view'
@@ -470,6 +471,7 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
   const a = node.attrs
   const style: string = a.style || ''
   const booktabs = style === 'booktabs' || style === 'striped'
+  const fancy = parseFancy(style)
   const header = !!a.header
   const nrows = node.childCount
   let ncols = 0
@@ -528,6 +530,22 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
       if ((r === 0 && header) || (unedited && allIn(raw, 'textbf'))) css += 'font-weight:700;'
       if (unedited && (allIn(raw, 'textit') || allIn(raw, 'emph'))) css += 'font-style:italic;'
       if (unedited) css += cellLook(raw)
+      if (fancy) {
+        // Fancy styles: the colour's fills and rules win over the lines above.
+        const C = '#' + fancy.color
+        const head = r === 0 && header && nrows > 1
+        const isLast = bottomRow >= last
+        let topL = '0px solid transparent', botL = '0px solid transparent'
+        if (fancy.kind === 'accent') {
+          if (r === 0) topL = `1.6px solid ${C}`
+          if (head) botL = `0.8px solid ${C}`
+        } else if (fancy.kind === 'header' && !head && !isLast) botL = `0.6px solid #${FANCY_RULE_GREY}`
+        if (isLast) botL = `${fancy.kind === 'accent' ? 1.6 : 1.3}px solid ${C}`
+        css += `border-top:${topL};border-bottom:${botL};border-left:0;border-right:0;`
+        if (head && fancy.kind !== 'accent') css += `background:${C};color:#fff;font-weight:700;`
+        else if (head) css += `color:${C};font-weight:700;`
+        else if (fancy.kind === 'banded' && r > 0 && r % 2 === 0 && !shade) css += `background:#${tint(fancy.color, 12)};`
+      }
       out.push({ offset: 1 + rowOffset + 1 + cellOffset, style: css })
       c += cell.attrs.colspan
     })

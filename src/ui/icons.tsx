@@ -1344,6 +1344,22 @@ const TABLE_LINES: Record<string, string> = {
   '': 'h', grid: 'grid', plain: 'none', booktabs: 'book', striped: 'book',
 }
 
+// Table Design ▸ Fancy styles: arg "banded", "header" or "accent".
+export function FancyTableIcon({ arg = 'banded', ...p }: IconProps) {
+  const C = '#1F6FB5', x = 2.5, y = 3.5, w = 19, rows = 4, rh = 17 / 4, cols = 3, cw = w / cols
+  const out: ReactElement[] = []
+  if (arg !== 'accent') out.push(F(x, y, w, rh, C))
+  if (arg === 'banded') for (let r = 2; r < rows; r += 2) out.push(F(x, y + r * rh, w, rh, '#d6e4f3'))
+  if (arg === 'header') for (let r = 2; r < rows; r++) out.push(L(x, y + r * rh, x + w, y + r * rh, '#bbbbbb', 0.7))
+  if (arg === 'accent') { out.push(L(x, y, x + w, y, C, 1.8)); out.push(L(x, y + rh, x + w, y + rh, C, 0.9)) }
+  out.push(L(x, y + rows * rh, x + w, y + rows * rh, C, 1.6))
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
+    out.push(L(x + k * cw + 1.5, y + r * rh + rh / 2, x + (k + 1) * cw - 1.5, y + r * rh + rh / 2,
+      r === 0 ? (arg === 'accent' ? C : '#ffffff') : '#9a9a9a', 0.9))
+  }
+  return <Svg {...p}><g>{out.map((e, i) => <g key={i}>{e}</g>)}</g></Svg>
+}
+
 export function TableStyleIcon({ arg = '', ...p }: IconProps) {
   return <Svg {...p}>{miniTable({ lines: TABLE_LINES[arg] ?? 'h',
     stripes: arg === 'striped' })}</Svg>
@@ -1920,7 +1936,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   page_size: PageSize, page_margins: PageMargins, paper_thumb: PaperThumb, margin_thumb: MarginThumb,
   orientation: Orientation, space_before: SpaceBefore, space_after: SpaceAfter,
   page_view: PageView, console_view: ConsoleView, pdf_detach: PdfDetach,
-  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon,
+  theorem: Theorem, callout: Callout, move_up: MoveUp, move_down: MoveDown, caption: Caption, table_style_icon: TableStyleIcon, fancy_table: FancyTableIcon,
   table_merge: TableMerge, table_split: TableSplit, sort_icon: SortIcon,
   shading_icon: ShadingIcon, header_row: HeaderRow,
   repeat_header: RepeatHeader, help_icon: HelpIcon, settings: SettingsIcon,

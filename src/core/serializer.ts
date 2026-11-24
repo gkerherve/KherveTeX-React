@@ -2,6 +2,7 @@
 // pure functions, one serializer per node type, no I/O. The output must stay
 // byte-identical to the Python app's (tests/serializer.parity.test.ts).
 
+import { FANCY_RULE_GREY, parseFancy, tint } from './fancyTable.ts'
 import { designPreamble } from './design.ts'
 import { inkPreamble, placeInk } from './ink.ts'
 import { dateCommand } from './dateFormat.ts'
@@ -706,8 +707,16 @@ function serializeTable(node: Table, floatH = true): string {
   const style = node.style
   const booktabs = style === 'booktabs' || style === 'striped'
   const grid = style === 'grid'
+  // Table Design ▸ Fancy styles: rules drawn in the table's colour.
+  const fancy = parseFancy(style)
+  const hr = (c: string, w: number) => `\\noalign{{\\color[HTML]{${c}}\\hrule height ${w}pt}}`
+  const fancyHead = fancy && node.header && node.rows.length > 1 ? fancy.kind : null
   let topRule: string, midRule: string, bottomRule: string
-  if (style === 'plain') {
+  if (fancy) {
+    topRule = fancy.kind === 'accent' ? hr(fancy.color, 1.2) : ''
+    midRule = fancy.kind === 'accent' ? hr(fancy.color, 0.6) : ''
+    bottomRule = hr(fancy.color, fancy.kind === 'accent' ? 1.2 : 1)
+  } else if (style === 'plain') {
     topRule = midRule = bottomRule = ''
   } else if (booktabs) {
     [topRule, midRule, bottomRule] = ['\\toprule', '\\midrule', '\\bottomrule']
@@ -739,6 +748,7 @@ function serializeTable(node: Table, floatH = true): string {
         continue
       }
       let t = cellLatex(node, i, c, cells[c])
+      if (i === 0 && fancyHead) t = fancyHead === 'accent' ? `{\\color[HTML]{${fancy!.color}}\\bfseries ${t}}` : `{\\color{white}\\bfseries ${t}}`
       const [rs, cs] = anchors.get(key(i, c)) ?? [1, 1]
       // In a column of set width (a Word form) the text stays at the top of
       // the merged cells and its row grows, as Word does: a \multirow
@@ -750,6 +760,9 @@ function serializeTable(node: Table, floatH = true): string {
     }
     let rowStr = out.join(' & ') + ' \\\\'
     if (style === 'striped' && i > 0 && i % 2 === 0) rowStr = `\\rowcolor[HTML]{${STRIPE}}` + rowStr
+    if (fancy && i === 0 && (fancyHead === 'banded' || fancyHead === 'header')) rowStr = `\\rowcolor[HTML]{${fancy.color}}` + rowStr
+    if (fancy?.kind === 'banded' && i > 0 && i % 2 === 0) rowStr = `\\rowcolor[HTML]{${tint(fancy.color, 12)}}` + rowStr
+    if (fancy?.kind === 'header' && i > 0 && i < node.rows.length - 1) rowStr += ' ' + hr(FANCY_RULE_GREY, 0.4)
     if (i === 0 && node.rows.length > 1 && midRule) {
       rowStr += ' ' + midRule
     } else if (grid && i < node.rows.length - 1) {
@@ -762,7 +775,8 @@ function serializeTable(node: Table, floatH = true): string {
   // The table's own text size: a size switch inside the float (or a group
   // around a longtable), as \small would be.
   const pt = node.font_size && node.font_size > 0 ? node.font_size : 0
-  const sizeCmd = pt ? `\\fontsize{${pt}}{${pyFloat(Math.round(pt * 12) / 10)}}\\selectfont\n` : ''
+  const sizeCmd = (pt ? `\\fontsize{${pt}}{${pyFloat(Math.round(pt * 12) / 10)}}\\selectfont\n` : '')
+    + (fancy ? '\\renewcommand{\\arraystretch}{1.3}\n' : '')
   const sized = (s: string) => (sizeCmd ? `{${sizeCmd}${s}}\n` : s)
   if (node.repeat_header && bodyRows.length > 1) {
     // longtable repeats everything before \endhead on each page.
@@ -808,7 +822,7 @@ function tablePackages(doc: Document): string[] {
   for (const b of doc.children) {
     if (b.type !== 'Table') continue
     if (b.merges.some((m) => m[2] > 1) && !need.includes('multirow')) need.push('multirow')
-    if ((Object.keys(b.shading).length || b.style === 'striped') && !need.includes('colortbl')) need.push('colortbl')
+    if ((Object.keys(b.shading).length || b.style === 'striped' || parseFancy(b.style)) && !need.includes('colortbl')) need.push('colortbl')
     if ((b.repeat_header || tableHasPictures(b)) && !need.includes('longtable')) need.push('longtable')
     // m{} / b{} columns (vertically centred or bottom-aligned) are array's.
     if ((/[mb]\{|\\dimexpr/.test(b.alignment || '') || b.rows.some((r) => r.some((c) => c.includes('\\arraybackslash')))) && !need.includes('array')) need.push('array')

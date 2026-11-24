@@ -2,6 +2,7 @@
 // QAction of _build_actions / _build_context_actions becomes a Command
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
+import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 import { COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, THEMES, WATERMARKS } from '../core/design.ts'
@@ -708,6 +709,14 @@ const cmds: Command[] = [
     group: 'tblstyle' },
   { id: 'tbl_nolines', text: 'No Lines', icon: 'table_style_icon', iconArg: 'plain', checkable: true,
     group: 'tblstyle' },
+  ...FANCY_KINDS.map(([k, name]): Command => ({ id: `tbl_fancy_${k}`, text: name, icon: 'fancy_table', iconArg: k,
+    checkable: true, group: 'tblstyle', tooltip: `${name}: the table drawn in one colour (pick it with Colour)` })),
+  { id: 'tbl_fancy_color', text: 'Colour', icon: 'shading_icon', popup: 'instant',
+    tooltip: 'The colour of a Banded, Coloured header or Accent lines table',
+    menu: [...FANCY_COLORS.map(([c, name]): MenuItem => ({ text: name, icon: 'color_swatch', iconArg: `#${c}`, command: `tbl_fancy_c_${c}` })),
+      '-', { text: 'Other colour…', command: 'tbl_fancy_custom' }] },
+  ...FANCY_COLORS.map(([c, name]): Command => ({ id: `tbl_fancy_c_${c}`, text: name })),
+  { id: 'tbl_fancy_custom', text: 'Other colour…' },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -921,6 +930,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Table Design', context: 'table', groups: [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },
     { label: 'Table Styles', large: ['tbl_plain', 'tbl_grid', 'tbl_booktabs', 'tbl_striped', 'tbl_nolines'] },
+    { label: 'Fancy Styles', large: ['tbl_fancy_banded', 'tbl_fancy_header', 'tbl_fancy_accent', 'tbl_fancy_color'] },
     { label: 'Shading', large: ['tbl_shading'] },
   ] },
   { name: 'Table Layout', context: 'table', groups: [

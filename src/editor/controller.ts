@@ -1221,7 +1221,9 @@ export class EditorController implements ViewHost {
       setCommandChecked(`tbl_align_${col || 'l'}`, true)
       const style = C.currentTableStyle(s)
       const styleId = { '': 'tbl_plain', grid: 'tbl_grid', booktabs: 'tbl_booktabs', striped: 'tbl_striped', plain: 'tbl_nolines' }[style]
+      const fancyKind = /^(banded|header|accent):/.exec(style)?.[1]
       if (styleId) setCommandChecked(styleId, true)
+      else if (fancyKind) setCommandChecked(`tbl_fancy_${fancyKind}`, true)
       const [header, repeat] = C.tableHeader(s)
       setCommandChecked('tbl_header', header)
       setCommandChecked('tbl_repeat', repeat)
