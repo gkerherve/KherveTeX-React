@@ -152,7 +152,8 @@ ${note('Contextual tabs appear only when you need them: click in a table and <b>
 <div class="g-tabs">
 ${([
   ['home', 'Home', 'Export, the clipboard, fonts and character styles, paragraphs and lists, and the <b>Styles</b> gallery (Normal, Title, Heading 1–3…).', 'Styles'],
-  ['insert', 'Insert', 'Page breaks and the date, tables, coloured boxes and checklists, figures, drawings and charts, timelines, progress bars and steps (Plan), pull quotes, sidebars, ratings, gauges, QR codes, code and drop caps (Elements), tables of contents, links, equations, theorems and chemistry.', 'Illustrations'],
+  ['insert', 'Insert', 'Page breaks and the date, tables, coloured boxes and checklists, figures, drawings and charts, timelines, progress bars and steps (Plan), pull quotes, sidebars, ratings, gauges, QR codes, code and drop caps (Elements), tables of contents and links.', 'Illustrations'],
+  ['insert', 'Science', 'Equations (inline, display, the equation builder, symbols), theorems, chemical reactions and chemical structures.', 'Equations'],
   ['draw', 'Draw', 'Draw on the page with a pen, pencil or highlighter; erase; add your own pens. <span class="beta-tag">beta</span>', 'Pens'],
   ['design', 'Design', 'Themes, style sets, colours, fonts, paragraph spacing, watermark, page colour and borders, and the document type.', 'Document Formatting'],
   ['layout', 'Layout', 'Margins, orientation, paper size, columns, indents and spacing; header, footer, page numbers and header style; margin notes.', 'Page Setup'],
@@ -290,7 +291,7 @@ ${fig('chemistry.webp', 'The chemistry editor: palettes above, the formula below
 <h3>Theorems</h3>
 <p><b>Theorem</b> inserts a theorem, lemma, proposition, corollary, definition, example, remark or proof, numbered by
 LaTeX. Click in one for the <b>Theorem</b> tab, to change its kind or give it a name.</p>
-${show('Insert', 'Equations')}
+${show('Science', 'Equations')}
 `,
   },
   {

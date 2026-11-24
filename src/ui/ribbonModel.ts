@@ -1001,10 +1001,13 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Elements', rows: [['ins_pullquote', 'ins_sidebar', 'ins_rating'], ['ins_gauge', 'ins_qrcode'], ['ins_code', 'ins_dropcap']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
-    { label: 'Equations', large: ['math_block'],
-      rows: [['math_inline'], ['equation_builder'], ['symbol']], text: true },
+  ] },
+  // Science: equations, theorems and chemistry, out of the crowded Insert tab.
+  { name: 'Science', groups: [
+    { label: 'Equations', large: ['math_block', 'equation_builder'],
+      rows: [['math_inline'], ['symbol']], text: true },
     { label: 'Theorems', large: ['theorem'] },
-    { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig']], text: true },
+    { label: 'Chemistry', large: ['chemistry', 'chemfig'] },
   ] },
   { name: 'Draw', groups: [
     { label: 'Drawing Tools', large: ['draw_tool', 'eraser_tool'] },
