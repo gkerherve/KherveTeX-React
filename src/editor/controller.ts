@@ -417,9 +417,40 @@ export class EditorController implements ViewHost {
 
   // Run a command on the current state.
   run(cmd: C.Command): boolean {
+    // A ribbon or menu command runs with the focus away from the page. If
+    // it redraws the block holding the caret (a box added or removed),
+    // WebKit (the desktop app) puts its own caret at the end of the
+    // document, and focus() then scrolls the page there. So: where the
+    // caret is still on screen at the old scroll, the page stays put.
+    const sc = this.scroller()
+    const top = sc ? sc.scrollTop : 0
     const ok = cmd(this.view.state, tr => this.view.dispatch(tr))
     this.view.focus()
+    if (sc) {
+      const keep = () => {
+        if (sc.scrollTop === top) return
+        try {
+          const head = this.view.state.selection.head
+          const c = this.view.coordsAtPos(head)
+          const r = sc.getBoundingClientRect()
+          const y = c.top + (sc.scrollTop - top)  // where the caret would be at the old scroll
+          if (y >= r.top && y + (c.bottom - c.top) <= r.bottom) sc.scrollTop = top
+        } catch { /* no caret coordinates: leave it */ }
+      }
+      keep()
+      requestAnimationFrame(keep)
+      setTimeout(keep, 60)
+    }
     return ok
+  }
+
+  // The element the page scrolls in (the desk around the sheets).
+  private scroller(): HTMLElement | null {
+    for (let el = this.view.dom.parentElement; el; el = el.parentElement) {
+      const o = getComputedStyle(el).overflowY
+      if ((o === 'auto' || o === 'scroll') && el.scrollHeight > el.clientHeight) return el
+    }
+    return null
   }
 
   // ---------- the store ----------
