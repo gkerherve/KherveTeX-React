@@ -72,6 +72,7 @@ import {
 } from './exampleDocs/science.ts'
 import { calloutBoxes } from './exampleDocs/boxes.ts'
 import { fancyElements } from './exampleDocs/elements.ts'
+import { codeTutorial, cvTimeline, eventFlyer, magazineArticle, statusReport } from './exampleDocs/showcase.ts'
 import {
   article,
   blank,
@@ -100,7 +101,7 @@ import {
 export type Factory = () => Document
 
 export const GALLERY_CATEGORIES: readonly string[] = [
-  'Start', 'Articles', 'Journals', 'Theses & books', 'Teaching', 'Science', 'Letters & CV', 'Slides & posters', 'Planning',
+  'Start', 'Boxes & elements', 'Articles', 'Journals', 'Theses & books', 'Teaching', 'Science', 'Letters & CV', 'Slides & posters', 'Planning',
 ]
 
 // (category, label, factory, one line for the user), in gallery order.
@@ -109,6 +110,21 @@ export const GALLERY: [string, string, Factory, string][] = [
     'A ten-minute guided tour of the editor: formatting, maths, tables, history, review, import and export.'],
   ['Start', 'Blank document', blank,
     'An empty page, as in Word.'],
+
+  ['Boxes & elements', 'Coloured boxes', calloutBoxes,
+    'Every Insert > Box kind (Note, Tip, Warning, Danger...), renamed headings and boxes in your own colours.'],
+  ['Boxes & elements', 'Fancy elements', fancyElements,
+    'Drop caps, margin notes, checklists, progress bars, timelines, QR codes, code listings, coloured tables and chapter titles.'],
+  ['Boxes & elements', 'Project status report', statusReport,
+    'Progress bars, a milestone timeline, a banded budget table, risk boxes and next month\'s checklist.'],
+  ['Boxes & elements', 'CV with timeline', cvTimeline,
+    'A one-page CV: career timeline, skill bars, publications and a QR code to the full list.'],
+  ['Boxes & elements', 'Programming tutorial', codeTutorial,
+    'Code listings in light and dark, tip and warning boxes, learning goals and exercises as checklists.'],
+  ['Boxes & elements', 'Magazine feature', magazineArticle,
+    'A drop cap, margin notes, a Did you know? box, an accent-lined table and a QR code.'],
+  ['Boxes & elements', 'Event programme', eventFlyer,
+    'An open-day flyer: booking QR code, the day as a timeline, a workshop table and a what-to-bring list.'],
 
   ['Articles', 'Single-column article', article,
     'A short experimental paper with abstract, equations, a table and citations.'],
@@ -177,10 +193,6 @@ export const GALLERY: [string, string, Factory, string][] = [
   ['Theses & books', 'Dissertation (disser)', disserThesis,
     'A dissertation in the Russian disser class.'],
 
-  ['Teaching', 'Coloured boxes', calloutBoxes,
-    'Every Insert > Box kind (Note, Tip, Warning, Danger...), renamed headings and boxes in your own colours.'],
-  ['Teaching', 'Fancy elements', fancyElements,
-    'Drop caps, margin notes, checklists, progress bars, timelines, QR codes, code listings, coloured tables and chapter titles.'],
   ['Teaching', 'Lab report', labReport,
     'An undergraduate lab report with data tables and uncertainties.'],
   ['Teaching', 'Exam (exam class)', examPaper,

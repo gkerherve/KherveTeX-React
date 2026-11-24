@@ -141,6 +141,8 @@ const PAGE_SIZES: [string, number, number][] = [
 // button's preview) and every example's label, in gallery order.
 export const GALLERY: [string, string, string[]][] = [
   ['Start', 'article', ['Welcome tour', 'Blank document']],
+  ['Boxes & elements', 'article', ['Coloured boxes', 'Fancy elements', 'Project status report', 'CV with timeline',
+    'Programming tutorial', 'Magazine feature', 'Event programme']],
   ['Articles', 'article', ['Single-column article', 'Two-column article',
     'Three-column document', 'Maths-heavy document', 'KOMA-Script article',
     'White paper', 'Literature review', 'Research proposal']],
@@ -155,7 +157,7 @@ export const GALLERY: [string, string, string[]][] = [
     'Monograph (AMS book)', 'Book (elegantbook)', 'Thesis (mimosis)',
     'Thesis (hepthesis, particle physics)', 'Thesis (suftesi, humanities)',
     'Thesis (toptesi, engineering)', 'Dissertation (disser)']],
-  ['Teaching', 'article', ['Coloured boxes', 'Fancy elements', 'Lab report', 'Exam (exam class)',
+  ['Teaching', 'article', ['Lab report', 'Exam (exam class)',
     'Homework / problem set', 'Lecture notes', 'Handout (Tufte)',
     'Quantum mechanics lecture']],
   ['Science', 'article', ['XPS surface-science paper',
@@ -573,6 +575,16 @@ const cmds: Command[] = [
 
   // Help
   { id: 'help_guide', text: '&User guide', icon: 'help_icon', shortcut: 'F1' },
+  // The ? by Settings: everything the Help tab held, in a menu.
+  { id: 'help_menu', text: 'Help', icon: 'help_icon', popup: 'instant', tooltip: 'Help: user guide, shortcuts, welcome page, updates, about',
+    menu: [
+      { text: 'User guide', command: 'help_guide', icon: 'help_icon', detail: 'F1' },
+      { text: 'Keyboard shortcuts', command: 'shortcuts', icon: 'keyboard_icon' },
+      { text: 'Welcome page…', command: 'welcome', icon: 'welcome_icon' },
+      '-',
+      { text: 'Check for updates', command: 'check_updates', icon: 'update_icon' },
+      { text: 'About kTeX', command: 'about', icon: 'about_icon' },
+    ] },
   { id: 'shortcuts', text: '&Keyboard shortcuts', icon: 'keyboard_icon' },
   { id: 'send_feedback', text: 'Send &feedback (beta)…' },
   { id: 'buy_coffee', text: 'Buy me a &coffee…', icon: 'coffee',
@@ -897,10 +909,10 @@ export const CORNER_LEFT: (string | null)[] = [
   'new', 'open', 'save', 'print', null, 'undo', 'redo',
 ]
 export const CORNER_RIGHT: (string | null)[] = [
-  'compile_now', 'auto_compile', null, 'help_guide', 'settings',
+  'compile_now', 'auto_compile', null, 'help_menu', 'settings',
 ]
 // Corner buttons that show their name, like Word's Share button.
-export const CORNER_LABELLED = new Set(['compile_now'])
+export const CORNER_LABELLED = new Set<string>([])
 
 const thmKinds = THEOREM_KINDS.map(([k]) => `thm_kind_${k}`)
 const boxKinds = CALLOUT_MENU.map(([k]) => `box_kind_${k}`)
@@ -992,10 +1004,6 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Examples & templates',
       large: GALLERY.filter(([c]) => c !== 'Start').map(([c]) => gallery(c)) },
     { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
-  ] },
-  { name: 'Help', groups: [
-    { label: 'Help', large: ['help_guide', 'shortcuts', 'welcome'] },
-    { label: 'kTeX', large: ['check_updates', 'about'] },
   ] },
   { name: 'Table Design', context: 'table', groups: [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },
