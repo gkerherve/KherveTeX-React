@@ -42,7 +42,8 @@ for arch in aarch64 x86_64; do
   B=src-tauri/target/$arch-apple-darwin/release/bundle
   short=$([ "$arch" = x86_64 ] && echo x64 || echo aarch64)
   for f in "$B"/macos/kTeX.app/Contents/MacOS/*; do
-    lipo -archs "$f" | grep -qw "$arch" || { echo "$f is not $arch" >&2; exit 1; }
+    want=$([ "$arch" = aarch64 ] && echo arm64 || echo x86_64)   # lipo says arm64
+    lipo -archs "$f" | grep -qw "$want" || { echo "$f is not $arch" >&2; exit 1; }
   done
   cp "$B/dmg/kTeX_${VERSION}_${short}.dmg" "$OUT/"
   (cd "$OUT" && shasum -a 256 "kTeX_${VERSION}_${short}.dmg" > "kTeX_${VERSION}_${short}.dmg.sha256")
