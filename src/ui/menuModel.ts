@@ -4,6 +4,7 @@
 import { BETA_DETAIL, isBetaExample } from './pageBeta'
 import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design'
 import { FANCY_COLORS } from '../core/fancyTable'
+import { CONSTANTS, PHYSICS } from '../core/sciMath'
 import { CALLOUT_MENU, GALLERY, THEOREM_KINDS, type MenuEntry, type MenuItem } from './ribbonModel'
 
 export interface MenuBarMenu {
@@ -65,7 +66,13 @@ export const MENU_BAR: MenuBarMenu[] = [
       'math_inline', 'math_block', 'equation_builder', 'symbol',
       { text: 'Math &environment', items: MATH_ENVIRONMENTS.map(e => ({ text: e })) },
     ] },
-    { text: 'C&hemistry', items: ['chemistry', 'chemfig'] },
+    { text: 'C&hemistry', items: ['chemistry', 'chemfig', 'sci_scheme', '-', 'sci_mo', 'sci_bohr', 'sci_element', 'sci_hazard'] },
+    // The Science tab.
+    { text: 'Sc&ience', items: ['sci_units', 'sci_sigfig',
+      { text: '&Constants', items: CONSTANTS.map((_, i) => `sci_const_${i}`) },
+      { text: '&Physics notation', items: PHYSICS.map((_, i) => `sci_phys_${i}`) },
+      'sci_nuclear', 'sci_matrix', '-',
+      'sci_plot', 'sci_circuit', 'sci_feynman', '-', 'sci_algorithm', 'sci_notebook'] },
     '-',
     'link', 'footnote', 'citation', 'manage_references', 'crossref', 'captions', 'comment', '-',
     'abstract', 'keywords', '-',

@@ -6,6 +6,11 @@
 import qrcode from 'qrcode-generator'
 import { type Drawing } from '../core/draw.ts'
 import {
+  bohrDrawing, circuitDrawing, elementTilesDrawing, feynmanDrawing, hazardDrawing, hazardLines, moDrawing, plotDrawing,
+  type AlgorithmData, type BohrData, type CircuitData, type ElementTileData, type FeynmanData, type HazardData, type MoData,
+  type NotebookData, type PlotData, type SchemeData,
+} from '../core/science.ts'
+import {
   chartDrawing, ganttDrawing, gaugeDrawing, ratingDrawing, type ChartData, type GanttData, type GaugeData,
   type PullQuoteData, type RatingData, type SidebarData, type StepsData,
 } from '../core/widgetsMore.ts'
@@ -49,6 +54,16 @@ export function widgetElement(w: Widget, opts: { select: () => void; remove: () 
     case 'gauge': body.appendChild(drawingSvg(gaugeDrawing(w.data as GaugeData))); break
     case 'gantt': body.appendChild(drawingSvg(ganttDrawing(w.data as GanttData))); break
     case 'chart': body.appendChild(drawingSvg(chartDrawing(w.data as ChartData))); break
+    case 'plot': body.appendChild(drawingSvg(plotDrawing(w.data as PlotData))); break
+    case 'circuit': body.appendChild(drawingSvg(circuitDrawing(w.data as CircuitData))); break
+    case 'feynman': body.appendChild(drawingSvg(feynmanDrawing(w.data as FeynmanData))); break
+    case 'mo': body.appendChild(drawingSvg(moDrawing(w.data as MoData))); break
+    case 'bohr': body.appendChild(drawingSvg(bohrDrawing(w.data as BohrData))); break
+    case 'element': body.appendChild(drawingSvg(elementTilesDrawing(w.data as ElementTileData))); break
+    case 'hazard': hazard(body, w.data as HazardData); break
+    case 'scheme': scheme(body, w.data as SchemeData); break
+    case 'algorithm': algorithm(body, w.data as AlgorithmData); break
+    case 'notebook': notebook(body, w.data as NotebookData); break
   }
   const x = el('button', 'kt-widget-close', '×')
   x.type = 'button'
@@ -323,4 +338,78 @@ export function iconElement(dom: HTMLElement, i: { color: string; size: string; 
   const g = el('span', `kt-icon-glyph kt-icon-${i.size}`, def?.[2] ?? '■')
   g.style.color = '#' + i.color
   dom.replaceChildren(g)
+}
+
+
+// ------------------------------------------------------- Science elements
+
+function hazard(body: HTMLElement, d: HazardData) {
+  body.appendChild(drawingSvg(hazardDrawing(d)))
+  const list = el('div', 'kt-w-hz')
+  for (const [code, text] of hazardLines(d)) {
+    const row = el('div', '')
+    row.append(el('b', '', code), document.createTextNode('  ' + text))
+    list.appendChild(row)
+  }
+  body.appendChild(list)
+}
+
+// The scheme: each molecule's name and formula, joined by labelled arrows
+// (the PDF draws the structures with chemfig).
+function scheme(body: HTMLElement, d: SchemeData) {
+  const row = el('div', 'kt-w-scheme')
+  d.steps.forEach((st, i) => {
+    if (i > 0) {
+      const a = d.arrows[i - 1] ?? { above: '', below: '' }
+      const ar = el('div', 'kt-w-scheme-arrow')
+      ar.append(el('span', '', a.above), el('span', 'kt-w-scheme-line', '⟶'), el('span', '', a.below))
+      row.appendChild(ar)
+    }
+    const m = el('div', 'kt-w-scheme-mol')
+    m.append(el('div', 'kt-w-scheme-formula', st.chemfig.replace(/\\?chemfig\{|\}/g, '').replace(/_(\d)/g, (_x, n: string) => '₀₁₂₃₄₅₆₇₈₉'[Number(n)]).replace(/\[[^\]]*\]/g, '')),
+      el('div', 'kt-w-scheme-name', st.name))
+    row.appendChild(m)
+  })
+  body.appendChild(row)
+  body.appendChild(el('div', 'kt-w-side-hint', 'The structures are drawn with chemfig in the PDF.'))
+}
+
+const ALG_KEYS = /^(function|procedure|if|else if|elseif|else|for|while|return)\b/i
+
+function algorithm(body: HTMLElement, d: AlgorithmData) {
+  const box = el('div', 'kt-w-alg')
+  if (d.title.trim()) {
+    const t = el('div', 'kt-w-alg-title')
+    t.append(el('b', '', 'Algorithm '), document.createTextNode(d.title))
+    box.appendChild(t)
+  }
+  d.code.split('\n').filter(l => l.trim()).forEach((line, i) => {
+    const row = el('div', 'kt-w-alg-line')
+    if (d.numbers) row.appendChild(el('span', 'kt-w-alg-num', `${i + 1}:`))
+    const ind = line.length - line.trimStart().length
+    const txt = el('span', '')
+    txt.style.paddingLeft = `${ind * 0.6}em`
+    const t = line.trim()
+    const m = ALG_KEYS.exec(t)
+    if (m) { txt.append(el('b', '', m[1]), document.createTextNode(t.slice(m[1].length).replace(/\s*=\s*/, ' ← '))) }
+    else txt.textContent = t.replace(/^(\w+)\s*=\s*/, '$1 ← ')
+    row.appendChild(txt)
+    box.appendChild(row)
+  })
+  body.appendChild(box)
+}
+
+function notebook(body: HTMLElement, d: NotebookData) {
+  const box = el('div', 'kt-w-nb')
+  box.style.setProperty('--kt-w', '#' + d.color)
+  const head = el('div', 'kt-w-nb-head')
+  head.append(el('span', '', d.title), el('span', '', d.date))
+  box.appendChild(head)
+  for (const [k, v] of [['Aim', d.aim], ['Method', d.method], ['Observations', d.observations], ['Result', d.result]] as const) {
+    if (!v.trim()) continue
+    const row = el('div', 'kt-w-nb-row')
+    row.append(el('b', '', k), document.createTextNode('  ' + v))
+    box.appendChild(row)
+  }
+  body.appendChild(box)
 }

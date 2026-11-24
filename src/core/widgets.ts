@@ -12,12 +12,21 @@ import {
   type ChartData, type GanttData, type GaugeData, type PullQuoteData, type RatingData, type SidebarData, type StepsData,
 } from './widgetsMore.ts'
 
+import {
+  algorithmLatex, bohrDrawing, circuitDrawing, elementTilesDrawing, feynmanDrawing, hazardLatex, moDrawing, notebookLatex, plotDrawing,
+  schemeLatex, SCIENCE_DEFAULTS, scienceDrawn, type AlgorithmData, type BohrData, type CircuitData, type ElementTileData, type FeynmanData,
+  type HazardData, type MoData, type NotebookData, type PlotData, type SchemeData,
+} from './science.ts'
+
 export type WidgetKind = 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart'
+  | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
 
 export const WIDGET_NAMES: Record<WidgetKind, string> = {
   checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code', code: 'Code Listing',
   pullquote: 'Pull Quote', sidebar: 'Sidebar', rating: 'Rating', gauge: 'Gauge', steps: 'Steps', gantt: 'Gantt Chart', chart: 'Chart',
+  plot: 'Data Plot', circuit: 'Circuit', feynman: 'Feynman Diagram', mo: 'MO Diagram', bohr: 'Bohr Model', element: 'Element Tiles',
+  hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
 }
 
 export interface ChecklistData { title: string; items: { text: string; done: boolean }[]; style: 'box' | 'circle'; columns: number; grey_done: boolean; color: string }
@@ -29,6 +38,8 @@ export interface CodeData { code: string; language: string; theme: 'light' | 'da
 export type WidgetData = {
   checklist: ChecklistData; progress: ProgressData; timeline: TimelineData; qrcode: QrData; code: CodeData
   pullquote: PullQuoteData; sidebar: SidebarData; rating: RatingData; gauge: GaugeData; steps: StepsData; gantt: GanttData; chart: ChartData
+  plot: PlotData; circuit: CircuitData; feynman: FeynmanData; mo: MoData; bohr: BohrData; element: ElementTileData
+  hazard: HazardData; scheme: SchemeData; algorithm: AlgorithmData; notebook: NotebookData
 }
 
 export interface Widget<K extends WidgetKind = WidgetKind> { kind: K; data: WidgetData[K] }
@@ -67,9 +78,10 @@ export const DEFAULTS: WidgetData = {
     language: 'Python', theme: 'light', numbers: true, frame: true, title: '',
     code: 'def mean(values):\n    """The average of a list of numbers."""\n    return sum(values) / len(values)\n\nprint(mean([2, 4, 9]))  # 5.0',
   },  ...MORE_DEFAULTS,
+  ...SCIENCE_DEFAULTS,
 }
 
-const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart)\s+(\{.*\})\s*$/
+const MARK_RE = /^%\s*kTeX\s+(checklist|progress|timeline|qrcode|code|pullquote|sidebar|rating|gauge|steps|gantt|chart|plot|circuit|feynman|mo|bohr|element|hazard|scheme|algorithm|notebook)\s+(\{.*\})\s*$/
 
 // The element a raw block holds, or null.
 export function parseWidget(text: string): Widget | null {
@@ -114,6 +126,16 @@ export function widgetLatex<K extends WidgetKind>(kind: K, data: WidgetData[K]):
     case 'gauge': return drawnLatex(gaugeDrawing(data as GaugeData))
     case 'gantt': return drawnLatex(ganttDrawing(data as GanttData))
     case 'chart': return drawnLatex(chartDrawing(data as ChartData))
+    case 'plot': return scienceDrawn(plotDrawing(data as PlotData))
+    case 'circuit': return scienceDrawn(circuitDrawing(data as CircuitData))
+    case 'feynman': return scienceDrawn(feynmanDrawing(data as FeynmanData))
+    case 'mo': return scienceDrawn(moDrawing(data as MoData))
+    case 'bohr': return scienceDrawn(bohrDrawing(data as BohrData))
+    case 'element': return scienceDrawn(elementTilesDrawing(data as ElementTileData))
+    case 'hazard': return hazardLatex(data as HazardData)
+    case 'scheme': return schemeLatex(data as SchemeData)
+    case 'algorithm': return algorithmLatex(data as AlgorithmData)
+    case 'notebook': return notebookLatex(data as NotebookData)
     default: return codeLatex(data as CodeData)
   }
 }
@@ -266,9 +288,14 @@ export function widgetPreamble(texts: string[]): [string[], string] {
   const pkgs: string[] = []
   const defs: string[] = []
   if (kinds.size || margin) pkgs.push('xcolor')
-  const TIKZ = ['checklist', 'progress', 'timeline', 'rating', 'gauge', 'steps', 'gantt', 'chart', 'pullquote', 'sidebar']
+  const TIKZ = ['checklist', 'progress', 'timeline', 'rating', 'gauge', 'steps', 'gantt', 'chart', 'pullquote', 'sidebar',
+    'plot', 'circuit', 'feynman', 'mo', 'bohr', 'element', 'notebook']
+  if (kinds.has('notebook')) { pkgs.push('tcolorbox'); defs.push('\\tcbuselibrary{breakable,skins}') }
+  if (kinds.has('hazard')) { pkgs.push('tikz', 'fontawesome5') }
+  if (kinds.has('scheme')) pkgs.push('chemfig')
+  if (kinds.has('algorithm')) pkgs.push('algorithm', 'algpseudocode')
   if (TIKZ.some(k => kinds.has(k))) pkgs.push('tikz')
-  if (kinds.has('steps')) defs.push('\\usetikzlibrary{arrows.meta,positioning}')
+  if (kinds.has('steps') || kinds.has('mo')) defs.push('\\usetikzlibrary{arrows.meta,positioning}')
   if (kinds.has('pullquote') || kinds.has('sidebar')) { pkgs.push('tcolorbox'); defs.push('\\tcbuselibrary{breakable,skins}') }
   if (kinds.has('sidebar')) pkgs.push('wrapfig')
   if (icons) { pkgs.push('fontawesome5'); defs.push(ICON_DEF) }

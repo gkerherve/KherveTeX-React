@@ -860,3 +860,18 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-edge-rule { display: flex; justify-content: space-between; border-bottom: 1px solid; padding-bottom: 3px; font-weight: 400; }
 .kt-edge-thumb { right: 0; width: 1.1cm; height: 1.6cm; color: #fff; display: flex; align-items: center; justify-content: center; border-radius: 4px 0 0 4px; }
 .kt-w-check-box { cursor: pointer; } .kt-w-check-box:hover { filter: brightness(0.8); transform: scale(1.12); }
+/* Science elements */
+.kt-w-hz { font-size: .85em; margin-top: 4px; }
+.kt-w-scheme { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.kt-w-scheme-mol { text-align: center; }
+.kt-w-scheme-formula { font-size: 1.05em; }
+.kt-w-scheme-name { font-size: .85em; color: #555; margin-top: 3px; }
+.kt-w-scheme-arrow { display: flex; flex-direction: column; align-items: center; font-size: .75em; color: #444; min-width: 50px; }
+.kt-w-scheme-line { font-size: 2em; line-height: .8; color: #222; }
+.kt-w-alg { border-top: 1.2px solid #000; border-bottom: 1.2px solid #000; padding: 2px 0 4px; font-size: .92em; }
+.kt-w-alg-title { border-bottom: 0.8px solid #000; padding-bottom: 2px; margin-bottom: 3px; }
+.kt-w-alg-line { display: flex; gap: .5em; line-height: 1.45; }
+.kt-w-alg-num { width: 1.8em; text-align: right; color: #555; font-size: .8em; flex: none; }
+.kt-w-nb { border: 1px solid var(--kt-w); border-radius: 2px; background: color-mix(in srgb, var(--kt-w) 4%, white); font-size: .92em; }
+.kt-w-nb-head { background: var(--kt-w); color: #fff; font: 700 .95em Helvetica, Arial, sans-serif; display: flex; justify-content: space-between; padding: 3px 8px; }
+.kt-w-nb-row { padding: 3px 8px; }

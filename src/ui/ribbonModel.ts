@@ -5,6 +5,8 @@
 import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
+import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
+import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES } from '../core/science.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
 import { COLOR_SETS, FONT_SETS, PAGE_BORDERS, SPACING_SETS, THEMES, WATERMARKS } from '../core/design.ts'
@@ -83,6 +85,7 @@ export interface RibbonGroup {
 export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation' | 'headerfooter'
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
+  | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
 
 // The contextual tab a selected element opens at once (as the Box tab).
 export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
@@ -90,6 +93,8 @@ export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
   code: 'Code', marginnote: 'Margin Note', dropcap: 'Drop Cap',
   pullquote: 'Pull Quote', sidebar: 'Sidebar', rating: 'Rating', gauge: 'Gauge', steps: 'Steps', gantt: 'Gantt Chart',
   chart: 'Chart Design', icon: 'Icon',
+  plot: 'Data Plot', circuit: 'Circuit', feynman: 'Feynman', mo: 'MO Diagram', bohr: 'Bohr Model', element: 'Element Tiles',
+  hazard: 'Hazard Labels', scheme: 'Reaction Scheme', algorithm: 'Algorithm', notebook: 'Lab Notebook',
 }
 
 export interface RibbonTab {
@@ -163,7 +168,7 @@ export const GALLERY: [string, string, string[]][] = [
   ['Teaching', 'article', ['Lab report', 'Exam (exam class)',
     'Homework / problem set', 'Lecture notes', 'Handout (Tufte)',
     'Quantum mechanics lecture']],
-  ['Science', 'article', ['XPS surface-science paper',
+  ['Science', 'article', ['Science toolkit', 'XPS lab report', 'Physics problem sheet', 'Chemistry practical', 'Algorithms handout', 'XPS surface-science paper',
     'XRD / nanomaterials paper', 'DFT computational study',
     'Battery / electrochemistry paper', 'Clinical trial (CONSORT)',
     'Ecology field study', 'Grant proposal (work packages)',
@@ -855,6 +860,39 @@ const cmds: Command[] = [
   { id: 'ic_large', text: 'Large', checkable: true, group: 'icsize' },
   { id: 'ic_Large', text: 'Larger', checkable: true, group: 'icsize' },
   { id: 'ic_huge', text: 'Huge', checkable: true, group: 'icsize' },
+  // Science tab (actions/science.ts).
+  { id: 'sci_units', text: 'Units', icon: 'element', iconArg: 'sci_units', tooltip: 'A value with its unit and uncertainty, set as SI quantities are: 9.81 m s⁻², 6.02 × 10²³' },
+  { id: 'sci_sigfig', text: 'Sig. Figures', icon: 'element', iconArg: 'sci_sigfig', tooltip: 'Round a value to its uncertainty, or combine two (+ − × ÷) with error propagation' },
+  { id: 'sci_constants', text: 'Constants', icon: 'element', iconArg: 'sci_const', popup: 'instant', tooltip: 'Physical constants with their values and units (CODATA)',
+    menu: CONSTANTS.map(([name], i): MenuItem => ({ text: name, command: `sci_const_${i}` })) },
+  ...CONSTANTS.map(([name], i): Command => ({ id: `sci_const_${i}`, text: name })),
+  { id: 'sci_physics', text: 'Physics', icon: 'element', iconArg: 'sci_phys', popup: 'instant', tooltip: 'Bra-kets, derivatives, operators, vectors, commutators, norms',
+    menu: PHYSICS.map(([name], i): MenuItem => ({ text: name, command: `sci_phys_${i}` })) },
+  ...PHYSICS.map(([name], i): Command => ({ id: `sci_phys_${i}`, text: name })),
+  { id: 'sci_nuclear', text: 'Nuclide', icon: 'element', iconArg: 'sci_nuclear', tooltip: '²³⁸₉₂U, and alpha, beta or gamma decay equations worked out' },
+  { id: 'sci_matrix', text: 'Matrix', icon: 'element', iconArg: 'sci_matrix', tooltip: 'A matrix of any size, with brackets, zeros, identity or dots' },
+  { id: 'sci_plot', text: 'Data Plot', icon: 'element', iconArg: 'sci_plot', tooltip: 'Plot measured data (spectra, XPS, XRD, IR): paste columns, reversed axis, peak labels' },
+  { id: 'sci_circuit', text: 'Circuit', icon: 'element', iconArg: 'sci_circuit', tooltip: 'An electric circuit: batteries, resistors, lamps, switches, meters, in series or parallel' },
+  { id: 'sci_feynman', text: 'Feynman', icon: 'element', iconArg: 'sci_feynman', tooltip: 'Feynman diagrams of common processes, with your particle labels' },
+  { id: 'sci_mo', text: 'MO Diagram', icon: 'element', iconArg: 'sci_mo', tooltip: 'Molecular orbital diagram of H₂ to Ne₂, filled with electrons' },
+  { id: 'sci_bohr', text: 'Bohr Model', icon: 'element', iconArg: 'sci_bohr', tooltip: 'An atom with its electron shells, from its name or symbol' },
+  { id: 'sci_element', text: 'Element Tiles', icon: 'element', iconArg: 'sci_element', tooltip: 'Periodic-table tiles: number, symbol, name and mass, coloured by family' },
+  { id: 'sci_hazard', text: 'Hazard Labels', icon: 'element', iconArg: 'sci_hazard', tooltip: 'GHS pictograms, signal word and H / P statements, for SOPs and risk assessments' },
+  { id: 'sci_scheme', text: 'Reaction Scheme', icon: 'element', iconArg: 'sci_scheme', tooltip: 'Structures joined by arrows with reagents above and conditions below (chemfig)' },
+  { id: 'sci_algorithm', text: 'Algorithm', icon: 'element', iconArg: 'sci_algorithm', tooltip: 'Pseudocode with numbered lines and bold if / for / while / return' },
+  { id: 'sci_notebook', text: 'Lab Notebook', icon: 'element', iconArg: 'sci_notebook', tooltip: 'A dated entry: aim, method, observations, result' },
+  { id: 'plot_reverse', text: 'Reverse x axis', checkable: true, checkbox: true, tooltip: 'High to low, as binding energy and wavenumber are shown' },
+  { id: 'plot_points', text: 'Points, not lines', checkable: true, checkbox: true },
+  { id: 'plot_yticks', text: 'y axis numbers', checkable: true, checkbox: true },
+  { id: 'circ_series', text: 'Series', icon: 'element', iconArg: 'sci_circuit', checkable: true, group: 'circlayout' },
+  { id: 'circ_parallel', text: 'Parallel', icon: 'element', iconArg: 'circ_parallel', checkable: true, group: 'circlayout' },
+  ...FEYNMAN_PROCESSES.map(([k, name]): Command => ({ id: `fey_${k}`, text: name, checkable: true, group: 'feyproc' })),
+  ...MO_MOLECULES.map((m): Command => ({ id: `mo_${m}`, text: m.replace('2', '₂'), checkable: true, group: 'momol' })),
+  { id: 'el_mass', text: 'Atomic mass', checkable: true, checkbox: true },
+  ...GHS.map(([k, name, ch]): Command => ({ id: `ghs_${k}`, text: `${ch} ${name}`, checkable: true, checkbox: true })),
+  { id: 'hz_danger', text: 'Danger', checkable: true, group: 'hzsignal' },
+  { id: 'hz_warning', text: 'Warning', checkable: true, group: 'hzsignal' },
+  { id: 'alg_numbers', text: 'Line numbers', checkable: true, checkbox: true },
   { id: 'tbl_header', text: 'Header Row', icon: 'header_row', checkable: true, checked: true },
   { id: 'tbl_repeat', text: 'Repeat Header Rows', icon: 'repeat_header', checkable: true },
   { id: 'tbl_merge', text: 'Merge Cells', icon: 'table_merge' },
@@ -1005,9 +1043,12 @@ export const RIBBON_TABS: RibbonTab[] = [
   // Science: equations, theorems and chemistry, out of the crowded Insert tab.
   { name: 'Science', groups: [
     { label: 'Equations', large: ['math_block', 'equation_builder'],
-      rows: [['math_inline'], ['symbol']], text: true },
-    { label: 'Theorems', large: ['theorem'] },
-    { label: 'Chemistry', large: ['chemistry', 'chemfig'] },
+      rows: [['math_inline', 'sci_matrix'], ['symbol', 'sci_physics']], text: true },
+    { label: 'Numbers', rows: [['sci_units', 'sci_constants'], ['sci_sigfig', 'sci_nuclear']], text: true },
+    { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
+    { label: 'Chemistry', large: ['chemistry', 'chemfig'], rows: [['sci_scheme', 'sci_mo'], ['sci_hazard', 'sci_bohr'], ['sci_element']], text: true },
+    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit'], ['sci_feynman']], text: true },
+    { label: 'Lab', large: ['sci_notebook'] },
   ] },
   { name: 'Draw', groups: [
     { label: 'Drawing Tools', large: ['draw_tool', 'eraser_tool'] },
@@ -1206,6 +1247,69 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Size', rows: [['ic_normalsize', 'ic_large'], ['ic_Large', 'ic_huge']], text: true },
     { label: 'Style', large: ['w_color'] },
     { label: 'Icon', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Data Plot', context: 'plot', groups: [
+    { label: 'Data', large: ['w_edit'] },
+    { label: 'Axes', rows: [['plot_reverse'], ['plot_yticks'], ['plot_points']], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Plot', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Circuit', context: 'circuit', groups: [
+    { label: 'Parts', large: ['w_edit'] },
+    { label: 'Layout', large: ['circ_series', 'circ_parallel'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Circuit', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Feynman', context: 'feynman', groups: [
+    { label: 'Labels', large: ['w_edit'] },
+    { label: 'Process', rows: [FEYNMAN_PROCESSES.slice(0, 2).map(([k]) => `fey_${k}`), FEYNMAN_PROCESSES.slice(2).map(([k]) => `fey_${k}`)], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Diagram', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'MO Diagram', context: 'mo', groups: [
+    { label: 'Molecule', rows: [MO_MOLECULES.slice(0, 5).map(m => `mo_${m}`), MO_MOLECULES.slice(5).map(m => `mo_${m}`)], text: true },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Diagram', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Bohr Model', context: 'bohr', groups: [
+    { label: 'Element', large: ['w_edit'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Model', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Element Tiles', context: 'element', groups: [
+    { label: 'Elements', large: ['w_edit'] },
+    { label: 'Show', rows: [['el_mass']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Tiles', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Hazard Labels', context: 'hazard', groups: [
+    { label: 'Statements', large: ['w_edit'] },
+    { label: 'Pictograms', rows: [GHS.slice(0, 3).map(([k]) => `ghs_${k}`), GHS.slice(3, 6).map(([k]) => `ghs_${k}`), GHS.slice(6).map(([k]) => `ghs_${k}`)], text: true },
+    { label: 'Signal word', rows: [['hz_danger'], ['hz_warning']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Labels', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Reaction Scheme', context: 'scheme', groups: [
+    { label: 'Scheme', large: ['w_edit'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Scheme', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Algorithm', context: 'algorithm', groups: [
+    { label: 'Code', large: ['w_edit'] },
+    { label: 'Options', rows: [['alg_numbers']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Algorithm', large: ['w_delete', 'w_close'] },
+  ] },
+  { name: 'Lab Notebook', context: 'notebook', groups: [
+    { label: 'Entry', large: ['w_edit'] },
+    { label: 'Style', large: ['w_color'] },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Entry', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Equation', context: 'equation', groups: [
     { label: 'Equation', large: ['eq_edit', 'eq_numbered', 'eq_label', 'eq_delete'] },

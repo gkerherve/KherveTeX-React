@@ -8,7 +8,8 @@ export type Shape =
   | { t: 'line'; pts: [number, number][]; stroke: string; lw?: number; dash?: boolean; arrow?: boolean }
   | { t: 'poly'; pts: [number, number][]; fill: string; stroke?: string; lw?: number }
   | { t: 'circle'; x: number; y: number; r: number; fill?: string; stroke?: string; lw?: number }
-  | { t: 'text'; x: number; y: number; s: string; anchor?: Anchor; size?: number; bold?: boolean; color?: string; rotate?: number }
+  // tex: the LaTeX to typeset instead of s (math, Greek), unescaped; s is what the editor shows.
+  | { t: 'text'; x: number; y: number; s: string; anchor?: Anchor; size?: number; bold?: boolean; color?: string; rotate?: number; tex?: string }
   | { t: 'wedge'; x: number; y: number; r: number; a0: number; a1: number; fill: string }
   | { t: 'arc'; x: number; y: number; r: number; a0: number; a1: number; stroke: string; lw: number }
 
@@ -48,7 +49,7 @@ export function drawingTikz(d: Drawing): string {
         body.push(`\\path[${[s.fill ? `fill=${col(s.fill)}` : '', s.stroke ? `draw=${col(s.stroke)},line width=${f(s.lw ?? 0.6)}pt` : ''].filter(Boolean).join(',')}] (${f(s.x)},${f(s.y)}) circle (${f(s.r)});`)
         break
       case 'text':
-        body.push(`\\node[anchor=${s.anchor ?? 'center'},inner sep=1pt,font=${fontCmd(s.size)}${s.bold ? '\\bfseries' : ''}${s.color ? `,text=${col(s.color)}` : ''}${s.rotate ? `,rotate=${s.rotate}` : ''}] at (${f(s.x)},${f(s.y)}) {${texText(s.s)}};`)
+        body.push(`\\node[anchor=${s.anchor ?? 'center'},inner sep=1pt,font=${fontCmd(s.size)}${s.bold ? '\\bfseries' : ''}${s.color ? `,text=${col(s.color)}` : ''}${s.rotate ? `,rotate=${s.rotate}` : ''}] at (${f(s.x)},${f(s.y)}) {${s.tex ?? texText(s.s)}};`)
         break
       case 'wedge':
         body.push(`\\fill[${col(s.fill)},draw=white,line width=0.8pt] (${f(s.x)},${f(s.y)}) -- ++(${f(s.a0)}:${f(s.r)}) arc[start angle=${f(s.a0)},end angle=${f(s.a1)},radius=${f(s.r)}] -- cycle;`)
@@ -98,4 +99,16 @@ export function clipLeft(pts: [number, number][], xc: number): [number, number][
     }
   }
   return out
+}
+
+// Room around a drawing: everything moves right by `left`, the box grows
+// by left + right and top.
+export function pad(d: Drawing, left: number, top: number, right = 0): Drawing {
+  const mv = (s: Shape): Shape => {
+    switch (s.t) {
+      case 'line': case 'poly': return { ...s, pts: s.pts.map(([x, y]) => [x + left, y] as [number, number]) }
+      default: return { ...s, x: s.x + left }
+    }
+  }
+  return { w: d.w + left + right, h: d.h + top, shapes: d.shapes.map(mv) }
 }

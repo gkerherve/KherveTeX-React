@@ -87,6 +87,7 @@ export function currentTheorem(state: EditorState): { node: PMNode; pos: number 
 export type ObjectContext = 'table' | 'figure' | 'equation' | 'theorem' | 'callout'
   | 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code' | 'marginnote' | 'dropcap'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart' | 'icon'
+  | 'plot' | 'circuit' | 'feynman' | 'mo' | 'bohr' | 'element' | 'hazard' | 'scheme' | 'algorithm' | 'notebook'
 
 export function contextObject(state: EditorState): ObjectContext | null {
   const w = currentWidget(state)

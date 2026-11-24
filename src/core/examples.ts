@@ -72,6 +72,7 @@ import {
 } from './exampleDocs/science.ts'
 import { calloutBoxes } from './exampleDocs/boxes.ts'
 import { fancyElements } from './exampleDocs/elements.ts'
+import { algorithmsHandout, chemistryPractical, physicsSheet, scienceToolkit, xpsLabReport } from './exampleDocs/scienceTools.ts'
 import { businessPlan, codeTutorial, cvTimeline, eventFlyer, magazineArticle, productReview, researchPlan, statusReport } from './exampleDocs/showcase.ts'
 import {
   article,
@@ -212,6 +213,16 @@ export const GALLERY: [string, string, Factory, string][] = [
   ['Teaching', 'Quantum mechanics lecture', quantumNotes,
     'Perturbation theory with an exact-versus-series table and problems.'],
 
+  ['Science', 'Science toolkit', scienceToolkit,
+    'Every Science tab tool: units, significant figures, constants, nuclides, physics notation, matrices, plots, circuits, Feynman and MO diagrams, Bohr models, element tiles, hazard labels, reaction schemes, algorithms and a lab notebook.'],
+  ['Science', 'XPS lab report', xpsLabReport,
+    'An O 1s spectrum with fit and peak labels, element tiles, HF hazard labels, quantities with uncertainties and a notebook entry.'],
+  ['Science', 'Physics problem sheet', physicsSheet,
+    'Series and parallel circuits, constants, a particle in a box, decay equations, a Feynman diagram and a rotation matrix.'],
+  ['Science', 'Chemistry practical', chemistryPractical,
+    'Hazard labels, an oxidation reaction scheme, the O₂ MO diagram, a Bohr model, element tiles and the results.'],
+  ['Science', 'Algorithms handout', algorithmsHandout,
+    'Bisection, insertion sort and Gaussian elimination as numbered pseudocode, with a general matrix.'],
   ['Science', 'XPS surface-science paper', xpsSurfaceStudy,
     'Ti 2p and O 1s fitting with a Shirley background and quantification.'],
   ['Science', 'XRD / nanomaterials paper', xrdNanoparticles,
