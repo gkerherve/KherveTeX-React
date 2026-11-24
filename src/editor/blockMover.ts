@@ -4,7 +4,6 @@
 // A box moves whole (all its paragraphs).
 import { NodeSelection, Plugin, TextSelection, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
-import { isCallout } from '../core/model.ts'
 import { parseWidget } from '../core/widgets.ts'
 
 // A run of top-level blocks that moves as one: a box's paragraphs, a table,
@@ -15,7 +14,8 @@ export function blockUnits(state: EditorState): Unit[] {
   const units: Unit[] = []
   state.doc.forEach((node, pos) => {
     const end = pos + node.nodeSize
-    const box = node.type.name === 'theorem' && isCallout(node.attrs.kind)
+    // A box, or a theorem, lemma, proof… (its paragraphs move together).
+    const box = node.type.name === 'theorem'
     const prev = units[units.length - 1]
     // A paragraph continuing the box before it joins that box.
     if (box && !node.attrs.start && prev?.movable && prev.to === pos) {

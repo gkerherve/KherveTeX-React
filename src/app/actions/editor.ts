@@ -407,11 +407,16 @@ const actions: Record<string, Handler> = {
     const color = r.color.replace('#', '').toUpperCase() === M.CALLOUT_KINDS[kind].color && !C.currentCalloutOwnColor(st) ? null : r.color
     run(C.setCalloutStyle(name, color)); sync()
   },
-  block_up: () => { if (!run(C.moveBlock(-1))) status('Put the cursor in a box or a table to move it.') },
-  block_down: () => { if (!run(C.moveBlock(1))) status('Put the cursor in a box or a table to move it.') },
+  block_up: () => { if (!run(C.moveBlock(-1))) status('Put the cursor in a box, theorem, table or element to move it.') },
+  block_down: () => { if (!run(C.moveBlock(1))) status('Put the cursor in a box, theorem, table or element to move it.') },
   box_remove: () => { run(C.removeCallout); sync() },
   box_delete: () => { run(C.deleteCallout); sync() },
   box_para_after: () => { run(C.paragraphAfterCallout); sync() },
+  // The Theorem tab: the same as a box's, for a theorem, lemma, proof...
+  thm_proof_after: () => { run(C.proofAfterTheorem); sync() },
+  thm_text_after: () => { run(C.paragraphAfterCallout); sync() },
+  thm_remove: () => { run(C.removeCallout); sync() },
+  thm_delete: () => { run(C.deleteCallout); sync() },
   box_color: async () => {
     const e = ed()
     if (!e) return

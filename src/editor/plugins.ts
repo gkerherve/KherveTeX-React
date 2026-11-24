@@ -212,6 +212,9 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       if (b === 'top' || b === 'topbottom') style += `border-top:${line};`
       if (b === 'bottom' || b === 'topbottom') style += `border-bottom:${line};`
     }
+    // A theorem, lemma, proposition or corollary is italic in the PDF
+    // (plain style); definitions, examples, remarks and proofs upright.
+    if (node.type.name === 'theorem' && ['theorem', 'lemma', 'proposition', 'corollary'].includes(node.attrs.kind)) style += 'font-style:italic;'
     const box = callout.get(pos)
     if (box) {
       // A titled tcolorbox: coloured frame, a light tint of it inside.

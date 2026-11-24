@@ -7,7 +7,7 @@ import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
 import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
 import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES, NOTEBOOK_TEMPLATES } from '../core/science.ts'
-import { SIGNS } from '../core/science2.ts'
+import { SIGNS, WAVE_KINDS } from '../core/science2.ts'
 import { GEO_SHAPES } from '../core/geometry.ts'
 import { BIB_STYLES } from '../core/autoBibliography.ts'
 import { BETA_DETAIL, isBetaExample } from './pageBeta.ts'
@@ -92,7 +92,7 @@ export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation
 
 // The contextual tab a selected element opens at once (as the Box tab).
 export const AUTO_TABS: Partial<Record<ContextKind, string>> = {
-  callout: 'Box', checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code',
+  callout: 'Box', theorem: 'Theorem', checklist: 'Checklist', progress: 'Progress Bars', timeline: 'Timeline', qrcode: 'QR Code',
   code: 'Code', marginnote: 'Margin Note', dropcap: 'Drop Cap',
   pullquote: 'Pull Quote', sidebar: 'Sidebar', rating: 'Rating', gauge: 'Gauge', steps: 'Steps', gantt: 'Gantt Chart',
   chart: 'Chart Design', icon: 'Icon',
@@ -918,7 +918,13 @@ const cmds: Command[] = [
   { id: 'fb_box', text: 'Box', checkable: true, group: 'fbobj' }, { id: 'fb_ball', text: 'Ball', checkable: true, group: 'fbobj' },
   { id: 'fb_slope', text: 'On a slope', checkable: true, group: 'fbobj' },
   { id: 'op_converging', text: 'Converging', checkable: true, group: 'oplens' }, { id: 'op_diverging', text: 'Diverging', checkable: true, group: 'oplens' },
-  { id: 'wv_labels', text: 'λ and A', checkable: true, checkbox: true }, { id: 'wv_second', text: 'Second wave (90° behind)', checkable: true, checkbox: true },
+  { id: 'wv_labels', text: 'λ and A', checkable: true, checkbox: true }, { id: 'wv_second', text: 'Second wave', checkable: true, checkbox: true },
+  { id: 'wv_kind', text: 'Type', icon: 'element', iconArg: 'sci_wave', popup: 'instant',
+    menu: WAVE_KINDS.map(([k, name, tip]): MenuItem => ({ text: name, command: `wv_k_${k}`, checkable: true, detail: tip })) },
+  ...WAVE_KINDS.map(([k, name]): Command => ({ id: `wv_k_${k}`, text: name, checkable: true, group: 'wvkind' })),
+  { id: 'wv_x', text: 'Distance x', checkable: true, group: 'wvaxis' }, { id: 'wv_t', text: 'Time t', checkable: true, group: 'wvaxis' },
+  { id: 'wv_axes', text: 'Axes', checkable: true, checkbox: true }, { id: 'wv_peaks', text: 'Crests, nodes…', checkable: true, checkbox: true },
+  { id: 'wv_arrow', text: 'Direction v', checkable: true, checkbox: true },
   { id: 'fn_grid', text: 'Grid', checkable: true, checkbox: true },
   { id: 'tri_angles', text: 'Angles', checkable: true, checkbox: true },
   { id: 'st_hist', text: 'Histogram', checkable: true, group: 'stkind' }, { id: 'st_box', text: 'Box plot', checkable: true, group: 'stkind' },
@@ -983,6 +989,10 @@ const cmds: Command[] = [
   })),
   ...THEOREM_KINDS.map(([k, name]): Command => ({ id: `thm_insert_${k}`, text: name })),
   { id: 'thm_title', text: 'Name…', icon: 'picture_edit' },
+  { id: 'thm_proof_after', text: 'Proof After', icon: 'theorem', tooltip: 'A proof right after this theorem' },
+  { id: 'thm_text_after', text: 'Text after', icon: 'formatting_marks' },
+  { id: 'thm_remove', text: 'Remove (keep text)', icon: 'clear_format' },
+  { id: 'thm_delete', text: 'Delete', icon: 'table_delete' },
 
   // Callout box
   ...CALLOUT_MENU.map(([k, name]): Command => ({
@@ -1189,6 +1199,9 @@ export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Theorem', context: 'theorem', groups: [
     { label: 'Type', rows: [thmKinds.slice(0, 3), thmKinds.slice(3, 6), thmKinds.slice(6)], text: true },
     { label: 'Name', large: ['thm_title'] },
+    { label: 'Insert', large: ['thm_proof_after'], rows: [['thm_text_after']], text: true },
+    { label: 'Move', large: ['block_up', 'block_down'] },
+    { label: 'Theorem', rows: [['thm_remove'], ['thm_delete']], text: true },
   ] },
   { name: 'Box', context: 'callout', groups: [
     { label: 'Type', rows: [boxKinds.slice(0, 3), boxKinds.slice(3, 6), boxKinds.slice(6)], text: true },
@@ -1388,7 +1401,9 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Ray Diagram', large: ['w_delete', 'w_close'] },
   ] },
   { name: 'Wave', context: 'wave', groups: [
-    { label: 'Wave', large: ['w_edit'], rows: [['wv_labels'], ['wv_second']], text: true },
+    { label: 'Wave', large: ['w_edit', 'wv_kind'] },
+    { label: 'Against', rows: [['wv_x'], ['wv_t']], text: true },
+    { label: 'Show', rows: [['wv_labels', 'wv_axes'], ['wv_peaks', 'wv_arrow'], ['wv_second']], text: true },
     { label: 'Style', large: ['w_color'] },
     { label: 'Move', large: ['block_up', 'block_down'] },
     { label: 'Wave', large: ['w_delete', 'w_close'] },

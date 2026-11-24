@@ -4,7 +4,7 @@
 import type { Tip } from './tooltips.ts'
 import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FEYNMAN_PROCESSES, GHS, MO_MOLECULES, NOTEBOOK_TEMPLATES } from '../core/science.ts'
-import { SIGNS } from '../core/science2.ts'
+import { SIGNS, WAVE_KINDS } from '../core/science2.ts'
 import { GEO_SHAPES } from '../core/geometry.ts'
 import { CONSTANTS, PHYSICS } from '../core/sciMath.ts'
 import { CALLOUT_KINDS } from '../core/model.ts'
@@ -140,7 +140,7 @@ export const MORE_TIPS: Record<string, Tip> = {
   act_sci_circuit: T('Circuit', 'An electric circuit from a list of parts in order: battery, cell, resistor, lamp, switch, capacitor, inductor, diode, LED, ammeter, voltmeter, motor, fuse, each with its label (R1 = 100 Ω). Series: the parts around one loop; parallel: the first part as the source and the others on branches.' + ELEMENT, 'Drawn with TikZ, standard circuit symbols.'),
   act_sci_optics: T('Ray Diagram', 'A converging or diverging lens with its focal points, the object, and the principal rays traced through: the image is worked out from the lens equation and drawn (dashed when virtual), with u, v and the magnification written under it.' + ELEMENT, 'Drawn with TikZ.'),
   act_sci_feynman: T('Feynman', 'A Feynman diagram of a common process: e⁺e⁻ → μ⁺μ⁻ (s-channel), e⁻e⁻ scattering (t-channel), Compton scattering or beta decay, with fermion arrows and wavy boson lines. Edit… changes the particle labels.' + ELEMENT, 'Drawn with TikZ.'),
-  act_sci_wave: T('Wave', 'A sine wave with its wavelength λ and amplitude A marked with arrows; set λ, A and how many cycles show. Its tab adds a second wave a quarter of a cycle behind, for phase.' + ELEMENT, 'Drawn with TikZ.'),
+  act_sci_wave: T('Wave', 'A wave of any of nine types: sine, square, triangle, sawtooth, damped, standing wave (nodes N and antinodes A), beats (with their envelope), wave packet, or longitudinal (compressions C and rarefactions R, as sound). Against distance (wavelength λ) or time (period T), with axes, λ and A marked, crests and troughs, a direction arrow v, and a second wave at any phase shift. Edit… sets λ, A, the cycles shown, the phase, the shift, the beat ratio and the damping.' + ELEMENT, 'Drawn with TikZ.'),
   act_sci_forces: T('Forces', 'A free-body diagram: a box, a ball or a block on a slope, with labelled force arrows. Edit… takes one force per line as "Weight W: 270, 1.6" (direction in degrees, 0 = right, 90 = up, then the length in cm) and the slope angle.' + ELEMENT, 'Drawn with TikZ.'),
   act_sci_levels: T('Energy Levels', 'An energy-level diagram (hydrogen by default): one level per line as "n = 2: -3.40" (in eV), and transitions as "3 → 2: Hα 656 nm" drawn as arrows. Close levels have their labels spread apart.' + ELEMENT, 'Drawn with TikZ.'),
   act_sci_notebook: T('Lab Notebook', 'A dated lab-notebook entry in a framed box with any sections you like. Edit… shows it as text: a "## Heading" line starts a section; in a section, - bullets, 1. numbered steps, [ ] / [x] tick boxes, | a | b | table rows, **bold**, *italic*, $maths$. Its tab adds a section, starts from a template (Experiment, Synthesis, Measurement, Field work, Meeting), puts headings beside or above the text, and adds signature lines.' + ELEMENT, 'A breakable tcolorbox.'),
@@ -159,7 +159,14 @@ export const MORE_TIPS: Record<string, Tip> = {
   act_alg_numbers: T('Line numbers', 'Numbers each line of the algorithm.', ''),
   act_fb_box: T('Box', 'A box on a horizontal surface.', ''), act_fb_ball: T('Ball', 'A ball, e.g. a projectile.', ''), act_fb_slope: T('On a slope', 'A block on an inclined plane at the angle you set in Edit….', ''),
   act_op_converging: T('Converging', 'A convex lens: parallel rays meet at the focal point.', ''), act_op_diverging: T('Diverging', 'A concave lens: parallel rays spread as if from the focal point; the image is always virtual.', ''),
-  act_wv_labels: T('λ and A', 'Marks the wavelength and the amplitude.', ''), act_wv_second: T('Second wave (90° behind)', 'Adds a second wave a quarter of a cycle behind the first.', ''),
+  act_wv_labels: T('λ and A', 'Marks the wavelength (or the period, against time) from crest to crest, and the amplitude.', ''),
+  act_wv_second: T('Second wave', 'Adds a second wave of the same type behind the first by the shift set in Edit… (90° by default; 180° is antiphase), for phase difference and interference.', ''),
+  act_wv_kind: T('Type', 'Sine, square, triangle, sawtooth, damped, standing wave, beats, wave packet or longitudinal.', ''),
+  act_wv_x: T('Distance x', 'The wave against distance: the horizontal axis is x and the repeat is the wavelength λ.', ''),
+  act_wv_t: T('Time t', 'The wave against time: the horizontal axis is t and the repeat is the period T.', ''),
+  act_wv_axes: T('Axes', 'Draws the x (or t) and y axes with arrows.', ''),
+  act_wv_peaks: T('Crests, nodes…', 'Labels the crests and troughs; the nodes N and antinodes A of a standing wave; the compressions C and rarefactions R of a longitudinal wave.', ''),
+  act_wv_arrow: T('Direction v', 'An arrow under the wave showing which way it travels.', ''),
 
   act_box_style: T('Name & Colour', 'The box\'s heading and its colour in one dialog: any name (Exercise, Did you know?) and any colour. A click on the box\'s title bar opens it too.', 'Becomes a kCustomBox in that colour.'),
   act_box_para_after: T('Text after box', 'Starts an ordinary paragraph after the box, to carry on writing (also Shift+Enter or Cmd/Ctrl+Enter in the box).', ''),
@@ -177,6 +184,7 @@ for (const [k, name] of FEYNMAN_PROCESSES) MORE_TIPS[`act_fey_${k}`] = T(name, `
 for (const m of MO_MOLECULES) MORE_TIPS[`act_mo_${m}`] = T(m.replace('2', '₂'), `The molecular orbital diagram of ${m.replace('2', '₂')}, filled with its electrons.`)
 for (const [k, name] of GHS) MORE_TIPS[`act_ghs_${k}`] = T(name, `Shows or hides the GHS "${name}" pictogram.`)
 for (const [k, cap] of SIGNS) MORE_TIPS[`act_sg_${k}`] = T(cap, `Shows or hides the "${cap}" sign.`)
+for (const [k, name, desc] of WAVE_KINDS) MORE_TIPS[`act_wv_k_${k}`] = T(name, desc)
 for (const [k, name] of GEO_SHAPES) MORE_TIPS[`act_geo_${k}`] = T(name, k === 'custom' ? 'Your own figure from points: Edit… shows the script.' : `Changes the figure to a ${name.toLowerCase()}; Edit… sets its sizes.`)
 for (const n of [2, 3, 4, 5]) MORE_TIPS[`act_dc_lines_${n}`] = T(`${n} lines`, `The big letter spans ${n} lines of text.`)
 for (const [name, heads] of NOTEBOOK_TEMPLATES) MORE_TIPS[`act_nb_tpl_${name.replace(/\W/g, '')}`] = T(name, `Sections: ${heads.join(', ')}.`)
@@ -259,7 +267,11 @@ Object.assign(MORE_TIPS, {
   act_tour: T('Guided tour', 'A ten-minute tour of the editor: formatting, maths, tables, history, review, import and export, as a document to try things in.', ''),
   act_save_as_template: T('Save as Template', 'Keeps this document (its type, design, header and footer and contents) as a template of your own, under My templates, to start new documents from.', ''),
   act_gallery_mine: T('My templates', 'The documents you saved as templates: choose one to start a new document from it.', ''),
-  // Theorem tab
+  act_thm_proof_after: T('Proof After', 'Starts a Proof right after this theorem, the caret in it: write the proof, ended in the PDF by a small square ∎.', 'Becomes \\begin{proof} … \\end{proof}.'),
+  act_thm_text_after: T('Text after', 'Leaves the theorem: an ordinary paragraph starts after it, the caret in it (also Enter on an empty line in the theorem).', ''),
+  act_thm_remove: T('Remove (keep text)', 'Turns the theorem back into ordinary paragraphs, keeping the text.', ''),
+  act_thm_delete: T('Delete', 'Deletes the theorem and all its text. Ctrl+Z brings it back.', ''),
+  act_thm_title: T('Name', 'The optional name shown in brackets after the number: Theorem 2.1 (Pythagoras).', 'Becomes \\begin{theorem}[Pythagoras].'),
   act_eq_label: T('Label', 'Gives this equation a name (e.g. eq:energy) so References ▸ Cross-reference can point to it: "see equation (3)" then follows the equation if it moves.', 'Becomes \\label{…}.'),
 })
 

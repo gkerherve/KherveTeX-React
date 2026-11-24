@@ -593,6 +593,20 @@ export const paragraphAfterCallout: Command = (state, dispatch) => {
   return true
 }
 
+// A Proof right after the theorem holding the caret, the caret in it.
+export const proofAfterTheorem: Command = (state, dispatch) => {
+  const group = theoremGroup(state)
+  if (!group.length) return false
+  if (dispatch) {
+    const last = group[group.length - 1]
+    const at = last.pos + last.node.nodeSize
+    const tr = state.tr.insert(at, N.theorem.create({ kind: 'proof', title: '', start: true }))
+    tr.setSelection(TextSelection.near(tr.doc.resolve(at + 1)))
+    dispatch(tr.scrollIntoView())
+  }
+  return true
+}
+
 // insert_theorem for a box with its own name and colour.
 export function insertCustomBox(title: string, color: string): Command {
   return (state, dispatch) => {

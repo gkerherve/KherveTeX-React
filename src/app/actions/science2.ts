@@ -3,7 +3,7 @@
 // levels, function plot, number line, Venn diagram, triangle, statistics
 // and unit circle - insert commands, Edit… dialogs and tab options.
 import {
-  SIGNS, type ForcesData, type FunctionData, type LevelsData, type NumberLineData, type OpticsData, type RiskData, type SignsData,
+  SIGNS, WAVE_KINDS, type ForcesData, type FunctionData, type LevelsData, type NumberLineData, type OpticsData, type RiskData, type SignsData,
   type StatsData, type TriangleData, type UnitCircleData, type VennData, type WaveData,
 } from '../../core/science2.ts'
 import type { WidgetKind } from '../../core/widgets.ts'
@@ -71,12 +71,24 @@ export async function editScience2(): Promise<boolean> {
     }
     case 'wave': {
       const v = d as WaveData
+      const kinds = WAVE_KINDS.map(([, n]) => n)
       const r = await formDialog('Wave', [
-        { key: 'wavelength', label: 'Wavelength λ:', value: String(v.wavelength), type: 'number' },
+        { key: 'kind', label: 'Type:', value: WAVE_KINDS.find(([k]) => k === (v.kind ?? 'sine'))![1], type: 'select', options: kinds },
+        { key: 'axis', label: 'Against:', value: v.axis === 't' ? 'time t (period T)' : 'distance x (wavelength λ)', type: 'select', options: ['distance x (wavelength λ)', 'time t (period T)'] },
+        { key: 'wavelength', label: 'Wavelength λ (or period T):', value: String(v.wavelength), type: 'number' },
         { key: 'amplitude', label: 'Amplitude A:', value: String(v.amplitude), type: 'number' },
         { key: 'cycles', label: 'Number of cycles shown:', value: String(v.cycles), type: 'number' },
+        { key: 'phase', label: 'Phase (degrees):', value: String(v.phase ?? 0), type: 'number', help: 'Shifts the wave along: 90 starts it at a crest.' },
+        { key: 'shift', label: 'Second wave behind by (degrees):', value: String(v.shift ?? 90), type: 'number', help: 'For a sine, square, triangle or sawtooth with Second wave on: 180 is in antiphase.' },
+        { key: 'ratio', label: 'Beats: frequency ratio of the two waves:', value: String(v.ratio ?? 1.1), type: 'number', help: 'e.g. 1.1: the closer to 1, the longer the beats.' },
+        { key: 'damping', label: 'Damped: damping per cycle:', value: String(v.damping ?? 0.25), type: 'number', help: '0 for none; 0.25 halves it in about 3 cycles.' },
       ])
-      if (r) run(W.updateWidget<'wave'>(x => { x.wavelength = num(r.wavelength, 4); x.amplitude = num(r.amplitude, 1); x.cycles = num(r.cycles, 2) }))
+      if (r) run(W.updateWidget<'wave'>(x => {
+        x.kind = WAVE_KINDS.find(([, n]) => n === r.kind)![0]
+        x.axis = r.axis.startsWith('time') ? 't' : 'x'
+        x.wavelength = num(r.wavelength, 4); x.amplitude = num(r.amplitude, 1); x.cycles = num(r.cycles, 2)
+        x.phase = num(r.phase, 0); x.shift = num(r.shift, 90); x.ratio = num(r.ratio, 1.1); x.damping = num(r.damping, 0.25)
+      }))
       break
     }
     case 'levels': {
@@ -170,6 +182,13 @@ const actions: Record<string, Handler> = {
   op_diverging: upd('optics', (d: OpticsData) => { d.lens = 'diverging' }),
   wv_labels: upd('wave', (d: WaveData) => { d.labels = !d.labels }),
   wv_second: upd('wave', (d: WaveData) => { d.second = !d.second }),
+  ...Object.fromEntries(WAVE_KINDS.map(([k]) => [`wv_k_${k}`, upd('wave', (d: WaveData) => { d.kind = k })])),
+  wv_kind: () => {},
+  wv_x: upd('wave', (d: WaveData) => { d.axis = 'x' }),
+  wv_t: upd('wave', (d: WaveData) => { d.axis = 't' }),
+  wv_axes: upd('wave', (d: WaveData) => { d.axes = d.axes === false }),
+  wv_peaks: upd('wave', (d: WaveData) => { d.peaks = !d.peaks }),
+  wv_arrow: upd('wave', (d: WaveData) => { d.arrow = !d.arrow }),
   fn_grid: upd('function', (d: FunctionData) => { d.grid = !d.grid }),
   tri_angles: upd('triangle', (d: TriangleData) => { d.angles = !d.angles }),
   st_hist: upd('stats', (d: StatsData) => { d.kind = 'histogram' }),

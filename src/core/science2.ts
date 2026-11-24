@@ -22,7 +22,24 @@ export interface RiskData { risks: string; color: string }
 export interface SignsData { signs: string[]; captions: boolean }
 export interface ForcesData { forces: string; object: 'box' | 'ball' | 'slope'; angle: number; color: string }
 export interface OpticsData { lens: 'converging' | 'diverging'; focal: number; object: number; height: number; color: string }
-export interface WaveData { wavelength: number; amplitude: number; cycles: number; labels: boolean; second: boolean; color: string }
+export type WaveKind = 'sine' | 'square' | 'triangle' | 'sawtooth' | 'damped' | 'standing' | 'beats' | 'packet' | 'longitudinal'
+export interface WaveData {
+  wavelength: number; amplitude: number; cycles: number; labels: boolean; second: boolean; color: string
+  // Added later: older waves read as a sine against distance.
+  kind?: WaveKind; phase?: number; shift?: number; ratio?: number; damping?: number
+  axis?: 'x' | 't'; axes?: boolean; peaks?: boolean; arrow?: boolean
+}
+export const WAVE_KINDS: [WaveKind, string, string][] = [
+  ['sine', 'Sine', 'A sine wave: light, sound, a string.'],
+  ['square', 'Square', 'A square wave, as a digital signal.'],
+  ['triangle', 'Triangle', 'A triangle wave.'],
+  ['sawtooth', 'Sawtooth', 'A sawtooth (ramp) wave.'],
+  ['damped', 'Damped', 'An oscillation whose amplitude dies away (set the damping).'],
+  ['standing', 'Standing wave', 'A standing wave: its envelope, with the nodes N and antinodes A marked.'],
+  ['beats', 'Beats', 'Two close frequencies added: the beats and their envelope (set the frequency ratio).'],
+  ['packet', 'Wave packet', 'A wave packet: a sine under a bell-shaped envelope.'],
+  ['longitudinal', 'Longitudinal', 'A longitudinal wave: lines bunched at compressions and spread at rarefactions, as sound in air.'],
+]
 export interface LevelsData { levels: string; transitions: string; color: string }
 export interface FunctionData { functions: string; xmin: number; xmax: number; ymin: string; ymax: string; grid: boolean; color: string }
 export interface NumberLineData { from: number; to: number; step: number; points: string; intervals: string; color: string }
@@ -36,7 +53,7 @@ export const SCIENCE2_DEFAULTS = {
   signs: { signs: ['goggles', 'gloves', 'coat', 'nosmoking', 'nofood', 'toxic', 'firstaid', 'eyewash', 'extinguisher'], captions: true } as SignsData,
   forces: { object: 'slope', angle: 30, color: 'C62828', forces: 'Weight W: 270, 1.6\nNormal N: 60, 1.4\nFriction F: 150, 0.8' } as ForcesData,
   optics: { lens: 'converging', focal: 4, object: 7, height: 1.5, color: '1F6FB5' } as OpticsData,
-  wave: { wavelength: 4, amplitude: 1, cycles: 2, labels: true, second: false, color: '1F6FB5' } as WaveData,
+  wave: { kind: 'sine', wavelength: 4, amplitude: 1, cycles: 2, phase: 0, shift: 90, ratio: 1.1, damping: 0.25, axis: 'x', axes: true, peaks: false, arrow: false, labels: true, second: false, color: '1F6FB5' } as WaveData,
   levels: { color: '1F6FB5', levels: 'n = 1: -13.6\nn = 2: -3.40\nn = 3: -1.51\nn = 4: -0.85\nn = 5: -0.54\nn = ∞: 0', transitions: '3 → 2: Hα 656 nm\n4 → 2: Hβ 486 nm\n2 → 1: Lyman α' } as LevelsData,
   function: { functions: 'sin(x)\n0.5*x^2 - 2', xmin: -4, xmax: 4, ymin: '', ymax: '', grid: true, color: '1F6FB5' } as FunctionData,
   numberline: { from: -5, to: 5, step: 1, points: '-2: closed\n3: open', intervals: '-2 to 3', color: '1F6FB5' } as NumberLineData,
@@ -227,28 +244,115 @@ export function opticsDrawing(d: OpticsData): Drawing {
 
 // ------------------------------------------------------------------ wave
 
+// One period's shape, t in cycles: sine, square, triangle or sawtooth.
+function waveShape(kind: WaveKind, t: number): number {
+  const f = t - Math.floor(t)
+  switch (kind) {
+    case 'square': return f < 0.5 ? 1 : -1
+    case 'triangle': return f < 0.25 ? 4 * f : f < 0.75 ? 2 - 4 * f : 4 * f - 4
+    case 'sawtooth': return f < 0.5 ? 2 * f : 2 * f - 2
+    default: return Math.sin(2 * Math.PI * t)
+  }
+}
+
 export function waveDrawing(d: WaveData): Drawing {
   const C = hex(d.color)
-  const lam = Math.max(0.5, d.wavelength), A = Math.max(0.2, d.amplitude), n = Math.max(0.5, Math.min(8, d.cycles))
+  const kind = d.kind ?? 'sine'
+  const lam = Math.max(0.5, d.wavelength), A = Math.max(0.2, d.amplitude), n = Math.max(0.5, Math.min(12, d.cycles))
+  const ph = (d.phase ?? 0) / 360, axisT = d.axis === 't', axes = d.axes !== false
   const L = lam * n, sx = Math.min(1, 11 / L), sy = Math.min(1, 1.6 / A)
-  const W = L * sx + 1.6, H = 2 * A * sy + 1.8
-  const x0 = 0.8, y0 = H / 2
+  const lead = axes ? 1.1 : 0.8
+  const W = L * sx + lead + 0.9, H = 2 * A * sy + (axes ? 2.4 : 1.8) + (d.arrow ? 0.5 : 0)
+  const x0 = lead, y0 = H / 2 + (d.arrow ? 0.25 : 0)
   const shapes: Shape[] = []
-  shapes.push({ t: 'line', pts: [[x0 - 0.3, y0], [x0 + L * sx + 0.3, y0]], stroke: GREY, lw: 0.6 })
-  const curve = (phase: number, col: string, lw: number) => shapes.push({ t: 'line', pts: Array.from({ length: 241 }, (_, i) => {
-    const x = (i / 240) * L
-    return [x0 + x * sx, y0 + A * sy * Math.sin(2 * Math.PI * x / lam + phase)] as [number, number]
-  }), stroke: col, lw })
-  if (d.second) curve(Math.PI / 2, 'E65100', 1)
-  curve(0, C, 1.4)
+  const X = (x: number) => x0 + x * sx, Y = (y: number) => y0 + y * sy
+  const N = 400
+  const curve = (fn: (x: number) => number, col: string, lw: number, dash = false) =>
+    shapes.push({ t: 'line', pts: Array.from({ length: N + 1 }, (_, i) => { const x = (i / N) * L; return [X(x), Y(fn(x))] as [number, number] }), stroke: col, lw, dash })
+  if (axes) {
+    shapes.push(...arrow([X(0) - 0.2, y0], [X(L) + 0.45, y0], INK, 0.7, 0.14))
+    shapes.push(...arrow([X(0), Y(-A) - 0.3], [X(0), Y(A) + 0.35], INK, 0.7, 0.14))
+    shapes.push(text(X(L) + 0.5, y0, axisT ? 't' : 'x', { anchor: 'west', tex: axisT ? '$t$' : '$x$' }))
+    shapes.push(text(X(0) - 0.15, Y(A) + 0.3, 'y', { anchor: 'east', tex: '$y$' }))
+  } else shapes.push({ t: 'line', pts: [[X(0) - 0.3, y0], [X(L) + 0.3, y0]], stroke: GREY, lw: 0.6 })
+  const k = (x: number) => x / lam + ph
+  switch (kind) {
+    case 'longitudinal': {
+      // Vertical lines moved along x by the wave: bunched where it compresses.
+      const count = Math.round(n * 14)
+      for (let i = 0; i <= count; i++) {
+        const xr = (i / count) * L
+        const xd = xr - 0.11 * lam * Math.sin(2 * Math.PI * k(xr))  // below 1/2π λ, so lines never cross
+        if (xd < 0 || xd > L) continue
+        shapes.push({ t: 'line', pts: [[X(xd), Y(-A)], [X(xd), Y(A)]], stroke: C, lw: 0.9 })
+      }
+      if (d.peaks) for (let c = 0; c < n; c++) {
+        // Lines bunch where the displacement falls steepest: k = 0, 1, 2…
+        const xc = (c - ph) * lam, xs = (c + 0.5 - ph) * lam
+        if (xc >= 0 && xc <= L) shapes.push(text(X(xc), Y(-A) - 0.2, 'C', { anchor: 'north', size: 8.5 }))
+        if (xs >= 0 && xs <= L) shapes.push(text(X(xs), Y(-A) - 0.2, 'R', { anchor: 'north', size: 8.5 }))
+      }
+      break
+    }
+    case 'standing': {
+      curve(x => A * Math.sin(2 * Math.PI * k(x)), C, 1.4)
+      curve(x => -A * Math.sin(2 * Math.PI * k(x)), C, 0.8, true)
+      if (d.peaks) for (let m = 0; m <= 2 * n; m++) {
+        const xn = (m / 2 - ph) * lam
+        if (xn >= -1e-9 && xn <= L + 1e-9) shapes.push({ t: 'circle', x: X(xn), y: y0, r: 0.06, fill: INK }, text(X(xn), y0 - 0.2, 'N', { anchor: 'north', size: 8.5 }))
+        const xa = xn + lam / 4
+        if (xa >= 0 && xa <= L) shapes.push(text(X(xa), Y(A) + 0.12, 'A', { anchor: 'south', size: 8.5 }))
+      }
+      break
+    }
+    case 'beats': {
+      const r = d.ratio && d.ratio > 0 ? d.ratio : 1.1
+      curve(x => A / 2 * (Math.sin(2 * Math.PI * k(x)) + Math.sin(2 * Math.PI * k(x) * r)), C, 1.2)
+      curve(x => A * Math.abs(Math.cos(Math.PI * k(x) * (r - 1))), 'E65100', 0.8, true)
+      curve(x => -A * Math.abs(Math.cos(Math.PI * k(x) * (r - 1))), 'E65100', 0.8, true)
+      break
+    }
+    case 'packet': {
+      const env = (x: number) => A * Math.exp(-(((x - L / 2) / (L / 6)) ** 2))
+      curve(x => env(x) * Math.sin(2 * Math.PI * k(x)), C, 1.3)
+      curve(env, 'E65100', 0.8, true)
+      curve(x => -env(x), 'E65100', 0.8, true)
+      break
+    }
+    case 'damped': {
+      const g = Math.max(0, d.damping ?? 0.25)
+      curve(x => A * Math.exp(-g * x / lam) * Math.sin(2 * Math.PI * k(x)), C, 1.4)
+      curve(x => A * Math.exp(-g * x / lam), 'E65100', 0.8, true)
+      curve(x => -A * Math.exp(-g * x / lam), 'E65100', 0.8, true)
+      break
+    }
+    default: {
+      if (d.second) curve(x => A * waveShape(kind, k(x) - (d.shift ?? 90) / 360), 'E65100', 1)
+      curve(x => A * waveShape(kind, k(x)), C, 1.4)
+      if (d.peaks && kind === 'sine') for (let c = 0; c < n + 1; c++) {
+        const xc = (c + 0.25 - ph) * lam, xt = (c + 0.75 - ph) * lam
+        if (xc >= 0 && xc <= L) shapes.push(text(X(xc), Y(A) + 0.12, 'crest', { anchor: 'south', size: 7.5 }))
+        if (xt >= 0 && xt <= L) shapes.push(text(X(xt), Y(-A) - 0.12, 'trough', { anchor: 'north', size: 7.5 }))
+      }
+    }
+  }
+  // λ (or T, against time) from one crest to the next, and A.
   if (d.labels) {
-    // λ between two crests, A from the axis to a crest.
-    const c1 = x0 + lam / 4 * sx, c2 = c1 + lam * sx, top = y0 + A * sy
-    shapes.push(...arrow([c1 + 0.05, top + 0.35], [c2 - 0.05, top + 0.35], INK, 0.7, 0.14), ...arrow([c2 - 0.05, top + 0.35], [c1 + 0.05, top + 0.35], INK, 0.7, 0.14))
-    shapes.push({ t: 'line', pts: [[c1, top], [c1, top + 0.45]], stroke: GREY, lw: 0.4 }, { t: 'line', pts: [[c2, top], [c2, top + 0.45]], stroke: GREY, lw: 0.4 })
-    shapes.push(text((c1 + c2) / 2, top + 0.5, `λ = ${fmtNum(lam)}`, { anchor: 'south', tex: `$\\lambda = ${fmtNum(lam)}$` }))
-    shapes.push(...arrow([c1, y0], [c1, top - 0.03], INK, 0.7, 0.12))
-    shapes.push(text(c1 - 0.1, y0 + A * sy / 2, `A = ${fmtNum(A)}`, { anchor: 'east', tex: `$A = ${fmtNum(A)}$` }))
+    const c1 = X((((0.25 - ph) % 1) + 1) % 1 * lam), c2 = c1 + lam * sx, top = Y(A) + (d.peaks ? 0.55 : 0.35)
+    if (c2 <= X(L) + 1e-6) {
+      shapes.push(...arrow([c1 + 0.05, top], [c2 - 0.05, top], INK, 0.7, 0.14), ...arrow([c2 - 0.05, top], [c1 + 0.05, top], INK, 0.7, 0.14))
+      shapes.push({ t: 'line', pts: [[c1, Y(A)], [c1, top + 0.1]], stroke: GREY, lw: 0.4 }, { t: 'line', pts: [[c2, Y(A)], [c2, top + 0.1]], stroke: GREY, lw: 0.4 })
+      shapes.push(text((c1 + c2) / 2, top + 0.12, `${axisT ? 'T' : 'λ'} = ${fmtNum(lam)}`, { anchor: 'south', tex: `$${axisT ? 'T' : '\\lambda'} = ${fmtNum(lam)}$` }))
+    }
+    if (kind !== 'longitudinal') {
+      const xa = X(0) + 0.15
+      shapes.push(...arrow([xa, y0], [xa, Y(A) - 0.02], INK, 0.7, 0.12))
+      shapes.push(text(xa + 0.12, y0 + A * sy * 0.55, `A = ${fmtNum(A)}`, { anchor: 'west', size: 8.5, tex: `$A = ${fmtNum(A)}$` }))
+    }
+  }
+  if (d.arrow) {
+    const yy = Y(-A) - 0.55
+    shapes.push(...arrow([X(L) - 1.6, yy], [X(L), yy], C, 1.1, 0.18), text(X(L) - 1.7, yy, 'v', { anchor: 'east', size: 9, tex: '$v$', color: C }))
   }
   return { w: W, h: H, shapes }
 }

@@ -275,7 +275,7 @@ export function syncElementChecks(state: EditorState, check: (id: string, on: bo
       case 'signs': check('sg_captions', !!d.captions); for (const k of (d.signs as string[])) check(`sg_${k}`, true); break
       case 'forces': check(`fb_${d.object}`, true); break
       case 'optics': check(`op_${d.lens}`, true); break
-      case 'wave': check('wv_labels', !!d.labels); check('wv_second', !!d.second); break
+      case 'wave': check('wv_labels', !!d.labels); check('wv_second', !!d.second); check(`wv_k_${d.kind ?? 'sine'}`, true); check(d.axis === 't' ? 'wv_t' : 'wv_x', true); check('wv_axes', d.axes !== false); check('wv_peaks', !!d.peaks); check('wv_arrow', !!d.arrow); break
       case 'function': check('fn_grid', !!d.grid); break
       case 'triangle': check('tri_angles', !!d.angles); break
       case 'stats': check(d.kind === 'boxplot' ? 'st_box' : 'st_hist', true); break
