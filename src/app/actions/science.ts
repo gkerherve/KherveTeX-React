@@ -19,7 +19,8 @@ import { editor } from '../../editor/controller.ts'
 import * as W from '../../editor/widgetCommands.ts'
 import { formDialog } from '../../ui/dialogs/EditorDialogs.tsx'
 import { registerActions, type Handler } from '../actions.ts'
-import { NOTEBOOK_TEMPLATES, notebookSections, notebookToText, textToNotebook } from '../../core/science.ts'
+import { NOTEBOOK_TEMPLATES, notebookSections } from '../../core/science.ts'
+import { notebookDialog } from '../../ui/dialogs/NotebookDialog.tsx'
 
 import { editorApi } from '../editorApi.ts'
 import { appStore } from '../store.ts'
@@ -41,6 +42,12 @@ function upd(kind: WidgetKind, fn: (d: any) => void): Handler {
     run(W.updateWidget(d => { fn(d) }))
     sync()
   }
+}
+
+// The lab notebook's own window: sections and their blocks, added with buttons.
+async function editNotebook(n: NotebookData, addSection: boolean) {
+  const r = await notebookDialog({ date: n.date, title: n.title, sections: notebookSections(n) }, addSection)
+  if (r) run(W.updateWidget<'notebook'>(x => { x.date = r.date; x.title = r.title; x.sections = r.sections.filter(t => t.heading || t.text); delete x.aim; delete x.method; delete x.observations; delete x.result }))
 }
 
 // Edit… for the science elements; false when the selection is not one.
@@ -141,16 +148,9 @@ export async function editScience(): Promise<boolean> {
       if (r) run(W.updateWidget<'algorithm'>(x => { x.title = r.title.trim(); x.code = r.code }))
       break
     }
-    case 'notebook': {
-      const n = d as NotebookData
-      const r = await formDialog('Lab notebook entry', [
-        { key: 'date', label: 'Date:', value: n.date }, { key: 'title', label: 'Title:', value: n.title },
-        { key: 'sections', label: 'Sections:', value: notebookToText(n), type: 'textarea', rows: 16,
-          help: 'Any sections you like: a line starting with ## is a heading, the lines under it its text. In the text: - bullet, 1. numbered, [ ] or [x] tick box, | a | b | table row (the first row is the header), **bold**, *italic*, $maths$; a blank line starts a paragraph.' },
-      ])
-      if (r) run(W.updateWidget<'notebook'>(x => { x.date = r.date; x.title = r.title; x.sections = textToNotebook(r.sections); delete x.aim; delete x.method; delete x.observations; delete x.result }))
+    case 'notebook':
+      await editNotebook(d as NotebookData, false)
       break
-    }
     default: return false
   }
   sync()
@@ -247,13 +247,10 @@ const actions: Record<string, Handler> = {
   alg_numbers: upd('algorithm', (d: AlgorithmData) => { d.numbers = !d.numbers }),
   // Lab notebook: add a section, start from a template, layout, signature.
   nb_add: async () => {
-    const r = await formDialog('Add a section', [
-      { key: 'heading', label: 'Heading:', value: '' },
-      { key: 'text', label: 'Text:', value: '', type: 'textarea', rows: 5, help: '- bullet, 1. numbered, [ ] tick box, | a | b | table row, **bold**, $maths$.' },
-    ], 'Add')
-    if (r && (r.heading.trim() || r.text.trim())) upd('notebook', (d: NotebookData) => { d.sections = [...notebookSections(d), { heading: r.heading.trim(), text: r.text }] })()
+    const s = state()
+    const w = s && W.currentWidget(s)
+    if (w && w.widget.kind === 'notebook') { await editNotebook(w.widget.data as NotebookData, true); sync() }
   },
-  nb_templates: () => {},
   ...Object.fromEntries(NOTEBOOK_TEMPLATES.map(([name, heads]) => [`nb_tpl_${name.replace(/\W/g, '')}`, upd('notebook', (d: NotebookData) => {
     // Keep any text already written under a heading of the same name.
     const old = new Map(notebookSections(d).map(x => [x.heading.toLowerCase(), x.text]))
