@@ -1291,6 +1291,7 @@ export class EditorController implements ViewHost {
       equationNumbered: () => C.currentEquationNumbered(this.view.state),
       setEquationNumbered: on => { this.run(C.setEquationNumbered(on)) },
       equationLabel: () => C.currentEquationLabel(this.view.state),
+      equationIsBlock: () => !!C.currentMathBlock(this.view.state),
       setEquationLabel: label => { this.run(C.setEquationLabel(label)) },
       deleteEquation: () => { this.run(C.deleteEquation) },
       insertInline: node => { this.run(C.insertInlines([node])) },

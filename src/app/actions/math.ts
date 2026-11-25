@@ -19,6 +19,8 @@ export interface EquationEditing {
   deleteEquation?(): void
   equationLabel?(): string | null
   setEquationLabel?(label: string | null): void
+  // The caret is on a display equation (one that can carry a label).
+  equationIsBlock?(): boolean
 }
 
 const ed = (): (EditorApi & EquationEditing) | null => editorApi() as (EditorApi & EquationEditing) | null
@@ -116,7 +118,20 @@ registerActions({
     const e = ed()
     const latex = e?.selection().mathLatex ?? null
     if (e === null || latex === null) return
-    const { askMath } = await dialogs()
+    const { askMath, execEquationEditor } = await dialogs()
+    const { unwrapCe } = await import('../../math/chemistry')
+    // A display equation: its label in the window's Label box (a \label
+    // inside its LaTeX comes out into the box too), not in the formula.
+    if (e.equationIsBlock?.() && e.setEquationLabel && unwrapCe(latex) === null) {
+      const [body, inside] = takeLabel(latex)
+      const before = e.equationLabel?.() ?? inside
+      const r = await execEquationEditor({ initialLatex: body, showLayout: false, display: true,
+        numbered: e.equationNumbered?.() ?? true, label: before, labelBox: true })
+      if (!r) return
+      if (r.latex !== latex) e.replaceMath(r.latex)
+      if (r.label !== before || inside) e.setEquationLabel(r.label)
+      return
+    }
     const fresh = await askMath(latex)
     if (fresh === null) return
     // A \label typed into a display equation becomes its label.

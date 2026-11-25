@@ -31,6 +31,9 @@ export interface EquationEditorProps {
   display?: boolean
   numbered?: boolean
   label?: string | null
+  // Re-editing a display equation: its Label box shown though the layout
+  // choices are not.
+  labelBox?: boolean
   close: (r: EquationResult | null) => void
 }
 
@@ -40,8 +43,9 @@ const CANVAS_HINT = 'Type to build the equation  ·  /  fraction  ·  ^  supersc
 
 const pyLen = (s: string): number => Array.from(s).length
 
-export function EquationEditor({ initialLatex = '', showLayout = null, display = true, numbered = true, label = null, close }: EquationEditorProps) {
-  const initial = initialLatex.trim()
+export function EquationEditor({ initialLatex = '', showLayout = null, display = true, numbered = true, label = null, labelBox = false, close }: EquationEditorProps) {
+  // A \\label inside the LaTeX goes to the Label box, not the formula.
+  const [initial, labelInside] = labelBox ? takeLabel(initialLatex.trim()) : [initialLatex.trim(), null]
   const math = useRef<MathEditHandle>(null)
   const edit = useRef<LatexEditHandle>(null)
   const dirty = useRef(false)
@@ -52,7 +56,7 @@ export function EquationEditor({ initialLatex = '', showLayout = null, display =
   const [showSource, setShowSource] = useState(false)
   const [isDisplay, setIsDisplay] = useState(display)
   const [isNumbered, setIsNumbered] = useState(numbered)
-  const [labelText, setLabelText] = useState(label ?? '')
+  const [labelText, setLabelText] = useState(label ?? labelInside ?? '')
   const [hint, setHint] = useState('')
   const layoutShown = showLayout === null ? !initial : showLayout
 
@@ -112,7 +116,7 @@ export function EquationEditor({ initialLatex = '', showLayout = null, display =
     const [clean, typed] = takeLabel(latex())
     const lab = labelText.trim().replace(/[\s{}]/g, '') || typed
     const numberedOut = isDisplay && isNumbered
-    close({ latex: clean, display: isDisplay, numbered: numberedOut, label: numberedOut ? lab : null })
+    close({ latex: clean, display: isDisplay, numbered: numberedOut, label: numberedOut || labelBox ? lab : null })
   }
 
   const onKeyDown = (ev: React.KeyboardEvent) => {
@@ -165,7 +169,7 @@ export function EquationEditor({ initialLatex = '', showLayout = null, display =
               Numbered
             </label>
           )}
-          {layoutShown && isDisplay && isNumbered && (
+          {((layoutShown && isDisplay && isNumbered) || labelBox) && (
             <label title="The name to refer to this equation by (References ▸ Cross-reference)." className="eqed-label">
               Label:
               <input type="text" value={labelText} placeholder="eq:my-equation" spellCheck={false}

@@ -8,6 +8,7 @@ import { unwrapCe } from './chemistry.ts'
 
 export function execEquationEditor(opts: {
   initialLatex?: string; showLayout?: boolean | null; display?: boolean; numbered?: boolean
+  label?: string | null; labelBox?: boolean
 } = {}): Promise<EquationResult | null> {
   return openDialog<EquationResult>(close => <EquationEditor {...opts} close={close} />)
 }
