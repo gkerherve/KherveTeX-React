@@ -638,7 +638,9 @@ export class ProjectSession {
     this.projectPath = null
     this.chapterIdx = -1
     this.chapterDocs.clear()
-    this.sidebar.setActiveIndex(-1)
+    // The list no longer shows the project's documents: only the document
+    // open now (its name comes with the window title).
+    this.sidebar.setSingle('Untitled')
     this.publish()
   }
 

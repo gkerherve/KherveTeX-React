@@ -93,6 +93,17 @@ describe('test_documents_panel', () => {
     expect(window.firstNumber()).toBe('2')
   })
 
+  // A document from outside the project (an example, an import) opened
+  // over it: the project is left and the list shows only that document.
+  it('leaving the project empties the Documents list', async () => {
+    await threeDocs()
+    expect(window.names().length).toBe(3)
+    await window.session.leaveProject()
+    expect(window.session.project).toBeNull()
+    expect(window.names().length).toBe(1)
+    expect(window.session.sidebar.projectControlsVisible).toBe(false)
+  })
+
   // ---------------------------------------------------------- order / remove
 
   it('test_move_down_reorders_project_and_master', async () => {

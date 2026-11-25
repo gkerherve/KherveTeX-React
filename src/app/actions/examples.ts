@@ -12,7 +12,7 @@ import { offerSaveBefore, openUnsaved, setExampleOpener } from './file'
 // _open_example_here: user-default meta fields are layered on top
 // (openUnsaved) so the example follows the same conventions as File > New.
 async function openExampleHere(factory: Factory, label: string): Promise<void> {
-  openUnsaved(factory())
+  await openUnsaved(factory())
   appStore().set({ example: label })
   if (appStore().get().autoCompile) await kickCompile()
 }

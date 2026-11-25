@@ -180,8 +180,12 @@ function saveUserDefaults(): void {
   setSetting('default/page_size', m.page_size)
 }
 
-// A document that came from an example or template, not a file.
-export function openUnsaved(doc: KDocument): void {
+// A document that came from an example or template, not a file. A
+// project open before is left first: its current document is saved back to
+// its file and the Documents list empties, the new document not being one
+// of the project's.
+export async function openUnsaved(doc: KDocument): Promise<void> {
+  await projectHooks?.leave()
   bundledBib = ''
   setBundledBib('')
   importedStem = null
@@ -331,8 +335,9 @@ async function readTexFile(path: string): Promise<KDocument> {
 // in the title until it is saved). `sourceDir` is where relative paths
 // resolve (null for .docx / .pdf imports from their menu: their images
 // live in the build dir).
-export function finishImport(doc: KDocument, path: string,
-  opts: { sourceDir?: string | null; message?: string } = {}): void {
+export async function finishImport(doc: KDocument, path: string,
+  opts: { sourceDir?: string | null; message?: string } = {}): Promise<void> {
+  await projectHooks?.leave()
   importedStem = docStem(path)
   // Remember where the file came from so relative \includegraphics paths
   // (e.g. Images/foo.png next to main.tex) resolve when the preview
@@ -441,7 +446,7 @@ export async function openPath(path: string): Promise<void> {
   appStore().set({ status: '' })
   if (isImport) {
     if (await offerChapterSplit(path, doc)) return
-    finishImport(doc, path)
+    await finishImport(doc, path)
     void refreshKherverefBib(doc).catch(() => {})
     if (bibReport) void information('References', bibReport)
     return
@@ -683,7 +688,7 @@ export async function importLatexPackage(path: string): Promise<void> {
   if (got) doc = got.doc
   bundledBib = got?.bib ?? ''
   setBundledBib(bundledBib)
-  finishImport(doc, mainPath, { sourceDir: dirname(mainPath),
+  await finishImport(doc, mainPath, { sourceDir: dirname(mainPath),
     message: `Imported ${basename(path)}: ${count} files unpacked into “${basename(folder)}” beside it — Save As to keep the document` })
   if (got) {
     void refreshKherverefBib(doc).catch(() => {})
@@ -708,7 +713,7 @@ async function importAction(title: string, filters: FileFilter[], kind: 'tex' | 
   appStore().set({ status: '' })
   bundledBib = ''
   setBundledBib('')
-  finishImport(doc, path)
+  await finishImport(doc, path)
 }
 
 // ---- saving ----

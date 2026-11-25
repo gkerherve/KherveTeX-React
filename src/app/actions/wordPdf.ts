@@ -71,8 +71,8 @@ export async function importPdfFile(path: string,
 // The imported document replaces this one, untitled, with the title
 // "<stem> (imported)" (file.finishImport); docx and pdf images live in the
 // build dir, so the import source dir is cleared.
-function showImported(doc: KDocument, path: string, message: string): void {
-  finishImport(doc, path, { sourceDir: null, message })
+async function showImported(doc: KDocument, path: string, message: string): Promise<void> {
+  await finishImport(doc, path, { sourceDir: null, message })
 }
 
 // The importers write \date{} under an imported title (as the Python app
@@ -103,7 +103,7 @@ async function importDocxAction(): Promise<void> {
     await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
     return
   }
-  showImported(doc, path,
+  await showImported(doc, path,
     `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted to ${imageDir})`)
 }
 
@@ -124,7 +124,7 @@ async function importOfficeAction(): Promise<void> {
     await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
     return
   }
-  showImported(doc, path, `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`)
+  await showImported(doc, path, `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`)
 }
 
 // The id of a Google Doc from its link (or a .gdoc file's text).
@@ -173,7 +173,7 @@ async function importPdfAction(): Promise<void> {
     await critical('Import failed', exc instanceof Error ? exc.message : String(exc))
     return
   }
-  showImported(doc, path, `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`)
+  await showImported(doc, path, `Imported ${basename(path)} (${await countImages(imageDir)} image(s) extracted)`)
 }
 
 async function exportDocxAction(): Promise<void> {

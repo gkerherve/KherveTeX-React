@@ -121,7 +121,7 @@ export async function loadTemplateHere(path: string): Promise<void> {
     return
   }
   // The compile loop compiles it once it starts (startCompileService).
-  openUnsaved(doc)
+  await openUnsaved(doc)
 }
 
 async function deleteTemplate(path: string, name: string): Promise<void> {
