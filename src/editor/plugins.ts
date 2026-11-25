@@ -151,6 +151,9 @@ function lineHeightCss(L: BlockLayout): string {
   return `line-height:${L.lineHeight.proportional * 1.407}em;`
 }
 
+// The date's × (set by contextMenu.ts, which reaches the app's commands).
+export const dateHooks = { remove: () => {} }
+
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
 // Lines the class prints around a block that are not its text: the
@@ -170,6 +173,18 @@ function labelWidget(L: BlockLayout, firstBaseline: number): HTMLElement | null 
       + `top:${baseline - BASELINE_AT * lh}px;` + (item.centred ? 'left:0;right:0;text-align:center;'
       : `left:${x ?? 0}px;`)
     el.innerHTML = esc(item.text)
+    if (item.date) {
+      // Like an element's box: a frame on hover and a × that removes it
+      // (Insert > Date brings it back); right-click picks its format.
+      el.title = 'Date: right-click to change its format'
+      const x = document.createElement('button')
+      x.type = 'button'
+      x.className = 'kt-widget-close kt-date-close'
+      x.textContent = '\u00d7'
+      x.title = 'Remove the date (Insert > Date brings it back)'
+      x.addEventListener('mousedown', ev => { ev.preventDefault(); ev.stopPropagation(); dateHooks.remove() })
+      el.appendChild(x)
+    }
     box.appendChild(el)
   }
   for (const item of L.above) put(item, 0, firstBaseline - item.up)

@@ -9,6 +9,7 @@ import * as C from './commands.ts'
 import * as M from '../core/model.ts'
 import { cellDisplayText, cellPictures, displayToCellLatex, isStructuredCell } from './convert.ts'
 import { columnFractions } from './views.ts'
+import { dateHooks } from './plugins.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorController } from './controller.ts'
 
@@ -71,6 +72,8 @@ function show(entries: Entry[], x: number, y: number): void {
   document.addEventListener('mousedown', onDown, true)
   document.addEventListener('keydown', onKey, true)
 }
+
+dateHooks.remove = () => { void runAction('show_date') }
 
 export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
   // The date under the title: remove it, or pick its format.
