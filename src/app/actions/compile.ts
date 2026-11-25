@@ -5,7 +5,7 @@ import { isCommandChecked } from '../../ui/commands'
 import { registerActions } from '../actions'
 import {
   downloadBundle, kickCompile, openCache, setAutoCompile, setFastLatex, setCompileRange,
-  setCompiler, setPictures, setSectionOnly, setSkipImages, showCompilerStatus,
+  setCompiler, setPictures, setSkipImages, showCompilerStatus,
 } from '../compile'
 import { appStore } from '../store'
 import { applyLayoutMode } from './file'
@@ -13,8 +13,7 @@ import { applyLayoutMode } from './file'
 const on = (arg: unknown) => arg === true
 
 registerActions({
-  compile_now: () => kickCompile(true),
-  compile_section: (arg) => setSectionOnly(on(arg)),
+  compile_now: () => kickCompile(),
   auto_compile: (arg) => setAutoCompile(on(arg)),
   fast_latex: (arg) => setFastLatex(on(arg)),
   pictures_full: () => setPictures('full'),

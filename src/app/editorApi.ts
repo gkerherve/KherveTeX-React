@@ -21,8 +21,6 @@ export interface EditorApi {
   // Replace the equation under the caret (inline or display).
   replaceMath(latex: string): void
   selection(): EditorSelectionInfo
-  // Index in the document's blocks of the one holding the caret.
-  caretBlock?(): number
   // Find/replace; return false when nothing (more) was found.
   find(text: string, opts: { forward: boolean; caseSensitive: boolean; wholeWord: boolean }): boolean
   replace(find: string, repl: string, opts: { caseSensitive: boolean; wholeWord: boolean }): boolean

@@ -1294,13 +1294,6 @@ export class EditorController implements ViewHost {
       insertInline: node => { this.run(C.insertInlines([node])) },
       insertBlock: node => { this.run(C.insertModelBlocks([node], { trailingParagraph: true })) },
       replaceMath: latex => { this.run(C.replaceMath(latex)) },
-      caretBlock: () => {
-        // The model block the caret is in: the blocks up to it, converted.
-        const s = this.view.state
-        const $f = s.selection.$from
-        const end = $f.depth >= 1 ? $f.after(1) : s.selection.to
-        return docFromPM(s.doc.cut(0, Math.min(end, s.doc.content.size)), this.meta).children.length - 1
-      },
       selection: () => {
         const s = this.view.state
         const mb = C.currentMathBlock(s) ?? C.currentMathInline(s)
