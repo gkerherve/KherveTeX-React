@@ -5,7 +5,7 @@ import { isCommandChecked } from '../../ui/commands'
 import { registerActions } from '../actions'
 import {
   downloadBundle, kickCompile, openCache, setAutoCompile, setFastLatex, setCompileRange,
-  setCompiler, setSkipImages, showCompilerStatus,
+  setCompiler, setPictures, setSkipImages, showCompilerStatus,
 } from '../compile'
 import { appStore } from '../store'
 import { applyLayoutMode } from './file'
@@ -16,6 +16,10 @@ registerActions({
   compile_now: () => kickCompile(),
   auto_compile: (arg) => setAutoCompile(on(arg)),
   fast_latex: (arg) => setFastLatex(on(arg)),
+  pictures_full: () => setPictures('full'),
+  pictures_medium: () => setPictures('medium'),
+  pictures_low: () => setPictures('low'),
+  pictures_none: () => setPictures('none'),
   skip_images: (arg) => setSkipImages(on(arg)),
   compile_range: (arg) => setCompileRange(on(arg)),
   compiler_latex: () => setCompiler('latex'),

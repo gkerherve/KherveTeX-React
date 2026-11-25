@@ -1,6 +1,5 @@
-// Fast LaTeX's stand-ins for PNGs (core/compiler.ts proxyImages): a JPEG
-// of the picture (at most 4000 px; 240 px for the tiny copy shown while
-// typing), or a scaled PNG when it has transparency, made once per file and version and
+// The preview's stand-ins for PNGs (core/compiler.ts proxyImages): a JPEG
+// of the picture at the Auto-compile picture quality (4000, 1600 or 400 px), or a scaled PNG when it has transparency, made once per file and version and
 // kept in the build folder. Only the preview uses them; Export and Print
 // compile the originals.
 import { join } from '../core/paths'
@@ -53,7 +52,7 @@ export function imageProxyIn(buildDir: string, maxSide = 4000): (path: string) =
         g.imageSmoothingQuality = maxSide < 600 ? 'low' : 'high'
         g.drawImage(bmp, 0, 0, w, h)
         bmp.close()
-        const blob = await c.convertToBlob(alpha ? { type: 'image/png' } : { type: 'image/jpeg', quality: maxSide < 600 ? 0.6 : 0.92 })
+        const blob = await c.convertToBlob(alpha ? { type: 'image/png' } : { type: 'image/jpeg', quality: maxSide < 600 ? 0.6 : maxSide < 2000 ? 0.8 : 0.92 })
         const dir = join(buildDir, 'kt-preview-images')
         await platform().mkdir(dir)
         let h32 = 5381

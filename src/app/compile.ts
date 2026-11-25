@@ -37,6 +37,9 @@ export interface CompileUi {
   // Fast LaTeX (beside Auto-compile): one pass and a saved package format.
   fast: boolean
   skipImages: boolean
+  // Pictures in the auto-compiled preview: originals' quality, medium
+  // (1600 px), low (400 px) or none (empty frames of the same size).
+  pictures: Pictures
   useCompileRange: boolean
   // PdfPreview.show_message: shown instead of the PDF (an error, or no engine).
   message: string | null
@@ -49,7 +52,7 @@ export interface CompileUi {
 }
 
 let ui: CompileUi = {
-  fast: setting('compile/fast', true), engine: 'latex', skipImages: false, useCompileRange: true, message: null,
+  fast: setting('compile/fast', true), pictures: setting<Pictures>('compile/pictures', 'medium'), engine: 'latex', skipImages: false, useCompileRange: true, message: null,
   pdfPath: null, statusText: '', consoleError: false,
 }
 const listeners = new Set<() => void>()
@@ -190,6 +193,10 @@ export const lastCompileMs = () => lastMs
 // keys have paused, and the work a finished compile does in the window
 // (reading the PDF, page breaks, the copy beside the document) waits too.
 let lastKeyAt = 0
+// At least this long between the end of one compile and the next.
+const COMPILE_GAP_MS = 1000
+let lastEndAt = 0
+const PICTURE_SIDE: Record<Pictures, number> = { full: 4000, medium: 1600, low: 400, none: 0 }
 const TYPING_PAUSE_MS = 1000
 const typingNow = () => Date.now() - lastKeyAt < TYPING_PAUSE_MS
 function afterTyping(fn: () => void): void {
@@ -220,15 +227,7 @@ function showMessage(msg: string): void {
   appStore().set(s => ({ compile: { ...s.compile, pdf: null, serial: s.compile.serial + 1 } }))
 }
 
-// Fast LaTeX while typing: pictures left out (draft frames); once the
-// typing stops, the full compile with them runs by itself.
-let draftNext = false
-let fullTimer: ReturnType<typeof setTimeout> | null = null
-const FULL_AFTER_MS = 1200
-
-export async function kickCompile(draft = false): Promise<void> {
-  if (fullTimer) { clearTimeout(fullTimer); fullTimer = null }
-  if (draft) draftNext = true
+export async function kickCompile(): Promise<void> {
   if (closed) return
   // When a project is open, always compile the full project
   if (projectCompiler !== null && appStore().get().project !== null) {
@@ -247,8 +246,8 @@ export async function kickCompile(draft = false): Promise<void> {
   }
   // Still typing: start once the keys pause.
   if (typingNow()) { afterTyping(() => void kickCompile()); return }
-  const useDraft = draftNext
-  draftNext = false
+  const gap = COMPILE_GAP_MS - (Date.now() - lastEndAt)
+  if (gap > 0) { setTimeout(() => void kickCompile(), gap); return }
   const doc = appStore().get().doc
   const engine = ui.engine
   const source = serializeFor(doc, engine)
@@ -262,12 +261,14 @@ export async function kickCompile(draft = false): Promise<void> {
     if (engine !== 'typst') await stageBib(doc, [dir])
     const fast = ui.fast && engine !== 'typst' && platform().kind !== 'browser'
     const plan = fast ? await fastPlan(source) : null
+    // Copies of the pictures at the chosen quality (not online, where the
+    // files live in memory and the engine is different).
+    const pics: Pictures | null = engine === 'typst' || platform().kind === 'browser' ? null : ui.pictures
     const opts = {
       sourceDir: resolvedSourceDir(), skipImages: ui.skipImages, useCompileRange: ui.useCompileRange,
       fast, format: plan?.ready ? plan.name : null,
-      imageProxy: fast ? imageProxyIn(dir) : undefined,
-      draftImages: fast && useDraft,
-      tinyProxy: fast && useDraft ? imageProxyIn(dir, 240) : undefined,
+      imageProxy: pics && pics !== 'none' ? imageProxyIn(dir, PICTURE_SIDE[pics]) : undefined,
+      draftImages: pics === 'none',
     }
     const t0 = Date.now()
     result = engine === 'typst'
@@ -287,10 +288,6 @@ export async function kickCompile(draft = false): Promise<void> {
         catchUpSource = source
         if (catchUps <= 2) { pendingRecompile = true; lastSource = null }
       }
-      // Pictures left out: put them back once the typing stops.
-      if (opts.draftImages && source.includes('\\includegraphics')) {
-        fullTimer = setTimeout(() => { fullTimer = null; void kickCompile() }, FULL_AFTER_MS)
-      }
       // Save the package format for next time, between compiles.
       if (result.ok && plan && !plan.ready) {
         const tect = await compilerHost().findTectonic()
@@ -308,12 +305,14 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
   // loading it and compile the new text once the keys pause.
   if (pendingRecompile && result.ok && typingNow()) {
     running = false
+    lastEndAt = Date.now()
     pendingRecompile = false
     appStore().set(s => ({ compile: { ...s.compile, running: false } }))
-    afterTyping(() => void kickCompile(draftNext))
+    afterTyping(() => void kickCompile())
     return
   }
   running = false
+  lastEndAt = Date.now()
   lastFailedSource = result.ok ? null : lastSource
   let pdf: Uint8Array | null = null
   if (result.ok && result.pdfPath !== null) {
@@ -358,7 +357,7 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
   }))
   if (pendingRecompile) {
     pendingRecompile = false
-    afterTyping(() => void kickCompile(draftNext))
+    afterTyping(() => void kickCompile())
   }
 }
 
@@ -478,6 +477,16 @@ export function setFastLatex(on: boolean): void {
   setUi({ fast: on })
   setSetting('compile/fast', on)
   setCommandChecked('fast_latex', on)
+  if (appStore().get().autoCompile) void kickCompile()
+}
+
+export type Pictures = 'full' | 'medium' | 'low' | 'none'
+export const PICTURE_MODES: Pictures[] = ['full', 'medium', 'low', 'none']
+
+export function setPictures(q: Pictures): void {
+  setUi({ pictures: q })
+  setSetting('compile/pictures', q)
+  for (const m of PICTURE_MODES) setCommandChecked(`pictures_${m}`, m === q)
   if (appStore().get().autoCompile) void kickCompile()
 }
 
@@ -641,7 +650,7 @@ export function startCompileService(): void {
       // 60 ms with Fast LaTeX (its compile is short enough to keep up).
       const typing = s.docSerial === was.docSerial
       if (typing) lastKeyAt = Date.now()
-      timer = setTimeout(() => { timer = null; void kickCompile(typing && ui.fast) }, !typing ? 0 : ui.fast ? TYPING_PAUSE_MS : 450)
+      timer = setTimeout(() => { timer = null; void kickCompile() }, !typing ? 0 : ui.fast ? TYPING_PAUSE_MS : 450)
     }
   })
 
@@ -651,6 +660,7 @@ export function startCompileService(): void {
   store.set({ layout: mode, autoCompile: !visual })
   setCommandChecked(visual ? 'visual_only' : mode === 'window' ? 'pdf_window' : 'side_by_side', true)
   setCommandChecked('auto_compile', !visual)
+  for (const m of PICTURE_MODES) setCommandChecked(`pictures_${m}`, m === ui.pictures)
   setCommandChecked('pdf_panel', !visual)
   setCommandChecked('pdf_detach', mode === 'window')
   if (!visual) void kickCompile()
