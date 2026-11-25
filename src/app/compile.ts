@@ -583,9 +583,9 @@ export function startCompileService(): void {
     if (s.doc !== was.doc && s.autoCompile && showsPdf(s)) {
       if (timer) clearTimeout(timer)
       // A replaced document compiles at once (set_document emits
-      // documentChanged directly); typing waits for the editor's 450 ms
-      // debounce.
-      timer = setTimeout(() => { timer = null; void kickCompile() }, s.docSerial !== was.docSerial ? 0 : 450)
+      // documentChanged directly); typing waits 450 ms after the last key,
+      // 150 ms with Fast LaTeX (its compile is short enough to keep up).
+      timer = setTimeout(() => { timer = null; void kickCompile() }, s.docSerial !== was.docSerial ? 0 : ui.fast ? 150 : 450)
     }
   })
 
