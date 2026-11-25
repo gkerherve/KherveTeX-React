@@ -1320,6 +1320,21 @@ export class EditorController implements ViewHost {
         void s
         return C.find(find, { ...opts, forward: true }, this.view.state, tr => this.view.dispatch(tr))
       },
+      // As you type in the Find bar: the first match from where the
+      // selection starts; and which match is selected, of how many.
+      findHere: (text, opts) => {
+        const s = this.view.state
+        this.view.dispatch(s.tr.setSelection(TextSelection.create(s.doc, s.selection.from)))
+        const ok = C.find(text, { ...opts, forward: true }, this.view.state, tr => this.view.dispatch(tr))
+        if (ok) this.scrollToSelection()
+        return ok
+      },
+      findCount: (text, opts) => {
+        const all = C.findHits(this.view.state.doc, text, opts)
+        const { from } = this.view.state.selection
+        // A selected table is a selection of its cells: the hit holding it.
+        return { index: all.findIndex(h => h.from === from || (h.node && from > h.from && from < h.to)), count: all.length }
+      },
       replaceAll: (find, repl, opts) => C.replaceAll(find, repl, opts, this.view.state, tr => this.view.dispatch(tr)),
       revealText: snippet => this.revealText(snippet),
       focus: () => this.view.focus(),

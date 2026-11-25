@@ -15,7 +15,7 @@ import { importTex } from '../core/importers'
 import { ContextMenu, type ContextMenuState } from '../preview/ContextMenu'
 import { pdfApi } from '../preview/PdfView'
 import { setCommandChecked } from '../ui/commands'
-import { setCodeViewApi } from './codeViewApi'
+import { matchesOf, setCodeViewApi, type FindOpts } from './codeViewApi'
 import {
   completions, cursorSnippet, findSnippet, highlightLine, STATE_NORMAL, textUnderCursor, type Span,
 } from './highlight'
@@ -230,11 +230,68 @@ export function CodeView() {
     return true
   }, [caretXY])
 
+  // Find bar: the current match, drawn as a yellow band over the text
+  // (the textarea's own selection shows only while it has the focus).
+  const [hit, setHit] = useState<{ top: number; left: number; width: number; height: number }[]>([])
+  const hitAt = useRef<[number, number] | null>(null)
+  const showHit = useCallback((m: [number, number]) => {
+    const el = area.current, sc = scroller.current
+    if (!el || !sc) return
+    hitAt.current = m
+    el.setSelectionRange(m[0], m[1])
+    const a = caretXY(m[0]), b = caretXY(m[1])
+    const rects = a.top === b.top
+      ? [{ top: a.top, left: a.left, width: Math.max(4, b.left - a.left), height: a.height }]
+      : [{ top: a.top, left: a.left, width: el.offsetLeft + el.clientWidth - a.left, height: a.height },
+        { top: b.top, left: el.offsetLeft, width: Math.max(4, b.left - el.offsetLeft), height: b.height }]
+    setHit(rects)
+    if (a.top < sc.scrollTop + 20 || a.top > sc.scrollTop + sc.clientHeight - 40) sc.scrollTop = Math.max(0, a.top - sc.clientHeight / 3)
+  }, [caretXY])
+  const find = useCallback((t: string, from: 'next' | 'previous' | 'here', o: FindOpts) => {
+    const el = area.current
+    const all = el ? matchesOf(el.value, t, o) : []
+    if (!el || !all.length) { setHit([]); hitAt.current = null; return { index: -1, count: 0 } }
+    const cur = hitAt.current ?? [el.selectionStart, el.selectionEnd]
+    let i: number
+    if (from === 'here') i = all.findIndex(m => m[0] >= cur[0])
+    else if (from === 'next') i = all.findIndex(m => m[0] > cur[0] || (m[0] === cur[0] && m[1] > cur[1]))
+    else { i = -1; for (let k = all.length - 1; k >= 0; k--) if (all[k][0] < cur[0]) { i = k; break } }
+    if (i < 0) i = from === 'previous' ? all.length - 1 : 0
+    showHit(all[i])
+    return { index: i, count: all.length }
+  }, [showHit])
+  const replace = useCallback((t: string, repl: string, o: FindOpts) => {
+    const el = area.current
+    if (!el || readOnly) return { index: -1, count: 0 }
+    const m = hitAt.current
+    const sel = m ? el.value.slice(m[0], m[1]) : ''
+    if (m && matchesOf(sel, t, o).length === 1 && sel.length === m[1] - m[0]) {
+      const next = el.value.slice(0, m[0]) + repl + el.value.slice(m[1])
+      hitAt.current = [m[0] + repl.length, m[0] + repl.length]
+      onChange(next)
+      el.value = next
+    }
+    return find(t, 'here', o)
+  }, [find, readOnly])
+  const replaceAll = useCallback((t: string, repl: string, o: FindOpts) => {
+    const el = area.current
+    if (!el || readOnly) return 0
+    const all = matchesOf(el.value, t, o)
+    if (!all.length) return 0
+    let out = '', last = 0
+    for (const [a, b] of all) { out += el.value.slice(last, a) + repl; last = b }
+    out += el.value.slice(last)
+    onChange(out)
+    setHit([]); hitAt.current = null
+    return all.length
+  }, [readOnly])
+  const clearFind = useCallback(() => { setHit([]); hitAt.current = null }, [])
+
   useEffect(() => {
-    const api = { scrollToSnippet, cursorSnippet: snippet }
+    const api = { scrollToSnippet, cursorSnippet: snippet, find, replace, replaceAll, clearFind }
     setCodeViewApi(api)
     return () => setCodeViewApi(null)
-  }, [scrollToSnippet, snippet])
+  }, [scrollToSnippet, snippet, find, replace, replaceAll, clearFind])
 
   // MainWindow._nav_latex_to_formatted / _nav_latex_to_pdf.
   const showInVisual = () => {
@@ -285,9 +342,11 @@ export function CodeView() {
           {lines.map((spans, i) => <Line key={i} n={i + 1} spans={spans} />)}
         </div>
         <div className='cv-gutter-bg' />
+        {hit.map((h, i) => <div key={i} className='cv-hit' style={h} />)}
         <textarea ref={area} className='cv-input' value={text} readOnly={readOnly} spellCheck={false}
           autoCapitalize='off' autoComplete='off' autoCorrect='off' wrap='soft'
-          onChange={e => onChange(e.target.value)} onKeyDown={onKeyDown}
+          onChange={e => { if (hit.length) clearFind(); onChange(e.target.value) }} onKeyDown={onKeyDown}
+          onMouseDown={() => { if (hit.length) clearFind() }}
           onBlur={() => setPopup(null)}
           onContextMenu={e => {
             e.preventDefault()
@@ -346,6 +405,7 @@ const CSS = `
   height: 100%; box-sizing: border-box; margin: 0; border: 0; outline: none; resize: none; overflow: hidden;
   background: transparent; color: transparent; caret-color: var(--text); font: inherit; line-height: inherit; }
 .cv-input::selection { background: rgba(43, 120, 215, 0.35); color: transparent; }
+.cv-hit { position: absolute; background: rgba(255, 200, 0, 0.45); outline: 1px solid rgba(220, 150, 0, 0.8); pointer-events: none; }
 .cv-mirror { position: absolute; top: 0; left: var(--cv-gutter); visibility: hidden; box-sizing: border-box; }
 .cv-popup { position: absolute; z-index: 20; width: 280px; max-height: calc(${VISIBLE_COMPLETIONS} * 1.6em); overflow-y: auto;
   border: 1px solid var(--border); background: var(--base); box-shadow: 0 3px 10px rgba(0,0,0,0.18); font-size: 10pt; }

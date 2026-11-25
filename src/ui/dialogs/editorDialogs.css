@@ -95,3 +95,5 @@
 .rl-who small { color: #8a8a8a; font-size: 10.5px; }
 .rl-empty { color: #666; font-size: 12px; padding: 10px 2px; line-height: 1.4; }
 .rl-head { font-size: 11px; color: #777; font-weight: 600; position: sticky; top: 0; background: #fff; }
+.kt-findbar-count { min-width: 74px; font-size: 11px; color: #555; text-align: center; }
+.kt-findbar-count.none { color: #b3261e; }

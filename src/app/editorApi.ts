@@ -25,6 +25,8 @@ export interface EditorApi {
   find(text: string, opts: { forward: boolean; caseSensitive: boolean; wholeWord: boolean }): boolean
   replace(find: string, repl: string, opts: { caseSensitive: boolean; wholeWord: boolean }): boolean
   replaceAll(find: string, repl: string, opts: { caseSensitive: boolean; wholeWord: boolean }): number
+  findHere?(text: string, opts: { caseSensitive: boolean; wholeWord: boolean }): boolean
+  findCount?(text: string, opts: { caseSensitive: boolean; wholeWord: boolean }): { index: number; count: number }
   // Scroll to the block holding this plain-text snippet (PDF → Visual sync).
   revealText(snippet: string): boolean
   // The PDF page (1-based) a point of the page view shows, and how far

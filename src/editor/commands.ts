@@ -1151,7 +1151,7 @@ function textRuns(doc: PMNode): { text: string; pos: number[] }[] {
   return out
 }
 
-function matchesIn(doc: PMNode, needle: string, o: { caseSensitive: boolean; wholeWord: boolean }): { from: number; to: number }[] {
+export function matchesIn(doc: PMNode, needle: string, o: { caseSensitive: boolean; wholeWord: boolean }): { from: number; to: number }[] {
   if (!needle) return []
   const out: { from: number; to: number }[] = []
   const n = o.caseSensitive ? needle : needle.toLowerCase()
@@ -1170,14 +1170,50 @@ function matchesIn(doc: PMNode, needle: string, o: { caseSensitive: boolean; who
   return out
 }
 
+// What Find also looks at besides the text: a figure's or table's caption
+// (with its "Figure" / "Table" name) and label, an equation's LaTeX, a
+// citation's keys, a cross-reference's label. A hit there selects the item.
+function itemText(node: PMNode): string | null {
+  const t = node.type.name
+  if (t === 'figure' || t === 'table') {
+    const cap = typeof node.attrs.caption === 'string' ? node.attrs.caption : ''
+    return `${t === 'table' ? 'Table' : 'Figure'} ${cap} ${node.attrs.label ?? ''}`
+  }
+  if (t === 'math_block' || t === 'math_inline') return node.attrs.latex ?? ''
+  if (t === 'citation') return (node.attrs.keys ?? []).join(' ')
+  if (t === 'crossref') return node.attrs.label ?? ''
+  return null
+}
+
+// Every hit for Find: the text's, and the items' (node: true), in order.
+export function findHits(doc: PMNode, needle: string, o: { caseSensitive: boolean; wholeWord: boolean }): { from: number; to: number; node?: boolean }[] {
+  const hits: { from: number; to: number; node?: boolean }[] = matchesIn(doc, needle, o)
+  if (!needle) return hits
+  const n = o.caseSensitive ? needle : needle.toLowerCase()
+  const isW = (ch?: string) => !!ch && /[\p{L}\p{N}_]/u.test(ch)
+  doc.descendants((node, pos) => {
+    const t = itemText(node)
+    if (t === null) return true
+    const hay = o.caseSensitive ? t : t.toLowerCase()
+    for (let i = hay.indexOf(n); i >= 0; i = hay.indexOf(n, i + 1)) {
+      if (!o.wholeWord || (!isW(hay[i - 1]) && !isW(hay[i + n.length]))) { hits.push({ from: pos, to: pos + node.nodeSize, node: true }); break }
+    }
+    return false
+  })
+  return hits.sort((a, b) => a.from - b.from)
+}
+
 // QTextEdit.find with a wrap-around retry, as MainWindow._do_find.
 export function find(needle: string, o: FindOpts, state: EditorState, dispatch?: Dispatch): boolean {
-  const hits = matchesIn(state.doc, needle, o)
+  const hits = findHits(state.doc, needle, o)
   if (!hits.length) return false
   const { from, to } = state.selection
   const hit = o.forward ? hits.find(h => h.from >= to) ?? hits[0]
     : [...hits].reverse().find(h => h.to <= from) ?? hits[hits.length - 1]
-  if (dispatch) dispatch(state.tr.setSelection(TextSelection.create(state.doc, hit.from, hit.to)).scrollIntoView())
+  if (dispatch) {
+    const sel = hit.node ? NodeSelection.create(state.doc, hit.from) : TextSelection.create(state.doc, hit.from, hit.to)
+    dispatch(state.tr.setSelection(sel).scrollIntoView())
+  }
   return true
 }
 
