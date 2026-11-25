@@ -26,6 +26,7 @@ import { editorApi, type EditorApi } from './editorApi'
 import type { PageEditing } from './actions/page'
 import { pageAnchors } from './pageAnchors'
 import { buildFormat, formatPlan, markFormatBad } from '../core/fastFormat'
+import { imageProxyIn } from './imageProxy'
 import { appStore, type AppState } from './store'
 
 export type Engine = 'latex' | 'typst'
@@ -110,7 +111,7 @@ export function compilerHost(): CompilerHost {
     readText: p.readText,
     writeText: p.writeText,
     remove: p.remove,
-    findTectonic: async () => (await p.findTectonic())?.path ?? null,
+    findTectonic: tectonicPath,
     findTypst: p.findTypst,
     run: p.run,
     cancelRunning: p.cancelRunning,
@@ -141,9 +142,19 @@ export function setBibStager(fn: BibStager): void {
 
 // ---- engines ----
 
+// Where tectonic is, asked once a minute rather than up to three times a
+// compile.
+let tectonicAt: { at: number; path: Promise<string | null> } | null = null
+function tectonicPath(): Promise<string | null> {
+  if (!tectonicAt || Date.now() - tectonicAt.at > 60_000) {
+    tectonicAt = { at: Date.now(), path: platform().findTectonic().then(e => e?.path ?? null) }
+  }
+  return tectonicAt.path
+}
+
 export async function engineAvailable(engine: Engine): Promise<boolean> {
   const p = platform()
-  return engine === 'typst' ? (await p.findTypst()) !== null : (await p.findTectonic()) !== null
+  return engine === 'typst' ? (await p.findTypst()) !== null : (await tectonicPath()) !== null
 }
 
 async function refreshStatusText(): Promise<void> {
@@ -229,6 +240,7 @@ export async function kickCompile(): Promise<void> {
     const opts = {
       sourceDir: resolvedSourceDir(), skipImages: ui.skipImages, useCompileRange: ui.useCompileRange,
       fast, format: plan?.ready ? plan.name : null,
+      imageProxy: fast ? imageProxyIn(dir) : undefined,
     }
     const t0 = Date.now()
     result = engine === 'typst'
@@ -284,8 +296,9 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // each later page, so its page breaks sit where the PDF's pages start
     // rather than at a uniform spacing (which falls apart when page 1 has
     // a title block).
+    // Not while another compile waits (typing): its PDF will do it.
     const bytes = pdf
-    void pageAnchors(bytes).then(([count, anchors, furniture, typography]) => {
+    if (!pendingRecompile) void pageAnchors(bytes).then(([count, anchors, furniture, typography]) => {
       const ed = editorApi() as (EditorApi & Partial<PageEditing>) | null
       ed?.setPageAnchors?.(count, anchors, furniture, typography)
     }).catch(() => {})
@@ -584,8 +597,8 @@ export function startCompileService(): void {
       if (timer) clearTimeout(timer)
       // A replaced document compiles at once (set_document emits
       // documentChanged directly); typing waits 450 ms after the last key,
-      // 150 ms with Fast LaTeX (its compile is short enough to keep up).
-      timer = setTimeout(() => { timer = null; void kickCompile() }, s.docSerial !== was.docSerial ? 0 : ui.fast ? 150 : 450)
+      // 60 ms with Fast LaTeX (its compile is short enough to keep up).
+      timer = setTimeout(() => { timer = null; void kickCompile() }, s.docSerial !== was.docSerial ? 0 : ui.fast ? 60 : 450)
     }
   })
 

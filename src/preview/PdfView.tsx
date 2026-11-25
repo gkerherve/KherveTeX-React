@@ -87,11 +87,10 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
     void (async () => {
       try {
         const { doc: d, destroy } = await loadPdf(pdf)
-        const sizes: PageBox[] = []
-        for (let i = 1; i <= d.numPages; i++) {
-          const vp = (await d.getPage(i)).getViewport({ scale: 1 })
-          sizes.push({ w: vp.width, h: vp.height, viewBox: vp.viewBox })
-        }
+        // All pages' sizes at once (one after another cost a round trip
+        // to pdf.js's worker per page).
+        const pages = await Promise.all(Array.from({ length: d.numPages }, (_, i) => d.getPage(i + 1)))
+        const sizes: PageBox[] = pages.map(pg => { const vp = pg.getViewport({ scale: 1 }); return { w: vp.width, h: vp.height, viewBox: vp.viewBox } })
         if (!live) { destroy(); return }
         texts.current = new Map()
         setHighlight(null)
@@ -114,18 +113,38 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
     ? Math.max(0.1, (width - 2 * PAD) / widest)
     : Math.max(25, Math.min(400, zoom)) / 100 * PX_PER_PT
 
-  // Draw every page at the current scale, nearest the viewport first.
+  // Draw the pages in and near the view at the current scale, nearest
+  // first; the others keep their last drawing and are drawn when scrolled
+  // to (redrawing a whole thesis after each compile held up the next one).
+  const drawn = useRef(new Map<number, unknown>())
+  const [scrollTick, setScrollTick] = useState(0)
+  useEffect(() => { drawn.current = new Map() }, [doc, scale])
+  useEffect(() => {
+    const el = container.current
+    if (!el) return
+    let raf = 0
+    const on = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; setScrollTick(t => t + 1) }) }
+    el.addEventListener('scroll', on, { passive: true })
+    return () => { el.removeEventListener('scroll', on); if (raf) cancelAnimationFrame(raf) }
+  }, [])
   useEffect(() => {
     if (!doc || !boxes.length) return
     let cancelled = false
     const tasks: { cancel(): void }[] = []
     const el = container.current
-    const mid = el ? el.scrollTop + el.clientHeight / 2 : 0
-    const order = boxes.map((_, i) => i).sort((a, b) => {
+    const top = el ? el.scrollTop : 0, h = el ? el.clientHeight : 800
+    const mid = top + h / 2
+    const near = (i: number) => {
+      const s = slots.current[i]
+      if (!s) return false
+      return s.offsetTop + s.offsetHeight > top - h && s.offsetTop < top + 2 * h
+    }
+    const order = boxes.map((_, i) => i).filter(i => near(i) && drawn.current.get(i) !== doc).sort((a, b) => {
       const da = Math.abs((slots.current[a]?.offsetTop ?? 0) - mid)
       const db = Math.abs((slots.current[b]?.offsetTop ?? 0) - mid)
       return da - db
     })
+    if (!order.length) return
     const ratio = window.devicePixelRatio || 1
     void (async () => {
       for (const i of order) {
@@ -146,6 +165,7 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
           if (cancelled) return
           slot.querySelector('canvas.pdf-canvas')?.remove()
           slot.prepend(canvas)
+          drawn.current.set(i, doc)
         } catch {
           // A cancelled render (newer PDF or zoom) is expected.
         }
@@ -155,7 +175,7 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
       cancelled = true
       for (const t of tasks) t.cancel()
     }
-  }, [doc, boxes, scale])
+  }, [doc, boxes, scale, scrollTick])
 
   const runs = useCallback(async (i: number): Promise<TextRun[]> => {
     if (!doc) return []

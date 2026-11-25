@@ -17,7 +17,7 @@ import { strip } from './py.ts'
 import { serializeDocument } from './serializer.ts'
 
 // What compile needs from the machine (pathlib, shutil, subprocess).
-export interface HostStat { isDir: boolean; isFile: boolean; mtime: number }
+export interface HostStat { isDir: boolean; isFile: boolean; mtime: number; size?: number }
 export interface HostEntry extends HostStat { name: string; path: string }
 export interface HostRun { code: number | null; stdout: string; stderr: string; timedOut: boolean; error: string | null }
 
@@ -95,6 +95,26 @@ export function rewriteIncludegraphics(texSource: string, sourceDir: string | nu
     if (!exists(resolved)) return placeholder(path)
     return `\\includegraphics${star}${opts ?? ''}{${resolved.replaceAll('\\', '/')}}`
   })
+}
+
+// Large PNGs cost xdvipdfmx a decode and recompress on every compile
+// (a 12-megapixel photo: about a second); JPEGs are copied as they are.
+const PROXY_MIN_BYTES = 1_500_000
+export async function proxyImages(tex: string, proxy: (path: string) => Promise<string | null>,
+  host: Pick<CompilerHost, 'stat'>): Promise<string> {
+  const swaps = new Map<string, string>()
+  for (const m of tex.matchAll(INCLUDEGRAPHICS_RE)) {
+    const [, , o, path] = m
+    if (!/\.png$/i.test(path) || !o || !/\b(?:width|height)\s*=/.test(o) || /\b(?:scale|natwidth|natheight|bb|viewport|trim)\s*=/.test(o)) continue
+    if (swaps.has(path)) continue
+    const st = await host.stat(path)
+    if (!st || (st.size ?? 0) < PROXY_MIN_BYTES) continue
+    const small = await proxy(path).catch(() => null)
+    if (small) swaps.set(path, small)
+  }
+  if (!swaps.size) return tex
+  return tex.replace(INCLUDEGRAPHICS_RE, (whole, star: string, o: string | undefined, path: string) =>
+    swaps.has(path) ? `\\includegraphics${star}${o ?? ''}{${swaps.get(path)!.replaceAll('\\', '/')}}` : whole)
 }
 
 async function existingSet(paths: string[], host: Pick<CompilerHost, 'exists'>): Promise<Set<string>> {
@@ -306,16 +326,25 @@ export function bundleDocuments(templateChoices: readonly string[]): [string, st
 }
 
 // Copy each style dir's .cls/.sty/.bst into `workdir` unless already there.
+// The style files already copied into each build folder (by their list):
+// checking all ~365 one by one on every compile cost a call each.
+const styledDirs = new Map<string, string>()
+
 async function copyStyles(workdir: string, host: CompilerHost): Promise<void> {
+  const lists: HostEntry[][] = []
   for (const sd of await host.styleDirs()) {
-    let entries: HostEntry[] = []
-    try { entries = await host.listDir(sd) } catch { continue }
+    try { lists.push(await host.listDir(sd)) } catch { /* missing */ }
+  }
+  const sig = lists.map(l => l.map(f => `${f.name}:${f.mtime}`).join('|')).join('/')
+  if (styledDirs.get(workdir) === sig) return
+  for (const entries of lists) {
     for (const f of entries) {
       if (!f.isFile || !['.cls', '.sty', '.bst'].includes(suffix(f.name))) continue
       const dest = join(workdir, f.name)
       if (!(await host.exists(dest))) await host.copy(f.path, dest)
     }
   }
+  styledDirs.set(workdir, sig)
 }
 
 // Pre-cache TeX packages for offline compilation: compiles a series of
@@ -473,6 +502,10 @@ export interface CompileOptions {
   // workdir), and the saved format of the document's packages if ready.
   fast?: boolean
   format?: string | null
+  // Fast LaTeX: a smaller stand-in for a large PNG (its path, or null to
+  // keep the original). Only for pictures sized by width or height, whose
+  // printed size does not depend on their pixels.
+  imageProxy?: (path: string) => Promise<string | null>
 }
 
 // Write `texSource` to `workdir/basename.tex` and compile with tectonic.
@@ -529,6 +562,7 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
   } else {
     const have = await existingSet(includegraphicsTargets(texSource, sourceDir), host)
     texSource = rewriteIncludegraphics(texSource, sourceDir, p => have.has(p))
+    if (opts.imageProxy) texSource = await proxyImages(texSource, opts.imageProxy, host)
   }
   if (opts.useCompileRange) {
     texSource = applyCompileRange(texSource)
