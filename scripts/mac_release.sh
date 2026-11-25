@@ -3,6 +3,8 @@
 # the in-app updater, built on this Mac and uploaded to the release's draft.
 #
 #   scripts/mac_release.sh vN [checkout]
+#   ARCHS=aarch64 scripts/mac_release.sh vN    (Apple Silicon only: the Intel
+#   build then runs on GitHub, .github/workflows/mac-intel.yml)
 #
 # Push the tag first (git tag vN && git push origin vN): release.yml then
 # creates the draft and builds Windows and Linux. Run this while it does:
@@ -34,7 +36,7 @@ VERSION=$(node -p "require('./package.json').version")
 [ "v${VERSION%%.*}" = "$TAG" ] || { echo "package.json is $VERSION, not $TAG" >&2; exit 1; }
 npm ci --legacy-peer-deps >/dev/null 2>&1
 
-for arch in aarch64 x86_64; do
+for arch in ${ARCHS:-aarch64 x86_64}; do
   echo "== building for $arch"
   TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY")" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \
     npx tauri build --target "$arch-apple-darwin" > "$OUT/build-$arch.log" 2>&1 \
