@@ -1,6 +1,6 @@
-// Fast LaTeX's stand-ins for large PNGs (core/compiler.ts proxyImages):
-// the picture scaled to at most 1800 px on its longest side, as a JPEG,
-// or a PNG when it has transparency, made once per file and version and
+// Fast LaTeX's stand-ins for PNGs (core/compiler.ts proxyImages): a JPEG
+// of the picture (at most 4000 px; 240 px for the tiny copy shown while
+// typing), or a scaled PNG when it has transparency, made once per file and version and
 // kept in the build folder. Only the preview uses them; Export and Print
 // compile the originals.
 import { join } from '../core/paths'
@@ -15,9 +15,9 @@ function hasAlpha(b: Uint8Array): boolean {
   return head.includes('tRNS')
 }
 
-// maxSide 1800: the preview's copy of a large PNG; 240: the tiny copy
+// maxSide 4000: the sharp preview's copy of a PNG; 240: the tiny copy
 // shown while typing.
-export function imageProxyIn(buildDir: string, maxSide = 1800): (path: string) => Promise<string | null> {
+export function imageProxyIn(buildDir: string, maxSide = 4000): (path: string) => Promise<string | null> {
   return async (path: string) => {
     const st = await platform().stat(path)
     if (!st) return null
@@ -27,10 +27,23 @@ export function imageProxyIn(buildDir: string, maxSide = 1800): (path: string) =
       p = (async () => {
         const bytes = await platform().readFile(path)
         const png = /\.png$/i.test(path)
-        const alpha = png && hasAlpha(bytes)
         const bmp = await createImageBitmap(new Blob([bytes.slice()], { type: png ? 'image/png' : 'image/jpeg' }))
         const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height))
-        if (k >= 1) { bmp.close(); return path }   // small already: itself
+        // An alpha channel (plots often have one) that is all opaque counts
+        // as none: look at the pixels.
+        let alpha = png && hasAlpha(bytes)
+        if (alpha) {
+          const t = new OffscreenCanvas(Math.max(1, Math.round(bmp.width * k)), Math.max(1, Math.round(bmp.height * k)))
+          const tg = t.getContext('2d')!
+          tg.drawImage(bmp, 0, 0, t.width, t.height)
+          const px = tg.getImageData(0, 0, t.width, t.height).data
+          alpha = false
+          for (let i = 3; i < px.length; i += 4) if (px[i] < 255) { alpha = true; break }
+        }
+        // Small already (tiny copies), or a full-size one that would stay a
+        // PNG (transparency): the original. A sharp copy of an opaque PNG
+        // is a JPEG at full size: xdvipdfmx embeds JPEGs without decoding.
+        if (k >= 1 && (maxSide < 600 || alpha)) { bmp.close(); return path }
         const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k))
         const c = new OffscreenCanvas(w, h)
         const g = c.getContext('2d')!
@@ -38,7 +51,7 @@ export function imageProxyIn(buildDir: string, maxSide = 1800): (path: string) =
         g.imageSmoothingQuality = maxSide < 600 ? 'low' : 'high'
         g.drawImage(bmp, 0, 0, w, h)
         bmp.close()
-        const blob = await c.convertToBlob(alpha ? { type: 'image/png' } : { type: 'image/jpeg', quality: maxSide < 600 ? 0.6 : 0.88 })
+        const blob = await c.convertToBlob(alpha ? { type: 'image/png' } : { type: 'image/jpeg', quality: maxSide < 600 ? 0.6 : 0.92 })
         const dir = join(buildDir, 'kt-preview-images')
         await platform().mkdir(dir)
         let h32 = 5381

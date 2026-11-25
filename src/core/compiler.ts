@@ -102,9 +102,9 @@ export function draftImages(tex: string): string {
   return tex.replace(/\\begin\{document\}/, m => `${m}\\makeatletter\\@ifpackageloaded{graphicx}{\\setkeys{Gin}{draft=true}}{}\\makeatother`)
 }
 
-// Large PNGs cost xdvipdfmx a decode and recompress on every compile
-// (a 12-megapixel photo: about a second); JPEGs are copied as they are.
-const PROXY_MIN_BYTES = 1_500_000
+// PNGs cost xdvipdfmx a decode and recompress on every compile (a thesis
+// with 76 figures: 12.8 s); JPEGs are copied as they are (0.23 s).
+const PROXY_MIN_BYTES = 20_000
 const RASTER = /\.(png|jpe?g)$/i
 const SIZED = (o: string | undefined) => !!o && /\b(?:width|height)\s*=/.test(o) && !/\b(?:scale|natwidth|natheight|bb|viewport|trim)\s*=/.test(o)
 
