@@ -33,7 +33,9 @@ export function imageProxyIn(buildDir: string, maxSide = 4000): (path: string) =
         // as none: look at the pixels.
         let alpha = png && hasAlpha(bytes)
         if (alpha) {
-          const t = new OffscreenCanvas(Math.max(1, Math.round(bmp.width * k)), Math.max(1, Math.round(bmp.height * k)))
+          // A small sample is enough, and keeps the window responsive.
+          const ks = Math.min(1, 256 / Math.max(bmp.width, bmp.height))
+          const t = new OffscreenCanvas(Math.max(1, Math.round(bmp.width * ks)), Math.max(1, Math.round(bmp.height * ks)))
           const tg = t.getContext('2d')!
           tg.drawImage(bmp, 0, 0, t.width, t.height)
           const px = tg.getImageData(0, 0, t.width, t.height).data

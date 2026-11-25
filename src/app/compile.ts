@@ -186,6 +186,19 @@ let catchUpSource: string | null = null
 let lastMs = 0
 export const lastCompileMs = () => lastMs
 
+// Typing comes first: the last key's time. A compile starts only once the
+// keys have paused, and the work a finished compile does in the window
+// (reading the PDF, page breaks, the copy beside the document) waits too.
+let lastKeyAt = 0
+const TYPING_PAUSE_MS = 350
+const typingNow = () => Date.now() - lastKeyAt < TYPING_PAUSE_MS
+function afterTyping(fn: () => void): void {
+  const wait = TYPING_PAUSE_MS - (Date.now() - lastKeyAt)
+  if (wait > 0) { setTimeout(() => afterTyping(fn), wait); return }
+  const ric = (globalThis as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void }).requestIdleCallback
+  if (ric) ric(fn, { timeout: 500 }); else setTimeout(fn, 0)
+}
+
 // Tectonic's formats/ folder (beside its bundles/ cache).
 let formatsDirPromise: Promise<string | null> | null = null
 async function fastPlan(source: string) {
@@ -232,6 +245,8 @@ export async function kickCompile(draft = false): Promise<void> {
     pendingRecompile = true
     return
   }
+  // Still typing: start once the keys pause.
+  if (typingNow()) { afterTyping(() => void kickCompile()); return }
   const useDraft = draftNext
   draftNext = false
   const doc = appStore().get().doc
@@ -289,6 +304,15 @@ export async function kickCompile(draft = false): Promise<void> {
 }
 
 async function onCompileDone(result: CompileResult, engine: Engine): Promise<void> {
+  // Typed during the compile: its PDF is already out of date. Skip
+  // loading it and compile the new text once the keys pause.
+  if (pendingRecompile && result.ok && typingNow()) {
+    running = false
+    pendingRecompile = false
+    appStore().set(s => ({ compile: { ...s.compile, running: false } }))
+    afterTyping(() => void kickCompile(draftNext))
+    return
+  }
   running = false
   lastFailedSource = result.ok ? null : lastSource
   let pdf: Uint8Array | null = null
@@ -305,8 +329,9 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // Cache the PDF next to the document for instant loading (not online,
     // where a file saved beside the document is a browser download).
     const path = appStore().get().path
-    if (path !== null && platform().kind !== 'browser') {
-      void platform().writeFile(join(dirname(path), `${docStem(path)}.pdf`), pdf).catch(() => {})
+    if (path !== null && platform().kind !== 'browser' && !pendingRecompile) {
+      const bytes = pdf
+      afterTyping(() => void platform().writeFile(join(dirname(path), `${docStem(path)}.pdf`), bytes).catch(() => {}))
     }
     // Tell the editor how many pages the PDF has and the first text of
     // each later page, so its page breaks sit where the PDF's pages start
@@ -314,10 +339,10 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // a title block).
     // Not while another compile waits (typing): its PDF will do it.
     const bytes = pdf
-    if (!pendingRecompile) void pageAnchors(bytes).then(([count, anchors, furniture, typography]) => {
+    if (!pendingRecompile) afterTyping(() => void pageAnchors(bytes).then(([count, anchors, furniture, typography]) => {
       const ed = editorApi() as (EditorApi & Partial<PageEditing>) | null
       ed?.setPageAnchors?.(count, anchors, furniture, typography)
-    }).catch(() => {})
+    }).catch(() => {}))
   } else {
     const tail = result.log ? result.log.split(/\r?\n/).filter((_, i, a) => i >= a.length - 10).join('\n') : ''
     setUi({ message: `${result.error}\n\n${tail}`, consoleError: true })
@@ -333,7 +358,7 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
   }))
   if (pendingRecompile) {
     pendingRecompile = false
-    void kickCompile(draftNext)
+    afterTyping(() => void kickCompile(draftNext))
   }
 }
 
@@ -615,7 +640,8 @@ export function startCompileService(): void {
       // documentChanged directly); typing waits 450 ms after the last key,
       // 60 ms with Fast LaTeX (its compile is short enough to keep up).
       const typing = s.docSerial === was.docSerial
-      timer = setTimeout(() => { timer = null; void kickCompile(typing && ui.fast) }, !typing ? 0 : ui.fast ? 60 : 450)
+      if (typing) lastKeyAt = Date.now()
+      timer = setTimeout(() => { timer = null; void kickCompile(typing && ui.fast) }, !typing ? 0 : ui.fast ? TYPING_PAUSE_MS : 450)
     }
   })
 
