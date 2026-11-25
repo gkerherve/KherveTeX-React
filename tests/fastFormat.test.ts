@@ -16,3 +16,15 @@ describe('Fast LaTeX format', () => {
     expect(formatSource(['tikz'])).toContain('\\fontencoding{OT1}')
   })
 })
+
+import { draftImages } from '../src/core/compiler.ts'
+describe('draft pictures while typing', () => {
+  it('switches graphicx to draft after \\begin{document}', () => {
+    const t = draftImages('\\documentclass{article}\\usepackage{graphicx}\\begin{document}\\includegraphics[width=3cm]{a.png}\\end{document}')
+    expect(t).toContain('\\begin{document}\\makeatletter\\@ifpackageloaded{graphicx}{\\setkeys{Gin}{draft=true}}{}\\makeatother')
+  })
+  it('leaves a document without pictures alone', () => {
+    const t = '\\documentclass{article}\\begin{document}x\\end{document}'
+    expect(draftImages(t)).toBe(t)
+  })
+})

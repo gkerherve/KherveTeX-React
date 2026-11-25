@@ -97,6 +97,11 @@ export function rewriteIncludegraphics(texSource: string, sourceDir: string | nu
   })
 }
 
+export function draftImages(tex: string): string {
+  if (!tex.includes('\\includegraphics')) return tex
+  return tex.replace(/\\begin\{document\}/, m => `${m}\\makeatletter\\@ifpackageloaded{graphicx}{\\setkeys{Gin}{draft=true}}{}\\makeatother`)
+}
+
 // Large PNGs cost xdvipdfmx a decode and recompress on every compile
 // (a 12-megapixel photo: about a second); JPEGs are copied as they are.
 const PROXY_MIN_BYTES = 1_500_000
@@ -506,6 +511,9 @@ export interface CompileOptions {
   // keep the original). Only for pictures sized by width or height, whose
   // printed size does not depend on their pixels.
   imageProxy?: (path: string) => Promise<string | null>
+  // While typing: pictures as empty frames of their exact size (graphicx's
+  // draft), so the layout stays and nothing is decoded.
+  draftImages?: boolean
 }
 
 // Write `texSource` to `workdir/basename.tex` and compile with tectonic.
@@ -562,7 +570,8 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
   } else {
     const have = await existingSet(includegraphicsTargets(texSource, sourceDir), host)
     texSource = rewriteIncludegraphics(texSource, sourceDir, p => have.has(p))
-    if (opts.imageProxy) texSource = await proxyImages(texSource, opts.imageProxy, host)
+    if (opts.draftImages) texSource = draftImages(texSource)
+    else if (opts.imageProxy) texSource = await proxyImages(texSource, opts.imageProxy, host)
   }
   if (opts.useCompileRange) {
     texSource = applyCompileRange(texSource)

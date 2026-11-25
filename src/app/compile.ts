@@ -207,7 +207,15 @@ function showMessage(msg: string): void {
   appStore().set(s => ({ compile: { ...s.compile, pdf: null, serial: s.compile.serial + 1 } }))
 }
 
-export async function kickCompile(): Promise<void> {
+// Fast LaTeX while typing: pictures left out (draft frames); once the
+// typing stops, the full compile with them runs by itself.
+let draftNext = false
+let fullTimer: ReturnType<typeof setTimeout> | null = null
+const FULL_AFTER_MS = 1200
+
+export async function kickCompile(draft = false): Promise<void> {
+  if (fullTimer) { clearTimeout(fullTimer); fullTimer = null }
+  if (draft) draftNext = true
   if (closed) return
   // When a project is open, always compile the full project
   if (projectCompiler !== null && appStore().get().project !== null) {
@@ -224,6 +232,8 @@ export async function kickCompile(): Promise<void> {
     pendingRecompile = true
     return
   }
+  const useDraft = draftNext
+  draftNext = false
   const doc = appStore().get().doc
   const engine = ui.engine
   const source = serializeFor(doc, engine)
@@ -241,6 +251,7 @@ export async function kickCompile(): Promise<void> {
       sourceDir: resolvedSourceDir(), skipImages: ui.skipImages, useCompileRange: ui.useCompileRange,
       fast, format: plan?.ready ? plan.name : null,
       imageProxy: fast ? imageProxyIn(dir) : undefined,
+      draftImages: fast && useDraft,
     }
     const t0 = Date.now()
     result = engine === 'typst'
@@ -259,6 +270,10 @@ export async function kickCompile(): Promise<void> {
         catchUps = source === catchUpSource ? catchUps + 1 : 1
         catchUpSource = source
         if (catchUps <= 2) { pendingRecompile = true; lastSource = null }
+      }
+      // Pictures left out: put them back once the typing stops.
+      if (opts.draftImages && source.includes('\\includegraphics')) {
+        fullTimer = setTimeout(() => { fullTimer = null; void kickCompile() }, FULL_AFTER_MS)
       }
       // Save the package format for next time, between compiles.
       if (result.ok && plan && !plan.ready) {
@@ -317,7 +332,7 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
   }))
   if (pendingRecompile) {
     pendingRecompile = false
-    void kickCompile()
+    void kickCompile(draftNext)
   }
 }
 
@@ -598,7 +613,8 @@ export function startCompileService(): void {
       // A replaced document compiles at once (set_document emits
       // documentChanged directly); typing waits 450 ms after the last key,
       // 60 ms with Fast LaTeX (its compile is short enough to keep up).
-      timer = setTimeout(() => { timer = null; void kickCompile() }, s.docSerial !== was.docSerial ? 0 : ui.fast ? 60 : 450)
+      const typing = s.docSerial === was.docSerial
+      timer = setTimeout(() => { timer = null; void kickCompile(typing && ui.fast) }, !typing ? 0 : ui.fast ? 60 : 450)
     }
   })
 
