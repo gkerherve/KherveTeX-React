@@ -192,6 +192,8 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
   view.state.doc.forEach((node, offset) => {
     const dom = view.nodeDOM(offset) as HTMLElement | null
     if (!dom || !(dom instanceof HTMLElement)) return
+    // A folded chapter's blocks are not drawn.
+    if (dom.classList.contains('kt-folded')) return
     // The title block spanning the columns comes first (SPANS_COLUMNS).
     if (spanning && dom.dataset.span === '1') {
       spanEnd = y(dom.getBoundingClientRect().bottom)

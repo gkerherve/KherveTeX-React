@@ -490,6 +490,8 @@ const cmds: Command[] = [
   { id: 'compile_end', text: 'Compile end marker' },
   { id: 'no_compile', text: 'Do not compile', icon: 'no_compile', checkable: true,
     tooltip: 'Leave the selected paragraphs out of the preview to compile faster (greyed). Click again on them to compile them again. Export always includes them.' },
+  { id: 'chapters', text: 'Chapters', icon: 'chapters',
+    tooltip: 'Your chapters in one list: tick which compile and which show while you write, drag them into order, add a new one or a file as a chapter' },
   { id: 'not_compile_start', text: 'Not-compile start marker' },
   { id: 'not_compile_end', text: 'Not-compile end marker' },
   { id: 'code_block', text: '&Code block...' },
@@ -1113,7 +1115,7 @@ export function orderedNames(names: string[], order: readonly string[]): string[
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
-    { label: 'Compile', large: ['no_compile'] },
+    { label: 'Compile', large: ['chapters', 'no_compile'] },
     { label: 'Font', rows: [
       [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
       ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'smallcaps', 'code', 'highlight', 'font_color']] },
@@ -1164,7 +1166,7 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Pages', large: ['repaginate'] },
     { label: 'Show', large: ['show_latex_source'] },
     // A long document as a project of smaller ones, and their list.
-    { label: 'Documents', large: ['split_documents', 'documents_dock'] },
+    { label: 'Documents', large: ['chapters', 'split_documents', 'documents_dock'] },
   ] },
   { name: 'References', groups: [
     { label: 'Citations', large: ['citation', 'manage_references', 'reference_style'] },

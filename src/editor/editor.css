@@ -137,6 +137,22 @@ pre.kt-nc-start::before { content: 'Not compiled'; position: absolute; left: 6px
 .kt-nc-show { position: absolute; right: 4px; top: -19px; height: 18px; padding: 0 7px; border: 1px solid #c8c8c8; border-radius: 3px;
   background: #fff; color: #444; font: 11px/16px Arial, sans-serif; cursor: pointer; z-index: 2; }
 .kt-nc-show:hover { background: #e8f0fb; border-color: #8aa3cc; color: #1f4e8c; }
+/* Chapters: a bar over each chapter heading (on hover; always when the
+   chapter is folded): Hide / Show, Compile, Chapters…  A folded chapter's
+   blocks are not drawn. */
+.kt-folded { display: none !important; }
+.kt-chapter { position: relative; }
+.kt-ch-bar { position: absolute; right: 0; top: -26px; display: none; gap: 4px; align-items: center; z-index: 3;
+  font: 11px/16px Arial, sans-serif; font-weight: 400; font-style: normal; text-indent: 0; letter-spacing: 0; white-space: nowrap; }
+.kt-chapter:hover .kt-ch-bar, .kt-ch-bar.folded { display: inline-flex; }
+.kt-ch-btn { height: 20px; padding: 0 7px; border: 1px solid #c8c8c8; border-radius: 3px; background: #fff; color: #444;
+  font: 11px/18px Arial, sans-serif; cursor: pointer; }
+.kt-ch-btn:hover { background: #e8f0fb; border-color: #8aa3cc; color: #1f4e8c; }
+.kt-ch-btn.on { color: #1d6b2f; }
+.kt-ch-btn.off { color: #a33; }
+.kt-ch-note { color: #6b7a90; margin-right: 4px; }
+.kt-chapter-folded { border-bottom: 1px dashed #a9bcdc; padding-bottom: 6px; }
+.kt-chapter-folded::after { content: ''; display: block; }
 /* A run-in heading over the paragraph that shares its line: it takes the
    mouse only over its words (runInHitPlugin), so the rest of the line,
    and of a wrapped heading's last line, stays the paragraph's. */

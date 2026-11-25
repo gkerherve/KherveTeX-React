@@ -36,6 +36,7 @@ import { setCommandChecked } from '../ui/commands.ts'
 import * as C from './commands.ts'
 import { docFromPM, docToPM } from './convert.ts'
 import { selectionHidden } from './noCompile.ts'
+import { chaptersPlugin, foldedChapters } from './chapters.ts'
 import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
@@ -369,7 +370,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
+      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), chaptersPlugin(), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(), blockMoverPlugin(),
@@ -902,12 +903,15 @@ export class EditorController implements ViewHost {
     if (this.destroyed || !this.view.dom.isConnected) return
     const geo = this.layout.geometry
     const old = pagesKey.getState(this.view.state)!.spacers
+    // Chapters folded away: the page no longer matches the PDF's pages, so
+    // the breaks are worked out from the page alone.
+    const own = foldedChapters(this.view.state).size > 0
+    const pdfPaged = !own && layoutKey.getState(this.view.state)!.anchors.length > 0
     const { spacers, measure } = geo.cols > 1
-      ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, this.pdfPageStarts(),
-        layoutKey.getState(this.view.state)!.anchors.length > 0, this.pdfColumnStarts(),
+      ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, own ? [] : this.pdfPageStarts(),
+        pdfPaged, own ? [] : this.pdfColumnStarts(),
         { notes: this.footnoteBoxes(geo).map(n => ({ pos: n.pos, height: n.height })) })
-      : computeSpacers(this.view, geo, this.flowEl, this.pdfPageStarts(),
-        layoutKey.getState(this.view.state)!.anchors.length > 0, figuresFloat(this.meta))
+      : computeSpacers(this.view, geo, this.flowEl, own ? [] : this.pdfPageStarts(), pdfPaged, figuresFloat(this.meta))
     if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))

@@ -663,6 +663,13 @@ export function CompileNoImages(p: IconProps) {
   return <Svg {...p}>{pictureParts()}{L(3, 21, 21, 3, RED, 1.8)}</Svg>
 }
 
+// Chapters: three stacked pages, the front one ticked.
+export function Chapters(p: IconProps) {
+  return <Svg {...p}>{Page(8, 2, 12, 15)}{Page(5.5, 4.5, 12, 15)}{Page(3, 7, 12, 15)}
+    {L(5, 11, 12, 11, '#9aa8bd', 1.2)}{L(5, 14, 12, 14, '#9aa8bd', 1.2)}
+    {P([[5, 18], [7, 20], [11, 16.5]], { color: GREEN, lw: 1.8 })}</Svg>
+}
+
 // Do not compile: a page of greyed lines and a red no-entry sign.
 export function NoCompile(p: IconProps) {
   return <Svg {...p}>{Page(3, 2.5, 13, 18)}
@@ -1924,7 +1931,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
   overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, reference_style: ReferenceStyle, compile_pdf: CompilePdf,
   auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff, fast_latex: FastLatex,
-  compile_no_images: CompileNoImages, compile_range: CompileRange, no_compile: NoCompile,
+  compile_no_images: CompileNoImages, compile_range: CompileRange, no_compile: NoCompile, chapters: Chapters,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
   citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, refs_bib: RefsBib, refs_kherveref: RefsKherveRef, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,

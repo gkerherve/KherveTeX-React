@@ -12,7 +12,7 @@ import { blockToPM } from './convert.ts'
 export const isNcStart = (n: PMNode) => n.type.name === 'raw_latex' && n.textContent.trim() === NOT_COMPILE_START
 export const isNcEnd = (n: PMNode) => n.type.name === 'raw_latex' && n.textContent.trim() === NOT_COMPILE_END
 
-interface Top { node: PMNode; pos: number; marker: 'start' | 'end' | null; hidden: boolean; paired: boolean }
+export interface Top { node: PMNode; pos: number; marker: 'start' | 'end' | null; hidden: boolean; paired: boolean }
 
 // The document's top-level blocks: which are markers, which are hidden.
 // A start pairs with the next end, as the compiler pairs them.
@@ -72,10 +72,16 @@ export function toggleNoCompile(state: EditorState, dispatch?: (tr: Transaction)
   const content = tops.slice(a, b + 1).filter(t => !t.marker)
   if (!content.length) return false
   if (!dispatch) return true
-  const hide = !content.every(t => t.hidden)
-  for (const t of content) t.hidden = hide
-  // Markers again around each run of hidden blocks: the paired ones go,
-  // new ones are put at the edges of the runs.
+  const tr = setCompiled(state, tops, from => from >= tops[a].pos && from <= tops[b].pos, content.every(t => t.hidden))
+  dispatch(tr.scrollIntoView())
+  return true
+}
+
+// Compile (on) or leave out (off) the top-level blocks whose position
+// `which` picks: markers again around each run of hidden blocks (the
+// paired ones go, new ones are put at the edges of the runs).
+export function setCompiled(state: EditorState, tops: Top[], which: (pos: number) => boolean, on: boolean): Transaction {
+  for (const t of tops) if (!t.marker && which(t.pos)) t.hidden = !on
   const tr = state.tr
   const blocks = tops.filter(t => !(t.marker && t.paired))
   const inserts: { pos: number; text: string }[] = []
@@ -91,6 +97,5 @@ export function toggleNoCompile(state: EditorState, dispatch?: (tr: Transaction)
   for (const ins of inserts) {
     tr.insert(tr.mapping.map(ins.pos, ins.text === NOT_COMPILE_START ? -1 : 1), blockToPM(M.rawLatex(ins.text)))
   }
-  dispatch(tr.scrollIntoView())
-  return true
+  return tr
 }
