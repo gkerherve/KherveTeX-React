@@ -8,7 +8,8 @@
 // position never jumps (show_pdf saved and restored the scroll bar).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
 import { ContextMenu, type ContextMenuState } from './ContextMenu'
-import { loadPdf, pageText, type PDFDocumentProxy, type TextRun } from './pdfjs'
+import { FORMS_MODE, formLayer, formWidgets, loadPdf, pageText, saveFilled, type PDFDocumentProxy, type TextRun } from './pdfjs'
+import { platform } from '../platform'
 
 // QPdfView's zoom factor 1.0 shows a page at the screen's 96 dpi.
 const PX_PER_PT = 96 / 72
@@ -107,6 +108,16 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
 
   useEffect(() => () => { release.current?.(); release.current = null }, [])
 
+  // A PDF with form fields: they can be filled in here and saved.
+  const [hasForm, setHasForm] = useState(false)
+  useEffect(() => { setHasForm(false) }, [doc])
+  const saveForm = useCallback(async () => {
+    if (!doc) return
+    const path = await platform().saveFileDialog({ title: 'Save filled PDF', defaultName: 'filled-form.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+    if (!path) return
+    await platform().writeFile(path, await saveFilled(doc))
+  }, [doc])
+
   const widest = boxes.reduce((m, b) => Math.max(m, b.w), 0)
   // FitToWidth: the widest page fills the column.
   const scale = fit && widest > 0 && width > 0
@@ -154,18 +165,31 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
         try {
           const page = await doc.getPage(i + 1)
           const vp = page.getViewport({ scale: scale * ratio })
+          // A form: its fields are drawn as inputs over the page instead.
+          const widgets = await formWidgets(page).catch(() => [])
           const canvas = document.createElement('canvas')
           canvas.width = Math.ceil(vp.width)
           canvas.height = Math.ceil(vp.height)
           canvas.className = 'pdf-canvas'
           canvas.style.cssText = 'display:block;width:100%;height:100%'
-          const task = page.render({ canvas, viewport: vp })
+          const task = page.render({ canvas, viewport: vp, ...(widgets.length ? { annotationMode: FORMS_MODE } : {}) })
           tasks.push(task)
           await task.promise
           if (cancelled) return
           slot.querySelector('canvas.pdf-canvas')?.remove()
           slot.prepend(canvas)
           drawn.current.set(i, doc)
+          slot.querySelector('.kt-forms')?.remove()
+          if (widgets.length) {
+            slot.style.setProperty('--total-scale-factor', String(scale))
+            slot.style.setProperty('--scale-factor', String(scale))
+            slot.style.setProperty('--scale-round-x', '1px')
+            slot.style.setProperty('--scale-round-y', '1px')
+            const layer = await formLayer(doc, page, widgets, scale)
+            if (cancelled) return
+            slot.appendChild(layer)
+            setHasForm(true)
+          }
         } catch {
           // A cancelled render (newer PDF or zoom) is expected.
         }
@@ -304,6 +328,12 @@ export function PdfView({ pdf, message, zoom, fit, onShowIn, primary }: PdfViewP
           borderBottom: '1px solid #c0c0c0', textAlign: 'center', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
           font: '12px var(--ui-font)', userSelect: 'text',
         }}>{message}</div>
+      )}
+      {!message && hasForm && primary !== false && (
+        <div className='pdf-form-bar'>
+          <span>This PDF has a form: type in its fields here.</span>
+          <button type='button' onClick={() => { void saveForm() }}>Save filled PDF…</button>
+        </div>
       )}
       {!message && boxes.map((b, i) => (
         <div key={i} ref={el => { slots.current[i] = el }} className='pdf-page'

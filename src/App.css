@@ -493,3 +493,9 @@
 .qmenu-icon.on:has(> .kicon) { outline: 2px solid #2b579a; outline-offset: 1px; border-radius: 2px; }
 .qmenu-chosen > :first-child { font-weight: 700; }
 .qmenu-tick { color: #2b579a; font-weight: 700; }
+/* A PDF form in the preview: its fields filled in place, saved with the bar's button. */
+.pdf-form-bar { align-self: stretch; display: flex; align-items: center; gap: 8px; margin: -7px -7px 0; padding: 5px 8px;
+  background: #eef3fb; border-bottom: 1px solid #c9d6ea; font: 12px var(--ui-font); color: #2a3f5f; position: sticky; top: -7px; z-index: 3; }
+.pdf-form-bar span { flex: 1; }
+.pdf-form-bar button { font: 12px var(--ui-font); padding: 2px 9px; }
+.pdf-page .kt-forms { position: absolute; left: 0; top: 0; }
