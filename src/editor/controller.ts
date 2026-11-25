@@ -40,7 +40,7 @@ import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
 import { computeColumnSpacers, computeSpacers, refreshColumns, sameSpacers, type PageStart } from './paginate.ts'
-import { layoutKey, layoutPlugin, widgetGuardPlugin, pagesKey, pagesPlugin } from './plugins.ts'
+import { layoutKey, layoutPlugin, widgetGuardPlugin, runInHitPlugin, pagesKey, pagesPlugin } from './plugins.ts'
 import { bibliographyPlugin } from './bibView.ts'
 import { moderncvPlugin } from './cvView.ts'
 import { posterBackground, posterPlugin } from './posterView.ts'
@@ -369,7 +369,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), widgetGuardPlugin(), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
+      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(), blockMoverPlugin(),

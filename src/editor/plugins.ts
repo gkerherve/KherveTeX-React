@@ -25,6 +25,40 @@ export const WIDGET_EDIT_EVENT = 'kt-widget-edit'
 const isWidgetNode = (n: PMNode | null | undefined) => !!n && n.type.name === 'raw_latex' && !!parseWidget(n.textContent)
 const textOk = (n: PMNode | null | undefined) => !!n && n.isTextblock && !isWidgetNode(n)
 
+// A run-in heading (\paragraph) lies over the paragraph pulled up onto
+// its line; wrapped, its box covers that paragraph's first line too. It
+// takes the mouse only over its own words (kt-runin-hot), so a click
+// reaches whichever text is under it.
+export function runInHitPlugin(): Plugin {
+  return new Plugin({
+    view(view) {
+      let hot: HTMLElement | null = null
+      const range = document.createRange()
+      const onWords = (h: HTMLElement, x: number, y: number) => {
+        range.selectNodeContents(h)
+        for (const r of range.getClientRects()) {
+          if (x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 1 && y <= r.bottom + 1) return true
+        }
+        return false
+      }
+      const move = (e: MouseEvent) => {
+        let found: HTMLElement | null = null
+        for (const h of view.dom.querySelectorAll<HTMLElement>('.kt-runin')) {
+          const b = h.getBoundingClientRect()
+          if (e.clientY < b.top || e.clientY > b.bottom) continue
+          if (onWords(h, e.clientX, e.clientY)) { found = h; break }
+        }
+        if (found === hot) return
+        hot?.classList.remove('kt-runin-hot')
+        found?.classList.add('kt-runin-hot')
+        hot = found
+      }
+      view.dom.addEventListener('mousemove', move)
+      return { destroy() { view.dom.removeEventListener('mousemove', move) } }
+    },
+  })
+}
+
 export function widgetGuardPlugin(): Plugin {
   const selected = (state: EditorState) => {
     const sel = state.selection
