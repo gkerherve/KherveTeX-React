@@ -758,6 +758,11 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
           }
           // Pull back what that leaves under the baseline.
           L.bottom = -(1 - BASELINE_AT) * tall * pt
+        } else if (drop > BASELINE_AT * lead) {
+          // Several lines (a long chapter title): the drop as space above
+          // the first line, so a "Chapter 1" label above it stays below
+          // the header as in the PDF.
+          L.tall = { lead: lead * pt, padTop: (drop - BASELINE_AT * lead) * pt, padBottom: 0 }
         }
         return labels
       }
