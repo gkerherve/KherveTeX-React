@@ -663,6 +663,14 @@ export function CompileNoImages(p: IconProps) {
   return <Svg {...p}>{pictureParts()}{L(3, 21, 21, 3, RED, 1.8)}</Svg>
 }
 
+// Do not compile: a page of greyed lines and a red no-entry sign.
+export function NoCompile(p: IconProps) {
+  return <Svg {...p}>{Page(3, 2.5, 13, 18)}
+    {L(5.5, 7, 13.5, 7, '#b5b5b5', 1.4)}{L(5.5, 10, 13.5, 10, '#b5b5b5', 1.4)}{L(5.5, 13, 11, 13, '#b5b5b5', 1.4)}
+    <circle cx={16.5} cy={16.5} r={5} stroke={RED} strokeWidth={1.8} fill={PAPER} />
+    {L(13, 20, 20, 13, RED, 1.8)}</Svg>
+}
+
 export function CompileRange(p: IconProps) {
   return <Svg {...p}>{Page(5, 2.5, 14, 19)}{F(6, 8, 12, 7, TINT)}
     {L(3, 8, 21, 8, BLUE, 1.4)}{L(3, 15, 21, 15, BLUE, 1.4)}</Svg>
@@ -1916,7 +1924,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
   overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, reference_style: ReferenceStyle, compile_pdf: CompilePdf,
   auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff, fast_latex: FastLatex,
-  compile_no_images: CompileNoImages, compile_range: CompileRange,
+  compile_no_images: CompileNoImages, compile_range: CompileRange, no_compile: NoCompile,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
   citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, refs_bib: RefsBib, refs_kherveref: RefsKherveRef, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,

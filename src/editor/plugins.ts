@@ -1,5 +1,6 @@
 // Two decoration layers over the document: the page layout (layout.ts —
 import { captionText } from './convert.ts'
+import { topBlocks } from './noCompile.ts'
 // each block's font, margins, numbers and labels, recomputed on every
 // change as _apply_page_layout is) and the page breaks (paginate.ts).
 import type { PdfTypography } from '../app/pageAnchors.ts'
@@ -351,6 +352,13 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       visit(node, offset)
     }
   })
+  // Do not compile: the parts left out greyed, their markers as labels.
+  for (const t of topBlocks(doc)) {
+    if (t.hidden) decos.push(Decoration.node(t.pos, t.pos + t.node.nodeSize, { class: 'kt-nocompile' }))
+    else if (t.marker && t.paired) {
+      decos.push(Decoration.node(t.pos, t.pos + t.node.nodeSize, { class: `kt-nc-mark kt-nc-${t.marker}`, contenteditable: 'false' }))
+    }
+  }
   return DecorationSet.create(doc, decos)
 }
 

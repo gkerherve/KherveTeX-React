@@ -10,6 +10,7 @@ import * as M from '../core/model.ts'
 import { cellDisplayText, cellPictures, displayToCellLatex, isStructuredCell } from './convert.ts'
 import { columnFractions } from './views.ts'
 import { dateHooks } from './plugins.ts'
+import { selectionHidden } from './noCompile.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorController } from './controller.ts'
 
@@ -143,6 +144,9 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
     { text: 'Paste', run: () => { void runAction('paste') } },
     { text: 'Delete', run: () => ed.run((s, d) => { d?.(s.tr.deleteSelection()); return true }), disabled: state.selection.empty },
     '-', { text: 'Select All', run: () => { void runAction('select_all') } },
+    '-', selectionHidden(state)
+      ? { text: 'Compile again', run: () => { void runAction('no_compile') } }
+      : { text: 'Do not compile', run: () => { void runAction('no_compile') } },
   )
 
   const fig = C.currentFigure(state)

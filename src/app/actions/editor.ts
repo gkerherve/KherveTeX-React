@@ -11,6 +11,7 @@ import { COMPILE_END, COMPILE_START, NOT_COMPILE_END, NOT_COMPILE_START } from '
 import { importBodyFragment } from '../../core/importers.ts'
 import { dirname } from '../../core/paths.ts'
 import * as C from '../../editor/commands.ts'
+import { toggleNoCompile } from '../../editor/noCompile.ts'
 import * as T from '../../editor/track.ts'
 import { editor } from '../../editor/controller.ts'
 import { showFindBar } from '../../ui/dialogs/FindBar.tsx'
@@ -381,6 +382,7 @@ const actions: Record<string, Handler> = {
   compile_start: () => { run(C.insertRawBlock(COMPILE_START)) },
   compile_end: () => { run(C.insertRawBlock(COMPILE_END)) },
   not_compile_start: () => { run(C.insertRawBlock(NOT_COMPILE_START)) },
+  no_compile: () => { run(toggleNoCompile) },
   not_compile_end: () => { run(C.insertRawBlock(NOT_COMPILE_END)) },
   pagebreak: () => { run(C.insertRawBlock('\\newpage')) },
   hrule: () => { run(C.insertRawBlock('\\hrulefill')) },

@@ -35,6 +35,7 @@ import type { ContextKind } from '../ui/ribbonModel.ts'
 import { setCommandChecked } from '../ui/commands.ts'
 import * as C from './commands.ts'
 import { docFromPM, docToPM } from './convert.ts'
+import { selectionHidden } from './noCompile.ts'
 import { editorKeymaps } from './keymap.ts'
 import { loadFonts, pdfFont, primaryFamily } from './latexFonts.ts'
 import { anchorTargets, screenFontFor, type DocLayout, type PageAnchor, type PageGeometry } from './layout.ts'
@@ -1191,6 +1192,7 @@ export class EditorController implements ViewHost {
   syncToolbar(): void {
     const s = this.view.state
     for (const [id, mark] of Object.entries(C.MARK_FOR_COMMAND)) setCommandChecked(id, C.isMarkActive(s, mark))
+    setCommandChecked('no_compile', selectionHidden(s))
     const align = C.currentAlignment(s)
     const alignId = { left: 'align_left', center: 'align_center', right: 'align_right', justify: 'align_justify' }[align]
       ?? 'align_left'

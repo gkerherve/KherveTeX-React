@@ -122,6 +122,12 @@
 .kt-label.kt-date .kt-date-close { top: 50%; right: 3px; width: 20px; height: 20px; margin-top: -10px; font: 15px/17px Arial, sans-serif; }
 .kt-label.kt-date:hover .kt-date-close { display: block; }
 
+.kt-nocompile { opacity: .38; }
+pre.kt-nc-mark { font-size: 0 !important; line-height: 0 !important; height: 15px; margin: 2px 0 !important; padding: 0 !important;
+  border: 0 !important; background: none !important; overflow: hidden; user-select: none; white-space: nowrap; }
+pre.kt-nc-mark::before { display: block; font: italic 10.5px/15px Arial, sans-serif; color: #8a8a8a; letter-spacing: 0; }
+pre.kt-nc-start::before { content: 'Not compiled \25BE'; }
+pre.kt-nc-end::before { content: '\25B4 end of not compiled'; }
 .kt-list { padding-left: 40px; }  /* QTextListFormat's indent: 40 px a level */
 .kt-list li { margin: 0; }
 

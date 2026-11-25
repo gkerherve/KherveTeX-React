@@ -487,6 +487,8 @@ const cmds: Command[] = [
   { id: 'raw', text: 'Raw LaTeX...' },
   { id: 'compile_start', text: 'Compile start marker' },
   { id: 'compile_end', text: 'Compile end marker' },
+  { id: 'no_compile', text: 'Do not compile', icon: 'no_compile', checkable: true,
+    tooltip: 'Leave the selected paragraphs out of the preview to compile faster (greyed). Click again on them to compile them again. Export always includes them.' },
   { id: 'not_compile_start', text: 'Not-compile start marker' },
   { id: 'not_compile_end', text: 'Not-compile end marker' },
   { id: 'code_block', text: '&Code block...' },
@@ -1096,6 +1098,7 @@ const boxKinds = CALLOUT_MENU.map(([k]) => `box_kind_${k}`)
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
+    { label: 'Compile', large: ['no_compile'] },
     { label: 'Font', rows: [
       [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
       ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'smallcaps', 'code', 'highlight', 'font_color']] },
