@@ -1992,6 +1992,16 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
       }
     }
   }
+  // The design (Design tab: colours, fonts, headings, chapter titles,
+  // title page, header style, watermark): the project's, else the one its
+  // documents were given - set while editing a document, it is in that
+  // document's settings. Without it the PDF showed none of it.
+  const design = m.design && Object.keys(m.design).length ? m.design
+    : (chapterDocs ?? []).map(d => d.meta.design).find(d => d && Object.keys(d).length)
+  if (design) {
+    const dp = designPreamble(design, (m.documentclass || '').toLowerCase())
+    if (dp) packages += '\n' + dp
+  }
   packages += '\n' + KSTROKE_PROVIDE
 
   // The title comes from the documents' own Title / Author blocks. The

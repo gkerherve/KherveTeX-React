@@ -278,7 +278,30 @@ export function designPreamble(d: Design | undefined, cls: string): string {
     }
     out.push(`\\AddToHook{shipout/background}{\\put(0,0){\\begin{tikzpicture}[overlay]${draw.join('')}\\end{tikzpicture}}}`)
   }
+  titlesecFixes(out, cls)
   return out.join('\n')
+}
+
+// titlesec in classes that do not let it read their headings: KOMA-Script
+// (and hepthesis, built on it) give titlesec no format for \section, so
+// the first \section stopped the compile ("No format for this command"):
+// their headings get titlesec formats, in KOMA's sans serif; the AMS
+// classes' heading numbers need their \@secnumpunct.
+function titlesecFixes(out: string[], cls: string): void {
+  const at = out.indexOf('\\usepackage{titlesec}')
+  if (at < 0) return
+  const add: string[] = []
+  if (/^scr|^hepthesis$/.test(cls)) {
+    const fam = '\\normalfont\\sffamily\\bfseries'
+    const levels: [string, string, string][] = [['section', '\\Large', '\\thesection'], ['subsection', '\\large', '\\thesubsection'],
+      ['subsubsection', '\\normalsize', '\\thesubsubsection']]
+    for (const [name, size, num] of levels) {
+      if (!out.some(l => l.startsWith(`\\titleformat{\\${name}}`))) add.push(`\\titleformat{\\${name}}{${fam}${size}}{${num}}{1em}{}`)
+    }
+    if (!out.some(l => l.startsWith('\\titleformat{\\paragraph}'))) add.push(`\\titleformat{\\paragraph}[runin]{${fam}\\normalsize}{\\theparagraph}{1em}{}`)
+  }
+  if (/^ams/.test(cls)) add.push('\\makeatletter\\providecommand{\\@secnumpunct}{.}\\makeatother')
+  out.splice(at + 1, 0, ...add)
 }
 
 // Design ▸ Chapter Titles: titlesec formats for the top heading (the
@@ -332,11 +355,14 @@ function chapterStyleLatex(style: ChapterStyle, chapters: boolean): string[] {
 // Design ▸ Title Page: \maketitle makes a page of its own.
 function titlePageLatex(style: TitleStyle): string[] {
   // Its own (empty) line: inside the title's paragraph, the \\vspace after it fell after the title's first line.
-  const overlay = (draw: string) => `\\noindent\\begin{tikzpicture}[remember picture,overlay]${draw}\\end{tikzpicture}\\par`
+  // Drawn on the title page's own shipout (as the watermark), from its top
+  // left corner, y downwards: no "remember picture", which shows only from
+  // a second LaTeX pass and left Fast LaTeX's one-pass preview blank.
+  const overlay = (draw: string) => `\\AddToHookNext{shipout/background}{\\put(0,0){\\begin{tikzpicture}[overlay]${draw}\\end{tikzpicture}}}`
   let body = ''
   switch (style) {
     case 'band':
-      body = overlay('\\fill[kAccent] (current page.north west) rectangle ([yshift=-11.5cm]current page.north east);')
+      body = overlay('\\fill[kAccent] (0,0) rectangle (\\paperwidth,-11.5cm);')
         + '\\vspace*{1.2cm}{\\raggedright\\color{white}\\fontsize{32}{38}\\selectfont\\bfseries\\@title\\par}\\vspace{0.8cm}'
         + '{\\raggedright\\color{white}\\Large\\@author\\par}\\vfill{\\raggedright\\large\\@date\\par}'
       break
@@ -346,7 +372,7 @@ function titlePageLatex(style: TitleStyle): string[] {
         + '\\vspace{1.5cm}{\\Large\\@author\\par}\\vspace{0.5cm}{\\large\\@date\\par}\\vspace*{\\fill}'
       break
     case 'leftbar':
-      body = overlay('\\fill[kAccent] (current page.north west) rectangle ([xshift=2.2cm]current page.south west);')
+      body = overlay('\\fill[kAccent] (0,0) rectangle (2.2cm,-\\paperheight);')
         + '\\vspace*{5cm}{\\raggedright\\fontsize{32}{38}\\selectfont\\bfseries\\color{kAccent}\\@title\\par}\\vspace{1cm}'
         + '{\\raggedright\\Large\\@author\\par}\\vfill{\\raggedright\\large\\@date\\par}'
       break
@@ -355,14 +381,16 @@ function titlePageLatex(style: TitleStyle): string[] {
         + '{\\color{kAccent}\\rule{4cm}{3pt}\\par}\\vspace{0.6cm}{\\raggedright\\Large\\@author\\par\\medskip\\large\\@date\\par}\\vspace{2cm}'
       break
     case 'framed':
-      body = overlay('\\draw[kAccent,line width=3pt] ([xshift=1.5cm,yshift=-1.5cm]current page.north west) rectangle ([xshift=-1.5cm,yshift=1.5cm]current page.south east);'
-        + '\\draw[kAccent,line width=0.8pt] ([xshift=1.85cm,yshift=-1.85cm]current page.north west) rectangle ([xshift=-1.85cm,yshift=1.85cm]current page.south east);')
+      body = overlay('\\draw[kAccent,line width=3pt] (1.5cm,-1.5cm) rectangle (\\paperwidth-1.5cm,-\\paperheight+1.5cm);'
+        + '\\draw[kAccent,line width=0.8pt] (1.85cm,-1.85cm) rectangle (\\paperwidth-1.85cm,-\\paperheight+1.85cm);')
         + '\\centering\\vspace*{\\fill}{\\fontsize{30}{36}\\selectfont\\bfseries\\color{kAccent}\\@title\\par}\\vspace{1.2cm}'
         + '{\\Large\\@author\\par}\\vspace{0.5cm}{\\large\\@date\\par}\\vspace*{\\fill}'
       break
     default: return []
   }
   return ['\\usepackage{tikz}', '\\makeatletter',
+    // memoir has no titlepage environment.
+    '\\@ifundefined{titlepage}{\\newenvironment{titlepage}{\\cleardoublepage\\thispagestyle{empty}}{\\clearpage}}{}',
     // After a title page, every page has the header style (Header Style).
     `\\renewcommand{\\maketitle}{\\begin{titlepage}${body}\\end{titlepage}\\setcounter{page}{1}\\ifdefined\\kEdgeAlltrue\\global\\kEdgeAlltrue\\fi}`, '\\makeatother']
 }
