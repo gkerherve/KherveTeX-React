@@ -7,6 +7,7 @@ import { defaultDesign } from './design.ts'
 import { pref } from '../prefs.ts'
 import { locateFigures } from '../../core/texFigures'
 import { isImageName } from '../../core/pictures'
+import { pictureTarget } from '../pictureDrop'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { importMd, importTex, type ImportFs } from '../../core/importers'
@@ -939,6 +940,9 @@ export async function startFileService(): Promise<boolean> {
       const r = window.devicePixelRatio || 1
       const x = ev.payload.position.x / r
       const y = ev.payload.position.y / r
+      // The Insert ▸ Figure window takes the pictures dropped on it.
+      const target = pictureTarget()
+      if (target && ev.payload.paths.some(isImageName)) { target(ev.payload.paths.filter(isImageName)); return }
       if (projectHooks?.dropAt(x, y, ev.payload.paths)) return
       // Pictures (a file from Finder, the screenshot thumbnail) go into the
       // document where they were dropped; documents open.

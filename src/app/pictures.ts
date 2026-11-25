@@ -57,7 +57,7 @@ async function toPng(img: HTMLImageElement): Promise<Uint8Array | null> {
 
 // Save one picture in the figures folder: the figure that shows it, or
 // null when it is not a picture the web view can read.
-async function savePicture(p: Picture): Promise<M.Figure | null> {
+export async function savePicture(p: Picture): Promise<M.Figure | null> {
   let ext = extOf(p.name)
   if (!ext || !MIME[ext]) ext = extForType(p.type)
   let bytes = p.bytes
@@ -83,6 +83,28 @@ async function savePicture(p: Picture): Promise<M.Figure | null> {
   const path = join(dir, name)
   await pf.writeFile(path, bytes)
   return M.figure({ path, caption: '', width })
+}
+
+// A picture file chosen with Browse: copied into the document's figures
+// folder (so it is saved inside the .ktex and survives the original
+// moving), unless it is there already. The figure, or null when the file
+// cannot be read.
+export async function adoptPicturePath(path: string): Promise<M.Figure | null> {
+  const dir = await imagesDir()
+  if (path.startsWith(dir + '/') || path.startsWith(dir + '\\')) return M.figure({ path, caption: '', width: '0.8\\textwidth' })
+  try {
+    return await savePicture({ bytes: await platform().readFile(path), name: basename(path), type: MIME[extOf(path)] ?? '' })
+  } catch {
+    return null
+  }
+}
+
+export async function pictureFromPath(path: string): Promise<Picture | null> {
+  try {
+    return { bytes: await platform().readFile(path), name: basename(path), type: MIME[extOf(path)] ?? '' }
+  } catch {
+    return null
+  }
 }
 
 // Insert pictures as figures at document position `at` (where they were

@@ -2,7 +2,7 @@
 // QInputDialog prompts, Insert table / Insert figure, Insert Caption,
 // Document settings (DocSettingsDialog) and Manage LaTeX styles
 // (style_dialog.py). Each resolves with its result, or null on Cancel.
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { TEMPLATE_CHOICES } from '../ribbonModel'
 import type { DocMeta } from '../../core/model'
 import { openDialog, type Close } from './dialogHost'
@@ -98,21 +98,50 @@ export function insertTableDialog(): Promise<TableChoice | null> {
   })
 }
 
-export interface FigureChoice { path: string; caption: string; label: string }
+// A picture dropped or pasted into the window: its bytes, kept in the
+// document once the window closes with OK.
+export interface DroppedPicture { bytes: Uint8Array; name: string; type: string }
+export interface FigureChoice { path: string; caption: string; label: string; picture?: DroppedPicture }
 
 // _InsertFigureDialog (also re-editing an existing figure).
 export function figureDialog(opts: {
   title?: string; path?: string; caption?: string; label?: string; pathReadonly?: boolean
   browse?: () => Promise<string | null>
+  // Drops from Finder (the desktop app gets paths) come through register.
+  pictures?: { register: (f: ((paths: string[]) => void) | null) => void; read: (path: string) => Promise<DroppedPicture | null> }
 } = {}): Promise<FigureChoice | null> {
   return openDialog<FigureChoice>(close => {
     function Dlg() {
       const [path, setPath] = useState(opts.path ?? '')
       const [caption, setCaption] = useState(opts.caption ?? '')
       const [label, setLabel] = useState(opts.label ?? '')
+      const [pic, setPic] = useState<DroppedPicture | null>(null)
+      const [url, setUrl] = useState<string | null>(null)
+      const [over, setOver] = useState(false)
+      const take = (p: DroppedPicture | null) => {
+        if (!p) return
+        setPic(p)
+        setPath(p.name)
+        setUrl(old => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(new Blob([p.bytes as BlobPart], { type: p.type || 'image/png' })) })
+      }
+      const fromFile = async (f: File, name?: string) => take({ bytes: new Uint8Array(await f.arrayBuffer()), name: name ?? f.name, type: f.type })
+      useEffect(() => {
+        if (opts.pathReadonly || !opts.pictures) return
+        const pics = opts.pictures
+        pics.register(paths => { if (paths[0]) void pics.read(paths[0]).then(take) })
+        const onPaste = (e: ClipboardEvent) => {
+          const f = [...(e.clipboardData?.files ?? [])].find(x => x.type.startsWith('image/'))
+          if (!f) return
+          e.preventDefault()
+          void fromFile(f, 'pasted-picture.' + (f.type.split('/')[1] || 'png'))
+        }
+        window.addEventListener('paste', onPaste, true)
+        return () => { pics.register(null); window.removeEventListener('paste', onPaste, true) }
+      }, [])
+      useEffect(() => () => { if (url) URL.revokeObjectURL(url) }, [url])
       return (
         <Frame title={opts.title ?? 'Insert figure'} close={close as Close<never>} className='dlg-ed dlg-figure'
-          onOk={() => close({ path: path.trim(), caption: caption.trim(), label: label.trim() })}>
+          onOk={() => close({ path: path.trim(), caption: caption.trim(), label: label.trim(), picture: pic && path === pic.name ? pic : undefined })}>
           <div className='dlg-form'>
             <label>Image path:</label>
             <div className='dlg-row'>
@@ -124,6 +153,20 @@ export function figureDialog(opts: {
                 }}>Browse...</button>
               )}
             </div>
+            {!opts.pathReadonly && opts.pictures && (<>
+              <span />
+              <div className={`dlg-drop${over ? ' over' : ''}`}
+                onDragOver={e => { e.preventDefault(); setOver(true) }}
+                onDragLeave={() => setOver(false)}
+                onDrop={e => {
+                  e.preventDefault()
+                  setOver(false)
+                  const f = [...e.dataTransfer.files].find(x => x.type.startsWith('image/') || /\.(png|jpe?g|pdf|gif|tiff?|bmp|webp|heic|svg)$/i.test(x.name))
+                  if (f) void fromFile(f)
+                }}>
+                {url ? <img src={url} alt='' /> : <span>Drop a picture here, or paste one (⌘V / Ctrl+V)</span>}
+              </div>
+            </>)}
             <label>Caption:</label>
             <input value={caption} onChange={e => setCaption(e.target.value)} />
             <label>Label:</label>

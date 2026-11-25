@@ -27,10 +27,16 @@ async function browse(): Promise<string | null> {
 
 const actions: Record<string, Handler> = {
   figure: async () => {
-    const r = await figureDialog({ browse })
+    const pics = await import('../pictures.ts')
+    const { setPictureDropTarget } = await import('../pictureDrop.ts')
+    const r = await figureDialog({ browse, pictures: { register: setPictureDropTarget, read: pics.pictureFromPath } })
     if (!r || !r.path) return
+    // The picture is kept in the document (its figures folder, saved inside
+    // the .ktex), not linked where it was found.
+    const kept = r.picture ? await pics.savePicture(r.picture).catch(() => null) : await pics.adoptPicturePath(r.path)
+    if (r.picture && !kept) { await information('Insert figure', 'That picture could not be read.'); return }
     run(C.insertModelBlocks([M.figure({
-      path: r.path, caption: escapeText(r.caption), label: r.label || null, width: '0.8\\textwidth',
+      path: kept?.path ?? r.path, caption: escapeText(r.caption), label: r.label || null, width: kept?.width ?? '0.8\\textwidth',
     })], { select: 0, trailingParagraph: true }))
     sync()
   },
