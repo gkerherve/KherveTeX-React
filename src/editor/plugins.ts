@@ -332,6 +332,9 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       attrs.class = parseWidget(t) ? 'kt-raw-widget' : t.includes('\\begin{lstlisting}') || t.includes('\\begin{verbatim}') ? 'kt-raw-code'
         : t.includes('\\begin{thebibliography}') ? 'kt-raw-bib' : tocBlock(t) ? 'kt-raw-toc' : /^\s*\\(?:newpage|clearpage|pagebreak|cleardoublepage)\s*$/.test(t) ? 'kt-raw-pagebreak' : ''
     }
+    // A run-in heading (\paragraph): the next paragraph is pulled up onto
+    // its line and would take the clicks on its words.
+    if (L.runInHeading) attrs.class = `${attrs.class ?? ''} kt-runin`.trim()
     if (L.breakBefore) attrs['data-break'] = '1'
     if (L.spans) attrs['data-span'] = '1'
     if (L.equationNumber) attrs['data-eqno'] = L.equationNumber
