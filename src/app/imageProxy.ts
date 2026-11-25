@@ -6,7 +6,6 @@
 import { join } from '../core/paths'
 import { platform } from '../platform'
 
-const MAX_SIDE = 1800
 const made = new Map<string, Promise<string | null>>()
 
 // PNG colour type 4 or 6, or a tRNS chunk: it has transparency.
@@ -16,27 +15,30 @@ function hasAlpha(b: Uint8Array): boolean {
   return head.includes('tRNS')
 }
 
-export function imageProxyIn(buildDir: string): (path: string) => Promise<string | null> {
+// maxSide 1800: the preview's copy of a large PNG; 240: the tiny copy
+// shown while typing.
+export function imageProxyIn(buildDir: string, maxSide = 1800): (path: string) => Promise<string | null> {
   return async (path: string) => {
     const st = await platform().stat(path)
     if (!st) return null
-    const key = `${path}|${st.mtime}`
+    const key = `${path}|${st.mtime}|${maxSide}`
     let p = made.get(key)
     if (!p) {
       p = (async () => {
         const bytes = await platform().readFile(path)
-        const alpha = hasAlpha(bytes)
-        const bmp = await createImageBitmap(new Blob([bytes.slice()], { type: 'image/png' }))
-        const k = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height))
-        if (k >= 1) { bmp.close(); return null }
+        const png = /\.png$/i.test(path)
+        const alpha = png && hasAlpha(bytes)
+        const bmp = await createImageBitmap(new Blob([bytes.slice()], { type: png ? 'image/png' : 'image/jpeg' }))
+        const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height))
+        if (k >= 1) { bmp.close(); return path }   // small already: itself
         const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k))
         const c = new OffscreenCanvas(w, h)
         const g = c.getContext('2d')!
         if (!alpha) { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h) }
-        g.imageSmoothingQuality = 'high'
+        g.imageSmoothingQuality = maxSide < 600 ? 'low' : 'high'
         g.drawImage(bmp, 0, 0, w, h)
         bmp.close()
-        const blob = await c.convertToBlob(alpha ? { type: 'image/png' } : { type: 'image/jpeg', quality: 0.88 })
+        const blob = await c.convertToBlob(alpha ? { type: 'image/png' } : { type: 'image/jpeg', quality: maxSide < 600 ? 0.6 : 0.88 })
         const dir = join(buildDir, 'kt-preview-images')
         await platform().mkdir(dir)
         let h32 = 5381

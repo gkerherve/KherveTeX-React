@@ -105,21 +105,34 @@ export function draftImages(tex: string): string {
 // Large PNGs cost xdvipdfmx a decode and recompress on every compile
 // (a 12-megapixel photo: about a second); JPEGs are copied as they are.
 const PROXY_MIN_BYTES = 1_500_000
+const RASTER = /\.(png|jpe?g)$/i
+const SIZED = (o: string | undefined) => !!o && /\b(?:width|height)\s*=/.test(o) && !/\b(?:scale|natwidth|natheight|bb|viewport|trim)\s*=/.test(o)
+
+// Swap pictures for stand-ins. `tiny` (while typing): every sized PNG or
+// JPEG becomes a small low-resolution copy, and an unsized one a draft
+// frame of its size; otherwise only large PNGs are swapped.
 export async function proxyImages(tex: string, proxy: (path: string) => Promise<string | null>,
-  host: Pick<CompilerHost, 'stat'>): Promise<string> {
+  host: Pick<CompilerHost, 'stat'>, tiny = false): Promise<string> {
   const swaps = new Map<string, string>()
   for (const m of tex.matchAll(INCLUDEGRAPHICS_RE)) {
     const [, , o, path] = m
-    if (!/\.png$/i.test(path) || !o || !/\b(?:width|height)\s*=/.test(o) || /\b(?:scale|natwidth|natheight|bb|viewport|trim)\s*=/.test(o)) continue
-    if (swaps.has(path)) continue
-    const st = await host.stat(path)
-    if (!st || (st.size ?? 0) < PROXY_MIN_BYTES) continue
-    const small = await proxy(path).catch(() => null)
+    if (swaps.has(path) || !(tiny ? RASTER : /\.png$/i).test(path) || !SIZED(o)) continue
+    if (!tiny) {
+      const st = await host.stat(path)
+      if (!st || (st.size ?? 0) < PROXY_MIN_BYTES) continue
+    }
+    // While typing, a copy not made yet is not waited for: a frame this
+    // time, the copy (made meanwhile) the next.
+    const made = proxy(path).catch(() => null)
+    const small = tiny ? await Promise.race([made, new Promise<null>(r => setTimeout(() => r(null), 30))]) : await made
     if (small) swaps.set(path, small)
+    else if (tiny) swaps.set(path, '')
   }
-  if (!swaps.size) return tex
-  return tex.replace(INCLUDEGRAPHICS_RE, (whole, star: string, o: string | undefined, path: string) =>
-    swaps.has(path) ? `\\includegraphics${star}${o ?? ''}{${swaps.get(path)!.replaceAll('\\', '/')}}` : whole)
+  return tex.replace(INCLUDEGRAPHICS_RE, (whole, star: string, o: string | undefined, path: string) => {
+    if (swaps.get(path)) return `\\includegraphics${star}${o ?? ''}{${swaps.get(path)!.replaceAll('\\', '/')}}`
+    if (tiny && RASTER.test(path) && (!SIZED(o) || swaps.has(path))) return `\\includegraphics${star}[draft${o ? ',' + o.slice(1, -1) : ''}]{${path}}`
+    return whole
+  })
 }
 
 async function existingSet(paths: string[], host: Pick<CompilerHost, 'exists'>): Promise<Set<string>> {
@@ -511,9 +524,10 @@ export interface CompileOptions {
   // keep the original). Only for pictures sized by width or height, whose
   // printed size does not depend on their pixels.
   imageProxy?: (path: string) => Promise<string | null>
-  // While typing: pictures as empty frames of their exact size (graphicx's
-  // draft), so the layout stays and nothing is decoded.
+  // While typing: pictures as tiny low-resolution copies (tinyProxy), or
+  // frames of their size where none can be made; the layout stays.
   draftImages?: boolean
+  tinyProxy?: (path: string) => Promise<string | null>
 }
 
 // Write `texSource` to `workdir/basename.tex` and compile with tectonic.
@@ -570,7 +584,8 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
   } else {
     const have = await existingSet(includegraphicsTargets(texSource, sourceDir), host)
     texSource = rewriteIncludegraphics(texSource, sourceDir, p => have.has(p))
-    if (opts.draftImages) texSource = draftImages(texSource)
+    if (opts.draftImages && opts.tinyProxy) texSource = await proxyImages(texSource, opts.tinyProxy, host, true)
+    else if (opts.draftImages) texSource = draftImages(texSource)
     else if (opts.imageProxy) texSource = await proxyImages(texSource, opts.imageProxy, host)
   }
   if (opts.useCompileRange) {

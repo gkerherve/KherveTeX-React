@@ -252,6 +252,7 @@ export async function kickCompile(draft = false): Promise<void> {
       fast, format: plan?.ready ? plan.name : null,
       imageProxy: fast ? imageProxyIn(dir) : undefined,
       draftImages: fast && useDraft,
+      tinyProxy: fast && useDraft ? imageProxyIn(dir, 240) : undefined,
     }
     const t0 = Date.now()
     result = engine === 'typst'
