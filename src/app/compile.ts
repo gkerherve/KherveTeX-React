@@ -7,7 +7,7 @@
 // the preview, the log in compile.log for the Console tab.
 import { useSyncExternalStore } from 'react'
 import {
-  cancelRunning, compileTex, compileTypst, downloadTectonicBundle,
+  cancelRunning, compileTex, compileTypst, downloadTectonicBundle, COMPILE_END, COMPILE_START,
   type CompileResult, type CompilerHost,
 } from '../core/compiler'
 import type { Document as KDocument } from '../core/model'
@@ -27,6 +27,7 @@ import type { PageEditing } from './actions/page'
 import { pageAnchors } from './pageAnchors'
 import { buildFormat, formatPlan, markFormatBad } from '../core/fastFormat'
 import { imageProxyIn } from './imageProxy'
+import { CARET_MARK, sectionOnly } from '../core/sectionPreview'
 import { appStore, type AppState } from './store'
 
 export type Engine = 'latex' | 'typst'
@@ -40,6 +41,8 @@ export interface CompileUi {
   // Pictures in the auto-compiled preview: originals' quality, medium
   // (800 px), low (300 px) or none (empty frames of the same size).
   pictures: Pictures
+  // While writing, compile only the section holding the caret.
+  section: boolean
   useCompileRange: boolean
   // PdfPreview.show_message: shown instead of the PDF (an error, or no engine).
   message: string | null
@@ -52,7 +55,7 @@ export interface CompileUi {
 }
 
 let ui: CompileUi = {
-  fast: setting('compile/fast', true), pictures: setting<Pictures>('compile/pictures', 'medium'), engine: 'latex', skipImages: false, useCompileRange: true, message: null,
+  fast: setting('compile/fast', true), pictures: setting<Pictures>('compile/pictures', 'medium'), section: setting('compile/section', true), engine: 'latex', skipImages: false, useCompileRange: true, message: null,
   pdfPath: null, statusText: '', consoleError: false,
 }
 const listeners = new Set<() => void>()
@@ -227,7 +230,26 @@ function showMessage(msg: string): void {
   appStore().set(s => ({ compile: { ...s.compile, pdf: null, serial: s.compile.serial + 1 } }))
 }
 
-export async function kickCompile(): Promise<void> {
+// The next compile may be of the caret's section alone (set by typing;
+// opening a document, Compile PDF and a layout change compile it all).
+let sectionNext = false
+
+// The source cut to the caret's section, or null for the whole document.
+function sectionSource(doc: KDocument): string | null {
+  if (!sectionNext || !ui.section || ui.engine === 'typst') return null
+  const ed = editorApi()
+  const at = ed?.caretBlock?.()
+  if (at === undefined || at < 0) return null
+  const children = [...doc.children]
+  children.splice(at + 1, 0, { type: 'RawLatex', text: CARET_MARK })
+  const tex = serializeFor({ ...doc, children }, 'latex')
+  // The writer's own compile range wins.
+  if (tex.includes(COMPILE_START) || tex.includes(COMPILE_END)) return null
+  return sectionOnly(tex)
+}
+
+export async function kickCompile(full = false): Promise<void> {
+  if (full) sectionNext = false
   if (closed) return
   // When a project is open, always compile the full project
   if (projectCompiler !== null && appStore().get().project !== null) {
@@ -250,7 +272,8 @@ export async function kickCompile(): Promise<void> {
   if (gap > 0) { setTimeout(() => void kickCompile(), gap); return }
   const doc = appStore().get().doc
   const engine = ui.engine
-  const source = serializeFor(doc, engine)
+  const part = sectionSource(doc)
+  const source = part ?? serializeFor(doc, engine)
   if (source === lastFailedSource) return
   lastSource = source
   running = true
@@ -271,7 +294,21 @@ export async function kickCompile(): Promise<void> {
       draftImages: pics === 'none',
     }
     const t0 = Date.now()
-    result = engine === 'typst'
+    if (part !== null) {
+      // In its own folder, reading the last full compile's references and
+      // citations (its .aux), so they keep their numbers; a failure (a
+      // definition left out) falls back to the whole document.
+      const sdir = join(dir, 'section')
+      await compilerHost().mkdir(sdir)
+      const host = compilerHost()
+      if (await host.exists(join(dir, 'document.aux'))) await host.copy(join(dir, 'document.aux'), join(sdir, 'document.aux'))
+      result = await compileTex(source, sdir, opts, host)
+      if (!result.ok) {
+        sectionNext = false
+        lastSource = serializeFor(doc, engine)
+        result = await compileTex(lastSource, dir, opts, host)
+      }
+    } else result = engine === 'typst'
       ? await compileTypst(source, dir, opts, compilerHost())
       : await compileTex(source, dir, opts, compilerHost())
     // A clash with the saved format: never use it again, compile without.
@@ -280,7 +317,7 @@ export async function kickCompile(): Promise<void> {
       result = await compileTex(source, dir, { ...opts, format: null }, compilerHost())
     }
     lastMs = Date.now() - t0
-    if (fast) {
+    if (fast && part === null) {
       // Labels or citations still settling (one pass reads the last
       // compile's .aux): one more pass, at most twice for the same text.
       if (result.ok && /Rerun to get|There were undefined references|Label\(s\) may have changed|Citation .* undefined/.test(result.log ?? '')) {
@@ -297,10 +334,10 @@ export async function kickCompile(): Promise<void> {
   } catch (e) {
     result = { ok: false, pdfPath: null, log: '', error: e instanceof Error ? e.message : String(e) }
   }
-  await onCompileDone(result, engine)
+  await onCompileDone(result, engine, part !== null && sectionNext)
 }
 
-async function onCompileDone(result: CompileResult, engine: Engine): Promise<void> {
+async function onCompileDone(result: CompileResult, engine: Engine, partial = false): Promise<void> {
   // Typed during the compile: its PDF is already out of date. Skip
   // loading it and compile the new text once the keys pause.
   if (pendingRecompile && result.ok && typingNow()) {
@@ -328,7 +365,9 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // Cache the PDF next to the document for instant loading (not online,
     // where a file saved beside the document is a browser download).
     const path = appStore().get().path
-    if (path !== null && platform().kind !== 'browser' && !pendingRecompile) {
+    // A section alone is not the document: neither saved beside it nor
+    // used for the editor's page breaks.
+    if (path !== null && platform().kind !== 'browser' && !pendingRecompile && !partial) {
       const bytes = pdf
       afterTyping(() => void platform().writeFile(join(dirname(path), `${docStem(path)}.pdf`), bytes).catch(() => {}))
     }
@@ -338,7 +377,7 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // a title block).
     // Not while another compile waits (typing): its PDF will do it.
     const bytes = pdf
-    if (!pendingRecompile) afterTyping(() => void pageAnchors(bytes).then(([count, anchors, furniture, typography]) => {
+    if (!pendingRecompile && !partial) afterTyping(() => void pageAnchors(bytes).then(([count, anchors, furniture, typography]) => {
       const ed = editorApi() as (EditorApi & Partial<PageEditing>) | null
       ed?.setPageAnchors?.(count, anchors, furniture, typography)
     }).catch(() => {}))
@@ -488,6 +527,13 @@ export function setPictures(q: Pictures): void {
   setSetting('compile/pictures', q)
   for (const m of PICTURE_MODES) setCommandChecked(`pictures_${m}`, m === q)
   if (appStore().get().autoCompile) void kickCompile()
+}
+
+export function setSectionOnly(on: boolean): void {
+  setUi({ section: on })
+  setSetting('compile/section', on)
+  setCommandChecked('compile_section', on)
+  if (!on && appStore().get().autoCompile) void kickCompile(true)
 }
 
 export function setSkipImages(on: boolean): void {
@@ -649,7 +695,8 @@ export function startCompileService(): void {
       // documentChanged directly); typing waits 450 ms after the last key,
       // 60 ms with Fast LaTeX (its compile is short enough to keep up).
       const typing = s.docSerial === was.docSerial
-      if (typing) lastKeyAt = Date.now()
+      if (typing) { lastKeyAt = Date.now(); sectionNext = true }
+      else sectionNext = false
       timer = setTimeout(() => { timer = null; void kickCompile() }, !typing ? 0 : ui.fast ? TYPING_PAUSE_MS : 450)
     }
   })
@@ -661,6 +708,7 @@ export function startCompileService(): void {
   setCommandChecked(visual ? 'visual_only' : mode === 'window' ? 'pdf_window' : 'side_by_side', true)
   setCommandChecked('auto_compile', !visual)
   for (const m of PICTURE_MODES) setCommandChecked(`pictures_${m}`, m === ui.pictures)
+  setCommandChecked('compile_section', ui.section)
   setCommandChecked('pdf_panel', !visual)
   setCommandChecked('pdf_detach', mode === 'window')
   if (!visual) void kickCompile()
