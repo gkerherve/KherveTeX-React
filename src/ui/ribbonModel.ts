@@ -1126,6 +1126,14 @@ export const RIBBON_TABS: RibbonTab[] = [
       ['align_left', 'align_center', 'align_right', 'align_justify', 'line_spacing', 'para_shading', 'para_borders']] },
     { label: 'Styles', large: [{ widget: 'styles' }, { widget: 'numbered' }] },
   ] },
+  { name: 'Insert', groups: [
+    { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
+    { label: 'Tables & Boxes', large: ['table_menu', 'callout', 'ins_checklist'] },
+    { label: 'Illustrations', large: ['figure', 'ill_drawing', 'ill_charts'], rows: [['ins_icon'], ['screenshot']], text: true },
+    { label: 'Elements', rows: [['ins_pullquote', 'ins_sidebar', 'ins_rating'], ['ins_qrcode'], ['ins_code', 'ins_dropcap']], text: true },
+    { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
+    { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
+  ] },
   // Science: equations, theorems and chemistry, out of the crowded Insert tab.
   // Math: equations, numbers, theorems and algorithms, graphs and data.
   { name: 'Math', groups: [
@@ -1140,14 +1148,6 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig', 'sci_scheme'], ['sci_mo', 'sci_hazard'], ['sci_bohr', 'sci_element']], text: true },
     { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
     SCIENCE_FIELDS,
-  ] },
-  { name: 'Insert', groups: [
-    { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
-    { label: 'Tables & Boxes', large: ['table_menu', 'callout', 'ins_checklist'] },
-    { label: 'Illustrations', large: ['figure', 'ill_drawing', 'ill_charts'], rows: [['ins_icon'], ['screenshot']], text: true },
-    { label: 'Elements', rows: [['ins_pullquote', 'ins_sidebar', 'ins_rating'], ['ins_qrcode'], ['ins_code', 'ins_dropcap']], text: true },
-    { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
-    { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
   ] },
   ADMIN_TAB,
   { name: 'Draw', groups: [
