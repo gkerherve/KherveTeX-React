@@ -190,7 +190,7 @@ export const lastCompileMs = () => lastMs
 // keys have paused, and the work a finished compile does in the window
 // (reading the PDF, page breaks, the copy beside the document) waits too.
 let lastKeyAt = 0
-const TYPING_PAUSE_MS = 350
+const TYPING_PAUSE_MS = 1000
 const typingNow = () => Date.now() - lastKeyAt < TYPING_PAUSE_MS
 function afterTyping(fn: () => void): void {
   const wait = TYPING_PAUSE_MS - (Date.now() - lastKeyAt)

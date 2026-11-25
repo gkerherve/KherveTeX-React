@@ -410,7 +410,9 @@ export class EditorController implements ViewHost {
     if (tr.docChanged || metaChanged) {
       if (!tr.getMeta(NO_EXPORT)) this.queueExport()
       if (metaChanged) this.applyGeometry()
-      this.schedulePages(tr.docChanged && !metaChanged ? 120 : 0)
+      // Typing: the page breaks (a measure of the whole document, 0.1 s
+      // or more in a long chapter) wait until the writing pauses.
+      this.schedulePages(tr.docChanged && !metaChanged ? 900 : 0)
     } else if (pages) {
       this.schedulePages(0, true)
     }
