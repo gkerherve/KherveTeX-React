@@ -663,6 +663,14 @@ export function CompileNoImages(p: IconProps) {
   return <Svg {...p}>{pictureParts()}{L(3, 21, 21, 3, RED, 1.8)}</Svg>
 }
 
+// Review ▸ Decisions: a list with a tick and a cross.
+export function ReviewLog(p: IconProps) {
+  return <Svg {...p}>{Page(4, 2.5, 16, 19)}
+    {P([[6.5, 8], [8, 9.5], [10.5, 6.5]], { color: GREEN, lw: 1.5 })}{L(12, 8, 17.5, 8, '#9aa8bd', 1.2)}
+    {L(6.8, 12.3, 9.8, 15.3, RED, 1.5)}{L(9.8, 12.3, 6.8, 15.3, RED, 1.5)}{L(12, 14, 17.5, 14, '#9aa8bd', 1.2)}
+    {P([[6.5, 18], [8, 19.5], [10.5, 16.5]], { color: GREEN, lw: 1.5 })}</Svg>
+}
+
 // Chapters: three stacked pages, the front one ticked.
 export function Chapters(p: IconProps) {
   return <Svg {...p}>{Page(8, 2, 12, 15)}{Page(5.5, 4.5, 12, 15)}{Page(3, 7, 12, 15)}
@@ -1931,7 +1939,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
   overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, reference_style: ReferenceStyle, compile_pdf: CompilePdf,
   auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff, fast_latex: FastLatex,
-  compile_no_images: CompileNoImages, compile_range: CompileRange, no_compile: NoCompile, chapters: Chapters,
+  compile_no_images: CompileNoImages, compile_range: CompileRange, no_compile: NoCompile, chapters: Chapters, review_log: ReviewLog,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,
   citation: Citation, manage_references: ManageReferences, refs_zotero: RefsZotero, refs_mendeley: RefsMendeley, coffee: Coffee, your_name: YourName, refs_endnote: RefsEndNote, refs_import: RefsImport, refs_bib: RefsBib, refs_kherveref: RefsKherveRef, bibliography: Bibliography, cross_ref: CrossRef, math_inline: MathInline,

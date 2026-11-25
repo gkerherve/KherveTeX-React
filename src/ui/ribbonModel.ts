@@ -3,7 +3,7 @@
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
 import type { OfficeKind } from '../core/office.ts'
-import { ACCOUNTANTS_TAB, ADMIN_TAB, OFFICE_AUTO_TABS, OFFICE_COMMANDS, OFFICE_CONTEXT_TABS, SCIENCE_MORE_TAB } from './officeRibbon.ts'
+import { ADMIN_TAB, OFFICE_AUTO_TABS, OFFICE_COMMANDS, OFFICE_CONTEXT_TABS, SCIENCE_FIELDS } from './officeRibbon.ts'
 import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
@@ -490,6 +490,8 @@ const cmds: Command[] = [
   { id: 'compile_end', text: 'Compile end marker' },
   { id: 'no_compile', text: 'Do not compile', icon: 'no_compile', checkable: true,
     tooltip: 'Leave the selected paragraphs out of the preview to compile faster (greyed). Click again on them to compile them again. Export always includes them.' },
+  { id: 'review_log', text: 'Decisions', icon: 'review_log',
+    tooltip: 'Every change and comment accepted or rejected in this document: what it was, who made it, who decided and when' },
   { id: 'chapters', text: 'Chapters', icon: 'chapters',
     tooltip: 'Your chapters in one list: tick which compile and which show while you write, drag them into order, add a new one or a file as a chapter' },
   { id: 'not_compile_start', text: 'Not-compile start marker' },
@@ -1178,17 +1180,9 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Proofing', large: ['spell_check', 'spelling_list'] },
     { label: 'Comments', large: ['comment'], rows: [['prev_change'], ['next_change']], text: true },
     { label: 'Tracking', large: ['track_changes'], rows: [['markup_view'], ['markup_options']], text: true },
-    { label: 'Changes', large: ['accept_comment', 'reject_comment'] },
+    { label: 'Changes', large: ['accept_comment', 'reject_comment', 'review_log'] },
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'],
       rows: [['overleaf_open'], ['overleaf_link']], text: true },
-  ] },
-  // Compile and History in one tab: make the PDF, keep its versions.
-  { name: 'Compile', groups: [
-    { label: 'Compile', large: ['compile_now', 'auto_compile', 'fast_latex'] },
-    { label: 'Options', large: ['compile_range', 'skip_images'] },
-    { label: 'Output', large: ['export_pdf', 'print_preview'] },
-    { label: 'Versions', large: ['commit_now', 'history'] },
-    { label: 'Cloud', large: ['github'] },
   ] },
   { name: 'Examples', groups: [
     { label: 'Start', large: ['new', 'tour'] },
@@ -1209,9 +1203,16 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Notation', rows: [['sci_physics'], ['sci_sigfig'], ['sci_nuclear']], text: true },
     { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig', 'sci_scheme'], ['sci_mo', 'sci_hazard'], ['sci_bohr', 'sci_element']], text: true },
     { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
+    SCIENCE_FIELDS,
   ] },
-  SCIENCE_MORE_TAB,
-  ACCOUNTANTS_TAB,
+  // Compile and History in one tab: make the PDF, keep its versions.
+  { name: 'Compile', groups: [
+    { label: 'Compile', large: ['compile_now', 'auto_compile', 'fast_latex'] },
+    { label: 'Options', large: ['compile_range', 'skip_images'] },
+    { label: 'Output', large: ['export_pdf', 'print_preview'] },
+    { label: 'Versions', large: ['commit_now', 'history'] },
+    { label: 'Cloud', large: ['github'] },
+  ] },
   { name: 'Table Design', context: 'table', groups: [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },
     { label: 'Table Styles', large: ['tbl_plain', 'tbl_grid', 'tbl_booktabs', 'tbl_striped', 'tbl_nolines'] },

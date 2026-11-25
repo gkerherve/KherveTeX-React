@@ -138,12 +138,37 @@ function changeAt(state: EditorState): { from: number; to: number } | null {
   return from < 0 ? null : { from, to }
 }
 
+function settleRange(state: EditorState, all: boolean): { from: number; to: number } | null {
+  if (all) return { from: 0, to: state.doc.content.size }
+  if (!state.selection.empty) return { from: state.selection.from, to: state.selection.to }
+  return changeAt(state)
+}
+
+// What Accept / Reject (this one, or all) would settle: each change's
+// text, kind and author, neighbouring pieces of one change joined.
+export function changesToSettle(state: EditorState, all: boolean): { kind: 'ins' | 'del'; text: string; author: string; time: string }[] {
+  const range = settleRange(state, all)
+  if (!range) return []
+  const out: { kind: 'ins' | 'del'; text: string; author: string; time: string; to: number }[] = []
+  state.doc.nodesBetween(range.from, range.to, (node, pos) => {
+    if (!node.isText) return true
+    for (const m of node.marks) {
+      const kind = m.type === schema.marks.trackins ? 'ins' : m.type === schema.marks.trackdel ? 'del' : null
+      if (!kind) continue
+      const a = Math.max(pos, range.from), b = Math.min(pos + node.nodeSize, range.to)
+      const text = node.text!.slice(a - pos, b - pos)
+      const last = out[out.length - 1]
+      if (last && last.kind === kind && last.author === m.attrs.author && last.to === a) { last.text += text; last.to = b }
+      else out.push({ kind, text, author: m.attrs.author, time: m.attrs.time, to: b })
+    }
+    return false
+  })
+  return out.map(({ to: _, ...c }) => c)
+}
+
 function settle(accept: boolean, all: boolean): Command {
   return (state, dispatch) => {
-    let range: { from: number; to: number } | null
-    if (all) range = { from: 0, to: state.doc.content.size }
-    else if (!state.selection.empty) range = { from: state.selection.from, to: state.selection.to }
-    else range = changeAt(state)
+    const range = settleRange(state, all)
     if (!range) return false
     const changes = changesIn(state.doc, range.from, range.to)
     if (!changes.length) return false

@@ -76,3 +76,22 @@
 .ch-num { color: #8a8a8a; min-width: 1.4em; text-align: right; }
 .ch-sum { color: #9a9a9a; font-size: 11px; margin-left: auto; white-space: nowrap; }
 .ch-tip, .ch-empty { color: #666; font-size: 11.5px; margin-top: 8px; line-height: 1.4; }
+/* Review ▸ Decisions. */
+.dlg-revlog { min-width: 640px; max-width: 820px; }
+.rl-filter { display: flex; gap: 4px; margin-bottom: 6px; }
+.rl-filter button { font-size: 12px; padding: 2px 10px; }
+.rl-filter button.on { background: #2b579a; color: #fff; border-color: #2b579a; }
+.rl-list { max-height: 380px; overflow: auto; border-top: 1px solid #ddd; }
+.rl-row { display: grid; grid-template-columns: 84px 70px 1fr 120px 130px; gap: 8px; align-items: start; padding: 5px 4px; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+.rl-dec { font-weight: 600; }
+.rl-row.accepted .rl-dec { color: #1d6b2f; }
+.rl-row.rejected .rl-dec { color: #a33; }
+.rl-kind { color: #666; }
+.rl-text { min-width: 0; overflow-wrap: anywhere; }
+.rl-text .ins { text-decoration: underline; color: #1f4e8c; }
+.rl-text .del { text-decoration: line-through; color: #8a3a3a; }
+.rl-note { display: block; color: #6b7a90; font-style: italic; margin-top: 2px; }
+.rl-who { display: flex; flex-direction: column; color: #333; }
+.rl-who small { color: #8a8a8a; font-size: 10.5px; }
+.rl-empty { color: #666; font-size: 12px; padding: 10px 2px; line-height: 1.4; }
+.rl-head { font-size: 11px; color: #777; font-weight: 600; position: sticky; top: 0; background: #fff; }

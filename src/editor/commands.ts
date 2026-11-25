@@ -1074,6 +1074,21 @@ function selectionOrComment(state: EditorState): { from: number; to: number } | 
   return commentSpanAt(state, state.selection.from) ?? wordAt(state.selection.$from)
 }
 
+// What Accept / Reject on a comment settles: the commented text, its note
+// and author (the comment the range starts in).
+export function commentToSettle(state: EditorState): { text: string; note: string; author: string; time: string } | null {
+  const r = selectionOrComment(state)
+  if (!r) return null
+  let mark: Mark | null = null
+  state.doc.nodesBetween(r.from, r.to, node => {
+    if (mark || !node.isInline) return !mark
+    mark = node.marks.find(m => m.type === schema.marks.comment) ?? null
+    return false
+  })
+  const m = mark as Mark | null
+  return { text: state.doc.textBetween(r.from, r.to, ' '), note: m?.attrs.note ?? '', author: m?.attrs.author ?? '', time: m?.attrs.timestamp ?? '' }
+}
+
 // accept_comment: the comment's text stays, its note goes.
 export const acceptComment: Command = (state, dispatch) => {
   const r = selectionOrComment(state)

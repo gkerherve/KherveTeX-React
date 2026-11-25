@@ -295,6 +295,20 @@ export const HF_FIELDS = ['PAGE', 'NUMPAGES', 'DATE', 'TITLE', 'AUTHOR'] as cons
 // {PAGE}, {PICTURE:images/logo.png}...
 export const HF_FIELD_RE = /\{(PAGE|NUMPAGES|DATE|TITLE|AUTHOR|PICTURE:[^{}]+)\}/g
 
+// One decision taken in Review (Accept / Reject): what it was about, who
+// made the change or comment, and who decided, when.
+export interface ReviewEntry {
+  decision: 'accepted' | 'rejected'
+  kind: 'insertion' | 'deletion' | 'comment'
+  text: string
+  note?: string
+  author: string
+  // When the change or comment was made, if known.
+  made?: string
+  by: string
+  at: string
+}
+
 export interface DocMeta {
   title: string
   author: string
@@ -328,6 +342,8 @@ export interface DocMeta {
   // Review ▸ Track Changes on, and the markup shown (absent = All Markup);
   // stored only when set.
   track_changes?: boolean
+  // Review ▸ Decisions: each tracked change or comment accepted or rejected.
+  review_log?: ReviewEntry[]
   markup?: 'simple' | 'none' | 'original'
   // Pages turned sideways (geometry's landscape). Stored only when on.
   landscape?: boolean

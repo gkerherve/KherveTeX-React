@@ -27,6 +27,32 @@ const PARA_SHADES = SHADES.map(([c]) => c)
 
 const ed = () => editor()
 
+// Accept / Reject a tracked change (this one or all), else the comment
+// there; what was settled goes into the review log.
+function decide(accept: boolean, all: boolean): boolean {
+  const e = editor()
+  if (!e) return false
+  const state = e.view.state
+  const by = userName() || 'Author'
+  const at = new Date().toISOString()
+  const decision = accept ? 'accepted' : 'rejected'
+  const changes = T.changesToSettle(state, all)
+  let entries: M.ReviewEntry[] = changes.map(c => ({
+    decision, kind: c.kind === 'ins' ? 'insertion' : 'deletion', text: c.text, author: c.author, ...(c.time ? { made: c.time } : {}), by, at,
+  }))
+  let ok = run(all ? (accept ? T.acceptAllChanges : T.rejectAllChanges) : (accept ? T.acceptChange : T.rejectChange))
+  if (!ok && !all) {
+    const c = C.commentToSettle(state)
+    ok = run(accept ? C.acceptComment : C.rejectComment)
+    entries = ok && c ? [{ decision, kind: 'comment', text: c.text, ...(c.note ? { note: c.note } : {}), author: c.author, ...(c.time ? { made: c.time } : {}), by, at }] : []
+  }
+  if (ok && entries.length) {
+    const ed = editor()
+    if (ed) ed.setMeta({ ...ed.meta, review_log: [...(ed.meta.review_log ?? []), ...entries] })
+  }
+  return ok
+}
+
 function run(cmd: C.Command): boolean {
   return ed()?.run(cmd) ?? false
 }
@@ -432,10 +458,23 @@ const actions: Record<string, Handler> = {
   your_name: () => { void askYourName(false) },
   // Accept / Reject: the tracked change at the caret (or in the
   // selection), else the comment there, as Word's Accept does both.
-  accept_comment: () => { if (!run(T.acceptChange)) run(C.acceptComment) },
-  reject_comment: () => { if (!run(T.rejectChange)) run(C.rejectComment) },
-  accept_all: () => { if (!run(T.acceptAllChanges)) status('No tracked changes.') },
-  reject_all: () => { if (!run(T.rejectAllChanges)) status('No tracked changes.') },
+  // Each decision goes into the document's Review log (Review ▸ Decisions).
+  accept_comment: () => { decide(true, false) },
+  reject_comment: () => { decide(false, false) },
+  review_log: async () => {
+    const e = editor()
+    if (!e) return
+    const { reviewLogDialog } = await import('../../ui/dialogs/ReviewLogDialog.tsx')
+    await reviewLogDialog(e.meta.review_log ?? [], () => {
+      const ed = editor()
+      if (!ed) return
+      const { review_log: _, ...rest } = ed.meta
+      void _
+      ed.setMeta(rest)
+    })
+  },
+  accept_all: () => { if (!decide(true, true)) status('No tracked changes.') },
+  reject_all: () => { if (!decide(false, true)) status('No tracked changes.') },
   next_change: () => { if (!run(T.gotoChange(true))) status('No tracked changes.') },
   prev_change: () => { if (!run(T.gotoChange(false))) status('No tracked changes.') },
   track_changes: async on => {

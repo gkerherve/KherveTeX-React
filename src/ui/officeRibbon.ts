@@ -1,5 +1,5 @@
-// Admin & Office, Science (more) and the optional Accountants tab (hidden
-// until switched on in Settings ▸ Ribbon & Toolbar). Each element they insert has
+// Admin & Office (with the accountants' elements) and Science's Fields
+// drop-downs (chemical engineering, architecture, earth science). Each element they insert has
 // its own contextual tab (Edit…, its options, Move, Delete, Close) that
 // opens whenever it is selected, whether or not its main tab is shown.
 import { OFFICE_NAMES, type OfficeKind } from '../core/office.ts'
@@ -7,7 +7,7 @@ import type { Command, RibbonTab } from './ribbonModel.ts'
 import type { Tip } from './tooltips.ts'
 
 // The tabs hidden unless the user turns them on.
-export const OPTIONAL_TABS = ['Accountants']
+export const OPTIONAL_TABS: string[] = []
 
 const T = (title: string, what: string, latex = ''): Tip => ({ title, what, latex })
 const ELEMENT = ' Click it on the page to select it: its own tab opens, Edit… (or a double-click) changes it, Move up / Move down or the grip moves it, Delete or its × removes it, and Close puts the caret after it.'
@@ -86,14 +86,12 @@ export const ADMIN_TAB: RibbonTab = { name: 'Admin & Office', groups: [
   g('Letters', ['letterhead', 'signature', 'stamp']), g('Meetings', ['agenda', 'actions', 'calendar']), g('Forms', ['formfields', 'certificate']),
   { label: 'Plan', large: ['ins_timeline', 'ins_progress', 'ins_steps'] },
   { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },
+  { label: 'Accountants', rows: [['of_fintable', 'of_budget'], ['of_invoice', 'of_loan'], ['of_kpi', 'of_waterfall']], text: true },
 ] }
-export const ACCOUNTANTS_TAB: RibbonTab = { name: 'Accountants', groups: [g('Statements', ['fintable', 'budget']), g('Billing', ['invoice', 'loan']), g('Charts', ['kpi', 'waterfall'])] }
-// Science (more): chemical engineering, architecture and earth science,
-// each a drop-down, to keep the tab short.
-export const SCIENCE_MORE_TAB: RibbonTab = { name: 'Science (more)', groups: [
-  { label: 'Fields', large: ['sm_chemeng', 'sm_architect', 'sm_earth'] },
-] }
-export const OFFICE_MAIN_TABS: RibbonTab[] = [ADMIN_TAB, ACCOUNTANTS_TAB, SCIENCE_MORE_TAB]
+// Science's Fields group: chemical engineering, architecture and earth
+// science, each a drop-down, to keep the tab short.
+export const SCIENCE_FIELDS = { label: 'Fields', large: ['sm_chemeng', 'sm_architect', 'sm_earth'] }
+export const OFFICE_MAIN_TABS: RibbonTab[] = [ADMIN_TAB]
 
 // Each element's own tab: Edit…, its options, colour, Move, Delete / Close.
 const OPTIONS: Partial<Record<OfficeKind, string[][]>> = {
