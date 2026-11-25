@@ -4,7 +4,7 @@
 import { isCommandChecked } from '../../ui/commands'
 import { registerActions } from '../actions'
 import {
-  downloadBundle, kickCompile, openCache, setAutoCompile, setCompileRange,
+  downloadBundle, kickCompile, openCache, setAutoCompile, setFastLatex, setCompileRange,
   setCompiler, setSkipImages, showCompilerStatus,
 } from '../compile'
 import { appStore } from '../store'
@@ -15,6 +15,7 @@ const on = (arg: unknown) => arg === true
 registerActions({
   compile_now: () => kickCompile(),
   auto_compile: (arg) => setAutoCompile(on(arg)),
+  fast_latex: (arg) => setFastLatex(on(arg)),
   skip_images: (arg) => setSkipImages(on(arg)),
   compile_range: (arg) => setCompileRange(on(arg)),
   compiler_latex: () => setCompiler('latex'),

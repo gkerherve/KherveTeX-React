@@ -640,6 +640,11 @@ export function AutoCompileOn(p: IconProps) {
     {D(12, 12, 2, GREEN)}</Svg>
 }
 
+// Fast LaTeX: a lightning bolt.
+export function FastLatex(p: IconProps) {
+  return <Svg {...p}>{P([[13.5, 2], [5.5, 13.5], [11, 13.5], [9.5, 22], [18.5, 9.5], [12.8, 9.5], [13.5, 2]], { color: '#C77700', fill: '#F5B400', lw: 1 })}</Svg>
+}
+
 export function AutoCompileOff(p: IconProps) {
   return <Svg {...p}>{Arc(12, 12, 8, 60, 290, INK, 1.8)}
     {L(4, 20, 20, 4, RED, 1.8)}</Svg>
@@ -1910,7 +1915,7 @@ export const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   prev_comment: PrevComment, next_comment: NextComment, history: History,
   commit: Commit, overleaf_send: OverleafSend, overleaf_get: OverleafGet,
   overleaf_zip: OverleafZip, branch: Branch, github: GitHub, captions: Captions, reference_style: ReferenceStyle, compile_pdf: CompilePdf,
-  auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff,
+  auto_compile_on: AutoCompileOn, auto_compile_off: AutoCompileOff, fast_latex: FastLatex,
   compile_no_images: CompileNoImages, compile_range: CompileRange,
   figure: Figure, table: Table, drawing: Drawing,
   flowchart_builder: FlowchartBuilder, link: Link, footnote: Footnote,

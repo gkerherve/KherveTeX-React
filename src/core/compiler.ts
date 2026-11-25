@@ -469,6 +469,10 @@ export interface CompileOptions {
   sourceDir?: string | null
   skipImages?: boolean
   useCompileRange?: boolean
+  // Fast LaTeX: one pass that reads the last compile's .aux/.toc (kept in
+  // workdir), and the saved format of the document's packages if ready.
+  fast?: boolean
+  format?: string | null
 }
 
 // Write `texSource` to `workdir/basename.tex` and compile with tectonic.
@@ -553,6 +557,8 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
   const run = async (onlyCached: boolean): Promise<[number | null, string, boolean]> => {
     const args: string[] = []
     if (onlyCached) args.push('--only-cached')
+    if (opts.fast) args.push('-r', '0', '--keep-intermediates')
+    if (opts.fast && opts.format) args.push('-f', opts.format)
     args.push('-Z', 'continue-on-errors', '--keep-logs', '--synctex', '--outdir', workdir, texPath)
     // Cache-only takes seconds; a run that may download needs room to fetch
     // the format and many packages on a slow line (a fresh install, a new

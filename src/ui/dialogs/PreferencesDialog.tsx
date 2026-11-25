@@ -96,11 +96,13 @@ function General() {
   const [welcome, setWelcome] = useSetting('show_welcome', true)
   const [follow, setFollow] = useSetting('pdf_follows_text', true)
   const [auto, setAuto] = useCommandToggle('auto_compile')
+  const [fast, setFast] = useCommandToggle('fast_latex')
   const [layout, setLayout] = useState<LayoutMode>(() => setting<LayoutMode>('layout_mode', 'side'))
   return (<>
     <Group title='Settings'>
       <Check label={`Show the Welcome page when ${SHORT_NAME} starts`} value={welcome} onChange={setWelcome} />
       <Check label='Compile the PDF automatically as you type' value={auto} onChange={setAuto} />
+      <Check label='Fast LaTeX: one quick pass and a saved package setup (Export and Print stay full)' value={fast} onChange={setFast} />
       <Check label='The PDF follows the text as you scroll' value={follow} onChange={setFollow} />
     </Group>
     <Group title='How you work'>

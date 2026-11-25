@@ -599,6 +599,7 @@ const cmds: Command[] = [
   { id: 'show_marks', text: 'Show formatting &marks', icon: 'formatting_marks', shortcut: 'Ctrl+*',
     checkable: true, tooltip: 'Show/Hide ¶: paragraph marks, page breaks and other hidden formatting symbols' },
   { id: 'auto_compile', text: 'Auto-compile', icon: 'auto_compile_on', checkable: true, checked: true },
+  { id: 'fast_latex', text: 'Fast LaTeX', icon: 'fast_latex', checkable: true, checked: true },
   { id: 'skip_images', text: 'Skip images', icon: 'compile_no_images', checkable: true },
   { id: 'compile_range', text: 'Compile range', icon: 'compile_range', checkable: true, checked: true },
   { id: 'compiler_latex', text: '&LaTeX (tectonic)', checkable: true, group: 'compiler', checked: true },
@@ -1074,7 +1075,7 @@ export const CORNER_LEFT: (string | null)[] = [
   'new', 'open', 'save', 'print', null, 'undo', 'redo',
 ]
 export const CORNER_RIGHT: (string | null)[] = [
-  'compile_now', 'auto_compile', null, 'help_menu', 'settings',
+  'compile_now', 'auto_compile', 'fast_latex', null, 'help_menu', 'settings',
 ]
 // Corner buttons that show their name, like Word's Share button.
 export const CORNER_LABELLED = new Set<string>([])
@@ -1169,7 +1170,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   ] },
   // Compile and History in one tab: make the PDF, keep its versions.
   { name: 'Compile', groups: [
-    { label: 'Compile', large: ['compile_now', 'auto_compile'] },
+    { label: 'Compile', large: ['compile_now', 'auto_compile', 'fast_latex'] },
     { label: 'Options', large: ['compile_range', 'skip_images'] },
     { label: 'Output', large: ['export_pdf', 'print_preview'] },
     { label: 'Versions', large: ['commit_now', 'history'] },

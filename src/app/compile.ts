@@ -25,6 +25,7 @@ import { TEMPLATE_CHOICES } from '../ui/ribbonModel'
 import { editorApi, type EditorApi } from './editorApi'
 import type { PageEditing } from './actions/page'
 import { pageAnchors } from './pageAnchors'
+import { buildFormat, formatPlan, markFormatBad } from '../core/fastFormat'
 import { appStore, type AppState } from './store'
 
 export type Engine = 'latex' | 'typst'
@@ -32,6 +33,8 @@ export type Engine = 'latex' | 'typst'
 // What the preview, the Code tab and the status bar show beside the store.
 export interface CompileUi {
   engine: Engine
+  // Fast LaTeX (beside Auto-compile): one pass and a saved package format.
+  fast: boolean
   skipImages: boolean
   useCompileRange: boolean
   // PdfPreview.show_message: shown instead of the PDF (an error, or no engine).
@@ -45,7 +48,7 @@ export interface CompileUi {
 }
 
 let ui: CompileUi = {
-  engine: 'latex', skipImages: false, useCompileRange: true, message: null,
+  fast: setting('compile/fast', true), engine: 'latex', skipImages: false, useCompileRange: true, message: null,
   pdfPath: null, statusText: '', consoleError: false,
 }
 const listeners = new Set<() => void>()
@@ -167,6 +170,26 @@ let pendingRecompile = false
 let lastFailedSource: string | null = null
 let lastSource: string | null = null
 let closed = false
+let catchUps = 0
+let catchUpSource: string | null = null
+let lastMs = 0
+export const lastCompileMs = () => lastMs
+
+// Tectonic's formats/ folder (beside its bundles/ cache).
+let formatsDirPromise: Promise<string | null> | null = null
+async function fastPlan(source: string) {
+  if (!formatsDirPromise) {
+    formatsDirPromise = (async () => {
+      const p = platform()
+      const eng = await p.findTectonic()
+      const bundles = (eng ? await p.queryTectonicCacheDir(eng.path) : null) ?? await p.defaultTectonicCacheDir()
+      if (!bundles) return null
+      return /[\\/]bundles[\\/]?$/.test(bundles) ? join(dirname(bundles), 'formats') : join(bundles, 'formats')
+    })().catch(() => null)
+  }
+  const dir = await formatsDirPromise
+  return dir ? formatPlan(compilerHost(), dir, source) : null
+}
 
 function showMessage(msg: string): void {
   setUi({ message: msg })
@@ -201,12 +224,36 @@ export async function kickCompile(): Promise<void> {
   try {
     const dir = await buildDir()
     if (engine !== 'typst') await stageBib(doc, [dir])
+    const fast = ui.fast && engine !== 'typst' && platform().kind !== 'browser'
+    const plan = fast ? await fastPlan(source) : null
     const opts = {
       sourceDir: resolvedSourceDir(), skipImages: ui.skipImages, useCompileRange: ui.useCompileRange,
+      fast, format: plan?.ready ? plan.name : null,
     }
+    const t0 = Date.now()
     result = engine === 'typst'
       ? await compileTypst(source, dir, opts, compilerHost())
       : await compileTex(source, dir, opts, compilerHost())
+    // A clash with the saved format: never use it again, compile without.
+    if (!result.ok && opts.format) {
+      markFormatBad(opts.format)
+      result = await compileTex(source, dir, { ...opts, format: null }, compilerHost())
+    }
+    lastMs = Date.now() - t0
+    if (fast) {
+      // Labels or citations still settling (one pass reads the last
+      // compile's .aux): one more pass, at most twice for the same text.
+      if (result.ok && /Rerun to get|There were undefined references|Label\(s\) may have changed|Citation .* undefined/.test(result.log ?? '')) {
+        catchUps = source === catchUpSource ? catchUps + 1 : 1
+        catchUpSource = source
+        if (catchUps <= 2) { pendingRecompile = true; lastSource = null }
+      }
+      // Save the package format for next time, between compiles.
+      if (result.ok && plan && !plan.ready) {
+        const tect = await compilerHost().findTectonic()
+        if (tect) await buildFormat(compilerHost(), tect, dir, plan)
+      }
+    }
   } catch (e) {
     result = { ok: false, pdfPath: null, log: '', error: e instanceof Error ? e.message : String(e) }
   }
@@ -373,6 +420,13 @@ export function setAutoCompile(on: boolean): void {
   if (on) void kickCompile()
 }
 
+export function setFastLatex(on: boolean): void {
+  setUi({ fast: on })
+  setSetting('compile/fast', on)
+  setCommandChecked('fast_latex', on)
+  if (appStore().get().autoCompile) void kickCompile()
+}
+
 export function setSkipImages(on: boolean): void {
   setUi({ skipImages: on })
   if (appStore().get().autoCompile) void kickCompile()
@@ -519,6 +573,7 @@ export function startCompileService(): void {
     if (s.layout !== was.layout) {
       // apply_layout_mode: "visual"/"page" switch auto-compile off.
       setCommandChecked('auto_compile', s.autoCompile)
+      setCommandChecked('fast_latex', ui.fast)
       setSetting('layout_mode', s.layout)
       // _sync_pdf_actions
       setCommandChecked('pdf_panel', showsPdf(s))
