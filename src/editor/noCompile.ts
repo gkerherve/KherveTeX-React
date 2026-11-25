@@ -48,6 +48,23 @@ export function selectionHidden(state: EditorState): boolean {
   return content.length > 0 && content.every(t => t.hidden)
 }
 
+// The hidden part that starts at this marker, compiled again: its two
+// markers go (the box's button).
+export function compileAgainAt(startPos: number) {
+  return (state: EditorState, dispatch?: (tr: Transaction) => void): boolean => {
+    const tops = topBlocks(state.doc)
+    const i = tops.findIndex(t => t.pos === startPos && t.marker === 'start' && t.paired)
+    if (i < 0) return false
+    const j = tops.findIndex((t, k) => k > i && t.marker === 'end')
+    if (j < 0) return false
+    if (dispatch) {
+      const tr = state.tr.delete(tops[j].pos, tops[j].pos + tops[j].node.nodeSize).delete(tops[i].pos, tops[i].pos + tops[i].node.nodeSize)
+      dispatch(tr)
+    }
+    return true
+  }
+}
+
 export function toggleNoCompile(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
   const tops = topBlocks(state.doc)
   if (!tops.length) return false

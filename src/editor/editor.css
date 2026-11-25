@@ -122,17 +122,26 @@
 .kt-label.kt-date .kt-date-close { top: 50%; right: 3px; width: 20px; height: 20px; margin-top: -10px; font: 15px/17px Arial, sans-serif; }
 .kt-label.kt-date:hover .kt-date-close { display: block; }
 
-.kt-nocompile { opacity: .38; }
+/* Do not compile: the parts left out in a dashed box, like an element's,
+   greyed, with a tag at the top and a button that compiles them again. */
+.kt-nocompile { color: #a3a3a3 !important; padding-left: 8px; padding-right: 8px;
+  box-shadow: inset 1px 0 #a9bcdc, inset -1px 0 #a9bcdc; }
+.kt-nocompile img, .kt-nocompile svg, .kt-nocompile canvas, .kt-nocompile .kt-widget { opacity: .4; }
+pre.kt-nc-mark { font-size: 0 !important; line-height: 0 !important; padding: 0 !important; background: none !important;
+  overflow: visible; user-select: none; white-space: nowrap; position: relative; border: 1px dashed #a9bcdc !important; }
+pre.kt-nc-start { height: 20px; border-bottom: 0 !important; border-radius: 4px 4px 0 0; }
+pre.kt-nc-end { height: 6px; border-top: 0 !important; border-radius: 0 0 4px 4px; margin-top: 0 !important; }
+pre.kt-nc-start::before { content: 'Not compiled'; position: absolute; left: 6px; top: -8px; font: 10px/14px Arial, sans-serif;
+  color: #fff; background: #8aa3cc; padding: 0 5px; border-radius: 2px; letter-spacing: 0; }
+.kt-nc-bar { position: relative; height: 0; }
+.kt-nc-show { position: absolute; right: 4px; top: -19px; height: 18px; padding: 0 7px; border: 1px solid #c8c8c8; border-radius: 3px;
+  background: #fff; color: #444; font: 11px/16px Arial, sans-serif; cursor: pointer; z-index: 2; }
+.kt-nc-show:hover { background: #e8f0fb; border-color: #8aa3cc; color: #1f4e8c; }
 /* A run-in heading over the paragraph that shares its line: it takes the
    mouse only over its words (runInHitPlugin), so the rest of the line,
    and of a wrapped heading's last line, stays the paragraph's. */
 .kt-runin { position: relative; z-index: 1; pointer-events: none; }
 .kt-runin.kt-runin-hot { pointer-events: auto; }
-pre.kt-nc-mark { font-size: 0 !important; line-height: 0 !important; height: 15px; margin: 2px 0 !important; padding: 0 !important;
-  border: 0 !important; background: none !important; overflow: hidden; user-select: none; white-space: nowrap; }
-pre.kt-nc-mark::before { display: block; font: italic 10.5px/15px Arial, sans-serif; color: #8a8a8a; letter-spacing: 0; }
-pre.kt-nc-start::before { content: 'Not compiled \25BE'; }
-pre.kt-nc-end::before { content: '\25B4 end of not compiled'; }
 .kt-list { padding-left: 40px; }  /* QTextListFormat's indent: 40 px a level */
 .kt-list li { margin: 0; }
 

@@ -1,6 +1,6 @@
 // Two decoration layers over the document: the page layout (layout.ts —
 import { captionText } from './convert.ts'
-import { topBlocks } from './noCompile.ts'
+import { compileAgainAt, topBlocks } from './noCompile.ts'
 // each block's font, margins, numbers and labels, recomputed on every
 // change as _apply_page_layout is) and the page breaks (paginate.ts).
 import type { PdfTypography } from '../app/pageAnchors.ts'
@@ -307,11 +307,16 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     })
   }
   let tables = 0
+  // Do not compile: the hidden blocks and their end marker are inside a
+  // framed box, so their space above is padding (inside the frame).
+  const ncTops = topBlocks(doc)
+  const boxed = new Set(ncTops.filter(t => t.hidden || (t.marker === 'end' && t.paired)).map(t => t.pos))
+  const gapCss = (pos: number, gap: number) => boxed.has(pos) ? `padding-top:${gap}px;margin-top:0;` : `margin-top:${gap}px;`
   const visit = (node: PMNode, pos: number) => {
     const L = byPos.get(pos)
     if (!L) return
     if (node.type.name === 'table' || node.type.name === 'figure') {
-      const attrs: Record<string, string> = { style: `margin-top:${L.gap}px;` }
+      const attrs: Record<string, string> = { style: gapCss(pos, L.gap) }
       if (node.type.name === 'table') {
         tables += 1
         if (node.attrs.caption) attrs['data-caption'] = `Table ${tables}: ${captionText(node.attrs.caption)}`
@@ -324,7 +329,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       return
     }
     // List items space with padding: their list does not collapse margins.
-    const top = node.type.name === 'list_item' ? `padding-top:${L.gap}px;` : `margin-top:${L.gap}px;`
+    const top = node.type.name === 'list_item' ? `padding-top:${L.gap}px;` : gapCss(pos, L.gap)
     let style = `${top}text-align:${L.align};`
       + `margin-left:${L.left}px;margin-right:${L.right}px;text-indent:${L.indent}px;` + lineHeightCss(L)
     if (L.char) style += charCss(L.char)
@@ -390,10 +395,33 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     }
   })
   // Do not compile: the parts left out greyed, their markers as labels.
-  for (const t of topBlocks(doc)) {
+  for (const t of ncTops) {
     if (t.hidden) decos.push(Decoration.node(t.pos, t.pos + t.node.nodeSize, { class: 'kt-nocompile' }))
     else if (t.marker && t.paired) {
       decos.push(Decoration.node(t.pos, t.pos + t.node.nodeSize, { class: `kt-nc-mark kt-nc-${t.marker}`, contenteditable: 'false' }))
+      // Its box's button: compile this part again.
+      if (t.marker === 'start') {
+        const at = t.pos
+        // Just after the marker (the box's top edge), drawn over it.
+        decos.push(Decoration.widget(at + t.node.nodeSize, view => {
+          const bar = document.createElement('div')
+          bar.className = 'kt-nc-bar'
+          bar.contentEditable = 'false'
+          const b = document.createElement('button')
+          b.type = 'button'
+          b.className = 'kt-nc-show'
+          b.textContent = 'Compile again'
+          b.title = 'Put this part back in the preview'
+          b.addEventListener('mousedown', ev => {
+            ev.preventDefault()
+            ev.stopPropagation()
+            compileAgainAt(at)(view.state, tr => view.dispatch(tr))
+            view.focus()
+          })
+          bar.appendChild(b)
+          return bar
+        }, { side: -1, key: `nc-bar:${at}`, ignoreSelection: true }))
+      }
     }
   }
   return DecorationSet.create(doc, decos)
