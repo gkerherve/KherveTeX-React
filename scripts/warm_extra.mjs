@@ -23,6 +23,13 @@ async function documents() {
   const { TEMPLATE_CHOICES } = await load('src/ui/ribbonModel.ts')
   const docs = EXAMPLES.map(([, factory]) => rewriteIncludegraphics(serializeDocument(factory()), null, () => false))
   for (const [, tex] of bundleDocuments(TEMPLATE_CHOICES)) docs.push(tex)
+  // One document with every element (Insert, Science and the optional
+  // tabs) as inserted, for the packages no example uses (chemplants,
+  // pgfplots' ternary library...).
+  const { DEFAULTS, widgetLatex, widgetPreamble } = await load('src/core/widgets.ts')
+  const texts = Object.entries(DEFAULTS).map(([k, d]) => `% kTeX ${k} ${JSON.stringify(d)}\n${widgetLatex(k, d)}`)
+  const [pk, defs] = widgetPreamble(texts)
+  docs.push(`\\documentclass{article}\\usepackage{graphicx}\n${[...new Set(pk)].map(p => `\\usepackage{${p}}`).join('\n')}\n${defs}\n\\begin{document}\n${texts.join('\n\n')}\n\\end{document}\n`)
   return docs
 }
 

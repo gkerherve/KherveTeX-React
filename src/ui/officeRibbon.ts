@@ -7,7 +7,7 @@ import type { Command, RibbonTab } from './ribbonModel.ts'
 import type { Tip } from './tooltips.ts'
 
 // The tabs hidden unless the user turns them on.
-export const OPTIONAL_TABS = ['Admin & Office', 'Accountants', 'Architect']
+export const OPTIONAL_TABS = ['Admin & Office', 'Accountants', 'Architect', 'Chemical Engineering', 'Earth Science']
 
 const T = (title: string, what: string, latex = ''): Tip => ({ title, what, latex })
 const ELEMENT = ' Click it on the page to select it: its own tab opens, Edit… (or a double-click) changes it, Move up / Move down or the grip moves it, Delete or its × removes it, and Close puts the caret after it.'
@@ -33,6 +33,13 @@ const ABOUT: [OfficeKind, string, string, string][] = [
   ['scalebar', 'A scale bar true to 1:50, 1:100... and a north arrow', 'A scale bar drawn true to the scale (1:50, 1:100, 1:200...) in metres, and a north arrow that can be turned.', 'A TikZ drawing.'],
   ['rooms', 'Rooms with their sizes, areas and total floor area', 'A room schedule: each room\'s width and depth, its area worked out, the floor finish and notes, and the total floor area.', 'A booktabs table.'],
   ['revisions', 'The drawing\'s revision history', 'A revision table: revision letter, date, what changed and who made it.', 'A booktabs table.'],
+  ['pfd', 'A process flow diagram with standard unit symbols', 'A process flow diagram: tanks, pumps, heat exchangers, reactors, columns and valves placed on a grid, joined by main, secondary and utility streams with their numbers. The PDF uses the chemplants package\'s standard symbols.', 'chemplants (TikZ).'],
+  ['streamtable', 'Temperature, pressure, flow and composition of each stream', 'A stream table: one column per stream number, one row per property with its unit - temperature, pressure, mass flow, compositions.', 'A booktabs table.'],
+  ['massbalance', 'In and out flows per component, with totals and closure', 'A mass balance: each component\'s flow in each inlet and outlet stream; the totals and the closure (out / in) are worked out, green within 2%, red outside.', 'A booktabs table.'],
+  ['mccabe', 'Theoretical stages of a distillation column, stepped off', 'A McCabe-Thiele diagram from the relative volatility, reflux ratio, feed quality and the feed, distillate and bottoms compositions: the equilibrium curve, operating lines and q-line, with the stages stepped off and counted, and the feed stage.', 'pgfplots.'],
+  ['ternary', 'A triangle plot of three components: QAPF, soil texture...', 'A ternary diagram: three components at the corners (quartz, alkali feldspar, plagioclase; sand, silt, clay...) and each sample plotted from its proportions, scaled to 100%.', 'pgfplots\' ternary library.'],
+  ['rose', 'Orientations as a rose diagram: strikes, joints, currents', 'A rose diagram (equal-area) of azimuths: fault and joint strikes, palaeocurrents, wind directions. Choose the class width, and bidirectional for strikes.', 'A TikZ drawing.'],
+  ['stratcol', 'A stratigraphic column with lithology patterns', 'A stratigraphic column: each unit\'s thickness, lithology and age, youngest at the top, drawn with the usual lithology patterns and weathering widths, and a thickness scale.', 'TikZ with its patterns library.'],
 ]
 
 export const OFFICE_COMMANDS: Command[] = [
@@ -43,6 +50,7 @@ export const OFFICE_COMMANDS: Command[] = [
   { id: 'of_dims', text: 'Dimensions', checkable: true, checkbox: true },
   { id: 'of_areas', text: 'Room areas', checkable: true, checkbox: true },
   { id: 'of_north', text: 'North arrow', checkable: true, checkbox: true },
+  { id: 'of_bidir', text: 'Bidirectional', checkable: true, checkbox: true },
   { id: 'of_lh_bar', text: 'Band', checkable: true },
   { id: 'of_lh_centered', text: 'Centred', checkable: true },
   { id: 'of_lh_side', text: 'Side bar', checkable: true },
@@ -55,6 +63,7 @@ export const OFFICE_TIPS: Record<string, Tip> = {
   act_of_monday: T('Weeks start Monday', 'Weeks start on Monday (ticked) or Sunday.'),
   act_of_dims: T('Dimensions', 'The overall width and depth, in metres, along the top and the left.'),
   act_of_areas: T('Room areas', 'Each room\'s area in m² under its name.'),
+  act_of_bidir: T('Bidirectional', 'Counts each direction also at +180°, for strikes and joints that have no sense of direction.'),
   act_of_north: T('North arrow', 'A north arrow beside the scale bar; Edit… turns it.'),
   act_of_lh_bar: T('Band', 'The name on a coloured band across the top.'),
   act_of_lh_centered: T('Centred', 'The name centred over a thin rule.'),
@@ -67,12 +76,14 @@ export const OFFICE_MAIN_TABS: RibbonTab[] = [
   { name: 'Admin & Office', groups: [g('Letters', ['letterhead', 'signature', 'stamp']), g('Meetings', ['agenda', 'actions', 'calendar']), g('Forms', ['formfields', 'certificate'])] },
   { name: 'Accountants', groups: [g('Statements', ['fintable', 'budget']), g('Billing', ['invoice', 'loan']), g('Charts', ['kpi', 'waterfall'])] },
   { name: 'Architect', groups: [g('Drawings', ['floorplan', 'scalebar', 'titleblock']), g('Schedules', ['rooms', 'revisions'])] },
+  { name: 'Chemical Engineering', groups: [g('Process', ['pfd', 'mccabe']), g('Balances', ['streamtable', 'massbalance'])] },
+  { name: 'Earth Science', groups: [g('Diagrams', ['ternary', 'rose']), g('Logs', ['stratcol'])] },
 ]
 
 // Each element's own tab: Edit…, its options, colour, Move, Delete / Close.
 const OPTIONS: Partial<Record<OfficeKind, string[][]>> = {
   fintable: [['of_brackets']], signature: [['of_sigdate']], calendar: [['of_monday']],
-  floorplan: [['of_dims'], ['of_areas']], scalebar: [['of_north']], letterhead: [['of_lh_bar'], ['of_lh_centered'], ['of_lh_side']],
+  floorplan: [['of_dims'], ['of_areas']], scalebar: [['of_north']], rose: [['of_bidir']], letterhead: [['of_lh_bar'], ['of_lh_centered'], ['of_lh_side']],
 }
 
 export const OFFICE_CONTEXT_TABS: RibbonTab[] = ABOUT.map(([k]) => ({
@@ -94,6 +105,7 @@ export function officeChecks(kind: string, d: Record<string, unknown>, check: (i
     case 'calendar': check('of_monday', !!d.monday); break
     case 'floorplan': check('of_dims', !!d.dims); check('of_areas', !!d.areas); break
     case 'scalebar': check('of_north', !!d.north); break
+    case 'rose': check('of_bidir', !!d.bidirectional); break
     case 'letterhead': check(`of_lh_${d.style}`, true); break
   }
 }

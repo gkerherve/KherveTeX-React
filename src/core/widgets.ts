@@ -23,7 +23,7 @@ import {
   type RiskData, type SignsData, type ForcesData, type OpticsData, type WaveData, type LevelsData, type FunctionData, type NumberLineData, type VennData, type TriangleData, type StatsData, type UnitCircleData,
 } from './science2.ts'
 import { geometryDrawing, GEOMETRY_DEFAULT, type GeometryData } from './geometry.ts'
-import { OFFICE_DEFAULTS, OFFICE_KINDS, OFFICE_NAMES, officeLatex, officePackages, type OfficeData, type OfficeKind } from './office.ts'
+import { OFFICE_DEFAULTS, OFFICE_KINDS, OFFICE_NAMES, officeDefs, officeLatex, officePackages, type OfficeData, type OfficeKind } from './office.ts'
 
 export type WidgetKind = 'checklist' | 'progress' | 'timeline' | 'qrcode' | 'code'
   | 'pullquote' | 'sidebar' | 'rating' | 'gauge' | 'steps' | 'gantt' | 'chart'
@@ -330,6 +330,7 @@ export function widgetPreamble(texts: string[]): [string[], string] {
   if (kinds.has('sidebar')) pkgs.push('wrapfig')
   if (icons) { pkgs.push('fontawesome5'); defs.push(ICON_DEF) }
   pkgs.push(...officePackages(kinds))
+  defs.push(...officeDefs(kinds))
   if (kinds.has('qrcode')) pkgs.push('qrcode')
   if (kinds.has('code')) pkgs.push('listings')
   if (margin) {

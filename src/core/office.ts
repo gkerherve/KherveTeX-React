@@ -9,6 +9,7 @@
 //     with a drawing to show in the editor.
 // Pure: no DOM.
 import { drawingTikz, type Drawing, type Shape } from './draw.ts'
+import { FIELD_DEFAULTS, FIELD_KINDS, FIELD_NAMES, fieldPackages, fieldRender, type FieldData, type FieldKind } from './fieldsci.ts'
 
 export const OFFICE_KINDS = [
   // Admin & Office
@@ -17,6 +18,8 @@ export const OFFICE_KINDS = [
   'fintable', 'invoice', 'budget', 'loan', 'kpi', 'waterfall',
   // Architect
   'floorplan', 'titleblock', 'scalebar', 'rooms', 'revisions',
+  // Chemical Engineering, Earth Science (fieldsci.ts)
+  ...FIELD_KINDS,
 ] as const
 export type OfficeKind = typeof OFFICE_KINDS[number]
 
@@ -26,6 +29,7 @@ export const OFFICE_NAMES: Record<OfficeKind, string> = {
   fintable: 'Financial Statement', invoice: 'Invoice', budget: 'Budget vs Actual', loan: 'Loan Schedule',
   kpi: 'KPI Cards', waterfall: 'Waterfall Chart',
   floorplan: 'Floor Plan', titleblock: 'Title Block', scalebar: 'Scale & North', rooms: 'Room Schedule', revisions: 'Revisions',
+  ...FIELD_NAMES,
 }
 
 // ------------------------------------------------------------------ data
@@ -50,7 +54,7 @@ export interface ScaleBarData { scale: string; length: number; north: boolean; a
 export interface RoomsData { rows: string[][]; color: string }                                         // [room, width, depth, floor, notes]
 export interface RevisionsData { rows: string[][]; color: string }                                     // [rev, date, description, by]
 
-export interface OfficeData {
+export interface OfficeData extends FieldData {
   letterhead: LetterheadData; signature: SignatureData; formfields: FormFieldsData; agenda: AgendaData; actions: ActionsData
   certificate: CertificateData; stamp: StampData; calendar: CalendarData
   fintable: FinTableData; invoice: InvoiceData; budget: BudgetData; loan: LoanData; kpi: KpiData; waterfall: WaterfallData
@@ -58,6 +62,7 @@ export interface OfficeData {
 }
 
 export const OFFICE_DEFAULTS: OfficeData = {
+  ...FIELD_DEFAULTS,
   letterhead: { org: 'Northbridge Consulting Ltd', tagline: 'Engineering · Surveys · Advice', address: '12 Harbour Street, Bristol BS1 4QA',
     contact: '0117 496 0123 · hello@northbridge.example · northbridge.example', style: 'bar', color: '1F6FB5' },
   signature: { rows: [['Jane Smith', 'Managing Director'], ['Omar Haddad', 'Finance Director']], date: true, color: '333333' },
@@ -592,6 +597,7 @@ export interface OfficeOut { table?: TableSpec; drawing?: Drawing; latex?: strin
 
 export function officeRender(kind: OfficeKind, data: unknown): OfficeOut {
   const d = data as never
+  if ((FIELD_KINDS as readonly string[]).includes(kind)) return fieldRender(kind as FieldKind, data)
   switch (kind) {
     case 'fintable': return { table: finTable(d) }
     case 'invoice': return { table: invoiceTable(d) }
@@ -613,6 +619,7 @@ export function officeRender(kind: OfficeKind, data: unknown): OfficeOut {
     case 'titleblock': return { drawing: titleBlockDrawing(d) }
     case 'scalebar': return { drawing: scaleBarDrawing(d) }
   }
+  return {}
 }
 
 export function officeLatex(kind: OfficeKind, data: unknown): string {
@@ -623,6 +630,11 @@ export function officeLatex(kind: OfficeKind, data: unknown): string {
 }
 
 // Packages the elements need: tables, drawings, forms.
+// The \\usetikzlibrary / pgfplots lines they need.
+export function officeDefs(kinds: Set<string>): string[] {
+  return fieldPackages(kinds).defs
+}
+
 export function officePackages(kinds: Set<string>): string[] {
   const pk: string[] = []
   const used = OFFICE_KINDS.filter(k => kinds.has(k))
@@ -631,5 +643,6 @@ export function officePackages(kinds: Set<string>): string[] {
   if (used.some(k => officeRender(k, OFFICE_DEFAULTS[k]).table)) pk.push('booktabs', 'array', 'colortbl')
   if (used.some(k => { const o = officeRender(k, OFFICE_DEFAULTS[k]); return o.drawing && !o.latex })) pk.push('tikz')
   if (kinds.has('formfields')) pk.push('hyperref')
+  pk.push(...fieldPackages(kinds).pkgs)
   return pk
 }

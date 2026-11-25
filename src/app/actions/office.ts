@@ -2,6 +2,7 @@
 // (core/office.ts): insert commands, the Edit… window of each element and
 // its tab's options.
 import { OFFICE_KINDS, type OfficeKind } from '../../core/office.ts'
+import { LITHOLOGIES, PFD_TYPES } from '../../core/fieldsci.ts'
 import type { WidgetKind } from '../../core/widgets.ts'
 import * as C from '../../editor/commands.ts'
 import { editor } from '../../editor/controller.ts'
@@ -19,6 +20,53 @@ const f = (key: string, label: string, value: unknown, more: Partial<OfficeField
 const MONEY = { number: true, width: 9 }
 
 const SPECS: Record<OfficeKind, Spec> = {
+  pfd: {
+    title: 'Process flow diagram', fields: () => [],
+    grids: d => [
+      { label: 'Units - drawn with chemplants\' standard symbols', help: 'x and y in cm on the drawing (x to the right, y up); the tag names the unit for the streams.',
+        cols: [{ name: 'Tag', width: 6 }, { name: 'Type', options: PFD_TYPES }, { name: 'x', width: 4, number: true }, { name: 'y', width: 4, number: true }, { name: 'Label', width: 14 }], rows: d.units },
+      { label: 'Streams', help: 'From one unit\'s tag to another\'s; the label is the stream number shown in its box.',
+        cols: [{ name: 'From', width: 6 }, { name: 'To', width: 6 }, { name: 'Kind', options: ['main', 'secondary', 'utility'] }, { name: 'Label', width: 5 }], rows: d.streams },
+    ],
+    apply: (d, _v, g) => { d.units = g[0]; d.streams = g[1] },
+  },
+  streamtable: {
+    title: 'Stream table', fields: d => [f('title', 'Title', d.title), f('streams', 'Streams (column names, separated by commas, up to 6)', d.streams)],
+    grids: d => [{ label: 'Properties', cols: [{ name: 'Property', width: 14 }, { name: 'Unit', width: 6 }, ...[1, 2, 3, 4, 5, 6].map(i => ({ name: `Stream ${i}`, width: 6, number: true }))], rows: d.rows }],
+    apply: (d, v, g) => { d.title = v.title; d.streams = v.streams; d.rows = g[0] },
+  },
+  massbalance: {
+    title: 'Mass balance',
+    fields: d => [f('title', 'Title', d.title), f('unit', 'Flow unit', d.unit), f('ins', 'Inlet streams (up to 3, separated by commas)', d.ins), f('outs', 'Outlet streams (up to 3, separated by commas)', d.outs)],
+    grids: d => [{ label: 'Components - totals and closure are worked out', cols: [{ name: 'Component', width: 12 }, ...['In 1', 'In 2', 'In 3', 'Out 1', 'Out 2', 'Out 3'].map(name => ({ name, width: 6, number: true }))], rows: d.rows }],
+    apply: (d, v, g) => { d.title = v.title; d.unit = v.unit; d.ins = v.ins; d.outs = v.outs; d.rows = g[0] },
+  },
+  mccabe: {
+    title: 'McCabe–Thiele diagram',
+    fields: d => [f('alpha', 'Relative volatility α', d.alpha, { type: 'number' }), f('R', 'Reflux ratio R', d.R, { type: 'number' }),
+      f('xF', 'Feed composition xF', d.xF, { type: 'number' }), f('xD', 'Distillate composition xD', d.xD, { type: 'number' }),
+      f('xB', 'Bottoms composition xB', d.xB, { type: 'number' }), f('q', 'Feed quality q (1 = saturated liquid, 0 = saturated vapour)', d.q, { type: 'number' })],
+    grids: () => [],
+    apply: (d, v) => { d.alpha = n(v.alpha, 2.5); d.R = n(v.R, 1.5); d.xF = n(v.xF, 0.5); d.xD = n(v.xD, 0.95); d.xB = n(v.xB, 0.05); d.q = n(v.q, 1) },
+  },
+  ternary: {
+    title: 'Ternary diagram', fields: d => [f('a', 'First component (bottom left)', d.a), f('b', 'Second component (top)', d.b), f('c', 'Third component (bottom right)', d.c)],
+    grids: d => [{ label: 'Samples - any proportions, they are scaled to 100%', cols: [{ name: 'Sample', width: 12 }, { name: 'First', width: 5, number: true }, { name: 'Second', width: 5, number: true }, { name: 'Third', width: 5, number: true }], rows: d.rows }],
+    apply: (d, v, g) => { d.a = v.a; d.b = v.b; d.c = v.c; d.rows = g[0] },
+  },
+  rose: {
+    title: 'Rose diagram',
+    fields: d => [f('values', 'Azimuths in degrees (strikes, trends, palaeocurrents), separated by commas or spaces', d.values, { type: 'textarea' }),
+      f('bin', 'Class width (degrees)', String(d.bin), { type: 'select', options: ['5', '10', '15', '20', '30', '45'] }),
+      f('bidirectional', 'Bidirectional (strikes, joints: each also counted at +180°)', d.bidirectional, { type: 'check' })],
+    grids: () => [],
+    apply: (d, v) => { d.values = v.values; d.bin = n(v.bin, 15); d.bidirectional = v.bidirectional === 'true' },
+  },
+  stratcol: {
+    title: 'Stratigraphic column', fields: d => [f('title', 'Title', d.title)],
+    grids: d => [{ label: 'Units, youngest at the top', cols: [{ name: 'Unit', width: 14 }, { name: 'Thickness (m)', width: 6, number: true }, { name: 'Lithology', options: Object.keys(LITHOLOGIES) }, { name: 'Age', width: 10 }], rows: d.rows }],
+    apply: (d, v, g) => { d.title = v.title; d.rows = g[0] },
+  },
   letterhead: {
     title: 'Letterhead',
     fields: d => [f('org', 'Organisation', d.org), f('tagline', 'Tagline', d.tagline), f('address', 'Address (one line)', d.address),
@@ -168,6 +216,7 @@ registerActions({
   of_dims: toggle('floorplan', 'dims'),
   of_areas: toggle('floorplan', 'areas'),
   of_north: toggle('scalebar', 'north'),
+  of_bidir: toggle('rose', 'bidirectional'),
   ...Object.fromEntries((['bar', 'centered', 'side'] as const).map(st => [`of_lh_${st}`, () => {
     const s = state(); const w = s && W.currentWidget(s)
     if (w?.widget.kind === 'letterhead') { run(W.updateWidget(d => { (d as any).style = st })); sync() }

@@ -441,10 +441,10 @@ ${show('Science', 'Chemistry')}
 `,
   },
   {
-    id: 'worktabs', part: 'Insert', title: 'Admin & Office, Accountants, Architect',
-    blurb: 'Three extra tabs, off until you switch them on: letters and meetings, statements and invoices, plans and schedules.',
+    id: 'worktabs', part: 'Insert', title: 'Extra tabs: office, accounts, architecture, chemical engineering, earth science',
+    blurb: 'Five extra tabs, off until you switch them on: letters and meetings, statements and invoices, plans and schedules, process diagrams and balances, geology plots and logs.',
     html: `
-<p>Three extra tabs are there for particular kinds of work. They are hidden until you tick them in
+<p>Five extra tabs are there for particular kinds of work. They are hidden until you tick them in
 <b>Settings ▸ Ribbon &amp; Toolbar</b> (under <i>Extra tabs for your work</i>). Everything they insert works like the other
 elements: click it and its own tab opens (Edit…, its options, Colour, Move up / Move down, Delete, Close), even when its main tab
 is hidden; a double-click opens Edit…, the grip in the margin moves it and the × removes it. <b>Edit…</b> is a window with
@@ -476,6 +476,19 @@ ${table(['Tool', 'What it does'], [
   ['<b>Title Block</b>', 'Practice, project, client, drawing title and number, scale, date, drawn, checked, revision.'],
   ['<b>Room Schedule</b>', 'Rooms with sizes, areas worked out, finishes and the total floor area.'],
   ['<b>Revisions</b>', 'Revision letter, date, description and initials.'],
+])}
+<h3>Chemical Engineering</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Process Flow Diagram</b>', 'Units (tanks, pumps, heat exchangers, reactors, valves…) placed on a grid and joined by numbered main, secondary and utility streams. The PDF uses the <i>chemplants</i> package\'s standard symbols.'],
+  ['<b>McCabe–Thiele</b>', 'From α, R, q and the feed, distillate and bottoms compositions: the stages stepped off and counted, with the feed stage (drawn with <i>pgfplots</i>).'],
+  ['<b>Stream Table</b>', 'One column per stream, one row per property and unit.'],
+  ['<b>Mass Balance</b>', 'Each component in and out of each stream; totals and closure worked out, green within 2%.'],
+])}
+<h3>Earth Science</h3>
+${table(['Tool', 'What it does'], [
+  ['<b>Ternary Diagram</b>', 'Samples plotted from three proportions - QAPF, sand-silt-clay… (<i>pgfplots</i>\' ternary library).'],
+  ['<b>Rose Diagram</b>', 'An equal-area rose of azimuths: strikes, joints, palaeocurrents; class width and bidirectional to choose.'],
+  ['<b>Stratigraphic Column</b>', 'Units with thickness, lithology and age, youngest on top, with the usual lithology patterns and a thickness scale.'],
 ])}
 `,
   },
