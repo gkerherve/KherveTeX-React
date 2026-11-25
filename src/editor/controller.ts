@@ -712,10 +712,27 @@ export class EditorController implements ViewHost {
       const [url, sig] = await Promise.all([(imageLoader ?? defaultImageLoader)(abs), imageSignature(abs)])
       if (!url || this.destroyed) return
       this.images.set(path, { abs, url, sig })
-      for (const a of this.atoms) a.render()
-      this.schedulePages(0)
+      this.imagesLoaded()
     })()
     return null
+  }
+
+  // Pictures arrive one by one (42 in a long chapter): one redraw a frame
+  // for all that came, and one page pass once they stop coming, rather
+  // than redrawing every figure and formula and re-measuring the pages
+  // for each.
+  private imageFrame = 0
+  private imageTimer: ReturnType<typeof setTimeout> | undefined
+  private imagesLoaded(): void {
+    if (!this.imageFrame) {
+      this.imageFrame = requestAnimationFrame(() => {
+        this.imageFrame = 0
+        if (this.destroyed) return
+        for (const a of this.atoms) a.render()
+      })
+    }
+    clearTimeout(this.imageTimer)
+    this.imageTimer = setTimeout(() => this.schedulePages(0), 150)
   }
 
   // An image file changed on disk while the window was in the background
