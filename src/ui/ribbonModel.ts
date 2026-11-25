@@ -1126,6 +1126,21 @@ export const RIBBON_TABS: RibbonTab[] = [
       ['align_left', 'align_center', 'align_right', 'align_justify', 'line_spacing', 'para_shading', 'para_borders']] },
     { label: 'Styles', large: [{ widget: 'styles' }, { widget: 'numbered' }] },
   ] },
+  // Science: equations, theorems and chemistry, out of the crowded Insert tab.
+  // Math: equations, numbers, theorems and algorithms, graphs and data.
+  { name: 'Math', groups: [
+    { label: 'Equations', large: ['math_block', 'equation_builder'], rows: [['math_inline'], ['symbol'], ['sci_matrix']], text: true },
+    { label: 'Numbers', rows: [['sci_units'], ['sci_constants']], text: true },
+    { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
+    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_geometry', 'sci_unitcircle']], text: true },
+  ] },
+  // Science: notation, chemistry, physics and data, safety and the lab.
+  { name: 'Science', groups: [
+    { label: 'Notation', rows: [['sci_physics'], ['sci_sigfig'], ['sci_nuclear']], text: true },
+    { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig', 'sci_scheme'], ['sci_mo', 'sci_hazard'], ['sci_bohr', 'sci_element']], text: true },
+    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
+    SCIENCE_FIELDS,
+  ] },
   { name: 'Insert', groups: [
     { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Tables & Boxes', large: ['table_menu', 'callout', 'ins_checklist'] },
@@ -1184,27 +1199,6 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Share', large: ['overleaf_send', 'overleaf_get', 'overleaf_zip'],
       rows: [['overleaf_open'], ['overleaf_link']], text: true },
   ] },
-  { name: 'Examples', groups: [
-    { label: 'Start', large: ['new', 'tour'] },
-    { label: 'Examples & templates',
-      large: GALLERY.filter(([c]) => c !== 'Start').map(([c]) => gallery(c)) },
-    { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
-  ] },
-  // Science: equations, theorems and chemistry, out of the crowded Insert tab.
-  // Math: equations, numbers, theorems and algorithms, graphs and data.
-  { name: 'Math', groups: [
-    { label: 'Equations', large: ['math_block', 'equation_builder'], rows: [['math_inline'], ['symbol'], ['sci_matrix']], text: true },
-    { label: 'Numbers', rows: [['sci_units'], ['sci_constants']], text: true },
-    { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
-    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_geometry', 'sci_unitcircle']], text: true },
-  ] },
-  // Science: notation, chemistry, physics and data, safety and the lab.
-  { name: 'Science', groups: [
-    { label: 'Notation', rows: [['sci_physics'], ['sci_sigfig'], ['sci_nuclear']], text: true },
-    { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig', 'sci_scheme'], ['sci_mo', 'sci_hazard'], ['sci_bohr', 'sci_element']], text: true },
-    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
-    SCIENCE_FIELDS,
-  ] },
   // Compile and History in one tab: make the PDF, keep its versions.
   { name: 'Compile', groups: [
     { label: 'Compile', large: ['compile_now', 'auto_compile', 'fast_latex'] },
@@ -1212,6 +1206,12 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Output', large: ['export_pdf', 'print_preview'] },
     { label: 'Versions', large: ['commit_now', 'history'] },
     { label: 'Cloud', large: ['github'] },
+  ] },
+  { name: 'Examples', groups: [
+    { label: 'Start', large: ['new', 'tour'] },
+    { label: 'Examples & templates',
+      large: GALLERY.filter(([c]) => c !== 'Start').map(([c]) => gallery(c)) },
+    { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
   ] },
   { name: 'Table Design', context: 'table', groups: [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },
