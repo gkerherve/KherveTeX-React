@@ -1088,7 +1088,7 @@ export const CORNER_LEFT: (string | null)[] = [
   'new', 'open', 'save', 'print', null, 'undo', 'redo',
 ]
 export const CORNER_RIGHT: (string | null)[] = [
-  'compile_now', 'auto_compile', 'fast_latex', null, 'help_menu', 'settings',
+  'compile_now', 'auto_compile', null, 'help_menu', 'settings',
 ]
 // Corner buttons that show their name, like Word's Share button.
 export const CORNER_LABELLED = new Set<string>([])
