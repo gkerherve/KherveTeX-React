@@ -63,7 +63,7 @@ function zoomOf(root: HTMLElement): number {
 }
 
 // The line boxes of a text block, from its inline fragments' rectangles.
-function lineBands(el: HTMLElement): { top: number; bottom: number; left: number }[] {
+export function lineBands(el: HTMLElement): { top: number; bottom: number; left: number }[] {
   const range = document.createRange()
   range.selectNodeContents(el)
   const rects = [...range.getClientRects()].filter(r => r.height > 0 || r.width > 0)
@@ -95,6 +95,61 @@ function lineBands(el: HTMLElement): { top: number; bottom: number; left: number
   return out
 }
 
+// Where each line after the first of a text block starts, by a binary
+// search over its characters' boxes (posAtCoords per line re-reads the
+// whole block's boxes: 0.25 ms a line, most of a long chapter's page
+// pass). null where it cannot tell: a line that starts with a formula or
+// a picture rather than text; the caller asks posAtCoords then.
+export function lineStarts(view: EditorView, el: HTMLElement, cuts: number[]): (number | null)[] {
+  const nodes: Text[] = []
+  const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) if ((n as Text).length) nodes.push(n as Text)
+  const starts: number[] = []
+  let total = 0
+  for (const n of nodes) { starts.push(total); total += n.length }
+  if (!total) return cuts.map(() => null)
+  const range = document.createRange()
+  const at = (i: number): [Text, number] => {
+    let lo = 0, hi = nodes.length - 1
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (starts[m] <= i) lo = m; else hi = m - 1 }
+    return [nodes[lo], i - starts[lo]]
+  }
+  // The middle of character i's box (a wrapped space may have none: -1).
+  const mid = (i: number): number => {
+    const [n, o] = at(i)
+    range.setStart(n, o)
+    range.setEnd(n, o + 1)
+    const r = range.getClientRects()
+    const box = r.length ? r[r.length - 1] : null
+    return box && (box.height > 0) ? (box.top + box.bottom) / 2 : -1
+  }
+  return cuts.map(cut => {
+    // First character below the cut.
+    let lo = 0, hi = total
+    while (lo < hi) {
+      const m = (lo + hi) >> 1
+      let y = mid(m), k = m
+      while (y < 0 && k + 1 < total) y = mid(++k)
+      if (y >= 0 && y > cut) hi = m; else lo = m + 1
+    }
+    if (lo >= total) return null
+    const [n, o] = at(lo)
+    // Something not text just before it on this line (a formula, a
+    // picture): the line may start with that.
+    if (o === 0) {
+      const prev = lo > 0 ? at(lo - 1)[0] : null
+      for (let x: Node | null = n; x && x !== el; x = x.parentNode) {
+        const sib = x.previousSibling
+        if (sib) {
+          if (sib !== prev && !(prev && sib.contains(prev)) && !(sib.nodeType === 3)) return null
+          break
+        }
+      }
+    }
+    try { return view.posAtDOM(n, o) } catch { return null }
+  })
+}
+
 function cssGap(el: HTMLElement): number {
   return parseFloat(el.style.marginTop || '0') || 0
 }
@@ -112,9 +167,14 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
   let spanEnd: number | null = null
   let spanning = true
   const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number, heading?: number) => {
-    lineBands(el).forEach((l, i) => {
+    const bands = lineBands(el)
+    const fast = bands.length > 1 && !el.querySelector('[data-kt-pos]')
+      ? lineStarts(view, el, bands.slice(1).map(l => l.top)) : []
+    bands.forEach((l, i) => {
       let pos = start
-      if (i > 0) {
+      const quick = i > 0 ? fast[i - 1] : null
+      if (quick != null) pos = quick
+      else if (i > 0) {
         const at = { left: l.left + 0.5, top: (l.top + l.bottom) / 2 }
         // A line drawn by a widget standing for its source (a CV entry,
         // cvView.ts) breaks where that source starts.

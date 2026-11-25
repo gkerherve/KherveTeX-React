@@ -38,7 +38,7 @@ export interface CompileUi {
   fast: boolean
   skipImages: boolean
   // Pictures in the auto-compiled preview: originals' quality, medium
-  // (1600 px), low (400 px) or none (empty frames of the same size).
+  // (800 px), low (300 px) or none (empty frames of the same size).
   pictures: Pictures
   useCompileRange: boolean
   // PdfPreview.show_message: shown instead of the PDF (an error, or no engine).
@@ -196,7 +196,7 @@ let lastKeyAt = 0
 // At least this long between the end of one compile and the next.
 const COMPILE_GAP_MS = 1000
 let lastEndAt = 0
-const PICTURE_SIDE: Record<Pictures, number> = { full: 4000, medium: 1600, low: 400, none: 0 }
+const PICTURE_SIDE: Record<Pictures, number> = { full: 4000, medium: 800, low: 300, none: 0 }
 const TYPING_PAUSE_MS = 1000
 const typingNow = () => Date.now() - lastKeyAt < TYPING_PAUSE_MS
 function afterTyping(fn: () => void): void {
