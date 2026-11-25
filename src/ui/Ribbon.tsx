@@ -965,7 +965,10 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
         <Corner ids={CORNER_RIGHT} ctx={ctx} side='right' />
       </div>
       {!folded && (
-        <div className='rb-body' role='tabpanel' aria-label={shown.name} ref={bodyRef}>
+        <div className='rb-body' role='tabpanel' aria-label={shown.name} ref={bodyRef}
+          // A button click leaves the caret (and the focus) in the page, so
+          // Ctrl+Z and typing carry on there; fields and menus still focus.
+          onMouseDown={e => { const t = e.target as HTMLElement; if (t.closest('button') && !t.closest('input,select,textarea')) e.preventDefault() }}>
           {shown.groups.map((g, i) => <Group key={`${shown.name}-${i}`} g={g} ctx={ctx} />)}
         </div>
       )}

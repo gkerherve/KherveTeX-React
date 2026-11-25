@@ -1,6 +1,7 @@
 // Insert ▸ Elements (checklist, progress bars, timeline, QR code, code
 // listing, drop cap), Layout ▸ Margin Note, and the contextual tab each
 // opens when selected: its options, Edit…, Colour, Delete and Close.
+import { officeDialog } from '../../ui/dialogs/OfficeDialog.tsx'
 import type { DocMeta } from '../../core/model.ts'
 import {
   CODE_LANGUAGES, WIDGET_COLORS, type ChecklistData, type CodeData, type ProgressData, type QrData, type TimelineData,
@@ -76,19 +77,21 @@ async function editWidget(): Promise<void> {
     }
     case 'progress': {
       const d = w.widget.data as ProgressData
-      const r = await formDialog('Edit progress bars', [{ key: 'items', label: 'Bars, one per line:', type: 'textarea',
-        help: 'Label: percentage, e.g. "Experiments: 70".', value: d.items.map(i => `${i.label}: ${i.value}`).join('\n') }])
+      const r = await officeDialog('Edit progress bars', [], [{ label: 'Bars', help: 'A label and its percentage (0 to 100) on each row.',
+        cols: [{ name: 'Label', width: 30 }, { name: '%', width: 6, number: true }],
+        rows: d.items.map(i => [i.label, String(i.value)]) }])
       if (r) run(W.updateWidget<'progress'>(x => {
-        x.items = lines(r.items).map(l => { const m = /^(.*?)[:\t]\s*(\d+(?:\.\d+)?)\s*%?\s*$/.exec(l); return m ? { label: m[1].trim(), value: Number(m[2]) } : { label: l, value: 0 } })
+        x.items = r.grids[0].filter(row => row[0].trim() || row[1].trim()).map(([label, v]) => ({ label: label.trim(), value: Math.max(0, Math.min(100, Number(v) || 0)) }))
       }))
       break
     }
     case 'timeline': {
       const d = w.widget.data as TimelineData
-      const r = await formDialog('Edit timeline', [{ key: 'events', label: 'Events, one per line:', type: 'textarea',
-        help: 'Date | Title | Text, e.g. "2025 | First results | Prototype tested."', value: d.events.map(e => [e.date, e.title, e.text].join(' | ')).join('\n') }])
+      const r = await officeDialog('Edit timeline', [], [{ label: 'Events', help: 'One row per event, in order; ↑ ↓ move a row.',
+        cols: [{ name: 'Date', width: 10 }, { name: 'Title', width: 22 }, { name: 'Text', width: 34 }],
+        rows: d.events.map(e => [e.date, e.title, e.text]) }])
       if (r) run(W.updateWidget<'timeline'>(x => {
-        x.events = lines(r.events).map(l => { const [date = '', title = '', ...rest] = l.split('|').map(p => p.trim()); return { date, title, text: rest.join(' | ') } })
+        x.events = r.grids[0].filter(row => row.some(c => c.trim())).map(([date, title, text]) => ({ date: date.trim(), title: title.trim(), text: text.trim() }))
       }))
       break
     }

@@ -4,7 +4,8 @@ import { captionText } from './convert.ts'
 // change as _apply_page_layout is) and the page breaks (paginate.ts).
 import type { PdfTypography } from '../app/pageAnchors.ts'
 import type { Node as PMNode } from 'prosemirror-model'
-import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
+import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
+import type { EditorView } from 'prosemirror-view'
 import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
 import { parseWidget } from '../core/widgets.ts'
 import { deleteBlockAt, selectBlockAt, updateWidget } from './widgetCommands.ts'
@@ -13,23 +14,100 @@ import { widgetElement } from './widgetView.ts'
 // A double-click on an element: the app opens its edit dialog.
 export const WIDGET_EDIT_EVENT = 'kt-widget-edit'
 
-// Typing never lands in an element's hidden LaTeX: it is changed from its
-// tab. Backspace / Delete there remove the element.
+// Typing never lands in an element's hidden LaTeX: a caret that arrives
+// there (arrow keys, a click) selects the whole element instead. With an
+// element selected, typing or Enter starts a paragraph after it, and the
+// arrow keys open an empty one before / after it when there is no text
+// there (between two elements, at the start or end of the document), so
+// text can always go before, between and after elements. Backspace /
+// Delete remove it.
+const isWidgetNode = (n: PMNode | null | undefined) => !!n && n.type.name === 'raw_latex' && !!parseWidget(n.textContent)
+const textOk = (n: PMNode | null | undefined) => !!n && n.isTextblock && !isWidgetNode(n)
+
 export function widgetGuardPlugin(): Plugin {
-  const inWidget = (state: EditorState) => {
-    const $p = state.selection.$from
-    return $p.parent.type.name === 'raw_latex' && !!parseWidget($p.parent.textContent)
+  const selected = (state: EditorState) => {
+    const sel = state.selection
+    const node = (sel as NodeSelection).node
+    if (node && isWidgetNode(node)) return { pos: sel.from, node }
+    const $p = sel.$from
+    if (sel.empty && $p.depth === 1 && isWidgetNode($p.parent)) return { pos: $p.before(), node: $p.parent }
+    return null
+  }
+  const para = (state: EditorState) => state.schema.nodes.paragraph.create({ alignment: 'justify' })
+  // A paragraph after (or before) the element, the caret in it; reuses an
+  // empty paragraph already there.
+  const openAt = (view: EditorView, at: number, text = '') => {
+    const st = view.state
+    const there = st.doc.resolve(at)
+    const near = at >= st.doc.content.size ? null : there.nodeAfter
+    let tr = st.tr
+    if (!(near && textOk(near) && near.content.size === 0)) tr = tr.insert(at, para(st))
+    if (text) tr = tr.insertText(text, at + 1)
+    tr.setSelection(TextSelection.create(tr.doc, at + 1 + text.length))
+    view.dispatch(tr.scrollIntoView())
+    return true
   }
   return new Plugin({
+    // A caret inside an element's LaTeX becomes the element selected.
+    appendTransaction: (_trs, _old, state) => {
+      const sel = state.selection
+      const $p = sel.$from
+      // (By its JSON type: the class may come from another copy of the module.)
+      if (sel.toJSON().type !== 'text' || $p.depth !== 1 || !isWidgetNode($p.parent)) return null
+      if (!sel.empty && !isWidgetNode(sel.$to.parent)) return null
+      return state.tr.setSelection(NodeSelection.create(state.doc, $p.before()))
+    },
     props: {
-      handleTextInput: (view) => inWidget(view.state),
-      handlePaste: (view) => inWidget(view.state),
+      handleTextInput: (view, _from, _to, text) => {
+        const w = selected(view.state)
+        if (!w) return false
+        return openAt(view, w.pos + w.node.nodeSize, text)
+      },
+      handlePaste: (view) => !!selected(view.state),
       handleKeyDown: (view, ev) => {
-        if (!inWidget(view.state) || (ev.key !== 'Backspace' && ev.key !== 'Delete' && ev.key !== 'Enter')) return false
-        const $p = view.state.selection.$from
-        if (ev.key === 'Enter') return true
-        deleteBlockAt($p.before())(view.state, view.dispatch)
-        return true
+        if (ev.metaKey || ev.ctrlKey || ev.altKey) return false
+        const w = selected(view.state)
+        if (!w) {
+          // At the edge of a paragraph, an arrow towards an element selects
+          // it (the browser would put the caret in its hidden LaTeX).
+          const dir = ({ ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right' } as const)[ev.key as 'ArrowUp']
+          const sel = view.state.selection
+          if (!dir || ev.shiftKey || !sel.empty || sel.$from.depth !== 1 || !view.endOfTextblock(dir)) return false
+          const back = dir === 'up' || dir === 'left'
+          const edge = back ? sel.$from.before() : sel.$from.after()
+          const $e = view.state.doc.resolve(edge)
+          const n = back ? $e.nodeBefore : $e.nodeAfter
+          if (!isWidgetNode(n)) return false
+          view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, back ? edge - n!.nodeSize : edge)).scrollIntoView())
+          return true
+        }
+        const end = w.pos + w.node.nodeSize
+        const doc = view.state.doc
+        switch (ev.key) {
+          case 'Backspace': case 'Delete':
+            deleteBlockAt(w.pos)(view.state, view.dispatch); return true
+          case 'Enter':
+            return openAt(view, end)
+          case 'ArrowDown': case 'ArrowRight': {
+            const next = end < doc.content.size ? doc.resolve(end).nodeAfter : null
+            if (next && !isWidgetNode(next)) {
+              if (!next.isTextblock) return false
+              view.dispatch(view.state.tr.setSelection(TextSelection.create(doc, end + 1)).scrollIntoView()); return true
+            }
+            if (next && ev.shiftKey) return false
+            return openAt(view, end)
+          }
+          case 'ArrowUp': case 'ArrowLeft': {
+            const prev = doc.resolve(w.pos).nodeBefore
+            if (prev && !isWidgetNode(prev)) {
+              if (!prev.isTextblock) return false
+              view.dispatch(view.state.tr.setSelection(TextSelection.create(doc, w.pos - 1)).scrollIntoView()); return true
+            }
+            if (ev.shiftKey) return false
+            return openAt(view, w.pos)
+          }
+        }
+        return false
       },
     },
   })
