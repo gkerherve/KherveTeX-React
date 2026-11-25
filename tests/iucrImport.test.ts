@@ -65,3 +65,21 @@ describe('relativeTo', () => {
     expect(relativeTo('figures/a.png', '/Users/me/paper')).toBe('figures/a.png')
   })
 })
+
+describe('LaTeX opened as it is', () => {
+  it('is written back unchanged, and kept through a save and reopen', async () => {
+    const M = await import('../src/core/model.ts')
+    const doc = M.document([], M.docMeta({ title: '', documentclass: 'iucr', source_tex: src }))
+    expect(serializeDocument(doc)).toBe(src)
+    const back = M.fromJson(M.toJson(doc))
+    expect(back.meta.source_tex).toBe(src)
+    expect(serializeDocument(back)).toBe(src)
+  })
+
+  it('keeps the Review decisions through a save and reopen', async () => {
+    const M = await import('../src/core/model.ts')
+    const entry = { decision: 'accepted' as const, kind: 'insertion' as const, text: 'x', author: 'A', by: 'B', at: '2026-11-25T10:00:00Z' }
+    const doc = M.document([], M.docMeta({ review_log: [entry] }))
+    expect(M.fromJson(M.toJson(doc)).meta.review_log).toEqual([entry])
+  })
+})

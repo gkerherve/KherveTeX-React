@@ -7,7 +7,7 @@ import { useCommandState } from './ui/commands'
 import { MenuBar } from './ui/MenuBar'
 import { TitleBar, titleBarShown } from './ui/TitleBar'
 import { useCompileUi } from './app/compile'
-import { useApp } from './app/store'
+import { appStore, useApp } from './app/store'
 import { CodeView } from './codeview/CodeView'
 import { EditorPane } from './editor/EditorPane'
 import { pagePx } from './editor/layout'
@@ -90,6 +90,8 @@ export default function App() {
   const [cardRef, card] = useBoxSize<HTMLDivElement>()
   const path = useApp(s => s.path)
   const tab = useApp(s => s.tab)
+  // A .tex open as it is: no visual page, its LaTeX in the Code tab.
+  const asIs = useApp(s => s.doc.meta.source_tex !== undefined)
   const layout = useApp(s => s.layout)
   const log = useApp(s => s.compile.log)
   const status = useApp(s => s.status)
@@ -220,7 +222,7 @@ export default function App() {
         <OnlineStrip />
         <div className='workspace'>
           <ProjectSidebar />
-          <div ref={deskRef} className='desk' hidden={tab !== 'visual'} onClick={() => setContext(null)}
+          <div ref={deskRef} className='desk' hidden={tab !== 'visual' || asIs} onClick={() => setContext(null)}
             onScroll={syncPdf}>
             {beta && (
               <div className='beta-strip' role='note'>
@@ -244,6 +246,21 @@ export default function App() {
             </div>
           </div>
           {tab === 'code' && <div className='code-pane'><CodeView /></div>}
+          {tab === 'visual' && asIs && (
+            <div className='code-pane asis-pane'>
+              <div className='asis-card'>
+                <h3>This .tex is open as LaTeX, exactly as written</h3>
+                <p>Edit it in the <b>Code</b> tab: the PDF compiles it unchanged, with the class, styles,
+                  bibliography and pictures in its folder, and <b>Save</b> writes it back to the .tex.</p>
+                <p>To edit it on the page instead, kTeX can import it into the visual editor
+                  (a new, untitled document; the .tex itself stays as it is).</p>
+                <div className='asis-buttons'>
+                  <button type='button' className='primary' onClick={() => appStore().set({ tab: 'code' })}>Go to the Code tab</button>
+                  <button type='button' onClick={() => { void import('./app/actions/file').then(m => m.editAsIsVisually()) }}>Edit it visually instead</button>
+                </div>
+              </div>
+            </div>
+          )}
           {tab === 'console' && <pre className='console-pane'>{log}</pre>}
           {layout === 'side' && <>
             <div className={'splitter' + (pdfFolded ? ' folded' : '')} onPointerDown={e => { if (!pdfFolded) dragSplitter(e) }}>

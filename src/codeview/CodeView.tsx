@@ -10,7 +10,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { serializeFor, useCompileUi } from '../app/compile'
 import { editorApi } from '../app/editorApi'
-import { appStore, replaceDoc, useApp } from '../app/store'
+import { appStore, editDoc, replaceDoc, useApp } from '../app/store'
 import { importTex } from '../core/importers'
 import { ContextMenu, type ContextMenuState } from '../preview/ContextMenu'
 import { pdfApi } from '../preview/PdfView'
@@ -119,6 +119,15 @@ export function CodeView() {
   // while the user types, so a bad parse only reports in the status bar.
   const emitEdited = useCallback((src: string) => {
     if (engine === 'typst') return
+    // A .tex open as it is: the LaTeX is the document, not re-imported.
+    const cur = appStore().get().doc
+    if (cur.meta.source_tex !== undefined) {
+      suppress.current = true
+      // An edit, not a new document: the compile waits for the typing pause.
+      editDoc({ ...cur, meta: { ...cur.meta, source_tex: src } })
+      setTimeout(() => { suppress.current = false }, SUPPRESS_MS)
+      return
+    }
     let parsed
     try {
       parsed = importTex(src)

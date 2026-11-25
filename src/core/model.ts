@@ -343,6 +343,9 @@ export interface DocMeta {
   // Review ▸ Track Changes on, and the markup shown (absent = All Markup);
   // stored only when set.
   track_changes?: boolean
+  // A .tex opened as it is (File ▸ Open LaTeX as it is): its whole source,
+  // compiled, shown in the Code tab and saved unchanged; no visual blocks.
+  source_tex?: string
   // Review ▸ Decisions: each tracked change or comment accepted or rejected.
   review_log?: ReviewEntry[]
   markup?: 'simple' | 'none' | 'original'
@@ -404,6 +407,8 @@ export const docMeta = (o: Partial<DocMeta> = {}): DocMeta => ({
   ...(o.track_changes ? { track_changes: true } : {}),
   ...(o.markup ? { markup: o.markup } : {}),
   ...(o.date_format ? { date_format: o.date_format } : {}),
+  ...(o.source_tex !== undefined ? { source_tex: o.source_tex } : {}),
+  ...(o.review_log && o.review_log.length ? { review_log: o.review_log.map(e => ({ ...e })) } : {}),
 })
 
 export interface Document { children: Block[]; meta: DocMeta; type: 'Document' }
@@ -535,6 +540,9 @@ function buildMeta(m: Json, defaultClass: string, withRefs: boolean): DocMeta {
     ...(truthy(get(m, 'track_changes', false)) ? { track_changes: true } : {}),
     ...(['simple', 'none', 'original'].includes(get(m, 'markup', '')) ? { markup: get(m, 'markup', '') as 'simple' } : {}),
     ...(get(m, 'date_format', '') ? { date_format: pyStr(get(m, 'date_format', '')) } : {}),
+    ...(typeof get<unknown>(m, 'source_tex', null) === 'string' ? { source_tex: get<string>(m, 'source_tex', '') } : {}),
+    ...(Array.isArray(get(m, 'review_log', null)) && get<ReviewEntry[]>(m, 'review_log', []).length
+      ? { review_log: get<ReviewEntry[]>(m, 'review_log', []).map(e => ({ ...e })) } : {}),
     ...(withRefs ? {
       ref_library: pyStr(get(m, 'ref_library', '')),
       bib_style: pyStr(get(m, 'bib_style', 'plainnat')),

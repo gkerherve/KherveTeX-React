@@ -1425,6 +1425,8 @@ function geometryLine(m: DocMeta): string {
 const DATE_ONLY_RE = /^(?:\s*\\date\{[^{}]*\}\s*)+$/
 
 export function serializeDocument(doc: Document): string {
+  // A .tex opened as it is: its own LaTeX, untouched.
+  if (doc.meta.source_tex !== undefined) return doc.meta.source_tex
   // Draw tab: strokes anchored to a word get \kInk{i} at that word.
   const inked = placeInk(doc.children, doc.meta.ink)
   if (inked.placed.size) doc = { ...doc, children: inked.blocks }

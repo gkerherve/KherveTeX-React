@@ -31,7 +31,7 @@ export const MENU_BAR: MenuBarMenu[] = [
   { text: '&File', items: [
     'new',
     { text: 'New from &Template', items: newFromTemplate },
-    'new_window', 'open', 'open_in_new_window',
+    'new_window', 'open', 'open_tex_as_is', 'open_in_new_window',
     { text: 'Open &Recent', items: [{ text: '(no recent files)', disabled: true }] },
     '-',
     'close_doc', 'save', 'save_as', 'save_as_template',

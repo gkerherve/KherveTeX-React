@@ -10,13 +10,13 @@ import { isImageName } from '../../core/pictures'
 import { pictureTarget } from '../pictureDrop'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { importMd, importTex, type ImportFs } from '../../core/importers'
+import { classKtexKnows, importMd, importTex, type ImportFs } from '../../core/importers'
 import { findMainTex, isArchiveName, readArchive } from '../../core/archive'
 import {
   exportLatexZip, isKdoczPath, isLegacyBundle, loadKdocz, NATIVE_SUFFIX, readBundledBib,
   readProjectJson, saveKdocz, type FileAccess,
 } from '../../core/kdocz'
-import { document as newDocument, fromJson, paragraph, toJson, type DocMeta, type Document as KDocument } from '../../core/model'
+import { docMeta, document as newDocument, fromJson, paragraph, toJson, type DocMeta, type Document as KDocument } from '../../core/model'
 import { basename, dirname, isAbsolute, join, normalize, relativeTo, suffix, withSuffix } from '../../core/paths'
 import { serializeDocument } from '../../core/serializer'
 import { serializeDocument as serializeTypst } from '../../core/typstSerializer'
@@ -387,6 +387,22 @@ export async function openPath(path: string): Promise<void> {
     await wp.importGoogleDoc(await p.readText(path))
     return
   }
+  // A journal class kTeX does not know: offer to keep the LaTeX as it is.
+  if (sfx === '.tex') {
+    const text = await p.readText(path).catch(() => '')
+    const cls = /\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}/.exec(text)?.[1]
+    if (cls && !classKtexKnows(cls)) {
+      const answer = await messageBox({
+        title: 'Open LaTeX', icon: 'question',
+        text: `${basename(path)} uses the class \u201c${cls}\u201d, which kTeX does not know.\n\n`
+          + 'Open it as LaTeX, exactly as written: edit it in the Code tab, the PDF compiles it unchanged, Save writes it back. '
+          + 'Or import it into the visual editor, where commands kTeX does not know show as code.',
+        buttons: [{ label: 'Open as it is', default: true }, { label: 'Edit visually' }, { label: 'Cancel' }],
+      })
+      if (answer === 'Cancel' || answer === null) return
+      if (answer === 'Open as it is') { await openTexAsIs(path); return }
+    }
+  }
   const isImport = ['.tex', '.md', '.markdown', '.docx', '.pdf', '.rtf', '.odt'].includes(sfx)
   appStore().set({ status: isImport ? 'Importing…' : 'Opening…' })
   let doc: KDocument
@@ -441,6 +457,50 @@ export async function openPath(path: string): Promise<void> {
   // _refresh_kherveref_bib(doc) feeds the editor the bibliography so
   // citations display as they will compile.
   void refreshKherverefBib(doc).catch(() => {})
+}
+
+// File ▸ Open LaTeX as it is: a .tex kept exactly as written - the Code
+// tab edits it, the PDF compiles it unchanged (its class, styles, .bib and
+// pictures beside it), Save writes it back. For journal classes the
+// visual import does not know.
+export async function openTexAsIs(path: string): Promise<void> {
+  const p = platform()
+  let text: string
+  try {
+    text = (await p.readText(path)).replace(/\r\n?/g, '\n')
+  } catch (exc) {
+    await critical('Open failed', exc instanceof Error ? exc.message : String(exc))
+    return
+  }
+  await projectHooks?.leave()
+  const cls = /\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}/.exec(text)?.[1] ?? 'article'
+  const doc = newDocument([], docMeta({ title: '', documentclass: cls, source_tex: text }))
+  importedStem = null
+  setImportSourceDir(null)
+  const cached = join(dirname(path), `${docStem(path)}.pdf`)
+  if (await p.exists(cached)) await showCachedPdf(cached)
+  replaceDoc(doc, { path, dirty: false })
+  appStore().set({ tab: 'code' })
+  updateTitle()
+  rememberRecent(path)
+}
+
+// A .tex opened as it is, imported into the visual editor after all.
+export async function editAsIsVisually(): Promise<void> {
+  const s = appStore().get()
+  const src = s.doc.meta.source_tex
+  if (src === undefined) return
+  const dir = s.path ? dirname(s.path) : null
+  let doc = importTex(src, dir, { isFile: () => false, readText: () => null, resolve: (f) => f })
+  if (s.path) {
+    await locateFigures(doc, src, dirname(s.path), (f) => platform().exists(f).catch(() => false))
+    importedStem = docStem(s.path)
+    setImportSourceDir(dirname(s.path))
+  }
+  doc = { ...doc }
+  replaceDoc(doc, { path: null, dirty: true })
+  appStore().set({ tab: 'visual' })
+  updateTitle()
 }
 
 // ---- split into documents (chapter_split.py; MainWindow._ask_split) ----
@@ -718,6 +778,18 @@ async function writeTo(target: string): Promise<void> {
   const p = platform()
   const fs = fileAccess()
   let path = target
+  // A .tex open as it is saves back into itself.
+  const asIs = appStore().get().doc.meta.source_tex
+  if (asIs !== undefined && suffix(path).toLowerCase() === '.tex') {
+    try {
+      const doc = appStore().get().doc
+      await p.writeText(path, asIs)
+      appStore().set(s => ({ dirty: s.doc === doc ? false : s.dirty, status: '' }))
+    } catch (exc) {
+      await critical('Save failed', exc instanceof Error ? exc.message : String(exc))
+    }
+    return
+  }
   appStore().set({ status: 'Saving…' })
   const doc = appStore().get().doc
   // TODO(visual editor): editor.cleanup_orphaned_equations(doc).
@@ -997,6 +1069,11 @@ registerActions({
   // MainWindow wires Close document to _new.
   close_doc: () => newDocumentAction('closing it'),
   open: () => openAction(),
+  open_tex_as_is: async () => {
+    if (!(await offerSaveBefore('opening'))) return
+    const got = await platform().openFileDialog({ title: 'Open LaTeX as it is', filters: [{ name: 'LaTeX', extensions: ['tex'] }] })
+    if (got?.[0]) await openTexAsIs(got[0])
+  },
   open_recent: (arg) => openRecent(arg),
   split_documents: () => splitIntoDocuments(),
   save: () => save(),

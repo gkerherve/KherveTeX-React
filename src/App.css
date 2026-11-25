@@ -499,3 +499,12 @@
 .pdf-form-bar span { flex: 1; }
 .pdf-form-bar button { font: 12px var(--ui-font); padding: 2px 9px; }
 .pdf-page .kt-forms { position: absolute; left: 0; top: 0; }
+/* A .tex open as it is (File > Open LaTeX as it is): the Visual tab explains. */
+.asis-pane { display: flex; align-items: flex-start; justify-content: center; background: #f3f4f6; overflow: auto; }
+.asis-card { margin-top: 60px; max-width: 520px; background: #fff; border: 1px solid #dde2ea; border-radius: 6px; padding: 18px 22px;
+  font: 13px/1.5 var(--ui-font); color: #333; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.asis-card h3 { margin: 0 0 8px; font-size: 15px; color: #1f3b63; }
+.asis-card p { margin: 6px 0; }
+.asis-buttons { display: flex; gap: 8px; margin-top: 12px; }
+.asis-buttons button { font: 12px var(--ui-font); padding: 4px 12px; }
+.asis-buttons .primary { background: #2b579a; color: #fff; border: 1px solid #2b579a; border-radius: 3px; }

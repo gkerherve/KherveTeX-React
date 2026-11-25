@@ -141,6 +141,7 @@ const CLASSES_KTEX_KNOWS = new Set(['article', 'report', 'book', 'letter', 'beam
   'scrbook', 'scrlttr2', 'elsarticle', 'ieeetran', 'revtex4-2', 'revtex4-1', 'achemso', 'amsart', 'llncs', 'acmart', 'sn-jnl',
   'mnras', 'tufte-handout', 'tufte-book', 'mimosis', 'hepthesis', 'suftesi', 'toptesi', 'disser', 'amsbook', 'elegantbook',
   'apa7', 'moderncv', 'europasscv', 'tikzposter', 'a0poster', 'exam', 'standalone'])
+export const classKtexKnows = (cls: string): boolean => CLASSES_KTEX_KNOWS.has(cls.toLowerCase())
 const FRONTMATTER_KNOWN = new Set([...BODY_FRONTMATTER_CMDS, 'title', 'date', 'maketitle', 'and', 'thanks'])
 
 function topLevelCommands(s: string): { name: string; at: number }[] {

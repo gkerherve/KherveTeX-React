@@ -195,6 +195,8 @@ const cmds: Command[] = [
   { id: 'new', text: '&New', icon: 'file_new', shortcut: 'Ctrl+N' },
   { id: 'new_window', text: 'New &window', shortcut: 'Ctrl+Shift+N' },
   { id: 'open', text: '&Open...', icon: 'file_open', shortcut: 'Ctrl+O' },
+  { id: 'open_tex_as_is', text: 'Open LaTeX as it is...',
+    tooltip: 'Open a .tex exactly as written: edit it in the Code tab, the PDF compiles it unchanged (journal classes kTeX does not know), Save writes it back' },
   { id: 'open_in_new_window', text: 'Open in new wind&ow...', shortcut: 'Ctrl+Shift+O' },
   { id: 'save', text: '&Save', icon: 'file_save', shortcut: 'Ctrl+S' },
   { id: 'save_as', text: 'Save &As...', shortcut: 'Ctrl+Shift+S' },
