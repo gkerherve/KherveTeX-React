@@ -1502,7 +1502,11 @@ export function serializeDocument(doc: Document): string {
 
   const [inlineTitle, authorParts, affiliationParts, correspondenceParts] = titleBlockParts(doc.children, isElsarticle)
   const hasTitleBlock = inlineTitle !== null
-  const titleText = inlineTitle !== null ? inlineTitle : escapeText(strip(m.title || ''))
+  // No title on the page and the title setting still its default
+  // ("Untitled"): no title block in the PDF (it printed "Untitled" and the
+  // date over a document that has neither).
+  const metaTitle = strip(m.title || '')
+  const titleText = inlineTitle !== null ? inlineTitle : escapeText(metaTitle === 'Untitled' ? '' : metaTitle)
   const inlineAuthor = authorParts.length ? authorParts.join(' \\\\\n') : null
   let authorText = inlineAuthor !== null ? inlineAuthor : escapeAuthor(m.author || '')
   // \maketitle puts \@author in a non-wrapping tabular{c}: a long single
