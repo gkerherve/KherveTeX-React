@@ -1,0 +1,56 @@
+\documentclass[preprint,pdf]{iucr}
+\journalcode{F}
+\usepackage{amsmath}
+\usepackage{url}
+
+\begin{document}
+
+% IUCr front matter: \title and the rest go after \begin{document}
+\title{A minimal IUCr manuscript for testing the kTeX import}
+\shorttitle{kTeX import test}
+
+% IUCr \author takes the given name and the surname as two arguments
+\author[a]{Jane}{Doe}
+\cauthor[a]{John}{Roe}{john.roe@example.org}{}
+\aff[a]{Example Institute, 1 Example Road, Example Town, \country{Nowhere}}
+\shortauthor{Doe \emph{et al.}}
+
+\keyword{one}
+\keyword{two}
+\keyword{three}
+
+\maketitle
+
+\begin{synopsis}
+One sentence of synopsis.
+\end{synopsis}
+
+\begin{abstract}
+A short abstract.
+\end{abstract}
+
+\section{Introduction}
+
+Inline maths written with \verb|\( \)|: the ratio \(I/\sigma^{\rm asymptotic}\)
+and the attenuation \(\mu t = \ln(I_0/I_t)\). The same with dollars: $I_0$.
+
+A parenthetical citation \cite{Doe2020,Roe2021}, and the IUCr author-year
+citation used as a noun: \citeasnoun{Doe2020} showed this.
+
+A reference to Fig.~\ref{fig:image} and Fig.~\ref{fig:placeholder}.
+
+\referencelist[test]
+
+\begin{figure}
+\resizebox{0.6\columnwidth}{!}{\includegraphics{figures/example.png}}
+\caption{A figure scaled with \texttt{resizebox}.}
+\label{fig:image}
+\end{figure}
+
+\begin{figure}
+\centering\fbox{\parbox[c][3cm][c]{0.9\columnwidth}{\centering A placeholder box, no image yet.}}
+\caption{A placeholder figure: a framed box, no image file.}
+\label{fig:placeholder}
+\end{figure}
+
+\end{document}

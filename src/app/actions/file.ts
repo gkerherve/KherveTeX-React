@@ -17,7 +17,7 @@ import {
   readProjectJson, saveKdocz, type FileAccess,
 } from '../../core/kdocz'
 import { document as newDocument, fromJson, paragraph, toJson, type DocMeta, type Document as KDocument } from '../../core/model'
-import { basename, dirname, isAbsolute, join, normalize, suffix, withSuffix } from '../../core/paths'
+import { basename, dirname, isAbsolute, join, normalize, relativeTo, suffix, withSuffix } from '../../core/paths'
 import { serializeDocument } from '../../core/serializer'
 import { serializeDocument as serializeTypst } from '../../core/typstSerializer'
 import { isTauri, platform, type FileFilter } from '../../platform'
@@ -775,7 +775,14 @@ async function exportTex(): Promise<void> {
 
 export async function writeTexTo(path: string): Promise<void> {
   const doc = appStore().get().doc
-  await platform().writeText(path, serializeDocument(doc))
+  // Pictures as paths from the .tex's folder, so the LaTeX compiles there
+  // or copied with its pictures to another computer (not this one's full
+  // paths).
+  const here = dirname(path)
+  const rel = (f: string) => relativeTo(f, here)
+  const portable = { ...doc, children: doc.children.map(b => (b.type === 'Figure' && b.path
+    ? { ...b, path: rel(b.path), ...(b.extra ? { extra: b.extra.map(x => ({ ...x, path: rel(x.path) })) } : {}) } : b)) }
+  await platform().writeText(path, serializeDocument(portable))
   // The references the .tex cites (\bibliography{kherveref}) go beside it.
   const bib = await refreshKherverefBib(doc).catch(() => '')
   if (bib) await platform().writeText(join(dirname(path), BIB_FILE), bib)

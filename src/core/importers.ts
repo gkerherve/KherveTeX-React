@@ -130,6 +130,48 @@ const BODY_FRONTMATTER_CMDS = [
   'corres', 'presentaddress', 'email',
 ]
 
+// A journal class kTeX does not know (IUCr, ...) whose front matter sits
+// after \begin{document}, with commands the Wiley handling below does not
+// cover (\shorttitle, \cauthor, \aff, a two-argument \author{Given}{Surname}):
+// kept verbatim and in place, \maketitle included, so it compiles as the
+// author wrote it. Returns [front matter, rest of the body], or null.
+// The classes kTeX supports (ui/classInfo.ts): their front matter is
+// mapped as before.
+const CLASSES_KTEX_KNOWS = new Set(['article', 'report', 'book', 'letter', 'beamer', 'memoir', 'scrartcl', 'scrreprt',
+  'scrbook', 'scrlttr2', 'elsarticle', 'ieeetran', 'revtex4-2', 'revtex4-1', 'achemso', 'amsart', 'llncs', 'acmart', 'sn-jnl',
+  'mnras', 'tufte-handout', 'tufte-book', 'mimosis', 'hepthesis', 'suftesi', 'toptesi', 'disser', 'amsbook', 'elegantbook',
+  'apa7', 'moderncv', 'europasscv', 'tikzposter', 'a0poster', 'exam', 'standalone'])
+const FRONTMATTER_KNOWN = new Set([...BODY_FRONTMATTER_CMDS, 'title', 'date', 'maketitle', 'and', 'thanks'])
+
+function topLevelCommands(s: string): { name: string; at: number }[] {
+  const out: { name: string; at: number }[] = []
+  let depth = 0
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (c === '{') depth++
+    else if (c === '}') depth = Math.max(0, depth - 1)
+    else if (c === '\\') {
+      const m = /^[A-Za-z@]+/.exec(s.slice(i + 1))
+      if (m) { if (depth === 0) out.push({ name: m[0], at: i }); i += m[0].length } else i++
+    }
+  }
+  return out
+}
+
+export function verbatimFrontMatter(body: string): [string, string] | null {
+  const mt = /\\maketitle\b/.exec(body)
+  if (!mt) return null
+  const end = mt.index + mt[0].length
+  const prefix = body.slice(0, end)
+  const cmds = topLevelCommands(prefix)
+  if (!cmds.some(c => c.name === 'title')) return null
+  // A section before \maketitle: not a front-matter block.
+  if (cmds.some(c => /^(?:section|chapter|part)$/.test(c.name))) return null
+  const twoArgAuthor = /\\author\s*(?:\[[^\]]*\]\s*)?\{[^{}]*\}\s*\{/.test(prefix)
+  if (!twoArgAuthor && cmds.every(c => FRONTMATTER_KNOWN.has(c.name))) return null
+  return [prefix.replace(/^\s+|\s+$/g, ''), body.slice(end)]
+}
+
 // Extract body-level frontmatter commands from Wiley-style templates.
 // These classes put \author[1]{...}, \address[1]{...}, \authormark{...},
 // \titlemark{...} etc. AFTER \begin{document} rather than in the preamble
@@ -385,6 +427,15 @@ export function parseInlines(s: string): Inline[] {
       i = j + 1
       continue
     }
+    // \( ... \): inline maths, as $ ... $.
+    if (ch === '\\' && s[i + 1] === '(') {
+      const j = s.indexOf('\\)', i + 2)
+      if (j >= 0) {
+        out.push(M.mathInline(s.slice(i + 2, j)))
+        i = j + 2
+        continue
+      }
+    }
     if (ch === '\\') {
       if (s.slice(i + 1, i + 2) === '\\') {
         // LaTeX line break \\ — keep it verbatim so titles and
@@ -585,7 +636,7 @@ function matchMacro(s: string, i: number): [Inline | Inline[], number] | null {
     if (arg === null) return null
     return [M.footnote(parseInlines(arg)), end]
   }
-  if (name === 'cite' || name === 'citep' || name === 'citet') {
+  if (name === 'cite' || name === 'citep' || name === 'citet' || name === 'citeasnoun') {
     const [arg, end] = consumeBraced(s, after)
     if (arg === null) return null
     return [M.citation(arg.split(',').filter((k) => strip(k)).map((k) => strip(k)), name), end]
@@ -829,7 +880,9 @@ function dispatch(kind: string, m: Hit): Block | Block[] | null {
   }
   if (kind === 'itemize') return parseList(g[1]!, false)
   if (kind === 'enumerate') return parseList(g[1]!, true)
-  if (kind === 'figure') return parseFigure(g[1]!)
+  // A figure with no picture (a framed placeholder, a drawing in code):
+  // kept as written rather than turned into an empty \includegraphics.
+  if (kind === 'figure') return /\\includegraphics\b/.test(g[1]!) ? parseFigure(g[1]!) : M.rawLatex(`\\begin{figure}\n${g[1]!.replace(/^\s*\n/, '').replace(/\s+$/, '')}\n\\end{figure}`)
   if (kind === 'figure_star') {
     // Two-column figures (figure*) often contain tikzpicture or
     // complex layouts the Figure model can't represent — preserve
@@ -994,11 +1047,15 @@ function parseFigure(body: string): M.Figure {
       }),
     })
   }
+  // \resizebox{W}{!}{\includegraphics{...}}: the picture W wide.
+  const rb = /\\resizebox\s*\{([^{}]+)\}\s*\{\s*!\s*\}\s*\{\s*\\includegraphics/.exec(body)
   if (inc) {
     const opts = inc[1] || ''
     const wm = reSearch(pyRe(String.raw`width\s*=\s*([^,\]]+)`), opts)
     if (wm) {
       width = strip(wm[1])
+    } else if (rb) {
+      width = strip(rb[1])
     } else if (!strip(opts)) {
       // Original had no width — use \columnwidth so figures fit
       // in single-column or two-column layouts alike.
@@ -1382,7 +1439,13 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   // Extract them before parsing blocks so they don't become InlineRaw.
   let bodyAbstractText = ''
   let bodyKeywordsText = ''
-  if (!isStandard && !isElsarticle) {
+  // An unknown journal class's own front matter: kept as written.
+  const verbatim = !isStandard && !isElsarticle && !CLASSES_KTEX_KNOWS.has(docClass.toLowerCase()) ? verbatimFrontMatter(body) : null
+  if (verbatim) {
+    body = verbatim[1]
+    meta.title = ''
+    meta.author = ''
+  } else if (!isStandard && !isElsarticle) {
     let bodyFm: string
     ;[bodyFm, body] = extractBodyFrontmatter(body)
     if (bodyFm) {
@@ -1405,6 +1468,13 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   }
 
   const children = parseBlocks(body)
+  if (verbatim) children.unshift(M.rawLatex(verbatim[0]))
+  // Pictures are written \includegraphics[width=...]: graphicx, though the
+  // source loaded only graphics (or its class did).
+  const hasFigure = children.some((b) => b.type === 'Figure')
+  if (hasFigure && !(meta.packages || []).includes('graphicx') && !/\{graphicx\}/.test(meta.preamble_extras || '')) {
+    meta.packages = [...(meta.packages || []), 'graphicx']
+  }
   if (M.classSupportsChapter(meta.documentclass || '')) shiftSectionsForChapters(children)
   const isA = (b: Block, ...types: Block['type'][]) => types.includes(b.type)
 
@@ -1412,7 +1482,7 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   // prepend one. Parse the title text as inlines so any nested macros
   // (\textbf, \emph, \texttt etc.) decode into proper marks instead of
   // surviving as literal LaTeX in the Text fragment.
-  if (titleText && !children.some((b) => b.type === 'Title')) {
+  if (titleText && !verbatim && !children.some((b) => b.type === 'Title')) {
     const titleInlines = orText(parseInlines(titleText), titleText)
     children.unshift(M.title(titleInlines))
     meta.title = ''
@@ -1424,7 +1494,7 @@ export function importTex(texSource: string, baseDir: string | null = null, fs: 
   // One Author block per \\-separated line ("Name \\ \small Address")
   // mirrors how \maketitle stacks them; the serializer re-joins Author
   // blocks with \\, so the rich author still round-trips verbatim.
-  if (authorText && !children.some((b) => b.type === 'Author')) {
+  if (authorText && !verbatim && !children.some((b) => b.type === 'Author')) {
     let insertAt = children.findIndex((b) => b.type === 'Title') + 1
     for (const line of splitAuthorLines(authorText)) {
       const lineInlines = parseInlines(line)

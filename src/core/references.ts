@@ -269,7 +269,9 @@ export class ReferenceResolver {
     }
   }
 
-  citeText(keys: string[], style = 'cite'): string {
+  citeText(keys: string[], given = 'cite'): string {
+    // IUCr's \citeasnoun reads as \citet: "Doe & Roe (2020) showed".
+    const style = given === 'citeasnoun' ? 'citet' : given
     if (this.citeMode?.authorYear) return authorYearCite(keys, style, k => this.entries.get(k), this.citeMode)
     if (this.listNumbers && style === 'cite') {
       return '[' + keys.map(k => String(this.listNumbers!.get(k) ?? `${k}?`)).join(', ') + ']'

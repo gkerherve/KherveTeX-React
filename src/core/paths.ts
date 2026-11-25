@@ -56,3 +56,15 @@ export function normalize(p: string): string {
   }
   return drive + (abs ? '/' : '') + out.join('/')
 }
+
+// `p` relative to the folder `from` ('../' steps where needed); `p` as it
+// is when either is relative or they are on different drives.
+export function relativeTo(p: string, from: string): string {
+  if (!isAbsolute(p) || !isAbsolute(from)) return p
+  const a = normalize(p).replace(/\\/g, '/').split('/').filter(Boolean)
+  const b = normalize(from).replace(/\\/g, '/').split('/').filter(Boolean)
+  if (/^[A-Za-z]:$/.test(a[0] ?? '') && a[0].toLowerCase() !== (b[0] ?? '').toLowerCase()) return p
+  let k = 0
+  while (k < a.length && k < b.length && a[k] === b[k]) k++
+  return [...b.slice(k).map(() => '..'), ...a.slice(k)].join('/') || '.'
+}

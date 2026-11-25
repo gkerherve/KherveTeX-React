@@ -511,6 +511,20 @@ export function applyNotCompileRanges(texSource: string): string {
   return wrapPairs(texSource, NOT_COMPILE_START, NOT_COMPILE_END, '\\iffalse', '\\fi')
 }
 
+// Journal classes written for pdfLaTeX (iucr.cls with its pdf option)
+// test pdfTeX's \pdfshellescape, which XeTeX (tectonic) lacks: 0, "no
+// shell escape", as pdfLaTeX reports by default. Only kTeX's own compile;
+// an exported .tex is left as it is.
+export function pdftexCompat(tex: string): string {
+  if (!/\\documentclass/.test(tex) || tex.includes('\\chardef\\pdfshellescape')) return tex
+  // The same classes load graphics with the pdftex driver
+  // (\RequirePackage[dvips,pdftex]{graphics}), which reads pictures with
+  // pdfTeX primitives: under XeTeX its driver is loaded over it.
+  return '\\ifdefined\\pdfshellescape\\else\\chardef\\pdfshellescape=0 \\fi\n'
+    + '\\makeatletter\\AddToHook{package/graphics/after}{\\def\\kt@pdftexdef{pdftex.def}'
+    + '\\ifx\\Gin@driver\\kt@pdftexdef\\def\\Gin@driver{xetex.def}\\input{xetex.def}\\fi}\\makeatother\n' + tex
+}
+
 export interface CompileOptions {
   basename?: string
   sourceDir?: string | null
@@ -592,6 +606,7 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
     texSource = applyCompileRange(texSource)
     texSource = applyNotCompileRanges(texSource)
   }
+  texSource = pdftexCompat(texSource)
   const texPath = join(workdir, `${base}.tex`)
   await host.writeText(texPath, texSource)
 

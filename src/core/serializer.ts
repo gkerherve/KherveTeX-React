@@ -587,8 +587,7 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       const path = figureOutputPath(node, '.pdf')
       // The caption is raw LaTeX: emitted verbatim, not re-escaped.
       const lab = node.label ? maybeLabel(node.label) : ''
-      const placement = floatH ? 'H' : 'htbp'
-      return `\\begin{figure}[${placement}]\n`
+      return `\\begin{figure}${placementArg(floatH)}\n`
         + `  ${FIGURE_ALIGN[node.align] ?? '\\centering'}\n`
         + `  ${(node.extra && node.extra.length) || node.height ? figureIncludes(node, '.pdf') : `\\includegraphics[width=${node.width}]{${path}}`}\n`
         // No caption, no label: no "Figure N:" under the picture (an
@@ -801,9 +800,8 @@ function serializeTable(node: Table, floatH = true): string {
       + '\\end{longtable}\n')
   }
   const body = bodyRows.join('\n    ')
-  const placement = floatH ? 'H' : 'htbp'
   const rule = (x: string) => (x ? `    ${x}\n` : '')
-  return `\\begin{table}[${placement}]\n`
+  return `\\begin{table}${placementArg(floatH)}\n`
     + '  \\centering\n'
     + (sizeCmd ? `  ${sizeCmd}` : '')
     + `  \\begin{tabular}{${align}}\n`
@@ -919,6 +917,17 @@ export const TEXT_FALLBACKS: Record<string, string> = {
 // loads the float package, as KherveTeX's own documents do; a journal class,
 // or a document without it (one imported from Word), lets them float
 // ([htbp]).
+// Classes whose figure and table environments take an optional argument
+// of their own, not a placement (IUCr's preprint figure: a [htbp] there
+// printed "Fig. htbp"): no placement written, the class places them.
+const OWN_FLOAT_ARGS = new Set(['iucr'])
+let floatArgs = true
+
+function placementArg(floatH: boolean | undefined): string {
+  if (!floatArgs) return ''
+  return `[${floatH ? 'H' : 'htbp'}]`
+}
+
 export function pinsFloats(m: DocMeta, isJournal: boolean): boolean {
   if (isJournal) return false
   return (m.packages || []).includes('float') || (m.preamble_extras || '').includes('{float}')
@@ -1429,6 +1438,7 @@ export function serializeDocument(doc: Document): string {
   // font packages that may conflict.
   const isJournal = !STANDARD_SERIALIZER_CLASSES.has((m.documentclass || '').toLowerCase())
   const clsLower = (m.documentclass || '').toLowerCase()
+  floatArgs = !OWN_FLOAT_ARGS.has(clsLower)
   const geometry = isJournal || isBeamer || classSetsPage(m) ? '' : geometryLine(m)
   const fontPkg = isJournal ? '' : (FONT_FAMILY_PACKAGES[m.body_font_family] ?? '')
   const [spacingPkg, spacingCmd] = isJournal ? ['', ''] : lineSpacing(m)

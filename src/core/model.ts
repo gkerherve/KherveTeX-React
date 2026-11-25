@@ -20,7 +20,8 @@ export interface Text { text: string; marks: Mark[]; type: 'Text' }
 export interface MathInline { latex: string; type: 'MathInline' }
 export interface Link { url: string; children: Inline[]; type: 'Link' }
 export interface Footnote { children: Inline[]; type: 'Footnote' }
-export interface Citation { keys: string[]; style: 'cite' | 'citep' | 'citet'; type: 'Citation' }
+// citeasnoun: IUCr / harvard's author-year citation used as a noun, shown as citet.
+export interface Citation { keys: string[]; style: 'cite' | 'citep' | 'citet' | 'citeasnoun'; type: 'Citation' }
 export interface CrossRef { label: string; kind: 'ref' | 'eqref' | 'pageref'; type: 'CrossRef' }
 // Verbatim LaTeX inline: unknown macros survive a round-trip this way.
 export interface InlineRaw { latex: string; type: 'InlineRaw' }
