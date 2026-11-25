@@ -1,5 +1,5 @@
-// The optional Admin & Office, Accountants and Architect tabs: hidden until
-// switched on in Settings ▸ Ribbon & Toolbar. Each element they insert has
+// Admin & Office, Science (more) and the optional Accountants tab (hidden
+// until switched on in Settings ▸ Ribbon & Toolbar). Each element they insert has
 // its own contextual tab (Edit…, its options, Move, Delete, Close) that
 // opens whenever it is selected, whether or not its main tab is shown.
 import { OFFICE_NAMES, type OfficeKind } from '../core/office.ts'
@@ -7,7 +7,7 @@ import type { Command, RibbonTab } from './ribbonModel.ts'
 import type { Tip } from './tooltips.ts'
 
 // The tabs hidden unless the user turns them on.
-export const OPTIONAL_TABS = ['Admin & Office', 'Accountants', 'Architect', 'Chemical Engineering', 'Earth Science']
+export const OPTIONAL_TABS = ['Accountants']
 
 const T = (title: string, what: string, latex = ''): Tip => ({ title, what, latex })
 const ELEMENT = ' Click it on the page to select it: its own tab opens, Edit… (or a double-click) changes it, Move up / Move down or the grip moves it, Delete or its × removes it, and Close puts the caret after it.'
@@ -54,6 +54,14 @@ export const OFFICE_COMMANDS: Command[] = [
   { id: 'of_lh_bar', text: 'Band', checkable: true },
   { id: 'of_lh_centered', text: 'Centred', checkable: true },
   { id: 'of_lh_side', text: 'Side bar', checkable: true },
+  // Science (more): each field's elements in one drop-down.
+  ...([['sm_chemeng', 'Chem. Eng.', 'pfd', ['pfd', 'mccabe', 'streamtable', 'massbalance'], 'Chemical engineering: process flow diagram, McCabe-Thiele, stream table, mass balance'],
+    ['sm_architect', 'Architect', 'floorplan', ['floorplan', 'scalebar', 'titleblock', 'rooms', 'revisions'], 'Architecture: floor plan, scale bar, title block, room schedule, revisions'],
+    ['sm_earth', 'Earth Science', 'stratcol', ['ternary', 'rose', 'stratcol'], 'Earth science: ternary diagram, rose diagram, stratigraphic column'],
+  ] as [string, string, OfficeKind, OfficeKind[], string][]).map(([id, text, icon, kinds, tip]): Command => ({
+    id, text, icon: 'office', iconArg: icon, popup: 'instant', tooltip: tip,
+    menu: kinds.map(k => ({ text: OFFICE_NAMES[k], command: `of_${k}`, icon: 'office', iconArg: k })),
+  })),
 ]
 
 export const OFFICE_TIPS: Record<string, Tip> = {
@@ -72,13 +80,20 @@ export const OFFICE_TIPS: Record<string, Tip> = {
 
 const g = (label: string, ids: string[]) => ({ label, large: ids.map(k => `of_${k}`) })
 
-export const OFFICE_MAIN_TABS: RibbonTab[] = [
-  { name: 'Admin & Office', groups: [g('Letters', ['letterhead', 'signature', 'stamp']), g('Meetings', ['agenda', 'actions', 'calendar']), g('Forms', ['formfields', 'certificate'])] },
-  { name: 'Accountants', groups: [g('Statements', ['fintable', 'budget']), g('Billing', ['invoice', 'loan']), g('Charts', ['kpi', 'waterfall'])] },
-  { name: 'Architect', groups: [g('Drawings', ['floorplan', 'scalebar', 'titleblock']), g('Schedules', ['rooms', 'revisions'])] },
-  { name: 'Chemical Engineering', groups: [g('Process', ['pfd', 'mccabe']), g('Balances', ['streamtable', 'massbalance'])] },
-  { name: 'Earth Science', groups: [g('Diagrams', ['ternary', 'rose']), g('Logs', ['stratcol'])] },
-]
+// Admin & Office (after Insert): letters, meetings, forms, planning
+// (timeline, progress bars, steps) and the lab's safety and notebook.
+export const ADMIN_TAB: RibbonTab = { name: 'Admin & Office', groups: [
+  g('Letters', ['letterhead', 'signature', 'stamp']), g('Meetings', ['agenda', 'actions', 'calendar']), g('Forms', ['formfields', 'certificate']),
+  { label: 'Plan', large: ['ins_timeline', 'ins_progress', 'ins_steps'] },
+  { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },
+] }
+export const ACCOUNTANTS_TAB: RibbonTab = { name: 'Accountants', groups: [g('Statements', ['fintable', 'budget']), g('Billing', ['invoice', 'loan']), g('Charts', ['kpi', 'waterfall'])] }
+// Science (more): chemical engineering, architecture and earth science,
+// each a drop-down, to keep the tab short.
+export const SCIENCE_MORE_TAB: RibbonTab = { name: 'Science (more)', groups: [
+  { label: 'Fields', large: ['sm_chemeng', 'sm_architect', 'sm_earth'] },
+] }
+export const OFFICE_MAIN_TABS: RibbonTab[] = [ADMIN_TAB, ACCOUNTANTS_TAB, SCIENCE_MORE_TAB]
 
 // Each element's own tab: Edit…, its options, colour, Move, Delete / Close.
 const OPTIONS: Partial<Record<OfficeKind, string[][]>> = {

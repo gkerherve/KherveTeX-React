@@ -20,6 +20,8 @@ export const PREF_DEFAULTS = {
   // The optional tabs (Admin & Office, Accountants, Architect) switched on.
   'ribbon/shown_tabs': [] as string[],
   'ribbon/hidden_quick': [] as string[],
+  // The main tabs' order, dragged in Settings ▸ Ribbon & Toolbar ([] = the default).
+  'ribbon/order': [] as string[],
   // Edit
   'edit/picture_width': 'natural',
   // Spelling & Grammar

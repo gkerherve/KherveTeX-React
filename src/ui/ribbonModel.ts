@@ -3,7 +3,7 @@
 // (ids are the Python attribute names without "act_"), and _build_ribbon
 // becomes RIBBON_TABS. `&` marks the menu mnemonic, as in Qt.
 import type { OfficeKind } from '../core/office.ts'
-import { OFFICE_AUTO_TABS, OFFICE_COMMANDS, OFFICE_CONTEXT_TABS, OFFICE_MAIN_TABS } from './officeRibbon.ts'
+import { ACCOUNTANTS_TAB, ADMIN_TAB, OFFICE_AUTO_TABS, OFFICE_COMMANDS, OFFICE_CONTEXT_TABS, SCIENCE_MORE_TAB } from './officeRibbon.ts'
 import { CHAPTER_STYLES, PAGE_EDGES, TITLE_STYLES } from '../core/design.ts'
 import { FANCY_COLORS, FANCY_KINDS } from '../core/fancyTable.ts'
 import { CODE_LANGUAGES, WIDGET_COLORS } from '../core/widgets.ts'
@@ -1096,6 +1096,20 @@ export const CORNER_LABELLED = new Set<string>([])
 const thmKinds = THEOREM_KINDS.map(([k]) => `thm_kind_${k}`)
 const boxKinds = CALLOUT_MENU.map(([k]) => `box_kind_${k}`)
 
+// The main tabs in the order the user dragged them to (Settings ▸ Ribbon &
+// Toolbar); a tab missing from that order (new in an update) keeps its
+// place after the tab it follows by default.
+export function orderedNames(names: string[], order: readonly string[]): string[] {
+  const out = order.filter(n => names.includes(n))
+  names.forEach((n, i) => {
+    if (out.includes(n)) return
+    let at = 0
+    for (let k = i - 1; k >= 0; k--) { const p = out.indexOf(names[k]); if (p >= 0) { at = p + 1; break } }
+    out.splice(at, 0, n)
+  })
+  return out
+}
+
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
@@ -1112,27 +1126,11 @@ export const RIBBON_TABS: RibbonTab[] = [
     { label: 'Pages', large: ['pagebreak', 'hf_pagenum'], rows: [['hrule'], ['show_date']], text: true },
     { label: 'Tables & Boxes', large: ['table_menu', 'callout', 'ins_checklist'] },
     { label: 'Illustrations', large: ['figure', 'ill_drawing', 'ill_charts'], rows: [['ins_icon'], ['screenshot']], text: true },
-    { label: 'Plan', large: ['ins_timeline', 'ins_progress', 'ins_steps'] },
     { label: 'Elements', rows: [['ins_pullquote', 'ins_sidebar', 'ins_rating'], ['ins_qrcode'], ['ins_code', 'ins_dropcap']], text: true },
     { label: 'Contents', rows: [['toc'], ['table_of_figures'], ['update_toc']], text: true },
     { label: 'Links', rows: [['link'], ['crossref'], ['citation']], text: true },
   ] },
-  // Science: equations, theorems and chemistry, out of the crowded Insert tab.
-  // Math: equations, numbers, theorems and algorithms, graphs and data.
-  { name: 'Math', groups: [
-    { label: 'Equations', large: ['math_block', 'equation_builder'], rows: [['math_inline'], ['symbol'], ['sci_matrix']], text: true },
-    { label: 'Numbers', rows: [['sci_units'], ['sci_constants']], text: true },
-    { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
-    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_geometry', 'sci_unitcircle']], text: true },
-  ] },
-  // Science: notation, chemistry, physics and data, safety and the lab.
-  { name: 'Science', groups: [
-    { label: 'Notation', rows: [['sci_physics'], ['sci_sigfig'], ['sci_nuclear']], text: true },
-    { label: 'Chemistry', large: ['chemistry', 'chemfig'], rows: [['sci_scheme', 'sci_mo'], ['sci_hazard', 'sci_bohr'], ['sci_element']], text: true },
-    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
-    { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },
-  ] },
-  ...OFFICE_MAIN_TABS,
+  ADMIN_TAB,
   { name: 'Draw', groups: [
     { label: 'Drawing Tools', large: ['draw_tool', 'eraser_tool'] },
     { label: 'Pens', large: [{ widget: 'pens' }, 'add_pen'] },
@@ -1196,6 +1194,22 @@ export const RIBBON_TABS: RibbonTab[] = [
       large: GALLERY.filter(([c]) => c !== 'Start').map(([c]) => gallery(c)) },
     { label: 'Your own', large: ['gallery_mine', 'save_as_template'] },
   ] },
+  // Science: equations, theorems and chemistry, out of the crowded Insert tab.
+  // Math: equations, numbers, theorems and algorithms, graphs and data.
+  { name: 'Math', groups: [
+    { label: 'Equations', large: ['math_block', 'equation_builder'], rows: [['math_inline'], ['symbol'], ['sci_matrix']], text: true },
+    { label: 'Numbers', rows: [['sci_units'], ['sci_constants']], text: true },
+    { label: 'Theorems', large: ['theorem', 'sci_algorithm'] },
+    { label: 'Graphs & Data', large: ['sci_function', 'sci_stats'], rows: [['sci_venn', 'sci_numberline'], ['sci_geometry', 'sci_unitcircle']], text: true },
+  ] },
+  // Science: notation, chemistry, physics and data, safety and the lab.
+  { name: 'Science', groups: [
+    { label: 'Notation', rows: [['sci_physics'], ['sci_sigfig'], ['sci_nuclear']], text: true },
+    { label: 'Chemistry', large: ['chemistry'], rows: [['chemfig', 'sci_scheme'], ['sci_mo', 'sci_hazard'], ['sci_bohr', 'sci_element']], text: true },
+    { label: 'Physics & Data', large: ['sci_plot'], rows: [['sci_circuit', 'sci_optics'], ['sci_feynman', 'sci_wave'], ['sci_forces', 'sci_levels']], text: true },
+  ] },
+  SCIENCE_MORE_TAB,
+  ACCOUNTANTS_TAB,
   { name: 'Table Design', context: 'table', groups: [
     { label: 'Table Style Options', large: ['tbl_header', 'tbl_repeat'] },
     { label: 'Table Styles', large: ['tbl_plain', 'tbl_grid', 'tbl_booktabs', 'tbl_striped', 'tbl_nolines'] },

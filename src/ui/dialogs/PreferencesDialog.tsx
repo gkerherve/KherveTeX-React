@@ -12,7 +12,7 @@ import { setSetting, setting } from '../../platform/settings'
 import { SHORT_NAME } from '../../version'
 import { isCommandChecked, setCommandChecked } from '../commands'
 import { Icon } from '../icons'
-import { COMMANDS, CORNER_LEFT, RIBBON_TABS, shortText } from '../ribbonModel'
+import { COMMANDS, CORNER_LEFT, orderedNames, RIBBON_TABS, shortText } from '../ribbonModel'
 import { MODES } from '../WelcomeDialog'
 import { openDialog } from './dialogHost'
 import './prefs.css'
@@ -146,7 +146,18 @@ function RibbonPane() {
   const [hidden, setHidden] = usePref('ribbon/hidden_tabs')
   const [shown, setShown] = usePref('ribbon/shown_tabs')
   const [quick, setQuick] = usePref('ribbon/hidden_quick')
-  const main = RIBBON_TABS.filter(t => !t.context)
+  const [order, setOrder] = usePref('ribbon/order')
+  const [drag, setDrag] = useState<string | null>(null)
+  const [over, setOver] = useState<string | null>(null)
+  const byName = new Map(RIBBON_TABS.filter(t => !t.context).map(t => [t.name, t]))
+  const names = orderedNames([...byName.keys()], order)
+  // Drop the dragged tab before the row it is dropped on.
+  const dropOn = (moved: string | null, target: string) => {
+    if (!moved || moved === target || !byName.has(moved)) return
+    const rest = names.filter(n => n !== moved)
+    rest.splice(rest.indexOf(target), 0, moved)
+    setOrder(rest)
+  }
   return (<>
     <div className='pf-tabs'>
       <button type='button' className={tab === 'ribbon' ? 'on' : ''} onClick={() => setTab('ribbon')}>Ribbon</button>
@@ -155,23 +166,29 @@ function RibbonPane() {
     {tab === 'ribbon' ? (
       <Group title='Customise the Ribbon: Main Tabs'>
         <div className='pf-list'>
-          {main.filter(t => !OPTIONAL_TABS.includes(t.name)).map(t => (
-            <label key={t.name} className='pf-list-row'>
-              <input type='checkbox' checked={!hidden.includes(t.name)} disabled={t.name === 'Home'}
-                onChange={e => setHidden(e.target.checked ? hidden.filter(x => x !== t.name) : [...hidden, t.name])} />
-              <span>{t.name}</span><span className='pf-note'>{t.groups.map(g => g.label).join(', ')}</span>
-            </label>
-          ))}
+          {names.map(n => {
+            const t = byName.get(n)!
+            const extra = OPTIONAL_TABS.includes(n)
+            const on = extra ? shown.includes(n) : !hidden.includes(n)
+            return (
+              <label key={n} className={`pf-list-row pf-drag${drag === n ? ' dragging' : ''}${over === n && drag && drag !== n ? ' drop-before' : ''}`}
+                draggable onDragStart={e => { setDrag(n); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', n) }}
+                onDragOver={e => { e.preventDefault(); setOver(n) }} onDragLeave={() => setOver(o => (o === n ? null : o))}
+                onDrop={e => { e.preventDefault(); dropOn(e.dataTransfer.getData('text/plain') || drag, n); setDrag(null); setOver(null) }}
+                onDragEnd={() => { setDrag(null); setOver(null) }}>
+                <span className='pf-grip' title='Drag to move this tab'>⋮⋮</span>
+                <input type='checkbox' checked={on} disabled={n === 'Home'}
+                  onChange={e => extra
+                    ? setShown(e.target.checked ? [...shown, n] : shown.filter(x => x !== n))
+                    : setHidden(e.target.checked ? hidden.filter(x => x !== n) : [...hidden, n])} />
+                <span>{n}{extra ? <span className='pf-note'> (extra)</span> : null}</span><span className='pf-note'>{t.groups.map(g => g.label).join(', ')}</span>
+              </label>
+            )
+          })}
         </div>
-        <div className='pf-note' style={{ marginTop: 10, fontWeight: 600 }}>Extra tabs for your work (off until you tick them):</div>
-        <div className='pf-list'>
-          {main.filter(t => OPTIONAL_TABS.includes(t.name)).map(t => (
-            <label key={t.name} className='pf-list-row'>
-              <input type='checkbox' checked={shown.includes(t.name)}
-                onChange={e => setShown(e.target.checked ? [...shown, t.name] : shown.filter(x => x !== t.name))} />
-              <span>{t.name}</span><span className='pf-note'>{t.groups.map(g => g.label).join(', ')}</span>
-            </label>
-          ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+          <span className='pf-note'>Drag a tab by its ⋮⋮ to put it where you want.</span>
+          <button type='button' disabled={!order.length} onClick={() => setOrder([])}>Reset order</button>
         </div>
         <div className='pf-note'>Home always stays. Tables, pictures, equations and theorems keep their own tabs when you are in one.</div>
       </Group>

@@ -14,7 +14,7 @@ import { Popup } from './Menu'
 import { classTip } from './classInfo'
 import {
   bigLabel, COMMANDS, CORNER_LABELLED, CORNER_LEFT, CORNER_RIGHT, FONT_SIZES,
-  GALLERY_INLINE, PARAGRAPH_STYLES, RIBBON_TABS, shortText, TEMPLATE_CHOICES,
+  GALLERY_INLINE, orderedNames, PARAGRAPH_STYLES, RIBBON_TABS, shortText, TEMPLATE_CHOICES,
   AUTO_TABS, type Command, type ContextKind, type MenuEntry, type RibbonGroup, type RibbonItem,
 } from './ribbonModel'
 import { lookupTip, useTipProps, type TipContent } from './Tooltip'
@@ -884,8 +884,11 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
   const hiddenTabs = pref('ribbon/hidden_tabs')
   const hiddenQuick = pref('ribbon/hidden_quick')
   const shownTabs = pref('ribbon/shown_tabs')
+  const order = orderedNames(RIBBON_TABS.filter(t => !t.context).map(t => t.name), pref('ribbon/order'))
   const visible = RIBBON_TABS.filter(t => (!t.context || t.context === context)
     && (t.context || (OPTIONAL_TABS.includes(t.name) ? shownTabs.includes(t.name) : !hiddenTabs.includes(t.name))))
+    .map((t, i) => ({ t, i, k: t.context ? 1000 + i : order.indexOf(t.name) }))
+    .sort((a, b) => a.k - b.k).map(x => x.t)
   const shown = visible.find(t => t.name === current) ?? visible[0]
   // Editing a header or footer opens its tab, as in Word; leaving goes back.
   useEffect(() => {
