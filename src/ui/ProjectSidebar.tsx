@@ -10,6 +10,8 @@ import { SECTION_TYPE_LABELS, type SidebarModel } from '../app/project'
 import { platform } from '../platform'
 import { openDialog, type Close } from './dialogs/dialogHost'
 import { promptText } from './dialogs/EditorDialogs'
+import { api as chaptersApi } from '../app/actions/chapters'
+import type { ChapterRow } from './dialogs/ChaptersDialog'
 import './ProjectSidebar.css'
 
 const ROW_MIME = 'application/x-khervetex-row'
@@ -42,6 +44,37 @@ function promptInt(title: string, label: string, value: number, min: number, max
     }
     return <Prompt />
   })
+}
+
+// A single document's chapters (one .ktex holding a thesis): each with
+// Compile and Show, dragged into order, clicked to go to it.
+function ChapterList() {
+  const [rows, setRows] = useState<ChapterRow[]>(() => chaptersApi.list())
+  const [drag, setDrag] = useState<number | null>(null)
+  const [over, setOver] = useState<number | null>(null)
+  useEffect(() => chaptersApi.subscribe(() => setRows(chaptersApi.list())), [])
+  if (!rows.length) {
+    return <div className='ps-empty'>No chapters yet. <b>+ Add</b> a document: it becomes a chapter of this file
+      (each top-level heading is one).</div>
+  }
+  return (
+    <div className='ps-list ps-chapters' role='listbox'>
+      {rows.map((r, i) => (
+        <div key={r.key} className={`ps-row ps-ch${r.compiled ? '' : ' grey'}${over === i && drag !== null && drag !== i ? ' drop-above' : ''}`}
+          draggable onDragStart={e => { setDrag(i); e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}
+          onDragOver={e => { e.preventDefault(); setOver(i) }} onDragLeave={() => setOver(o => (o === i ? null : o))}
+          onDrop={e => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/plain') || drag); if (from !== i) chaptersApi.move(from, i); setDrag(null); setOver(null) }}
+          onDragEnd={() => { setDrag(null); setOver(null) }}
+          onClick={() => chaptersApi.goTo(i)} title={`${r.title} - ${r.summary}`}>
+          <input type='checkbox' checked={r.compiled} title='Compile (in the PDF preview)'
+            onClick={e => e.stopPropagation()} onChange={e => chaptersApi.setCompiled(i, e.target.checked)} />
+          <button type='button' className={`ps-eye${r.shown ? '' : ' off'}`} title={r.shown ? 'Shown - click to fold it away while you write' : 'Folded - click to show it'}
+            onClick={e => { e.stopPropagation(); chaptersApi.setShown(r.key, !r.shown) }}>{r.shown ? '👁' : '–'}</button>
+          <span className='ps-text'>{i + 1}. {r.title}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 async function pickExisting(sb: SidebarModel): Promise<void> {
@@ -231,7 +264,8 @@ export function ProjectSidebar() {
             Auto page numbers
           </label>
         )}
-        <div className='ps-list' role='listbox' onContextMenu={e => onContext(e, null)}
+        {!proj && <ChapterList />}
+        {proj && <div className='ps-list' role='listbox' onContextMenu={e => onContext(e, null)}
           onClick={() => sb.setCurrentRow(-1)}>
           {sb.rows.map((r, i) => (
             <div key={i} role='option' aria-selected={sb.currentRow === i}
@@ -262,7 +296,7 @@ export function ProjectSidebar() {
               <span className='ps-text'>{r.text}</span>
             </div>
           ))}
-        </div>
+        </div>}
         {proj && (
           <div className='ps-buttons'>
             <button type='button' title='Move selected chapter up' onClick={() => void sb.moveUp()}>{'▲ Up'}</button>
@@ -273,14 +307,18 @@ export function ProjectSidebar() {
         )}
         <div className='ps-buttons'>
           <button type='button' className='ps-add'
-            title='Add another document (chapter). A single document becomes a project the first time you add one.'
+            title='Add a document: a new chapter of this file, or another file copied in as one (everything stays inside this .ktex)'
             onMouseDown={e => e.stopPropagation()}
             onClick={e => {
               const rc = e.currentTarget.getBoundingClientRect()
               setMenu({
                 x: rc.left, y: rc.bottom, entries: [
-                  { text: 'New document…', run: () => sb.signals.addChapterRequested?.() },
-                  { text: 'Existing file…', run: () => pickExisting(sb) },
+                  // A single document: a chapter of this same file (the
+                  // .ktex holds them all); a project: a document of its own.
+                  { text: 'New document…', run: () => proj ? sb.signals.addChapterRequested?.()
+                    : void promptText('Add document', 'Name of the new document (a chapter of this file):', `Chapter ${chaptersApi.list().length + 1}`)
+                      .then(n => { if (n && n.trim()) chaptersApi.add(n.trim()) }) },
+                  { text: 'Existing file…', run: () => proj ? pickExisting(sb) : void chaptersApi.addFile() },
                 ],
               })
             }}>

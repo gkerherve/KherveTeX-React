@@ -214,3 +214,19 @@ export function chaptersPlugin(): Plugin {
     },
   })
 }
+
+// Back matter that stays last: the bibliography, the index.
+const BACK_MATTER_RE = /^\s*\\(?:begin\{thebibliography\}|bibliography\{|bibliographystyle\{|printbibliography\b|printindex\b)/
+
+// Where a new chapter goes: the end of the document, before any back
+// matter (and the empty lines around it) that ends it.
+export function chapterEnd(doc: PMNode): number | null {
+  let at: number | null = null
+  for (let i = doc.childCount - 1, pos = doc.content.size; i >= 0; i--) {
+    const n = doc.child(i)
+    pos -= n.nodeSize
+    if (n.type.name === 'raw_latex' && BACK_MATTER_RE.test(n.textContent)) at = pos
+    else if (!(n.type.name === 'paragraph' && !n.content.size)) break
+  }
+  return at
+}

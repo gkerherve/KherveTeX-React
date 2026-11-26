@@ -9,7 +9,7 @@ import { loadKdocz } from '../../core/kdocz.ts'
 import { importMd } from '../../core/importers.ts'
 import * as C from '../../editor/commands.ts'
 import {
-  chapterHooks, chapters, foldedChapters, moveChapter, setChapterCompiled, setChapterFolded, setFoldedChapters,
+  chapterEnd, chapterHooks, chapters, foldedChapters, moveChapter, setChapterCompiled, setChapterFolded, setFoldedChapters,
 } from '../../editor/chapters.ts'
 import { editor } from '../../editor/controller.ts'
 import { platform } from '../../platform/index.ts'
@@ -104,16 +104,25 @@ function chapterLevel(): number {
   return (e && chapters(e.view.state.doc)[0]?.level) ?? 1
 }
 
-// Blocks put at the end of the document, the caret on the first.
+// Blocks put at the end of the document (before its back matter), the
+// caret on the first.
 function appendBlocks(blocks: M.Block[]): void {
   const e = editor()
   if (!e) return
   const s = e.view.state
-  e.view.dispatch(s.tr.setSelection(Selection.atEnd(s.doc)))
-  e.run(C.insertModelBlocks(blocks, { select: 0, trailingParagraph: true }))
+  const at = chapterEnd(s.doc)
+  if (at === null) {
+    e.view.dispatch(s.tr.setSelection(Selection.atEnd(s.doc)))
+    e.run(C.insertModelBlocks(blocks, { select: 0, trailingParagraph: true }))
+    return
+  }
+  const tr = s.tr.insert(at, blocks.map(C.fresh))
+  e.view.dispatch(tr.setSelection(Selection.near(tr.doc.resolve(at + 1))).scrollIntoView())
+  e.view.focus()
 }
 
-const api = {
+// Also the Documents panel's list for a single document (ui/ProjectSidebar.tsx).
+export const api = {
   list: rows,
   subscribe(on: () => void) { listeners.add(on); return () => { listeners.delete(on) } },
   setCompiled(i: number, on: boolean) { editor()?.run(setChapterCompiled(i, on)) },
@@ -136,15 +145,15 @@ const api = {
     e.view.dispatch(s.tr.setSelection(TextSelection.near(s.doc.resolve(c.heading + 1))).scrollIntoView())
     e.view.focus()
   },
-  add() {
-    appendBlocks([M.section(chapterLevel(), [M.text('New chapter')]), M.paragraph([])])
+  add(name = 'New chapter') {
+    appendBlocks([M.section(chapterLevel(), [M.text(name)]), M.paragraph([])])
   },
-  async addFile() {
-    const got = await platform().openFileDialog({
+  // Another file as a chapter (copied in); without `given`, one picked.
+  async addFile(given?: string) {
+    const path = given ?? (await platform().openFileDialog({
       title: 'Add a file as a chapter',
       filters: [{ name: 'Documents', extensions: ['ktex', 'docx', 'tex', 'md', 'pdf', 'odt', 'rtf'] }, { name: 'All', extensions: ['*'] }],
-    })
-    const path = got?.[0]
+    }))?.[0]
     if (!path) return
     let blocks: M.Block[]
     try {

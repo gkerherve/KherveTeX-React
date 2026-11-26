@@ -112,3 +112,9 @@
 .documents-dock .qmenu { position: fixed; }
 .documents-dock .qmenu-icon { width: 16px; justify-content: center; }
 .documents-dock .qmenu-arrow { padding-left: 12px; font-size: 10px; }
+/* A single document's chapters. */
+.ps-ch { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.ps-ch.grey .ps-text { color: #999; }
+.ps-eye { all: unset; width: 18px; text-align: center; cursor: pointer; font-size: 12px; opacity: .85; }
+.ps-eye.off { opacity: .45; }
+.ps-empty { color: #777; font-size: 12px; padding: 8px 4px; line-height: 1.4; }

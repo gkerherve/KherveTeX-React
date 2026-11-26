@@ -100,6 +100,10 @@ function projectFs(): ProjectFs {
 }
 
 const host: ProjectHost = {
+  addAsChapters: async (paths) => {
+    const { api } = await import('./chapters')
+    for (const p of paths) await api.addFile(p)
+  },
   get fs() { return projectFs() },
   getDocument: () => {
     // The editor hands its document on after a short delay; take it now.

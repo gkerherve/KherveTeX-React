@@ -395,6 +395,9 @@ export interface ProjectFs extends StoreFs {
 // What the window gives the project code.
 export interface ProjectHost {
   fs: ProjectFs
+  // Files added to a single document: chapters copied into that same file
+  // (one .ktex holds them), rather than a project folder of documents.
+  addAsChapters?(paths: string[]): Promise<void>
   // DocumentEditor: get_document / set_document (which also clears the
   // modified flag), set_heading_offset, set_first_page_number.
   getDocument(): Document
@@ -851,6 +854,7 @@ export class ProjectSession {
   // project folder is referenced in place; anything else is copied in as a
   // document (bundle images unpacked beside it).
   async addExistingDocuments(paths: string[]): Promise<void> {
+    if (this.project === null && this.host.addAsChapters) { await this.host.addAsChapters(paths); return }
     if (this.project === null && !(await this.makeProjectFromOpenDocument())) return
     const proj = this.project!
     const projDir = dirname(this.projectPath!)

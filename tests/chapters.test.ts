@@ -5,7 +5,7 @@ import { EditorState } from 'prosemirror-state'
 import * as M from '../src/core/model.ts'
 import { NOT_COMPILE_END, NOT_COMPILE_START } from '../src/core/compiler.ts'
 import { docFromPM, docToPM } from '../src/editor/convert.ts'
-import { chapters, chaptersPlugin, foldedChapters, moveChapter, setChapterCompiled, setChapterFolded } from '../src/editor/chapters.ts'
+import { chapterEnd, chapters, chaptersPlugin, foldedChapters, moveChapter, setChapterCompiled, setChapterFolded } from '../src/editor/chapters.ts'
 
 const p = (s: string) => M.paragraph([M.text(s)])
 const h = (s: string, level = 1) => M.section(level, [M.text(s)])
@@ -49,5 +49,12 @@ describe('chapters', () => {
     const s = run(start(), setChapterFolded('Two', true))
     expect([...foldedChapters(s)]).toEqual(['Two'])
     expect(names(s)).toEqual(names(start()))
+  })
+
+  it('a new chapter goes before the bibliography that ends the document', () => {
+    const d = docToPM(M.document([h('One'), p('a1'), M.rawLatex('\\begin{thebibliography}{9}\n\\bibitem{a} A.\n\\end{thebibliography}'), M.paragraph([])]))
+    const at = chapterEnd(d)!
+    expect(d.resolve(at).nodeAfter?.type.name).toBe('raw_latex')
+    expect(chapterEnd(start().doc)).toBeNull()
   })
 })
