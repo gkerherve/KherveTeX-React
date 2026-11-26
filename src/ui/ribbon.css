@@ -576,3 +576,6 @@ body.kt-larger-controls .ribbon { zoom: 1.18; }
 }
 .rb-drop .rb-group { height: 93px; }
 .rb-collapsed-l2 { display: inline-flex; align-items: center; gap: 3px; }
+
+/* Compile ▸ Engine: the engine and the last compile's state. */
+.rb-engine { align-self: center; max-width: 170px; padding: 4px 8px; font-size: 12px; line-height: 1.3; color: var(--text); white-space: normal; text-align: center; }

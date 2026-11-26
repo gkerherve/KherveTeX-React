@@ -2,6 +2,7 @@
 // labelled groups of big 32 px buttons and rows of small 18 px buttons,
 // three small rows as tall as one big button. Its contents come from
 // ribbonModel.ts.
+import { useCompileUi } from '../app/compile'
 import { OPTIONAL_TABS } from './officeRibbon.ts'
 import { runAction } from '../app/actions'
 import { setSetting, setting } from '../platform/settings'
@@ -534,6 +535,12 @@ function NumberedTile() {
   )
 }
 
+// Compile ▸ Engine: "LaTeX (tectonic): OK", "Compiling…".
+function EngineStatus() {
+  const text = useCompileUi(u => u.statusText)
+  return <div className='rb-engine' title='The LaTeX engine that makes the PDF, and how the last compile went'>{text || 'LaTeX'}</div>
+}
+
 function Item({ it, ctx, large, text }: {
   it: RibbonItem, ctx: Ctx, large: boolean, text: boolean
 }) {
@@ -546,6 +553,7 @@ function Item({ it, ctx, large, text }: {
     if (it.widget === 'classes') return <ClassGallery ctx={ctx} />
     if (it.widget === 'stylesets') return <StyleSetGallery ctx={ctx} />
     if (it.widget === 'pens') return <PenGallery />
+    if (it.widget === 'engine') return <EngineStatus />
     return <NumberedTile />
   }
   const c = COMMANDS[it]

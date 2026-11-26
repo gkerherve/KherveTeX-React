@@ -3,7 +3,7 @@
 // switch, editor zoom (−, slider, +, percent), the PDF zoom, fit width,
 // the PDF-follows-the-text toggle and the compiler indicator.
 import { friendlyDir } from '../core/friendlyDir.ts'
-import { useRef, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { Icon } from './icons'
 import { useTipProps } from './Tooltip'
 
@@ -88,7 +88,7 @@ function ToolIcon({ name, tip, on, onClick }: {
   return (
     <button type='button' className={'sb-tool' + (on ? ' on' : '')} aria-label={tip}
       onClick={onClick} {...t}>
-      <Icon name={name} size={24} />
+      <Icon name={name} size={18} />
     </button>
   )
 }
@@ -108,6 +108,20 @@ function RecentCombo({ recent, onOpen }: {
       {recent.map(p => <option key={p} value={p} title={p}>{name(p)}</option>)}
     </select>
   )
+}
+
+// "Page 3 of 12": the sheet in view, updated as the page scrolls.
+function PageCounter({ pages }: { pages: () => { at: number; of: number } | null }) {
+  const [p, setP] = useState(pages)
+  useEffect(() => {
+    const t = setInterval(() => {
+      const n = pages()
+      setP(o => (o?.at === n?.at && o?.of === n?.of ? o : n))
+    }, 300)
+    return () => clearInterval(t)
+  }, [pages])
+  if (!p) return null
+  return <span className='sb-pages'>Page {p.at} of {p.of}</span>
 }
 
 export interface StatusBarProps {
@@ -137,6 +151,8 @@ export interface StatusBarProps {
   // The PDF scrolls with the page view.
   pdfFollow?: boolean
   onPdfFollow?: () => void
+  // The sheet in view and how many there are.
+  pages?: () => { at: number; of: number } | null
 }
 
 export function StatusBar(p: StatusBarProps) {
@@ -156,9 +172,10 @@ export function StatusBar(p: StatusBarProps) {
           : <><b>Untitled</b>{'  —  '}<span className='sb-faint'>not saved yet</span></>}
         {p.message && <span className='sb-faint'>{'  —  '}{p.message}</span>}
       </div>
+      {p.pages && <PageCounter pages={p.pages} />}
       <ThemeSwitch dark={p.dark} onToggle={p.onToggleTheme} />
       <ToolIcon name='zoom_out' tip='Zoom out' onClick={() => p.onZoom(Math.max(25, p.zoom - 10))} />
-      <ZoomSlider min={25} max={300} tick={25} width={140} value={p.zoom} onChange={p.onZoom} />
+      <ZoomSlider min={25} max={300} tick={25} width={70} value={p.zoom} onChange={p.onZoom} />
       <ToolIcon name='zoom_in' tip='Zoom in' onClick={() => p.onZoom(Math.min(300, p.zoom + 10))} />
       <span className='sb-pct'>{p.zoom}%</span>
       {p.showPdfZoom && (
@@ -166,7 +183,7 @@ export function StatusBar(p: StatusBarProps) {
           <span className='sb-pdf-sep'> | PDF:</span>
           <ToolIcon name='zoom_out' tip='PDF zoom out'
             onClick={() => p.onPdfZoom(Math.max(25, p.pdfZoom - 10))} />
-          <ZoomSlider min={25} max={400} tick={25} width={100} value={p.pdfZoom}
+          <ZoomSlider min={25} max={400} tick={25} width={60} value={p.pdfZoom}
             onChange={p.onPdfZoom} />
           <ToolIcon name='zoom_in' tip='PDF zoom in'
             onClick={() => p.onPdfZoom(Math.min(400, p.pdfZoom + 10))} />
@@ -178,7 +195,7 @@ export function StatusBar(p: StatusBarProps) {
             on={p.pdfFollow} onClick={p.onPdfFollow} />}
         </>
       )}
-      <span className='sb-compiler'>{p.compiler}</span>
+      {/* The engine's state (LaTeX (tectonic): OK) is on the Compile tab. */}
       {p.compiling && <>
         <span className='sb-compile-label'>Compiling…</span>
         <span className='sb-progress' role='progressbar' aria-label='Compiling'><span /></span>

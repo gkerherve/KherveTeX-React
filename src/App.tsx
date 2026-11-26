@@ -10,6 +10,10 @@ import { useCompileUi } from './app/compile'
 import { appStore, useApp } from './app/store'
 import { CodeView } from './codeview/CodeView'
 import { EditorPane } from './editor/EditorPane'
+import { editor } from './editor/controller'
+
+// The status bar's page counter: the sheet in view, of how many.
+const pageInfo = () => editor()?.pageInfo() ?? null
 import { pagePx } from './editor/layout'
 import { PdfPanel } from './preview/PdfPanel'
 import { Ribbon } from './ui/Ribbon'
@@ -288,6 +292,7 @@ export default function App() {
           pdfFollow={follow} onPdfFollow={toggleFollow}
           showPdfZoom compiler={compilerText} message={status}
           recent={recent} onOpenRecent={p => { void runAction('open_recent', p) }}
+          pages={pageInfo}
           docsPanel={docsPanel} onDocsPanel={project ? () => cmd.trigger('documents_dock') : undefined} />
       </div>
     </TooltipProvider>

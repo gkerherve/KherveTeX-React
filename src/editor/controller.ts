@@ -1009,6 +1009,18 @@ export class EditorController implements ViewHost {
     this.paintOverlay(geo, n)
   }
 
+  // The status bar's "Page 3 of 12": the sheet in view (a third of the way
+  // down the window) and how many there are.
+  pageInfo(): { at: number; of: number } {
+    const of = Math.max(1, this.sheets)
+    let sc: HTMLElement | null = this.root.parentElement
+    while (sc && !(sc.scrollHeight > sc.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement
+    if (!sc) return { at: 1, of }
+    const r = sc.getBoundingClientRect()
+    const y = (r.top + Math.min(r.height / 3, 220) - this.flowEl.getBoundingClientRect().top) / this.zoom()
+    return { at: Math.min(of, Math.max(1, Math.floor(y / this.layout.geometry.heightPx) + 1)), of }
+  }
+
   private sheetOf(el: Element): number {
     const z = this.zoom()
     const top = (el.getBoundingClientRect().top - this.flowEl.getBoundingClientRect().top) / z

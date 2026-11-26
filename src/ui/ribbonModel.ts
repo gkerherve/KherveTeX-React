@@ -71,6 +71,9 @@ export type Widget =
   | { widget: 'stylesets' }
   | { widget: 'pens' }
   | { widget: 'numbered' }
+  // Compile ▸ Engine: which LaTeX compiles and its state (the status bar's
+  // old corner).
+  | { widget: 'engine' }
   // Layout ▸ Indent / Spacing: a number box for the caret's paragraph.
   | { widget: 'parafield', field: 'left_cm' | 'right_cm' | 'before_pt' | 'after_pt' }
   // Header & Footer ▸ Position: Header from Top / Footer from Bottom (cm).
@@ -1212,6 +1215,7 @@ export const RIBBON_TABS: RibbonTab[] = [
   // Compile and History in one tab: make the PDF, keep its versions.
   { name: 'Compile', groups: [
     { label: 'Compile', large: ['compile_now', 'auto_compile', 'fast_latex'] },
+    { label: 'Engine', large: [{ widget: 'engine' }] },
     { label: 'Options', large: ['compile_range', 'skip_images'] },
     { label: 'Output', large: ['export_pdf', 'print_preview'] },
     { label: 'Versions', large: ['commit_now', 'history'] },
