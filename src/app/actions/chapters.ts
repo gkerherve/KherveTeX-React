@@ -176,7 +176,8 @@ export const api = {
     setSetting('chapters/view', v)
     const e = editor()
     if (e && v === 'one') showOnly(Math.max(0, chapterAt(chapters(e.view.state.doc), e.view.state.selection.head)))
-    else if (e && v === 'all') e.run(setFoldedChapters([]))
+    // All and Outline show every chapter again.
+    else if (e) e.run(setFoldedChapters([]))
     changed()
   },
   window: (): DocumentsWindow => setting<DocumentsWindow>('documents/window', 'dock'),
