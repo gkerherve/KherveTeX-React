@@ -1653,6 +1653,9 @@ export function serializeDocument(doc: Document): string {
   // A RawLatex block that already holds \maketitle (e.g. inside a
   // \twocolumn[...] wrapper) means no separate one.
   const rawHasMaketitle = children.some((b) => b.type === 'RawLatex' && b.text.includes('\\maketitle'))
+  // The last block with something in it: empty lines after it are not printed.
+  let lastContent = -1
+  children.forEach((b, k) => { if (!(b.type === 'Paragraph' && !serializeInlines(b.children).trim())) lastContent = k })
 
   if (isBeamer) {
     while (i < n) {
@@ -1717,6 +1720,16 @@ export function serializeDocument(doc: Document): string {
           i += 1
         }
         parts.push(`\\begin{keyword}\n${splitKeywordInlines(group).join(' \\sep ')}\n\\end{keyword}\n`)
+        if (i < n) parts.push('\n')
+        continue
+      }
+      // An empty line (Enter on an empty line), as the page shows it: a
+      // line with nothing on it. LaTeX drops empty paragraphs, so the PDF
+      // was shorter than the page and the page grew sheets the PDF did not
+      // have. Not the empty lines at the very end.
+      if (block.type === 'Paragraph' && i < lastContent && !serializeInlines(block.children).trim()) {
+        parts.push('\\null\n')
+        i += 1
         if (i < n) parts.push('\n')
         continue
       }

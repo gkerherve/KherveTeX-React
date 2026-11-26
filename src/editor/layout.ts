@@ -518,7 +518,10 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     }
     // After a page break (\newpage, \clearpage), the next block starts a
     // new sheet, as Word's page break does.
-    if (i > 0 && geometry.cols <= 1 && blocks[i - 1].state === S.RAW && PAGE_BREAK_RE.test(blocks[i - 1].text)) startsSheet = true
+    // A page break on a page still empty (straight after another one) does
+    // nothing in LaTeX: \newpage twice gives one new page, not a blank one.
+    if (i > 0 && geometry.cols <= 1 && blocks[i - 1].state === S.RAW && PAGE_BREAK_RE.test(blocks[i - 1].text)
+      && !(i > 1 && blocks[i - 2].state === S.RAW && PAGE_BREAK_RE.test(blocks[i - 2].text) && out[i - 1]?.breakBefore)) startsSheet = true
     if (state === S.RAW && PAGE_BREAK_RE.test(text)) { L.top = 0; L.bottom = 0 }
     // A table of contents right under the title keeps the room for the date.
     if (state === S.RAW && i === afterDate && look.date && !out[dateLine]?.spans && tocBlock(text)) L.top = look.date.gap * pt
