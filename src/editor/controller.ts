@@ -2,6 +2,7 @@
 // paged_edit.py) over ProseMirror. It owns the view, keeps the store's
 // document in step with it, lays the pages out, paints the sheets, the
 // headers, footers and footnotes, and offers the EditorApi.
+import { rawLookPlugin } from './rawLook.ts'
 import { syncElementChecks } from './widgetCommands.ts'
 import { accentOf, designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
@@ -374,7 +375,9 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), chaptersPlugin(), bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
+      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), chaptersPlugin(),
+      rawLookPlugin(st => layoutKey.getState(st)?.meta ?? meta, () => { try { return this.bodyPx() } catch { return 16 } }),
+      bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),
       ...editorKeymaps({ run: id => { void runAction(id); return true } }),
       history(), tableEditing(), gapCursor(), dropCursor(), trackPlugin(), autocorrectPlugin(), blockMoverPlugin(),
