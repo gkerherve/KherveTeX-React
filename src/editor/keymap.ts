@@ -5,7 +5,7 @@ import { baseKeymap, chainCommands, deleteSelection, joinBackward, joinForward, 
   selectNodeBackward, selectNodeForward } from 'prosemirror-commands'
 import { redo, undo } from 'prosemirror-history'
 import { keymap } from 'prosemirror-keymap'
-import { TextSelection, type Plugin } from 'prosemirror-state'
+import { AllSelection, type Plugin } from 'prosemirror-state'
 import { addRowAfter, goToNextCell } from 'prosemirror-tables'
 import { liftListItem, paragraphAfterCallout, type Command } from './commands.ts'
 import { isCallout } from '../core/model.ts'
@@ -125,8 +125,10 @@ const insertTab: Command = (state, dispatch) => {
   return true
 }
 
+// The whole document, as Edit ▸ Select All (a TextSelection from 0 to
+// the end points outside any text and was cut down).
 const selectAll: Command = (state, dispatch) => {
-  if (dispatch) dispatch(state.tr.setSelection(TextSelection.create(state.doc, 0, state.doc.content.size)))
+  if (dispatch) dispatch(state.tr.setSelection(new AllSelection(state.doc)))
   return true
 }
 

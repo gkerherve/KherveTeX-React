@@ -1058,3 +1058,10 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
   color: #fff; background: #8aa3cc; padding: 0 5px; border-radius: 2px; }
 .kt-verb-hide { display: none; }
 body.kt-latex-source .kt-verb-hide { display: inline; color: #8a8a8a; }
+
+/* Everything a selection covers, drawn selected (selectionLook.ts), in the
+   system's highlight colour, as the text is. */
+.kt-flow .kt-sel-block:not(p):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
+.kt-flow pre.kt-sel-block + .kt-widget, .kt-flow pre.kt-sel-block + .kt-toc { background-color: color-mix(in srgb, Highlight 55%, transparent) !important; }
+.kt-flow .kt-sel-block .kt-math-svg, .kt-flow .kt-sel-block img { background-color: color-mix(in srgb, Highlight 55%, transparent); }
+.kt-flow .kt-sel-block.kt-theorem { box-shadow: inset 0 0 0 999px color-mix(in srgb, Highlight 35%, transparent); }
