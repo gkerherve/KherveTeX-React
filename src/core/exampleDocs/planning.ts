@@ -22,11 +22,10 @@ import {
   Text,
   Title,
 } from '../exampleHelpers.ts'
-import { pyFloat, pyRound, zpad } from '../py.ts'
+import { pyFloat, pyRound } from '../py.ts'
+import { DEFAULTS, widgetText, type WidgetData, type WidgetKind } from '../widgets.ts'
 import {
-  DAY_ABBR,
   DAY_NAME,
-  enumerate,
   MONTH_ABBR,
   MONTH_NAME,
   monthDatesCalendar,
@@ -93,49 +92,66 @@ export function _weekStart(today: PyDate) {
   return today.addDays(-today.weekday())
 }
 
+// The elements (Insert ▸ Elements, Admin & Office) a planner is built from.
+const _w = <K extends WidgetKind>(kind: K, data: Partial<WidgetData[K]> = {}) =>
+  RawLatex({ text: widgetText(kind, { ...DEFAULTS[kind], ...data } as WidgetData[K]) })
+
+// A PhD student's week, by weekday (0 = Monday): what is on, timed or not.
+const _WEEK_PLAN: [number, string][] = [
+  [0, '09:00-10:00 Supervisor meeting'], [0, '10:30-12:30 Write: chapter 3'], [0, 'Reply to co-authors'],
+  [1, '09:30-12:00 Lab: XPS measurements'], [1, '14:00-15:00 Group meeting'],
+  [2, '10:00-12:00 Data analysis'], [2, '13:00 Journal club'], [2, 'Back up the data'],
+  [3, '09:00-11:00 Write: chapter 3'], [3, '15:00-16:30 Teaching: lab demonstration'],
+  [4, '11:00 Seminar'], [4, '14:00-16:00 Plan next week'], [4, 'Submit conference abstract'],
+  [5, 'Long walk'],
+]
+
+// The plan's events on the days of `month` from `first` on (rows of a
+// calendar element: [day of the month, event]).
+function _events(first: PyDate, days: number, year: number, month: number): string[][] {
+  const out: string[][] = []
+  for (let i = 0; i < days; i++) {
+    const d = first.addDays(i)
+    if (d.year !== year || d.month !== month) continue
+    for (const [wd, e] of _WEEK_PLAN) if (wd === d.weekday()) out.push([String(d.day), e])
+  }
+  return out
+}
+
 // --------------------------------------------------- daily journal
-// Printable one-page daily planner for today: priorities, an hourly
-// schedule from 07:00 to 19:00, a follow-up list and a short evening
-// note. Built from the current date each time it is opened.
+// Today on one page: the day hour by hour with its to-do list and notes
+// (a calendar element), the three things that matter most, and how the
+// day went.
 export function dailyJournal() {
   const today = PyDate.today()
   const iso = today.isocalendar()
-  const hours = range(7, 20).map((h) => [`${zpad(h, 2)}:00`, '', ''])
   return Document({
-    meta: _plannerMeta(1.95, {
-      margin_left_cm: 1.6, margin_right_cm: 1.6,
-      margin_top_cm: 1.3, margin_bottom_cm: 1.0,
+    meta: _plannerMeta(1.4, {
+      margin_left_cm: 1.8, margin_right_cm: 1.8,
+      margin_top_cm: 1.4, margin_bottom_cm: 1.2,
     }),
     children: [
-      Title({ children: [Text({ text: _fmtDay(today) })] }),
-      Author({ children: [Text({
-        text: `${today.year} · week ${iso[1]} · day ` +
-          `${today.yday()}` })] }),
-      _h('Top priorities'),
-      Table({ rows: _blankRows(3), alignment: _a(17.8, 0.7, null), style: 'grid' }),
-      _h('Schedule'),
-      Table({ rows: [['Time', 'Plan', 'Notes'], ...hours],
-        alignment: _a(17.8, 1.3, null, 4.6), style: 'grid', header: true }),
-      _h('To do and follow up'),
-      Table({ rows: _blankRows(2), alignment: _a(17.8, 0.7, null),
-        style: 'grid' }),
-      _h('Evening review'),
-      Table({ rows: [['One win', ''], ['One lesson', ''],
-        ['First task tomorrow', '']],
-      alignment: _a(17.8, 3.6, null), style: 'grid' }),
+      Title({ children: [Text({ text: 'Daily planner' })] }),
+      Author({ children: [Text({ text: `${today.year} · week ${iso[1]} · day ${today.yday()}` })] }),
+      _w('calendar', { view: 'day', year: today.year, month: today.month, day: today.day, monday: true,
+        // Today's part of the week's plan (a Sunday: plan the week ahead).
+        rows: today.weekday() === 6 ? [[String(today.day), '17:00-18:00 Plan the week'], [String(today.day), 'Rest']] : _events(today, 1, today.year, today.month) }),
+      _w('checklist', { title: 'The three things that matter today', style: 'box', columns: 1, grey_done: true,
+        items: [{ text: 'Finish the figures for chapter 3', done: false }, { text: 'Answer the reviewer\'s second point', done: false }, { text: 'Book the beamtime for March', done: false }] }),
+      _w('rating', { max: 5, symbol: 'stars', show_value: false,
+        items: [{ label: 'Focus', value: 0 }, { label: 'Energy', value: 0 }, { label: 'Progress', value: 0 }] }),
     ],
   })
 }
 
 // --------------------------------------------------- weekly journal
-// Printable weekly planner for the current week (Monday to Sunday):
-// goals, a day-by-day plan with today shaded, a habit tracker and an
-// end-of-week review.
+// This week (Monday to Sunday): the week hour by hour (a calendar
+// element), its goals, how far each has got, a habit tracker and what to
+// follow up.
 export function weeklyJournal() {
   const today = PyDate.today()
   const mon = _weekStart(today)
   const sun = mon.addDays(6)
-  const days = range(7).map((i) => mon.addDays(i))
   let span
   if (mon.month === sun.month) {
     span = `${mon.day}–${sun.day} ${MONTH_NAME[sun.month]} ${sun.year}`
@@ -143,110 +159,65 @@ export function weeklyJournal() {
     span = (`${mon.day} ${MONTH_NAME[mon.month]} – ` +
       `${sun.day} ${MONTH_NAME[sun.month]} ${sun.year}`)
   }
-
-  const plan = [['Day', 'Plan and appointments', 'Evening']]
-  const shading: Record<string, string> = {}
-  for (const [i, d] of enumerate(days)) {
-    plan.push([`${DAY_ABBR[d.weekday()]} ${d.day}`, '', ''])
-    if (d.equals(today)) {
-      Object.assign(shading, Object.fromEntries(range(3).map((c) => [`${i + 1},${c}`, _TINT])))
-    }
-  }
-
   const habits = [['Habit', 'M', 'T', 'W', 'T', 'F', 'S', 'S'], ...[
-    'Exercise (30 min)', 'Read (20 pages)', 'In bed before 23:00',
-    'Two litres of water', 'Plan tomorrow', ''].map((h) => [h, '', '', '', '', '', '', ''])]
-
-  const review = [['Review', 'Notes'], ['Wins', ''], ['', ''],
-    ['To improve', ''], ['', ''],
-    ['Carry over', ''], ['', '']]
-
+    'Write 500 words', 'Read one paper', 'Exercise (30 min)', 'In bed before 23:00', ''].map((h) => [h, '', '', '', '', '', '', ''])]
   return Document({
-    meta: _plannerMeta(1.7, {
+    meta: _plannerMeta(1.4, {
       margin_left_cm: 1.8, margin_right_cm: 1.8,
       margin_top_cm: 1.4, margin_bottom_cm: 1.2,
     }),
     children: [
-      Title({ children: [Text({ text: `Week ${today.isocalendar()[1]}` })] }),
+      Title({ children: [Text({ text: 'Weekly planner' })] }),
       Author({ children: [Text({ text: span })] }),
-      _h('Goals for the week'),
-      Table({ rows: _blankRows(3), alignment: _a(17.4, 0.7, null), style: 'grid' }),
-      _h('Week at a glance'),
-      Table({ rows: plan, alignment: _a(17.4, 1.7, null, 4.9), style: 'grid',
-        header: true, shading }),
+      _w('calendar', { view: 'week', year: today.year, month: today.month, day: today.day, monday: true,
+        rows: _events(mon, 7, today.year, today.month) }),
+      _w('checklist', { title: 'Goals for the week', style: 'box', columns: 1, grey_done: true,
+        items: [{ text: 'Chapter 3: draft section 3.2', done: false }, { text: 'XPS data of the annealed films analysed', done: false }, { text: 'Abstract submitted to the conference', done: false }] }),
+      _w('progress', { style: 'rounded', length: 'medium', percent: true,
+        items: [{ label: 'Chapter 3', value: 60 }, { label: 'Data analysis', value: 35 }, { label: 'Abstract', value: 80 }] }),
       _h('Habit tracker'),
-      Table({ rows: habits, alignment: _a(17.4, null, ...pyRepeat([1.1], 7)), style: 'grid',
-        header: true }),
-      _h('End-of-week review'),
-      Table({ rows: review, alignment: _a(17.4, 2.6, null), style: 'grid',
-        header: true,
-        merges: [[1, 0, 2, 1], [3, 0, 2, 1], [5, 0, 2, 1]] }),
+      Table({ rows: habits, alignment: _a(16.2, null, ...pyRepeat([0.9], 7)), style: 'grid', header: true }),
+      _w('actions', { title: 'To follow up',
+        rows: [['Send the draft to my supervisor', 'Me', `${sun.day} ${MONTH_ABBR[sun.month]}`, 'Open'], ['Order the gold substrates', 'Lab manager', `${mon.addDays(3).day} ${MONTH_ABBR[mon.addDays(3).month]}`, 'In progress']] }),
     ],
   })
 }
 
 // --------------------------------------------------- monthly journal
-// Printable monthly planner for the current month: goals, a week by
-// week outline with dates, key dates, a small metrics table and a
+// This month: the month with its events (a calendar element), its
+// goals, the milestones week by week, the figures to watch and a
 // month-end review.
 export function monthlyJournal() {
   const today = PyDate.today()
   const [y, m] = [today.year, today.month]
   const weeks = monthDatesCalendar(y, m)
-  const outline = [['Week', 'Dates', 'Focus', 'Milestones']]
-  const shading: Record<string, string> = {}
-  for (const [i, w] of enumerate(weeks)) {
-    const first = PyDate.max(w[0], new PyDate(y, m, 1))
-    const last = PyDate.min(w.at(-1)!, new PyDate(y, m, monthDays(y, m)))
-    let dates
-    if (first.equals(last)) {
-      dates = `${first.day} ${MONTH_ABBR[m]}`
-    } else {
-      dates = `${first.day}–${last.day} ${MONTH_ABBR[m]}`
-    }
-    outline.push([String(w[0].isocalendar()[1]), dates, '', ''])
-    if (w[0].compare(today) <= 0 && today.compare(w.at(-1)!) <= 0) {
-      Object.assign(shading, Object.fromEntries(range(4).map((c) => [`${i + 1},${c}`, _TINT])))
-    }
-  }
-
+  const events: string[][] = [
+    ['3', 'Supervisor meeting'], ['8', 'Group seminar'], ['12', 'Abstract deadline'], ['15', 'Lab: XPS'],
+    ['19', 'Journal club'], ['22', 'Draft to supervisor'], ['26', 'Progress review'],
+  ].filter(([d]) => Number(d) <= monthDays(y, m))
+  const nw = weeks.length
   return Document({
     meta: _plannerMeta(1.4, {
       margin_left_cm: 2.0, margin_right_cm: 2.0,
       margin_top_cm: 1.6, margin_bottom_cm: 1.4,
     }),
     children: [
-      Title({ children: [Text({ text: `${MONTH_NAME[m]} ${y}` })] }),
-      Author({ children: [Text({ text: 'Monthly planner' })] }),
-      _h('Goals for the month'),
-      Table({ rows: [['', 'Goal', 'How I will know it is done'],
-        ...range(4).map(() => [_BOX, '', ''])],
-      alignment: _a(17.0, 0.7, null, 6.5), style: 'grid', header: true }),
-      _h('Week by week'),
-      Table({ rows: outline, alignment: _a(17.0, 1.4, 2.8, null, 5.4),
-        style: 'grid', header: true, shading }),
-      _h('Key dates'),
-      Table({ rows: [['Date', 'Event'], ...range(5).map(() => ['', ''])],
-        alignment: _a(17.0, 2.6, null), style: 'grid', header: true }),
-      _h('Measures'),
-      Table({ rows: [['Measure', 'Target', 'Actual'],
-        ['Focused work (hours)', '', ''],
-        ['Exercise days', '', ''],
-        ['Pages or chapters read', '', ''],
-        ['Money in / out', '', '']],
-      alignment: _a(17.0, null, 4.6, 4.6), style: 'grid',
-      header: true }),
+      Title({ children: [Text({ text: 'Monthly planner' })] }),
+      Author({ children: [Text({ text: `${MONTH_NAME[m]} ${y}` })] }),
+      _w('calendar', { view: 'month', year: y, month: m, monday: true, rows: events }),
+      _w('checklist', { title: 'Goals for the month', style: 'box', columns: 2, grey_done: true,
+        items: [{ text: 'Chapter 3 drafted', done: false }, { text: 'Abstract submitted', done: false }, { text: 'Two papers read a week', done: false }, { text: 'Data backed up every Friday', done: false }] }),
+      _w('gantt', { periods: nw, unit: 'Week', grid: true,
+        tasks: [{ name: 'Measurements', start: 1, end: Math.min(2, nw) }, { name: 'Data analysis', start: 2, end: Math.min(4, nw) },
+          { name: 'Writing chapter 3', start: 2, end: nw }, { name: 'Draft to supervisor', start: Math.min(4, nw), end: Math.min(4, nw), milestone: true }] }),
+      _w('kpi', { rows: [['Words written', '6,200', '+1,400'], ['Lab days', '5', '+1'], ['Papers read', '9', '+2'], ['Exercise days', '12', '-2']] }),
       _h('Month-end review'),
       Table({ rows: [['Review', 'Notes'],
-        ['What went well', ''], ['', ''],
-        ['What to change', ''], ['', ''],
-        ['Next month', ''], ['', '']],
-      alignment: _a(17.0, 3.6, null), style: 'grid', header: true,
-      merges: [[1, 0, 2, 1], [3, 0, 2, 1], [5, 0, 2, 1]] }),
+        ['What went well', ''], ['What to change next month', '']],
+      alignment: _a(16.0, 3.6, null), style: 'grid', header: true }),
     ],
   })
 }
-
 // --------------------------------------------------- calendar
 // Landscape wall-calendar grid: the month name and year above seven
 // weekday columns; every cell has the day number at the top and room to
@@ -293,20 +264,20 @@ export function _calendarLatex(year: number, month: number, today: PyDate | null
 
 // Landscape monthly calendar for the current month: one big page,
 // weekday headers, a tall writing space in every day and today marked.
+// A month on the wall: this month and the next as calendar elements,
+// with the term's dates.
 export function calendar() {
   const today = PyDate.today()
+  const next = today.month === 12 ? new PyDate(today.year + 1, 1, 1) : new PyDate(today.year, today.month + 1, 1)
   return Document({
-    meta: _meta({
-      title: '', author: '', body_font_pt: 10,
-      margin_left_cm: 0.8, margin_right_cm: 0.8,
-      margin_top_cm: 0.8, margin_bottom_cm: 0.6,
-      paragraph_indent: true, line_spacing: 1.0, page_size: 'A4',
-      class_options: 'landscape',
-      preamble_extras: '\\geometry{landscape}\n\\pagestyle{empty}',
-      packages: [...DEFAULT_PACKAGES, 'array', 'xcolor'],
-    }),
+    meta: _plannerMeta(1.0, { margin_left_cm: 1.6, margin_right_cm: 1.6, margin_top_cm: 1.4, margin_bottom_cm: 1.2 }),
     children: [
-      RawLatex({ text: _calendarLatex(today.year, today.month, today) }),
+      Title({ children: [Text({ text: `${MONTH_NAME[today.month]} – ${MONTH_NAME[next.month]} ${next.year}` })] }),
+      Author({ children: [Text({ text: 'Calendar' })] }),
+      _w('calendar', { view: 'month', year: today.year, month: today.month, monday: true,
+        rows: [['1', 'Term starts'], ['10', 'Seminar'], ['17', 'Deadline'], ['24', 'Committee']].filter(([d]) => Number(d) <= monthDays(today.year, today.month)) }),
+      _w('calendar', { view: 'month', year: next.year, month: next.month, monday: true,
+        rows: [['5', 'Conference'], ['6', 'Conference'], ['14', 'Lab week'], ['28', 'Report due']] }),
     ],
   })
 }

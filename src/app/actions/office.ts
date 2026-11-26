@@ -106,11 +106,18 @@ const SPECS: Record<OfficeKind, Spec> = {
     grids: () => [], apply: (d, v) => { d.text = v.text; d.sub = v.sub; d.angle = n(v.angle, -12) },
   },
   calendar: {
-    title: 'Calendar month',
-    fields: d => [f('year', 'Year', d.year, { type: 'number' }), f('month', 'Month', String(d.month), { type: 'select', options: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] }),
+    title: 'Calendar',
+    fields: d => [f('view', 'Show', d.view ?? 'month', { type: 'select', options: ['month', 'week', 'day'] }),
+      f('year', 'Year', d.year, { type: 'number' }), f('month', 'Month', String(d.month), { type: 'select', options: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] }),
+      f('day', 'Day (the week holding it, or the day)', d.day ?? 1, { type: 'number' }),
       f('monday', 'Weeks start on Monday', d.monday, { type: 'check' })],
-    grids: d => [{ label: 'Events', cols: [{ name: 'Day', width: 4, number: true }, { name: 'Event', width: 24 }], rows: d.rows }],
-    apply: (d, v, g) => { d.year = n(v.year, 2026); d.month = n(v.month, 1); d.monday = v.monday === 'true'; d.rows = g[0] },
+    grids: d => [{ label: 'Events', help: 'Start an event with its time to place it in the week or the day: "09:30 Seminar", "14:00-15:30 Lab". Without a time it is an all-day event (a to-do in the day view).',
+      cols: [{ name: 'Day', width: 4, number: true }, { name: 'Event', width: 24 }], rows: d.rows }],
+    apply: (d, v, g) => {
+      d.year = n(v.year, 2026); d.month = n(v.month, 1); d.monday = v.monday === 'true'; d.rows = g[0]
+      d.view = (['month', 'week', 'day'] as const).find(x => x === v.view) ?? 'month'
+      d.day = Math.max(1, Math.min(31, n(v.day, 1)))
+    },
   },
   fintable: {
     title: 'Financial statement',
@@ -213,6 +220,19 @@ registerActions({
   of_brackets: toggle('fintable', 'brackets'),
   of_sigdate: toggle('signature', 'date'),
   of_monday: toggle('calendar', 'monday'),
+  // Month, week or day: the selected calendar shown so, or a new one for
+  // today's month, week or day.
+  ...Object.fromEntries((['month', 'week', 'day'] as const).map(v => [`of_cal_${v}`, () => {
+    const s = state()
+    const w = s && W.currentWidget(s)
+    if (w?.widget.kind === 'calendar') run(W.updateWidget(d => { (d as any).view = v }))
+    else {
+      const t = new Date()
+      run(W.insertWidget('calendar'))
+      run(W.updateWidget(d => { Object.assign(d as object, { view: v, year: t.getFullYear(), month: t.getMonth() + 1, day: t.getDate() }) }))
+    }
+    sync()
+  }])),
   of_dims: toggle('floorplan', 'dims'),
   of_areas: toggle('floorplan', 'areas'),
   of_north: toggle('scalebar', 'north'),

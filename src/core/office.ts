@@ -41,7 +41,13 @@ export interface AgendaData { title: string; info: string; rows: string[][]; col
 export interface ActionsData { title: string; rows: string[][]; color: string }                       // [action, owner, due, status]
 export interface CertificateData { title: string; presented: string; name: string; reason: string; date: string; signer: string; color: string }
 export interface StampData { text: string; sub: string; angle: number; color: string }
-export interface CalendarData { year: number; month: number; monday: boolean; rows: string[][]; color: string } // [day, event]
+// [day, event]; an event may start with its time ("09:30 Seminar",
+// "14:00-15:30 Lab"). view: a month (the default), the week holding `day`,
+// or the single `day` hour by hour.
+export interface CalendarData {
+  year: number; month: number; monday: boolean; rows: string[][]; color: string
+  view?: 'month' | 'week' | 'day'; day?: number
+}
 export interface FinTableData { title: string; currency: string; years: string; brackets: boolean; rows: string[][]; color: string } // [type, label, v1, v2]
 export interface InvoiceData { from: string; to: string; number: string; date: string; due: string; currency: string; vat: number; notes: string; rows: string[][]; color: string } // [desc, qty, price]
 export interface BudgetData { title: string; currency: string; rows: string[][]; color: string }      // [category, budget, actual]
@@ -476,7 +482,132 @@ function stampDrawing(d: StampData): Drawing {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+// An event's time ("09:30", "14:00-15:30") in hours, and its text.
+function timed(e: string): { from: number | null; to: number | null; text: string } {
+  const m = /^\s*(\d{1,2})[:.h](\d{2})(?:\s*[-–]\s*(\d{1,2})[:.h](\d{2}))?\s+(.*)$/.exec(e)
+  if (!m) return { from: null, to: null, text: e.trim() }
+  const from = Number(m[1]) + Number(m[2]) / 60
+  const to = m[3] ? Number(m[3]) + Number(m[4]) / 60 : from + 1
+  return { from, to: Math.max(to, from + 0.25), text: m[5].trim() }
+}
+
+// The events of each day of the month.
+function eventsByDay(d: CalendarData, days: number): Map<number, string[]> {
+  const ev = new Map<number, string[]>()
+  for (const r of d.rows) { const k = Math.round(num(r[0])); if (k >= 1 && k <= days && (r[1] ?? '').trim()) ev.set(k, [...(ev.get(k) ?? []), r[1].trim()]) }
+  return ev
+}
+
+const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+const hh = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:00`
+
 function calendarDrawing(d: CalendarData): Drawing {
+  if (d.view === 'week') return weekDrawing(d)
+  if (d.view === 'day') return dayDrawing(d)
+  return monthDrawing(d)
+}
+
+// A week, Monday (or Sunday) to Sunday, hour by hour from 8:00 to 19:00;
+// events without a time across the top.
+function weekDrawing(d: CalendarData): Drawing {
+  const C = hex(d.color), y0 = Number(d.year) || 2026, m0 = Math.max(1, Math.min(12, Number(d.month) || 1)) - 1
+  const days = new Date(Date.UTC(y0, m0 + 1, 0)).getUTCDate()
+  const pick = Math.max(1, Math.min(days, Math.round(Number(d.day) || 1)))
+  const at = new Date(Date.UTC(y0, m0, pick))
+  const back = d.monday ? (at.getUTCDay() + 6) % 7 : at.getUTCDay()
+  const start = new Date(at.getTime() - back * 864e5)
+  const dates = Array.from({ length: 7 }, (_, i) => new Date(start.getTime() + i * 864e5))
+  const ev = eventsByDay(d, days)
+  const H0 = 8, H1 = 19, rh = 0.62, lw = 1.1, cw = (16 - lw) / 7, allDay = 0.9
+  const grid = (H1 - H0) * rh, head = 0.75
+  const H = grid + allDay + head + 0.9
+  const top = grid + allDay + head
+  // ISO week number.
+  const t = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()))
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7))
+  const week = Math.ceil(((t.getTime() - Date.UTC(t.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7)
+  const last = dates[6]
+  const span = `${dates[0].getUTCDate()} ${MONTHS[dates[0].getUTCMonth()]}${dates[0].getUTCFullYear() !== last.getUTCFullYear() ? ' ' + dates[0].getUTCFullYear() : ''} – ${last.getUTCDate()} ${MONTHS[last.getUTCMonth()]} ${last.getUTCFullYear()}`
+  const s: Shape[] = [text(0, H - 0.35, `Week ${week}`, { anchor: 'west', size: 14, bold: true, color: C }), text(16, H - 0.35, span, { anchor: 'east', size: 9.5, color: GREY })]
+  dates.forEach((dt, i) => {
+    const x = lw + i * cw
+    const wd = dt.getUTCDay(), weekend = wd === 0 || wd === 6
+    s.push({ t: 'rect', x, y: top - head, w: cw, h: head, fill: C, stroke: 'FFFFFF', lw: 0.5 },
+      text(x + cw / 2, top - head / 2, `${WEEKDAYS[wd].slice(0, 3)} ${dt.getUTCDate()}`, { size: 8.5, bold: true, color: 'FFFFFF' }))
+    s.push({ t: 'rect', x, y: grid, w: cw, h: allDay, fill: weekend ? 'F3F3F3' : 'FAFAFA', stroke: 'CCCCCC', lw: 0.4 })
+    s.push({ t: 'rect', x, y: 0, w: cw, h: grid, fill: weekend ? 'F7F7F7' : 'FFFFFF', stroke: 'CCCCCC', lw: 0.4 })
+    if (dt.getUTCMonth() !== m0) return
+    const list = (ev.get(dt.getUTCDate()) ?? []).map(timed)
+    list.filter(e => e.from === null).slice(0, 2).forEach((e, j) => {
+      s.push({ t: 'rect', x: x + 0.05, y: grid + allDay - 0.42 - j * 0.42, w: cw - 0.1, h: 0.36, fill: C, r: 0.05 },
+        text(x + 0.1, grid + allDay - 0.24 - j * 0.42, clip(e.text, 14), { anchor: 'west', size: 6, color: 'FFFFFF' }))
+    })
+    for (const e of list) {
+      if (e.from === null) continue
+      const a = Math.max(H0, Math.min(H1, e.from)), b = Math.max(a + 0.25, Math.min(H1, e.to!))
+      if (a >= H1) continue
+      const yTop = grid - (a - H0) * rh, yBot = grid - (b - H0) * rh
+      s.push({ t: 'rect', x: x + 0.06, y: yBot + 0.03, w: cw - 0.12, h: yTop - yBot - 0.06, fill: 'E3ECF8', stroke: C, lw: 0.6, r: 0.06 },
+        text(x + 0.12, yTop - 0.2, clip(e.text, 14), { anchor: 'west', size: 6, color: INK, bold: true }))
+    }
+  })
+  s.push(text(lw / 2, grid + allDay / 2, 'All day', { size: 6, color: GREY }))
+  for (let h = H0; h < H1; h++) {
+    const y = grid - (h - H0) * rh
+    s.push(text(lw - 0.1, y - 0.18, hh(h), { anchor: 'east', size: 6, color: GREY }), { t: 'line', pts: [[lw, y], [16, y]], stroke: 'E0E0E0', lw: 0.3 })
+  }
+  return { w: 16, h: H, shapes: s }
+}
+
+// One day hour by hour (7:00 to 20:00) beside its to-do list and notes:
+// events with a time go in the schedule, the others are the to-dos.
+function dayDrawing(d: CalendarData): Drawing {
+  const C = hex(d.color), y0 = Number(d.year) || 2026, m0 = Math.max(1, Math.min(12, Number(d.month) || 1)) - 1
+  const days = new Date(Date.UTC(y0, m0 + 1, 0)).getUTCDate()
+  const day = Math.max(1, Math.min(days, Math.round(Number(d.day) || 1)))
+  const dt = new Date(Date.UTC(y0, m0, day))
+  const list = (eventsByDay(d, days).get(day) ?? []).map(timed)
+  const H0 = 7, H1 = 20, rh = 0.72, lw = 1.2, sw = 9.4, gap = 0.5, px = lw + sw + gap, pw = 16 - px
+  const grid = (H1 - H0) * rh, H = grid + 1.3
+  const s: Shape[] = [
+    text(0, H - 0.4, `${WEEKDAYS[dt.getUTCDay()]} ${day} ${MONTHS[m0]} ${y0}`, { anchor: 'west', size: 14, bold: true, color: C }),
+    { t: 'rect', x: lw, y: 0, w: sw, h: grid, fill: 'FFFFFF', stroke: 'CCCCCC', lw: 0.4 },
+  ]
+  for (let h = H0; h <= H1; h++) {
+    const y = grid - (h - H0) * rh
+    if (h < H1) s.push(text(lw - 0.1, y - 0.2, hh(h), { anchor: 'east', size: 7, color: GREY }))
+    s.push({ t: 'line', pts: [[lw, y], [lw + sw, y]], stroke: 'D6D6D6', lw: 0.4 })
+    if (h < H1) s.push({ t: 'line', pts: [[lw, y - rh / 2], [lw + sw, y - rh / 2]], stroke: 'EEEEEE', lw: 0.3 })
+  }
+  for (const e of list) {
+    if (e.from === null) continue
+    const a = Math.max(H0, Math.min(H1, e.from)), b = Math.max(a + 0.25, Math.min(H1, e.to!))
+    if (a >= H1) continue
+    const yTop = grid - (a - H0) * rh, yBot = grid - (b - H0) * rh
+    s.push({ t: 'rect', x: lw + 0.08, y: yBot + 0.04, w: sw - 0.16, h: yTop - yBot - 0.08, fill: 'E3ECF8', stroke: C, lw: 0.7, r: 0.08 },
+      text(lw + 0.2, yTop - 0.25, clip(e.text, 52), { anchor: 'west', size: 7.5, color: INK, bold: true }))
+  }
+  // To do (the events without a time), then lines for notes.
+  const todoH = grid * 0.5
+  s.push({ t: 'rect', x: px, y: grid - 0.6, w: pw, h: 0.6, fill: C, stroke: C, lw: 0.4 }, text(px + 0.2, grid - 0.3, 'To do', { anchor: 'west', size: 9, bold: true, color: 'FFFFFF' }),
+    { t: 'rect', x: px, y: grid - todoH, w: pw, h: todoH - 0.6, fill: 'FFFFFF', stroke: 'CCCCCC', lw: 0.4 })
+  const todos = list.filter(e => e.from === null)
+  const rows = Math.floor((todoH - 0.8) / 0.6)
+  for (let i = 0; i < rows; i++) {
+    const y = grid - 0.6 - 0.45 - i * 0.6
+    s.push({ t: 'rect', x: px + 0.2, y: y - 0.12, w: 0.26, h: 0.26, fill: 'FFFFFF', stroke: C, lw: 0.6 }, { t: 'line', pts: [[px + 0.6, y - 0.16], [px + pw - 0.2, y - 0.16]], stroke: 'E3E3E3', lw: 0.3 })
+    if (todos[i]) s.push(text(px + 0.6, y, clip(todos[i].text, 34), { anchor: 'west', size: 7.5, color: INK }))
+  }
+  const notesTop = grid - todoH - 0.4
+  s.push({ t: 'rect', x: px, y: notesTop - 0.6, w: pw, h: 0.6, fill: C, stroke: C, lw: 0.4 }, text(px + 0.2, notesTop - 0.3, 'Notes', { anchor: 'west', size: 9, bold: true, color: 'FFFFFF' }),
+    { t: 'rect', x: px, y: 0, w: pw, h: notesTop - 0.6, fill: 'FFFFFF', stroke: 'CCCCCC', lw: 0.4 })
+  for (let y = notesTop - 1.2; y > 0.2; y -= 0.6) s.push({ t: 'line', pts: [[px + 0.2, y], [px + pw - 0.2, y]], stroke: 'E3E3E3', lw: 0.3 })
+  return { w: 16, h: H, shapes: s }
+}
+
+function monthDrawing(d: CalendarData): Drawing {
   const C = hex(d.color), y0 = Number(d.year) || 2026, m0 = Math.max(1, Math.min(12, Number(d.month) || 1)) - 1
   const days = new Date(Date.UTC(y0, m0 + 1, 0)).getUTCDate()
   let first = new Date(Date.UTC(y0, m0, 1)).getUTCDay()   // 0 = Sunday

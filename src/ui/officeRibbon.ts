@@ -22,7 +22,7 @@ const ABOUT: [OfficeKind, string, string, string][] = [
   ['actions', 'Who does what by when, with a coloured status', 'Action items from a meeting: the action, its owner, the due date and its status - Open (red), In progress (orange), Done (green) or Late.', 'A booktabs table with coloured status.'],
   ['certificate', 'A framed certificate with name, reason, date and signature', 'A certificate of achievement, attendance or thanks: a double frame in the accent colour, the title, the person\'s name, what it is for, the date and the signature line, with a seal.', 'A TikZ drawing, landscape in shape.'],
   ['stamp', 'A tilted rubber stamp: APPROVED, PAID, DRAFT...', 'A rubber stamp, tilted, with a word (APPROVED, PAID, RECEIVED, DRAFT, CONFIDENTIAL...) and a second line such as the date.', 'A TikZ drawing.'],
-  ['calendar', 'A month calendar with your events', 'A month calendar: choose the year and month, whether weeks start on Monday, and add events on their days; weekends are shaded.', 'A TikZ drawing.'],
+  ['calendar', 'A month, week or day calendar with your events', 'A calendar of a month, a week (hour by hour) or a day (its schedule, to-do list and notes): choose the year, month and day, whether weeks start on Monday, and add events on their days - start one with its time ("09:30 Seminar") to place it in the hours; weekends are shaded.', 'A TikZ drawing.'],
   ['fintable', 'Profit and loss, balance sheet or cash flow, adding itself up', 'A financial statement: headings, lines, subtotals and totals for one to three years. Leave a subtotal or total empty and it adds itself up; figures get thousands separators and the currency sign, negatives go in brackets, the total is double-ruled.', 'A booktabs table with numbers right-aligned.'],
   ['invoice', 'An invoice: items, VAT and total worked out', 'An invoice: who it is from and to, its number, date and due date, the items with quantity and unit price; the amounts, the subtotal, the VAT or tax and the total due are worked out. Payment terms go in the notes.', 'Two address blocks and a booktabs table.'],
   ['budget', 'Budget against actual, with variance and % used', 'Budget against actual for each category: the variance (green under budget, red over), the percentage used and the totals are worked out.', 'A booktabs table.'],
@@ -44,7 +44,15 @@ const ABOUT: [OfficeKind, string, string, string][] = [
 ]
 
 export const OFFICE_COMMANDS: Command[] = [
-  ...ABOUT.map(([k, tip]): Command => ({ id: `of_${k}`, text: OFFICE_NAMES[k], icon: 'office', iconArg: k, tooltip: tip })),
+  ...ABOUT.map(([k, tip]): Command => (k === 'calendar'
+    // A month, a week or a day.
+    ? { id: 'of_calendar', text: OFFICE_NAMES[k], icon: 'office', iconArg: k, tooltip: tip, popup: 'instant',
+      menu: [{ text: 'Month', command: 'of_cal_month', icon: 'office', iconArg: k }, { text: 'Week', command: 'of_cal_week', icon: 'office', iconArg: k },
+        { text: 'Day', command: 'of_cal_day', icon: 'office', iconArg: k }] }
+    : { id: `of_${k}`, text: OFFICE_NAMES[k], icon: 'office', iconArg: k, tooltip: tip })),
+  { id: 'of_cal_month', text: 'Month', checkable: true },
+  { id: 'of_cal_week', text: 'Week', checkable: true },
+  { id: 'of_cal_day', text: 'Day', checkable: true },
   { id: 'of_brackets', text: 'Negatives in brackets', checkable: true, checkbox: true },
   { id: 'of_sigdate', text: 'Date lines', checkable: true, checkbox: true },
   { id: 'of_monday', text: 'Weeks start Monday', checkable: true, checkbox: true },
@@ -96,7 +104,7 @@ export const OFFICE_MAIN_TABS: RibbonTab[] = [ADMIN_TAB]
 
 // Each element's own tab: Edit…, its options, colour, Move, Delete / Close.
 const OPTIONS: Partial<Record<OfficeKind, string[][]>> = {
-  fintable: [['of_brackets']], signature: [['of_sigdate']], calendar: [['of_monday']],
+  fintable: [['of_brackets']], signature: [['of_sigdate']], calendar: [['of_cal_month', 'of_cal_week', 'of_cal_day'], ['of_monday']],
   floorplan: [['of_dims'], ['of_areas']], scalebar: [['of_north']], rose: [['of_bidir']], letterhead: [['of_lh_bar'], ['of_lh_centered'], ['of_lh_side']],
 }
 
@@ -116,7 +124,7 @@ export function officeChecks(kind: string, d: Record<string, unknown>, check: (i
   switch (kind) {
     case 'fintable': check('of_brackets', !!d.brackets); break
     case 'signature': check('of_sigdate', !!d.date); break
-    case 'calendar': check('of_monday', !!d.monday); break
+    case 'calendar': check('of_monday', !!d.monday); check(`of_cal_${d.view ?? 'month'}`, true); break
     case 'floorplan': check('of_dims', !!d.dims); check('of_areas', !!d.areas); break
     case 'scalebar': check('of_north', !!d.north); break
     case 'rose': check('of_bidir', !!d.bidirectional); break
