@@ -8,6 +8,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import { pageOf, tocBlock, tocEntries, tocWidget } from './toc.ts'
+import { rawPlacement, rawPlacementButton } from './placement.ts'
 import { parseWidget } from '../core/widgets.ts'
 import { deleteBlockAt, selectBlockAt, updateWidget } from './widgetCommands.ts'
 import { widgetElement } from './widgetView.ts'
@@ -244,6 +245,13 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
   let starts: { page: number; pos: number }[] | null = null
   doc.forEach((node, pos) => {
     if (node.type.name !== 'raw_latex') return
+    // A figure or table written in LaTeX: its placement button.
+    const place = rawPlacement(node.textContent)
+    if (place !== null) {
+      decos.push(Decoration.widget(pos + 1, view => rawPlacementButton(view, pos, node.textContent),
+        { side: -1, ignoreSelection: true, key: `place:${pos}:${place}` }))
+      decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'kt-raw-placed' }))
+    }
     // Insert ▸ Elements: the drawing over the hidden LaTeX.
     const w = parseWidget(node.textContent)
     if (w) {

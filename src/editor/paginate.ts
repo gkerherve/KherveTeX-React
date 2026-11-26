@@ -274,7 +274,9 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
       })
       return
     }
-    if (floats && node.type.name === 'figure') {
+    // Its own placement wins over the document's: [H] stays, others float.
+    const own: string = node.type.name === 'figure' ? node.attrs.placement || '' : ''
+    if (node.type.name === 'figure' && (own ? !own.includes('H') : floats)) {
       const dy = parseFloat(dom.dataset.ktDy || '0') || 0
       const lift = parseFloat(dom.dataset.ktLift || '0') || 0
       // Its height from its own box: lifted, it overlaps what follows it,

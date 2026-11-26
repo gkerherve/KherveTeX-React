@@ -84,6 +84,9 @@ export interface Figure {
   // "chart": `path` is the PNG preview beside .pdf and .chart.json.
   source: string
   align: string
+  // LaTeX's float placement ("H", "htbp", "!t"...); absent = the
+  // document's default ([H] with the float package, else [htbp]).
+  placement?: string
   type: 'Figure'
 }
 export interface Table {
@@ -98,6 +101,8 @@ export interface Table {
   // The table's text size in points (Font size on a selection holding the
   // table); absent = the body size.
   font_size?: number
+  // As a figure's.
+  placement?: string
   type: 'Table'
 }
 export interface RawLatex { text: string; type: 'RawLatex' }
@@ -194,6 +199,7 @@ export const figure = (o: Partial<Omit<Figure, 'type'>> = {}): Figure => ({
   width: o.width ?? '0.8\\textwidth', source: o.source ?? '', align: o.align ?? 'center',
   ...(o.height ? { height: o.height } : {}),
   ...(o.extra && o.extra.length ? { extra: o.extra } : {}),
+  ...(o.placement ? { placement: o.placement } : {}),
   type: 'Figure',
 })
 export const table = (o: Partial<Omit<Table, 'type'>> = {}): Table => ({
@@ -202,6 +208,7 @@ export const table = (o: Partial<Omit<Table, 'type'>> = {}): Table => ({
   header: o.header ?? false, repeat_header: o.repeat_header ?? false,
   shading: o.shading ?? {},
   ...(o.font_size ? { font_size: o.font_size } : {}),
+  ...(o.placement ? { placement: o.placement } : {}),
   type: 'Table',
 })
 export const rawLatex = (t: string): RawLatex => ({ text: t, type: 'RawLatex' })
@@ -480,6 +487,7 @@ function buildBlock(d: Json): Block {
       path: get(d, 'path', ''), caption: get(d, 'caption', ''), label: get(d, 'label', null),
       width: get(d, 'width', '0.8\\textwidth'), source: get(d, 'source', ''), align: get(d, 'align', 'center'),
       height: get(d, 'height', ''), extra: get<FigureImage[]>(d, 'extra', []),
+      placement: get(d, 'placement', ''),
     })
     case 'Table': return table({
       rows: get<unknown[][]>(d, 'rows', []).map((row) => row.map((c) => pyStr(c))),
@@ -489,6 +497,7 @@ function buildBlock(d: Json): Block {
       header: get(d, 'header', false), repeat_header: get(d, 'repeat_header', false),
       shading: Object.fromEntries(Object.entries(get<Json>(d, 'shading', {})).map(([k, v]) => [pyStr(k), pyStr(v)])),
       font_size: Number(get(d, 'font_size', 0)) || undefined,
+      placement: get(d, 'placement', ''),
     })
     case 'RawLatex': {
       if (!('text' in d)) throw new Error("KeyError: 'text'")

@@ -339,7 +339,7 @@ function tableNode(t: M.Table): PMNode {
   return schema.nodes.table.create({
     caption: t.caption ?? '', label: t.label ?? null, alignment: t.alignment ?? '',
     style: t.style ?? '', header: !!t.header, repeat_header: !!t.repeat_header,
-    font_size: t.font_size ?? 0,
+    font_size: t.font_size ?? 0, placement: t.placement ?? '',
   }, rows)
 }
 
@@ -368,7 +368,7 @@ function buildBlock(b: M.Block): PMNode {
       b.items.map(it => schema.nodes.list_item.create({ level: it.level ?? 0 }, inlineNodes(it.children, []))))
     case 'Figure': return schema.nodes.figure.create({
       path: b.path, caption: b.caption, label: b.label, width: b.width, source: b.source, align: b.align,
-      height: b.height ?? '', extra: b.extra ?? [],
+      height: b.height ?? '', extra: b.extra ?? [], placement: b.placement ?? '',
     })
     case 'Table': return tableNode(b)
     case 'RawLatex':
@@ -509,7 +509,7 @@ function tableFromPM(node: PMNode): M.Table {
     rows, caption: node.attrs.caption, label: node.attrs.label || null,
     alignment: node.attrs.alignment, style: node.attrs.style, merges,
     header: !!node.attrs.header, repeat_header: !!node.attrs.repeat_header, shading,
-    font_size: node.attrs.font_size || undefined,
+    font_size: node.attrs.font_size || undefined, placement: node.attrs.placement || undefined,
   })
 }
 
@@ -551,7 +551,7 @@ export function canonicalBlock(node: PMNode): M.Block | null {
     case 'figure': return M.figure({
       path: a.path, caption: a.caption, label: a.label || null, width: a.width || '0.8\\textwidth',
       source: a.source, align: a.align || 'center',
-      height: a.height || '', extra: a.extra && a.extra.length ? a.extra : [],
+      height: a.height || '', extra: a.extra && a.extra.length ? a.extra : [], placement: a.placement || '',
     })
     case 'table': return tableFromPM(node)
     case 'raw_latex': return M.rawLatex(node.textContent)

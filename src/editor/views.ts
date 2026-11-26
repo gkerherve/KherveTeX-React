@@ -7,7 +7,8 @@ import { dropCapElement, iconElement, marginNoteElement } from './widgetView.ts'
 import { FANCY_RULE_GREY, parseFancy, tint } from '../core/fancyTable.ts'
 import { autoTableAlignment } from '../core/serializer.ts'
 import type { Node as PMNode } from 'prosemirror-model'
-import type { EditorView, NodeView } from 'prosemirror-view'
+import type { EditorView, NodeView, ViewMutationRecord } from 'prosemirror-view'
+import { placementButton } from './placement.ts'
 import type { Inline } from '../core/model.ts'
 import { renderMath } from '../math/render.ts'
 import { captionHtml, cellDisplayText, cellLook, cellPictures } from './convert.ts'
@@ -146,10 +147,12 @@ class FigureView implements NodeView {
   private node: PMNode
   private host: ViewHost
   private getPos: () => number | undefined
-  constructor(node: PMNode, host: ViewHost, getPos: () => number | undefined) {
+  private view: EditorView
+  constructor(node: PMNode, host: ViewHost, getPos: () => number | undefined, view: EditorView) {
     this.node = node
     this.host = host
     this.getPos = getPos
+    this.view = view
     this.dom = document.createElement('div')
     this.dom.className = 'kt-block kt-figure'
     this.render()
@@ -174,7 +177,7 @@ class FigureView implements NodeView {
     // The text width only with an image: a figure built while the editor
     // view itself is still being made has none yet, and asking crashed.
     const extra: { path: string; height?: string; width?: string }[] = a.extra ?? []
-    const key = [src ?? '', a.path, a.width, a.height, JSON.stringify(extra), a.caption, a.label, a.align,
+    const key = [src ?? '', a.path, a.width, a.height, JSON.stringify(extra), a.caption, a.label, a.align, a.placement,
       src ? this.host.textWidthPx() : 0].join('\n')
     if (key === this.shown) return
     this.shown = key
@@ -237,7 +240,7 @@ class FigureView implements NodeView {
       lab.textContent = `Label: ${a.label}`
       rows.push(lab)
     }
-    this.dom.replaceChildren(...rows)
+    this.dom.replaceChildren(...rows, placementButton(this.node, this.view, this.getPos))
   }
   // Drag a handle: the picture follows the mouse, its share of the text
   // width shown; on release the width goes into the document.
@@ -344,8 +347,13 @@ class TableView implements NodeView {
   contentDOM: HTMLElement
   private node: PMNode
   private table: HTMLTableElement
-  constructor(node: PMNode) {
+  private place: HTMLElement
+  private view: EditorView
+  private getPos: () => number | undefined
+  constructor(node: PMNode, view: EditorView, getPos: () => number | undefined) {
     this.node = node
+    this.view = view
+    this.getPos = getPos
     this.dom = document.createElement('div')
     this.dom.className = 'kt-block kt-table-wrap'
     this.table = document.createElement('table')
@@ -353,8 +361,12 @@ class TableView implements NodeView {
     this.contentDOM = document.createElement('tbody')
     this.table.appendChild(this.contentDOM)
     this.dom.appendChild(this.table)
+    this.place = placementButton(node, view, getPos)
+    this.dom.appendChild(this.place)
     this.size()
   }
+  // The placement button is not the table's content.
+  ignoreMutation(m: ViewMutationRecord) { return this.place.contains(m.target as Node) }
   // Columns with LaTeX widths (m{0.36\textwidth}) take that share of the
   // text width, as the PDF does; the cells' share is set by tableCellStyles.
   private size() {
@@ -370,6 +382,11 @@ class TableView implements NodeView {
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
     const spec = node.attrs.alignment !== this.node.attrs.alignment || node.attrs.font_size !== this.node.attrs.font_size
+    if (node.attrs.placement !== this.node.attrs.placement) {
+      const b = placementButton(node, this.view, this.getPos)
+      this.place.replaceWith(b)
+      this.place = b
+    }
     this.node = node
     if (spec) this.size()
     return true
@@ -740,13 +757,13 @@ export function nodeViews(host: ViewHost, atoms: Set<{ render(): void }>) {
     math_inline: (node: PMNode, view: EditorView, getPos: () => number | undefined) => new MathInlineView(node, host, view, getPos),
     math_block: (node: PMNode, _v: EditorView, getPos: () => number | undefined) =>
       new MathBlockView(node, host, getPos),
-    figure: (node: PMNode, _v: EditorView, getPos: () => number | undefined) => {
+    figure: (node: PMNode, view: EditorView, getPos: () => number | undefined) => {
       // Registered so a loaded or redrawn image shows at once.
-      const v = new FigureView(node, host, getPos)
+      const v = new FigureView(node, host, getPos, view)
       atoms.add(v)
       return Object.assign(v, { destroy: () => { atoms.delete(v) } })
     },
-    table: (node: PMNode) => new TableView(node),
+    table: (node: PMNode, view: EditorView, getPos: () => number | undefined) => new TableView(node, view, getPos),
     table_cell: (node: PMNode) => {
       // Registered so a cell's picture shows once it has loaded.
       const v = new TableCellView(node, host)

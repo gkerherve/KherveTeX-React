@@ -601,7 +601,7 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
       const path = figureOutputPath(node, '.pdf')
       // The caption is raw LaTeX: emitted verbatim, not re-escaped.
       const lab = node.label ? maybeLabel(node.label) : ''
-      return `\\begin{figure}${placementArg(floatH)}\n`
+      return `\\begin{figure}${placementArg(floatH, node.placement)}\n`
         + `  ${FIGURE_ALIGN[node.align] ?? '\\centering'}\n`
         + `  ${(node.extra && node.extra.length) || node.height ? figureIncludes(node, '.pdf') : `\\includegraphics[width=${node.width}]{${path}}`}\n`
         // No caption, no label: no "Figure N:" under the picture (an
@@ -815,7 +815,7 @@ function serializeTable(node: Table, floatH = true): string {
   }
   const body = bodyRows.join('\n    ')
   const rule = (x: string) => (x ? `    ${x}\n` : '')
-  return `\\begin{table}${placementArg(floatH)}\n`
+  return `\\begin{table}${placementArg(floatH, node.placement)}\n`
     + '  \\centering\n'
     + (sizeCmd ? `  ${sizeCmd}` : '')
     + `  \\begin{tabular}{${align}}\n`
@@ -937,9 +937,17 @@ export const TEXT_FALLBACKS: Record<string, string> = {
 const OWN_FLOAT_ARGS = new Set(['iucr'])
 let floatArgs = true
 
-function placementArg(floatH: boolean | undefined): string {
+function placementArg(floatH: boolean | undefined, own?: string): string {
   if (!floatArgs) return ''
+  // Its own placement (the button on a figure or table), only LaTeX's letters.
+  const mine = (own || '').replace(/[^htbpH!]/g, '')
+  if (mine) return `[${mine}]`
   return `[${floatH ? 'H' : 'htbp'}]`
+}
+
+// Letters only LaTeX's float placement takes.
+export function cleanPlacement(p: string): string {
+  return (p || '').replace(/[^htbpH!]/g, '')
 }
 
 export function pinsFloats(m: DocMeta, isJournal: boolean): boolean {
@@ -1465,6 +1473,8 @@ export function serializeDocument(doc: Document): string {
   const forbidden = CLASS_FORBIDDEN_PACKAGES[clsLower] ?? []
   const pkgList = m.packages.filter((p) => !forbidden.includes(p))
   if (!pkgList.includes('float') && !isJournal) pkgList.push('float')
+  // [H] on a figure or table of its own needs the float package (a journal).
+  if (!pkgList.includes('float') && doc.children.some(b => (b.type === 'Figure' || b.type === 'Table') && (b.placement || '').includes('H'))) pkgList.push('float')
   if (usesBooktabs(doc) && !pkgList.includes('booktabs') && !m.preamble_extras.includes('{booktabs}')) {
     pkgList.push('booktabs')
   }

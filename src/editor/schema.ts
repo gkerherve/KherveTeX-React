@@ -71,7 +71,7 @@ const nodes: Record<string, NodeSpec> = {
     attrs: {
       path: { default: '' }, caption: { default: '' }, label: { default: null },
       width: { default: '0.8\\textwidth' }, source: { default: '' }, align: { default: 'center' },
-      height: { default: '' }, extra: { default: [] }, ...ORIG,
+      height: { default: '' }, extra: { default: [] }, placement: { default: '' }, ...ORIG,
     },
     // The attributes go with a copy, so a copied figure pastes back as a
     // figure (in this document, another one, another window); the page
@@ -94,7 +94,7 @@ const nodes: Record<string, NodeSpec> = {
     attrs: {
       caption: { default: '' }, label: { default: null }, alignment: { default: '' },
       style: { default: '' }, header: { default: false }, repeat_header: { default: false },
-      font_size: { default: 0 }, ...ORIG,
+      font_size: { default: 0 }, placement: { default: '' }, ...ORIG,
     },
     toDOM: () => ['table', { class: 'kt-block kt-table' }, ['tbody', 0]],
   },
