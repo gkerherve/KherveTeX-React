@@ -3,6 +3,7 @@
 // document in step with it, lays the pages out, paints the sheets, the
 // headers, footers and footnotes, and offers the EditorApi.
 import { rawLookPlugin } from './rawLook.ts'
+import { ncFoldPlugin } from './noCompile.ts'
 import { syncElementChecks } from './widgetCommands.ts'
 import { accentOf, designCss } from '../core/design.ts'
 import { autocorrectPlugin } from './autocorrect.ts'
@@ -375,7 +376,7 @@ export class EditorController implements ViewHost {
 
   private plugins(meta: M.DocMeta): Plugin[] {
     return [
-      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), chaptersPlugin(),
+      layoutPlugin(meta), widgetGuardPlugin(), runInHitPlugin(), chaptersPlugin(), ncFoldPlugin(),
       rawLookPlugin(st => layoutKey.getState(st)?.meta ?? meta, () => { try { return this.bodyPx() } catch { return 16 } }),
       bibliographyPlugin(), moderncvPlugin(), posterPlugin(), pagesPlugin(), spellPlugin(), spellCurrentPlugin(),
       autoBibliographyPlugin(() => extraBib, () => { void runAction('manage_references') }),

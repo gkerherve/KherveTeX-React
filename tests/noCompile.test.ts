@@ -50,3 +50,29 @@ describe('do not compile', () => {
     expect(names(s)).toEqual(['A', '[', 'B', 'C', 'D', ']'])
   })
 })
+
+describe('parts left out, folded', async () => {
+  const { EditorState, TextSelection } = await import('prosemirror-state')
+  const M2 = await import('../src/core/model.ts')
+  const C2 = await import('../src/core/compiler.ts')
+  const { docToPM: toPM } = await import('../src/editor/convert.ts')
+  const nc = await import('../src/editor/noCompile.ts')
+  const mk = () => EditorState.create({
+    doc: toPM(M2.document([M2.paragraph([M2.text('Before')]), M2.rawLatex(C2.NOT_COMPILE_START), M2.paragraph([M2.text('Hidden part')]),
+      M2.rawLatex(C2.NOT_COMPILE_END), M2.paragraph([M2.text('After')])])),
+    plugins: [nc.ncFoldPlugin()],
+  })
+  it('start folded, open with Show (or the caret going in), fold again', () => {
+    let s = mk()
+    expect(nc.anyNcPart(s)).toEqual({ any: true, allOpen: false })
+    s = s.apply(nc.setAllNcOpen(true) && s.tr.setMeta(s.plugins[0].spec.key!, { all: true }))
+    expect(nc.anyNcPart(s).allOpen).toBe(true)
+    s = s.apply(s.tr.setMeta(s.plugins[0].spec.key!, { all: false }))
+    expect(nc.anyNcPart(s).allOpen).toBe(false)
+    // The caret put into the hidden paragraph opens it.
+    let at = 0
+    s.doc.forEach((n, p) => { if (n.textContent === 'Hidden part') at = p + 2 })
+    s = s.apply(s.tr.setSelection(TextSelection.create(s.doc, at)))
+    expect(nc.anyNcPart(s).allOpen).toBe(true)
+  })
+})

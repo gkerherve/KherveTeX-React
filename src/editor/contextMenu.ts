@@ -10,7 +10,7 @@ import * as M from '../core/model.ts'
 import { cellDisplayText, cellPictures, displayToCellLatex, isStructuredCell } from './convert.ts'
 import { columnFractions } from './views.ts'
 import { dateHooks } from './plugins.ts'
-import { selectionHidden } from './noCompile.ts'
+import { anyNcPart, selectionHidden, setAllNcOpen } from './noCompile.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorController } from './controller.ts'
 
@@ -147,6 +147,9 @@ export function showContextMenu(ed: EditorController, e: MouseEvent): boolean {
     '-', selectionHidden(state)
       ? { text: 'Compile again', run: () => { void runAction('no_compile') } }
       : { text: 'Do not compile', run: () => { void runAction('no_compile') } },
+    ...(anyNcPart(state).any ? [anyNcPart(state).allOpen
+      ? { text: 'Fold the parts not compiled', run: () => { ed.run(setAllNcOpen(false)) } }
+      : { text: 'Show the parts not compiled', run: () => { ed.run(setAllNcOpen(true)) } }] : []),
   )
 
   const fig = C.currentFigure(state)
