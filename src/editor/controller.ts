@@ -132,6 +132,10 @@ export class EditorController implements ViewHost {
   private pageIter = 0
   private columnShrink: number[] = []
   private sheets = 1
+  // The compiled PDF's page count (0: no PDF yet).
+  private pdfPages = 0
+  // The text that PDF was made from: unchanged, its pages are kept as they are.
+  private anchorsDoc: import('prosemirror-model').Node | null = null
   private images = new Map<string, { abs: string; url: string; sig: string | null } | null>()
   private exportQueued = false
   private lastContext: ContextKind | null = null
@@ -907,11 +911,17 @@ export class EditorController implements ViewHost {
     // the breaks are worked out from the page alone.
     const own = foldedChapters(this.view.state).size > 0
     const pdfPaged = !own && layoutKey.getState(this.view.state)!.anchors.length > 0
+    // Every page of the PDF found in the text (its start, or the blank
+    // pages before one): break only where the PDF does.
+    const starts = own ? [] : this.pdfPageStarts()
+    const allStarts = pdfPaged && this.pdfPages > 1 && geo.cols <= 1
+      && starts.length + starts.reduce((n, p) => n + p.blanks, 0) >= this.pdfPages - 1
     const { spacers, measure } = geo.cols > 1
       ? computeColumnSpacers(this.view, geo, this.flowEl, old, this.columnShrink, own ? [] : this.pdfPageStarts(),
         pdfPaged, own ? [] : this.pdfColumnStarts(),
         { notes: this.footnoteBoxes(geo).map(n => ({ pos: n.pos, height: n.height })) })
-      : computeSpacers(this.view, geo, this.flowEl, own ? [] : this.pdfPageStarts(), pdfPaged, figuresFloat(this.meta))
+      : computeSpacers(this.view, geo, this.flowEl, own ? [] : starts, pdfPaged, figuresFloat(this.meta), allStarts ? this.pdfPages : 0,
+        this.anchorsDoc === this.view.state.doc)
     if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))
@@ -1288,7 +1298,11 @@ export class EditorController implements ViewHost {
       // Projects and the compiled PDF (src/app/actions/page.ts).
       setPageNumberStart: n => this.setPageNumberStart(n),
       setHeadingOffset: c => this.setHeadingOffset(c ?? []),
-      setPageAnchors: (_pages, anchors, furniture, typography) => this.setPageAnchors(anchors, furniture, typography),
+      setPageAnchors: (pages, anchors, furniture, typography) => {
+        this.pdfPages = pages
+        this.anchorsDoc = this.view.state.doc
+        this.setPageAnchors(anchors, furniture, typography)
+      },
       pdfSpotAt: y => this.pdfSpotAt(y),
       spotClientY: (page, frac) => this.spotClientY(page, frac),
       // The contextual Equation tab (src/app/actions/math.ts).

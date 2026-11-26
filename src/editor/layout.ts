@@ -17,6 +17,7 @@ import { baselineskipPt, pdfFont, type ScreenFont } from './latexFonts.ts'
 // Where Qt puts the baseline within a fixed-height line, from the line's
 // top (Latin Modern's ascent over its line height).
 import { tocBlock } from './toc.ts'
+import { parseWidget } from '../core/widgets.ts'
 export const PAGE_BREAK_RE = /^\s*\\(?:newpage|clearpage|pagebreak|cleardoublepage)\s*$/
 export const BASELINE_AT = 0.79
 export const PX_PER_CM = 96 / 2.54
@@ -157,6 +158,8 @@ export interface BlockLayout {
   above: PaintedLabel[]
   runIn: PaintedLabel | null
   breakBefore: boolean
+  // The break is only where the compiled PDF starts a page.
+  pdfBreak?: boolean
   // CSS margin-top after Qt's margin collapsing.
   gap: number
   // A heading the next paragraph's first line continues on (\paragraph).
@@ -476,6 +479,11 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
 
   const runInPull = (headingLead: number) => -((1 - BASELINE_AT) * headingLead + BASELINE_AT * body.leading)
 
+  // Something printed on the current sheet since it began: a page break
+  // on a sheet still empty (at the start, straight after another break)
+  // does nothing in LaTeX, so it starts no sheet here either.
+  let onSheet = false
+  const isBreakAt = (k: number) => k >= 0 && blocks[k].state === S.RAW && PAGE_BREAK_RE.test(blocks[k].text)
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i]
     const L: BlockLayout = {
@@ -483,10 +491,15 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       indent: 0, lineHeight: 'normal', number: '', numberGap: 0, numberStyle: null, equationNumber: '',
       above: [], runIn: null, breakBefore: false, gap: 0,
     }
+    // What the sheet holds before this block: the block before it, unless
+    // it was a page break; a sheet it began starts empty.
+    if (i > 0) onSheet = (out[i - 1].breakBefore ? false : onSheet) || !isBreakAt(i - 1)
     out.push(L)
     if (b.isTable) {
       // Table / figure frames: QTextTableFormat.setMargin (8 / 10 px).
       L.top = L.bottom = b.node.type.name === 'figure' ? 10 : 8
+      // After a page break, on a new sheet, as a paragraph would be.
+      if (geometry.cols <= 1 && isBreakAt(i - 1) && onSheet) L.breakBefore = true
       continue
     }
     const state = b.state
@@ -511,6 +524,8 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     // a forced break would only start a new column, so paging is left to
     // the layout there.
     let startsSheet = titleBreaks.has(i) || (geometry.cols <= 1 && pdfBreaks.has(b.pos))
+    // Only because the PDF starts a page here (not a break in the text).
+    const pdfOnly = startsSheet && !titleBreaks.has(i)
     if (state === S.RAW && BIB_ENV_RE.test(text)) {
       L.bib = { title: classChapters ? 'Bibliography' : 'References', titleChar: styleChar('h1'), bodyChar }
       // \bibname is a \chapter*: a new page, unless the PDF says otherwise.
@@ -518,20 +533,22 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     }
     // After a page break (\newpage, \clearpage), the next block starts a
     // new sheet, as Word's page break does.
-    // A page break on a page still empty (straight after another one) does
-    // nothing in LaTeX: \newpage twice gives one new page, not a blank one.
-    if (i > 0 && geometry.cols <= 1 && blocks[i - 1].state === S.RAW && PAGE_BREAK_RE.test(blocks[i - 1].text)
-      && !(i > 1 && blocks[i - 2].state === S.RAW && PAGE_BREAK_RE.test(blocks[i - 2].text) && out[i - 1]?.breakBefore)) startsSheet = true
+    // After a page break, unless nothing was printed on the sheet before it.
+    if (geometry.cols <= 1 && isBreakAt(i - 1) && onSheet) startsSheet = true
+    const textBreak = geometry.cols <= 1 && isBreakAt(i - 1) && onSheet
     if (state === S.RAW && PAGE_BREAK_RE.test(text)) { L.top = 0; L.bottom = 0 }
     // A table of contents right under the title keeps the room for the date.
     if (state === S.RAW && i === afterDate && look.date && !out[dateLine]?.spans && tocBlock(text)) L.top = look.date.gap * pt
     L.breakBefore = startsSheet
+    // Later rules (a break before it, a chapter) make it a break of the text.
+    L.pdfBreak = pdfOnly && !textBreak
     let number = ''
     let level: number | null = state === S.CHAPTER ? 0 : (state >= 1 && state <= 5 ? state : null)
     // report / book serialise Heading 1 as \chapter.
     if (classChapters && level) level -= 1
     if (level === 0 && text.trim() && i !== 0) {
       L.breakBefore = true
+      L.pdfBreak = false
       startsSheet = true
     }
     if (level !== null) {
@@ -1003,7 +1020,32 @@ function captionText(latex: string): string {
 export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { page: number; pos: number; offset: number }[] {
   const out: { page: number; pos: number; offset: number }[] = []
   const blocks = collect(doc)
-  const texts = blocks.map(b => b.node.type.name === 'figure' ? captionText(b.node.attrs.caption || '') : b.text)
+  // What each block prints, as far as a page's first words show it: a
+  // figure its caption, a table its cells, an element the words in its
+  // settings (its title, labels, items) rather than its LaTeX.
+  const printed = (b: (typeof blocks)[number]): string => {
+    if (b.node.type.name === 'figure') return captionText(b.node.attrs.caption || '')
+    if (b.isTable) {
+      const cells: string[] = []
+      b.node.descendants(n => { if (n.type.name === 'table_cell' || n.type.name === 'table_header') { cells.push(n.textContent); return false } return true })
+      return cells.join(' ')
+    }
+    if (b.node.type.name === 'raw_latex') {
+      const w = parseWidget(b.text)
+      if (w) {
+        const words: string[] = []
+        const walk = (v: unknown) => {
+          if (typeof v === 'string') { if (!/^#?[0-9A-Fa-f]{6}$/.test(v) && /[A-Za-z]{2}/.test(v)) words.push(v) }
+          else if (Array.isArray(v)) v.forEach(walk)
+          else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+        }
+        walk(w.data)
+        return words.join(' ')
+      }
+    }
+    return b.text
+  }
+  const texts = blocks.map(printed)
   // Where each block's text starts in the document's running text: a
   // PDF page holds a few thousand characters, so a match far beyond the
   // last page start is a phrase that recurs later, not this page's start
@@ -1048,7 +1090,22 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
           }
           continue
         }
-        if (blocks[i].isTable) continue
+        // A table or an element: the page starts with it when its words
+        // start with the page's.
+        if (blocks[i].isTable || parseWidget(blocks[i].text)) {
+          const own = normalizeForMatch(texts[i])
+          const key12 = keyNorm.slice(0, 12)
+          if (own && key12.length >= 6 && own.startsWith(key12)) {
+            // Identical elements (four calendars of one month) cannot tell
+            // which one the page starts with: none then.
+            let twin = false
+            for (let j = i + 1; j < blocks.length && !tooFar(j, 0); j++) {
+              if ((blocks[j].isTable || parseWidget(blocks[j].text)) && normalizeForMatch(texts[j]).startsWith(key12)) { twin = true; break }
+            }
+            if (!twin) { hit(i, 0); break search }
+          }
+          continue
+        }
         const idx = anchorOffset(blocks[i].text, keyNorm)
         if (idx > 0 && !confirms(i, idx, k)) continue
         if (idx >= 0 && !tooFar(i, idx)) {

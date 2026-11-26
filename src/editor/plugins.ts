@@ -317,6 +317,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     if (!L) return
     if (node.type.name === 'table' || node.type.name === 'figure') {
       const attrs: Record<string, string> = { style: gapCss(pos, L.gap) }
+      if (L.breakBefore) attrs['data-break'] = L.pdfBreak ? 'pdf' : '1'
       if (node.type.name === 'table') {
         tables += 1
         if (node.attrs.caption) attrs['data-caption'] = `Table ${tables}: ${captionText(node.attrs.caption)}`
@@ -374,7 +375,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     // A run-in heading (\paragraph): the next paragraph is pulled up onto
     // its line and would take the clicks on its words.
     if (L.runInHeading) attrs.class = `${attrs.class ?? ''} kt-runin`.trim()
-    if (L.breakBefore) attrs['data-break'] = '1'
+    if (L.breakBefore) attrs['data-break'] = L.pdfBreak ? 'pdf' : '1'
     if (L.spans) attrs['data-span'] = '1'
     if (L.equationNumber) attrs['data-eqno'] = L.equationNumber
     decos.push(Decoration.node(pos, pos + node.nodeSize, attrs, { layout: L }))
