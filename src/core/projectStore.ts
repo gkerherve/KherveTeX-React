@@ -58,7 +58,7 @@ export async function workDir(folder: string, fs?: StoreFs): Promise<string> {
 
 export function docStem(path: string): string {
   const name = basename(path)
-  for (const ext of ['.kdocproj.json', '.ktex.json', '.kdoc.json']) {
+  for (const ext of ['.kdocproj.json', '.ktex.json', '.kdoc.json', '.ktex.zip']) {
     if (name.endsWith(ext)) return name.slice(0, -ext.length)
   }
   // Path.stem

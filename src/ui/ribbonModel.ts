@@ -218,7 +218,7 @@ const cmds: Command[] = [
   { id: 'import_pdf', text: 'Import .&pdf...' },
   { id: 'import_md', text: 'Import .&md...' },
   { id: 'export_tex', text: 'Export .&tex...' },
-  { id: 'export_docx', text: 'Export .&docx...', icon: 'export_docx_icon' },
+  { id: 'export_docx', text: 'Export .&docx (beta)...', icon: 'export_docx_icon' },
   { id: 'export_latex_zip', text: 'Export &LaTeX package (.zip)...' },
   { id: 'extract_ktex', text: 'E&xtract Files from .ktex...', icon: 'file_open',
     tooltip: 'A .ktex is an ordinary ZIP archive: take out its LaTeX (document.tex), pictures and references into a folder, to use without kTeX' },
@@ -1121,7 +1121,9 @@ export function orderedNames(names: string[], order: readonly string[]): string[
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
-    { label: 'Compile', large: ['chapters', 'no_compile'] },
+    // Compile (big), then the documents of a thesis: Chapters and the
+    // Documents panel, and Do not compile.
+    { label: 'Compile', large: ['compile_now'], rows: [['chapters'], ['documents_dock'], ['no_compile']], text: true },
     { label: 'Font', rows: [
       [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
       ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'smallcaps', 'code', 'highlight', 'font_color']] },

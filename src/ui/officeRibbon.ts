@@ -6,8 +6,9 @@ import { OFFICE_NAMES, type OfficeKind } from '../core/office.ts'
 import type { Command, RibbonTab } from './ribbonModel.ts'
 import type { Tip } from './tooltips.ts'
 
-// The tabs hidden unless the user turns them on.
-export const OPTIONAL_TABS: string[] = []
+// The tabs hidden unless the user turns them on (Settings ▸ Ribbon): Draw
+// (pens and ink) is for a tablet or a touch screen.
+export const OPTIONAL_TABS: string[] = ['Draw']
 
 const T = (title: string, what: string, latex = ''): Tip => ({ title, what, latex })
 const ELEMENT = ' Click it on the page to select it: its own tab opens, Edit… (or a double-click) changes it, Move up / Move down or the grip moves it, Delete or its × removes it, and Close puts the caret after it.'

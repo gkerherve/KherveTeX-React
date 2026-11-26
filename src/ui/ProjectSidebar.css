@@ -159,3 +159,4 @@
 .ps-row[data-row]:focus { outline: 1px solid #6b93cf; outline-offset: -1px; }
 .ps-sec { cursor: pointer; font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ps-sec:hover { color: #1a56b0; }
+.ps-link { all: unset; color: #1f4e8c; text-decoration: underline; cursor: pointer; }

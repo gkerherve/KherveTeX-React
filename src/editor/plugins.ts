@@ -149,7 +149,8 @@ export function widgetGuardPlugin(): Plugin {
   })
 }
 import { Decoration, DecorationSet } from 'prosemirror-view'
-import { calloutColor, isCallout, type DocMeta } from '../core/model.ts'
+import { setChapterClass } from './chapters.ts'
+import { calloutColor, classSupportsChapter, isCallout, type DocMeta } from '../core/model.ts'
 import { tableCellStyles } from './views.ts'
 import { BASELINE_AT, anchorTargets, layoutDocument, pdfPageStartBlocks, type PageAnchor, type BlockLayout, type CharStyle, type DocLayout, type PaintedLabel } from './layout.ts'
 
@@ -235,6 +236,15 @@ function firstBaselineOf(L: BlockLayout, body: CharStyle): number {
   // A Latin Modern line's baseline in CSS half-leading (fonts.css sets the
   // ascent and descent so a 1.2 em line puts it at BASELINE_AT).
   return lh / 2 + 0.348 * c.sizePx
+}
+
+// Classes whose Heading 1 is a \\section (articles, journals, letters,
+// slides, posters): no chapters there. Any other class (report, book, a
+// thesis class, a university's own .cls) may have them.
+const NO_CHAPTERS_RE = /^(?:article|extarticle|scrartcl|amsart|ltxdoc|letter|scrlttr2|beamer|moderncv|europasscv|tikzposter|a0poster|exam|standalone|tufte-handout|elsarticle|ieeetran|revtex4(?:-\d)?|achemso|llncs|sn-jnl|acmart|mnras|apa7|iucr|aastex\d*|svjour3|jss|interact|copernicus|rsc|wiley\w*|mdpi)$/
+function hasChapters(cls: string): boolean {
+  const c = cls.toLowerCase().split(',')[0].trim()
+  return classSupportsChapter(c) || (!!c && !NO_CHAPTERS_RE.test(c))
 }
 
 function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly PageAnchor[] = []): DecorationSet {
@@ -442,6 +452,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
 export function layoutPlugin(meta: DocMeta): Plugin<LayoutPluginState> {
   const compute = (doc: PMNode, m: DocMeta, off: number[], anchors: readonly PageAnchor[],
     typography: PdfTypography | null): LayoutPluginState => {
+    setChapterClass(hasChapters(m.documentclass || ''))
     const layout = layoutDocument(doc, m, off, anchors.length ? pdfPageStartBlocks(doc, anchors) : new Set(),
       anchors.length > 0, anchors.length ? typography : null)
     return { meta: m, headingOffset: off, anchors, typography, layout, decos: buildDecorations(doc, layout, anchors) }

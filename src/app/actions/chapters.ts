@@ -9,7 +9,7 @@ import { loadKdocz } from '../../core/kdocz.ts'
 import { importMd } from '../../core/importers.ts'
 import * as C from '../../editor/commands.ts'
 import {
-  chapterAt, chapterEnd, chapterHooks, chapters, foldedChapters, outlineOf, moveChapter, setChapterCompiled, setChapterFolded, setFoldedChapters,
+  chapterAt, chapterEnd, chapterHooks, chapters, foldedChapters, hasChapterClass, outlineOf, moveChapter, setChapterCompiled, setChapterFolded, setFoldedChapters,
 } from '../../editor/chapters.ts'
 import { editor } from '../../editor/controller.ts'
 import { platform } from '../../platform/index.ts'
@@ -87,10 +87,10 @@ function rows(): ChapterRow[] {
   const folded = foldedChapters(st)
   const list = chapters(st.doc)
   const cur = chapterAt(list, st.selection.head)
-  const outline = viewNow() === 'outline'
   return list.map(c => ({
     title: c.title, key: c.key, compiled: c.compiled, shown: !folded.has(c.key), summary: describe(c),
-    current: c.index === cur, ...(outline ? { sections: outlineOf(st.doc, c) } : {}),
+    current: c.index === cur, sections: outlineOf(st.doc, c),
+    counts: { paragraphs: c.paragraphs, figures: c.figures, tables: c.tables, equations: c.equations },
   }))
 }
 
@@ -180,6 +180,10 @@ export const api = {
     else if (e) e.run(setFoldedChapters([]))
     changed()
   },
+  // The class has chapters (an article's Heading 1 is a section).
+  chapterClass: () => hasChapterClass(),
+  useReportClass() { void import('../actions.ts').then(a => a.runAction('doc_class', 'report')) },
+  documentTitle: () => { const e = editor(); return e ? (e.view.state.doc.firstChild?.type.name === 'title' ? e.view.state.doc.firstChild.textContent : '') : '' },
   window: (): DocumentsWindow => setting<DocumentsWindow>('documents/window', 'dock'),
   setWindow(w: DocumentsWindow) { setSetting('documents/window', w); changed() },
   // A heading inside a chapter (Outline view).

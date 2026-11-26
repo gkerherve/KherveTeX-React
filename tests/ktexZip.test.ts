@@ -3,7 +3,8 @@
 import { describe, expect, it } from 'vitest'
 import { strFromU8, unzipSync } from 'fflate'
 import * as M from '../src/core/model.ts'
-import { DOC_BASENAME, packKtex, README_BASENAME, TEX_BASENAME, unpackKtex, type FileAccess } from '../src/core/kdocz.ts'
+import { DOC_BASENAME, isKdoczPath, packKtex, README_BASENAME, TEX_BASENAME, unpackKtex, type FileAccess } from '../src/core/kdocz.ts'
+import { docStem } from '../src/core/projectStore.ts'
 
 const memFs: FileAccess = { exists: async () => false, read: async () => new Uint8Array(), write: async () => {} }
 
@@ -17,5 +18,13 @@ describe('.ktex is a ZIP', () => {
     expect(strFromU8(files[TEX_BASENAME])).toContain('Hello.')
     const back = unpackKtex(bytes)
     expect(JSON.stringify(back)).toContain('Hello.')
+  })
+
+  it('may be named .ktex.zip: the same document, the same stem', () => {
+    expect(isKdoczPath('/a/thesis.ktex.zip')).toBe(true)
+    expect(isKdoczPath('/a/THESIS.KTEX.ZIP')).toBe(true)
+    expect(isKdoczPath('/a/package.zip')).toBe(false)
+    expect(docStem('/a/thesis.ktex.zip')).toBe('thesis')
+    expect(docStem('/a/thesis.ktex')).toBe('thesis')
   })
 })

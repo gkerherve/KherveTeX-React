@@ -89,8 +89,13 @@ function ChapterList() {
     </div>
   )
   if (!rows.length) {
+    if (!chaptersApi.chapterClass()) {
+      return <div className='ps-empty'>This document is an article: its headings are sections, not chapters.
+        For a thesis or a book in chapters, <button type='button' className='ps-link' onClick={() => chaptersApi.useReportClass()}>use the report class</button>
+        {' '}(or a thesis class in Design ▸ Document type).</div>
+    }
     return <div className='ps-empty'>No chapters yet. <b>+ Add</b> a document: it becomes a chapter of this file
-      (each top-level heading is one).</div>
+      (each Heading 1 is one).</div>
   }
   return (
     <>
@@ -112,7 +117,7 @@ function ChapterList() {
                 onClick={e => { e.stopPropagation(); chaptersApi.setShown(r.key, !r.shown) }}>{r.shown ? '👁' : '–'}</button>
               <span className='ps-text'>{i + 1}. {r.title}</span>
             </div>
-            {r.sections?.map((sct, k) => (
+            {view === 'outline' && r.sections?.map((sct, k) => (
               <div key={k} data-row tabIndex={0} className='ps-row ps-sec' style={{ paddingLeft: 10 + sct.level * 12 }}
                 onKeyDown={e => rowKeys(e, () => chaptersApi.toggleShown(i), () => chaptersApi.goToPos(sct.pos))}
                 onClick={() => chaptersApi.goToPos(sct.pos)} title={sct.title}>

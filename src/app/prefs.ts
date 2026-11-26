@@ -22,6 +22,9 @@ export const PREF_DEFAULTS = {
   'ribbon/hidden_quick': [] as string[],
   // The main tabs' order, dragged in Settings ▸ Ribbon & Toolbar ([] = the default).
   'ribbon/order': [] as string[],
+  // Save: name new documents .ktex.zip (the same file, a name that says
+  // it is a ZIP) instead of .ktex.
+  'files/ktex_zip': false,
   // Edit
   'edit/picture_width': 'natural',
   // Spelling & Grammar

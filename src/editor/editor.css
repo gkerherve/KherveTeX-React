@@ -142,9 +142,14 @@ pre.kt-nc-start::before { content: 'Not compiled'; position: absolute; left: 6px
    blocks are not drawn. */
 .kt-folded { display: none !important; }
 .kt-chapter { position: relative; }
-.kt-ch-bar { position: absolute; right: 0; top: -26px; display: none; gap: 4px; align-items: center; z-index: 3;
+/* The chapter's buttons, over its heading's right end. Its box reaches down
+   to the heading (no gap to cross), and it stays a moment after the mouse
+   leaves, so the mouse can get to it. */
+.kt-ch-bar { position: absolute; right: 0; top: -30px; padding: 2px 0 10px 24px; display: inline-flex; gap: 4px; align-items: center; z-index: 3;
+  visibility: hidden; opacity: 0; transition: opacity .15s ease .5s, visibility 0s linear .65s;
   font: 11px/16px Arial, sans-serif; font-weight: 400; font-style: normal; text-indent: 0; letter-spacing: 0; white-space: nowrap; }
-.kt-chapter:hover .kt-ch-bar, .kt-ch-bar.folded { display: inline-flex; }
+.kt-chapter:hover .kt-ch-bar, .kt-ch-bar:hover, .kt-ch-bar:focus-within, .kt-ch-bar.folded {
+  visibility: visible; opacity: 1; transition: opacity .1s ease 0s, visibility 0s linear 0s; }
 .kt-ch-btn { height: 20px; padding: 0 7px; border: 1px solid #c8c8c8; border-radius: 3px; background: #fff; color: #444;
   font: 11px/18px Arial, sans-serif; cursor: pointer; }
 .kt-ch-btn:hover { background: #e8f0fb; border-color: #8aa3cc; color: #1f4e8c; }

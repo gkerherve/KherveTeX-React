@@ -28,11 +28,21 @@ export interface Chapter {
   compiled: boolean
 }
 
+// Whether the document's class has chapters (report, book, a thesis
+// class): only there are its Heading 1s chapters. In an article a Heading 1
+// is a section, never a chapter (set by the layout plugin from the class).
+let chapterClass = true
+export function setChapterClass(on: boolean): void { chapterClass = on }
+export function hasChapterClass(): boolean { return chapterClass }
+
 export function chapters(doc: PMNode): Chapter[] {
+  if (!chapterClass) return []
   const tops = topBlocks(doc)
   let level = Infinity
   for (const t of tops) if (t.node.type.name === 'section') level = Math.min(level, t.node.attrs.level as number)
-  if (level === Infinity) return []
+  // Only \chapter (Heading 1, or a chapter heading): a document whose
+  // headings all start at Heading 2 has sections, not chapters.
+  if (level === Infinity || level > 1) return []
   const out: Chapter[] = []
   const seen = new Map<string, number>()
   tops.forEach((t, i) => {

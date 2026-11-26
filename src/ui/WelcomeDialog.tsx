@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client'
 import { FEEDBACK_EMAIL, SHORT_NAME, VERSION } from '../version'
 import type { LayoutMode } from '../app/store'
 import { basename, dirname } from '../core/paths'
+import { pref, setPref } from '../app/prefs'
 
 export type WelcomeChoice =
   | { kind: 'continue' } | { kind: 'new' } | { kind: 'open' } | { kind: 'project' }
@@ -47,6 +48,7 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
   // The way of working is chosen in the View menu; the page keeps it.
   const mode = layout
   const [again, setAgain] = useState(showAtStart)
+  const [zipName, setZipName] = useState(() => pref('files/ktex_zip'))
   const [exSel, setExSel] = useState(-1)
   const [recSel, setRecSel] = useState(-1)
   const finish = (choice: WelcomeChoice) => done({ choice, layout: mode, showAtStart: again })
@@ -117,7 +119,10 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
           <b style={{ whiteSpace: 'nowrap' }}>Your files are always yours.</b>
           <span>A <b>.ktex</b> file is an ordinary ZIP archive: rename it to <b>.zip</b> and you will find your whole
             document as LaTeX (document.tex) and every picture, usable without {SHORT_NAME}. File ▸ Extract Files from .ktex
-            does it for you.</span>
+            does it for you.
+            <label style={{ display: 'block', marginTop: 4 }} title='The same file, with a name any computer opens as a ZIP. Both names open and save alike; change it any time in Settings ▸ Save.'>
+              <input type='checkbox' checked={zipName} onChange={e => { setZipName(e.target.checked); setPref('files/ktex_zip', e.target.checked) }} />
+              {' '}Name my documents <b>.ktex.zip</b>, so the name says it is a ZIP</label></span>
         </div>
         <div style={{ color: 'var(--muted, #888)' }}>{SHORT_NAME} is in beta — some parts are still new. Please send feedback to <b>{FEEDBACK_EMAIL}</b> (Help &gt; Send feedback).</div>
         <div style={{ display: 'flex', alignItems: 'center' }}>

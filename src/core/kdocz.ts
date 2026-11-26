@@ -57,8 +57,12 @@ export interface FileAccess {
 
 export function isKdoczPath(path: string): boolean {
   const s = path.toLowerCase()
-  return s.endsWith('.ktex') || s.endsWith('.kdocz') || s.endsWith('.ktexz')
+  return s.endsWith('.ktex') || s.endsWith('.ktex.zip') || s.endsWith('.kdocz') || s.endsWith('.ktexz')
 }
+
+// The same .ktex under a name that says it is a ZIP (a choice in Settings,
+// at the first start and in Save As): opened and saved exactly alike.
+export const ZIP_SUFFIX = '.ktex.zip'
 
 // A bundle under a pre-.ktex name; saving converts it to .ktex.
 export function isLegacyBundle(path: string): boolean {

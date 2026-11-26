@@ -262,7 +262,12 @@ function Access() {
 
 function Save() {
   const [min, setMin] = usePref('save/autosave_minutes')
-  return (
+  const [zipName, setZipName] = usePref('files/ktex_zip')
+  return (<>
+    <Group title='File name'>
+      <Check label='Name new documents .ktex.zip' value={zipName} onChange={setZipName}
+        note='A .ktex is an ordinary ZIP archive holding your LaTeX (document.tex), pictures and references. Named thesis.ktex.zip it says so: any computer opens it as a ZIP. kTeX opens and saves both names alike; documents you already have keep their names.' />
+    </Group>
     <Group title='Save Options'>
       <Check label='AutoSave a saved document' value={min > 0} onChange={v => setMin(v ? 10 : 0)}
         note='Each save also keeps a version in the document’s history (History ▸ Versions).' />
@@ -270,7 +275,7 @@ function Save() {
         <input type='number' min={1} max={120} value={min || 10} disabled={min <= 0} style={{ width: 60 }}
           onChange={e => setMin(Math.max(1, Math.min(120, Number(e.target.value) || 10)))} /> minutes</label>
     </Group>
-  )
+  </>)
 }
 
 function Track() {

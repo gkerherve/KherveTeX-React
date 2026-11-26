@@ -96,7 +96,7 @@ export function resolvedSourceDir(): string | null {
 // The document's base name, stripping compound extensions.
 export function docStem(path: string): string {
   const name = basename(path)
-  for (const ext of ['.ktex.json', '.kdoc.json']) if (name.endsWith(ext)) return name.slice(0, -ext.length)
+  for (const ext of ['.ktex.json', '.kdoc.json', '.ktex.zip']) if (name.toLowerCase().endsWith(ext)) return name.slice(0, -ext.length)
   const i = name.lastIndexOf('.')
   return i > 0 ? name.slice(0, i) : name
 }

@@ -13,7 +13,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { classKtexKnows, importMd, importTex, type ImportFs } from '../../core/importers'
 import { findMainTex, isArchiveName, readArchive } from '../../core/archive'
 import {
-  exportLatexZip, isKdoczPath, isLegacyBundle, loadKdocz, NATIVE_SUFFIX, readBundledBib,
+  exportLatexZip, isKdoczPath, isLegacyBundle, loadKdocz, NATIVE_SUFFIX, readBundledBib, ZIP_SUFFIX,
   readProjectJson, saveKdocz, type FileAccess,
 } from '../../core/kdocz'
 import { docMeta, document as newDocument, fromJson, paragraph, toJson, type DocMeta, type Document as KDocument } from '../../core/model'
@@ -247,7 +247,7 @@ const OPEN_FILTERS: FileFilter[] = [
   { name: 'All supported', extensions: ['ktex', 'ktexz', 'kdocz', 'json', 'tex', 'md', 'markdown', 'docx', 'pdf',
     'rtf', 'odt', 'gdoc',
     ...ARCHIVE_EXTENSIONS] },
-  { name: 'kTeX', extensions: ['ktex', 'ktexz', 'kdocz'] },
+  { name: 'kTeX', extensions: ['ktex', 'zip', 'ktexz', 'kdocz'] },
   { name: 'JSON', extensions: ['json'] },
   { name: 'LaTeX', extensions: ['tex'] },
   { name: 'LaTeX package (.zip, .tar.gz, .tar.bz2)', extensions: ARCHIVE_EXTENSIONS },
@@ -375,6 +375,16 @@ function isProjectPathName(path: string): boolean {
   return path.toLowerCase().endsWith('.kdocproj.json')
 }
 
+// A ZIP holding a kTeX document (its manifest.json says "ktex").
+async function isKtexArchive(path: string): Promise<boolean> {
+  try {
+    const { unzipSync, strFromU8 } = await import('fflate')
+    const files = unzipSync(await platform().readFile(path), { filter: f => f.name === 'manifest.json' || f.name === 'document.json' })
+    if (files['manifest.json']) return /"format"\s*:\s*"ktex"/.test(strFromU8(files['manifest.json']))
+    return !!files['document.json']
+  } catch { return false }
+}
+
 export async function openPath(path: string): Promise<void> {
   const p = platform()
   const fs = fileAccess()
@@ -385,7 +395,10 @@ export async function openPath(path: string): Promise<void> {
     return
   }
   await projectHooks?.leave()
-  if (isArchiveName(path)) { await importLatexPackage(path); return }
+  // A .zip that is a .ktex renamed (thesis.ktex -> thesis.zip and back):
+  // opened as the document it is, not as a LaTeX package.
+  const ktexInZip = /\.zip$/i.test(path) && !isKdoczPath(path) && await isKtexArchive(path)
+  if (isArchiveName(path) && !isKdoczPath(path) && !ktexInZip) { await importLatexPackage(path); return }
   const sfx = suffix(path).toLowerCase()
   if (sfx === '.gdoc') {
     const wp = await import('./wordPdf')
@@ -414,7 +427,7 @@ export async function openPath(path: string): Promise<void> {
   let bib = ''
   let bibReport = ''
   try {
-    if (isKdoczPath(path)) {
+    if (isKdoczPath(path) || ktexInZip) {
       const extractDir = await p.makeTempDir('kdocz-')
       ;[doc] = await loadKdocz(path, extractDir, fs)
       bib = await readBundledBib(path, fs)
@@ -732,9 +745,14 @@ export function registerSaveAsExport(ext: string, run: (path: string) => Promise
   SAVE_AS_EXPORTS[ext] = run
 }
 
+// How a new document is named: .ktex, or .ktex.zip to say it is a ZIP.
+export function nativeSuffix(): string {
+  return pref('files/ktex_zip') ? ZIP_SUFFIX : NATIVE_SUFFIX
+}
+
 function hasNativeSuffix(path: string): boolean {
   const name = basename(path).toLowerCase()
-  return name.endsWith('.ktex') || name.endsWith('.ktexz') || name.endsWith('.ktex.json')
+  return name.endsWith('.ktex') || name.endsWith('.ktex.zip') || name.endsWith('.ktexz') || name.endsWith('.ktex.json')
     || name.endsWith('.kdocz') || name.endsWith('.kdoc.json')
 }
 
@@ -750,26 +768,33 @@ export async function save(): Promise<void> {
 
 export async function saveAs(): Promise<void> {
   const picked = await platform().saveFileDialog({
-    title: 'Save document', defaultName: defaultTarget(NATIVE_SUFFIX),
+    title: 'Save document', defaultName: defaultTarget(nativeSuffix()),
     // Every format Save As can write: macOS would otherwise add .ktex to
-    // a name typed as talk.docx (talk.docx.ktex).
-    filters: [{ name: 'kTeX document', extensions: ['ktex'] }, { name: 'Word', extensions: ['docx'] },
+    // a name typed as talk.docx (talk.docx.ktex). A .ktex is a ZIP: it can
+    // be named .ktex.zip to say so (Settings ▸ Save), the same file.
+    filters: [...(nativeSuffix() === ZIP_SUFFIX
+      ? [{ name: 'kTeX document, named as the ZIP it is (.ktex.zip)', extensions: ['zip'] }, { name: 'kTeX document (.ktex)', extensions: ['ktex'] }]
+      : [{ name: 'kTeX document (.ktex)', extensions: ['ktex'] }, { name: 'kTeX document, named as the ZIP it is (.ktex.zip)', extensions: ['zip'] }]),
+      { name: 'Word', extensions: ['docx'] },
       { name: 'PDF', extensions: ['pdf'] }, { name: 'LaTeX', extensions: ['tex'] },
       { name: 'JSON kTeX', extensions: ['json'] }],
   })
   if (!picked) return
+  // "talk.zip" (the ZIP filter, or typed): talk.ktex.zip.
+  let named = picked
+  if (/\.zip$/i.test(named) && !/\.ktex\.zip$/i.test(named)) named = named.replace(/\.zip$/i, ZIP_SUFFIX)
   // "talk.docx", "talk.pdf", "talk.tex": that format, where it was asked
   // for (the document keeps its own file).
-  const asked = SAVE_AS_EXPORTS[suffix(picked).toLowerCase()]
+  const asked = hasNativeSuffix(named) ? undefined : SAVE_AS_EXPORTS[suffix(named).toLowerCase()]
   if (asked) {
-    await asked(picked)
+    await asked(named)
     return
   }
-  let path = picked
+  let path = named
   // No extension typed: the bundled format, self-contained for documents
   // with images.
   if (!hasNativeSuffix(path)) {
-    path = basename(path).toLowerCase().endsWith('.json') ? withSuffix(path, '.ktex.json') : withSuffix(path, NATIVE_SUFFIX)
+    path = basename(path).toLowerCase().endsWith('.json') ? withSuffix(path, '.ktex.json') : withSuffix(path, nativeSuffix())
   }
   importedStem = null
   setImportSourceDir(null)
@@ -817,7 +842,7 @@ async function writeTo(target: string): Promise<void> {
     bundledBib = getBundledBib()
   } catch { /* keep the copy it carries */ }
   try {
-    if (isKdoczPath(path)) await saveKdocz(doc, path, fs, bibText)
+    if (isKdoczPath(path) || /\.zip$/i.test(path)) await saveKdocz(doc, path, fs, bibText)
     else await p.writeText(path, toJson(doc))
     const work = join(dirname(path), WORK_DIR)
     await p.mkdir(work)
@@ -1065,11 +1090,11 @@ export async function startFileService(): Promise<boolean> {
 // folder beside it on the desktop, as a .zip download online.
 async function extractKtex(): Promise<void> {
   const st = appStore().get()
-  let src = st.path && /\.(ktex|ktexz|kdocz)$/i.test(st.path) ? st.path : null
+  let src = st.path && isKdoczPath(st.path) ? st.path : null
   if (src && st.dirty) await save()
   if (!src) {
     src = (await platform().openFileDialog({ title: 'Extract the files of a .ktex',
-      filters: [{ name: 'kTeX documents', extensions: ['ktex', 'ktexz', 'kdocz'] }, { name: 'All files', extensions: [] }] }))?.[0] ?? null
+      filters: [{ name: 'kTeX documents', extensions: ['ktex', 'zip', 'ktexz', 'kdocz'] }, { name: 'All files', extensions: [] }] }))?.[0] ?? null
   }
   if (!src) return
   const bytes = await platform().readFile(src)
