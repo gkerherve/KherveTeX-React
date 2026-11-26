@@ -112,6 +112,13 @@ function Welcome({ recent, recentExists, examples, layout, showAtStart, done }: 
           </div>
         </div>
         <div style={{ borderTop: '1px solid var(--border)' }} />
+        <div className='welcome-zip' style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '6px 10px', borderRadius: 4,
+          background: '#eef5ec', border: '1px solid #cfe3c9', color: '#24452a' }}>
+          <b style={{ whiteSpace: 'nowrap' }}>Your files are always yours.</b>
+          <span>A <b>.ktex</b> file is an ordinary ZIP archive: rename it to <b>.zip</b> and you will find your whole
+            document as LaTeX (document.tex) and every picture, usable without {SHORT_NAME}. File ▸ Extract Files from .ktex
+            does it for you.</span>
+        </div>
         <div style={{ color: 'var(--muted, #888)' }}>{SHORT_NAME} is in beta — some parts are still new. Please send feedback to <b>{FEEDBACK_EMAIL}</b> (Help &gt; Send feedback).</div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label><input type='checkbox' checked={again} onChange={e => setAgain(e.target.checked)} /> Show this page when {SHORT_NAME} starts</label>

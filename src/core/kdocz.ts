@@ -10,6 +10,7 @@
 //   project.json    only in a project's main document: its other .ktex files
 //   kherveref.bib   the cited entries of a KherveRef-managed document
 //   figures/        the bundled images (older archives used images/)
+//   READ ME.txt     that the file is a ZIP, and what is in it
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import type { Zippable } from 'fflate'
@@ -28,6 +29,23 @@ export const IMAGES_DIR = 'figures'
 export const EQUATIONS_DIR = 'equations'
 export const NATIVE_SUFFIX = '.ktex'
 export const BIB_BASENAME = 'kherveref.bib'
+export const README_BASENAME = 'READ ME.txt'
+
+// In every .ktex, for whoever unzips one: nothing in it is locked away.
+export const README_TEXT = `This .ktex file is an ordinary ZIP archive.
+
+Your work is never locked inside kTeX. To get your files back without
+kTeX, rename the file from .ktex to .zip (or open it with any unzip tool)
+and you will find:
+
+  document.tex    your whole document as LaTeX: compile it with pdfLaTeX,
+                  XeLaTeX, Overleaf or any other LaTeX
+  figures/        every picture of the document, as you added it
+  document.json   the document as kTeX stores it
+  kherveref.bib   the references cited (when there are any)
+
+kTeX can also do it for you: File > Extract Files from .ktex.
+`
 
 // The file access the container needs. Tauri's fs plugin in the app, node:fs
 // in the tests; relative paths are as the caller's working directory sees them.
@@ -120,6 +138,7 @@ export async function packKtex(doc: Document, baseDir: string, fs: FileAccess,
   files[TEX_BASENAME] = strToU8(serializeDocument(archiveDoc))
   for (const [srcPath, arcName] of images) files[arcName] = await fs.read(srcPath)
   if (opts.bibText) files[BIB_BASENAME] = strToU8(opts.bibText)
+  files[README_BASENAME] = strToU8(README_TEXT)
   return zipSync(files, { level: 6 })
 }
 

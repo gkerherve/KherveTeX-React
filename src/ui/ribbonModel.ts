@@ -220,6 +220,8 @@ const cmds: Command[] = [
   { id: 'export_tex', text: 'Export .&tex...' },
   { id: 'export_docx', text: 'Export .&docx...', icon: 'export_docx_icon' },
   { id: 'export_latex_zip', text: 'Export &LaTeX package (.zip)...' },
+  { id: 'extract_ktex', text: 'E&xtract Files from .ktex...', icon: 'file_open',
+    tooltip: 'A .ktex is an ordinary ZIP archive: take out its LaTeX (document.tex), pictures and references into a folder, to use without kTeX' },
   { id: 'export_pdf', text: 'Export .&pdf...', icon: 'export_pdf' },
   { id: 'print', text: '&Print…', icon: 'printer', shortcut: 'Ctrl+P' },
   { id: 'print_preview', text: 'Print pre&view…', icon: 'print_preview', shortcut: 'Ctrl+Shift+P',

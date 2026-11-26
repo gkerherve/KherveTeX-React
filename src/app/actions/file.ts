@@ -1060,6 +1060,48 @@ export async function startFileService(): Promise<boolean> {
   return false
 }
 
+// File ▸ Extract Files from .ktex: a .ktex is a ZIP, and its files (the
+// LaTeX, the pictures, the references) are the user's to take out: into a
+// folder beside it on the desktop, as a .zip download online.
+async function extractKtex(): Promise<void> {
+  const st = appStore().get()
+  let src = st.path && /\.(ktex|ktexz|kdocz)$/i.test(st.path) ? st.path : null
+  if (src && st.dirty) await save()
+  if (!src) {
+    src = (await platform().openFileDialog({ title: 'Extract the files of a .ktex',
+      filters: [{ name: 'kTeX documents', extensions: ['ktex', 'ktexz', 'kdocz'] }, { name: 'All files', extensions: [] }] }))?.[0] ?? null
+  }
+  if (!src) return
+  const bytes = await platform().readFile(src)
+  const { unzipSync } = await import('fflate')
+  let files: Record<string, Uint8Array>
+  try { files = unzipSync(bytes) } catch {
+    await critical('Extract files', `${basename(src)} is not a .ktex (ZIP) archive.`)
+    return
+  }
+  const name = basename(src).replace(/\.[^.]+$/, '')
+  const pick = platform().openFolderDialog
+  if (!pick) {
+    // No folders online: the same bytes as a .zip to download.
+    const to = await platform().saveFileDialog({ title: 'Download the files as a .zip', defaultName: `${name}.zip`,
+      filters: [{ name: 'ZIP archive', extensions: ['zip'] }] })
+    if (to) await platform().writeFile(to, bytes)
+    return
+  }
+  const dir = await pick.call(platform(), `Extract the files of ${basename(src)} into…`)
+  if (!dir) return
+  const out = join(dir, `${name} files`)
+  let n = 0
+  for (const [entry, data] of Object.entries(files)) {
+    if (entry.endsWith('/')) continue
+    await platform().writeFile(join(out, entry), data)
+    n++
+  }
+  await information('Extract files', `${n} files of ${basename(src)} are in\n${out}\n\n`
+    + 'document.tex is the whole document as LaTeX (it compiles with any LaTeX, Overleaf too), figures/ holds the pictures.')
+  await platform().reveal(out).catch(() => {})
+}
+
 // Settings (the gear beside Help): your name, then how kTeX starts.
 // kTeX ▸ Preferences (the gear): Word's Preferences window.
 async function settingsAction(start: string | null = null): Promise<void> {
@@ -1080,6 +1122,7 @@ registerActions({
     if (got?.[0]) await openTexAsIs(got[0])
   },
   open_recent: (arg) => openRecent(arg),
+  extract_ktex: () => extractKtex(),
   split_documents: () => splitIntoDocuments(),
   save: () => save(),
   save_as: () => saveAs(),

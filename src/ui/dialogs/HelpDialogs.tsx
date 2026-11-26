@@ -109,7 +109,11 @@ export function aboutHtml(libraries: Library[], runtime: string): string {
     + "<p style='margin:0 0 6px 0'>" + tools.map(([n, w]) => `<b>${n}</b> (${w})`).join(', ') + '.</p>'
     + "<p style='margin:0'>All the tools, with downloads and guides: "
     + "<a href='https://khervetools.com'><b>khervetools.com</b></a></p></div>"
-  return promo + '<h3>About the author</h3>'
+  const yours = "<div style='background:#eef5ec;border:1px solid #cfe3c9;border-radius:8px;padding:8px 14px;margin-bottom:12px'>"
+    + '<b>Your files are always yours.</b> A .ktex file is an ordinary ZIP archive: rename it to .zip, or use '
+    + '<b>File ▸ Extract Files from .ktex</b>, and you get your whole document as LaTeX (document.tex, which compiles '
+    + 'with any LaTeX or Overleaf), every picture (figures/) and your references, without kTeX.</div>'
+  return promo + yours + '<h3>About the author</h3>'
     + '<p><b>Gwilherm Kerhervé</b> &nbsp;—&nbsp; '
     + 'Research Associate, Department of Materials, '
     + "<a href='https://www.imperial.ac.uk/materials/'>"
