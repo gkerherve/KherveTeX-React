@@ -69,6 +69,8 @@ function demoteRunningHead(page: PdfTextDict, all: string[]): string[] {
 }
 
 const TOC_ENTRY_RE = /(?:\.\s?){3,}\s*\S*$|\D\s*\d+$/
+const LEADER_RE = /(?:\.\s?){3,}\s*\S*$/
+const LIST_TITLE_RE = /^(?:(?:table of )?contents|list of (?:figures|tables)|index|inhalt|inhaltsverzeichnis|abbildungsverzeichnis|tabellenverzeichnis|table des mati|sommaire|table des figures|liste des|[ií]ndice|sommario|elenco|содержание|оглавление|список|inhoud|spis|innehåll|indholds|sisällys|obsah)/i
 
 export function pageStartSnippets(page: PdfTextDict, maxLines = 10, maxChars = 24): string[] {
   const out: string[] = []
@@ -84,7 +86,11 @@ export function pageStartSnippets(page: PdfTextDict, maxLines = 10, maxChars = 2
   // title, may say where it is (none on a page that continues the list).
   const entry = (l: string) => TOC_ENTRY_RE.test(l.trim())
   const words = all.filter(l => !NUMBER_RE.test(l.trim()))
-  const isList = words.length >= 4 && words.filter(entry).length >= words.length * 0.4
+  // A table of items ending in numbers ("Item 3", "Total 45") is not one:
+  // a list has leader dots, or its title on its first page.
+  const dotted = words.filter(l => LEADER_RE.test(l)).length >= 2
+  const titled = LIST_TITLE_RE.test(words[0]?.trim() ?? '')
+  const isList = words.length >= 4 && (dotted || titled) && words.filter(entry).length >= words.length * 0.4
   const lines = isList ? all.slice(0, 1).filter(l => !entry(l)) : demoteRunningHead(page, all)
   for (const raw of lines) {
     const s = one(raw)

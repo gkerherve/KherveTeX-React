@@ -421,7 +421,12 @@ export class EditorController implements ViewHost {
       this.schedulePages(tr.docChanged && !metaChanged ? 900 : 0)
     } else if (pages) {
       this.schedulePages(0, true)
+    } else if (tr.selectionSet && this.caretInTail() !== this.wasInTail) {
+      // Into or out of the empty lines ending the document: they get a
+      // sheet only while the caret is in them (computeSpacers).
+      this.schedulePages(0)
     }
+    if (tr.selectionSet || tr.docChanged) this.wasInTail = this.caretInTail()
     if (tr.docChanged || tr.selectionSet || metaChanged) { this.syncToolbar(); this.review?.schedule() }
   }
 
@@ -871,6 +876,21 @@ export class EditorController implements ViewHost {
   }
 
   // Re-measure the flow and move page breaks, a few rounds until stable.
+  private wasInTail = false
+  // The caret in the empty lines and page breaks that end the document.
+  private caretInTail(): boolean {
+    const doc = this.view.state.doc
+    let at = doc.content.size
+    for (let i = doc.childCount - 1; i >= 0; i--) {
+      const n = doc.child(i)
+      const empty = (n.type.name === 'paragraph' && !n.textContent.trim())
+        || (n.type.name === 'raw_latex' && /^\s*\\(?:newpage|clearpage|pagebreak)\s*$/.test(n.textContent))
+      if (!empty) break
+      at -= n.nodeSize
+    }
+    return at < doc.content.size && this.view.state.selection.head >= at
+  }
+
   schedulePages(delay: number, continuing = false): void {
     if (this.destroyed) return
     if (!continuing) { this.pageIter = 0; this.columnShrink = [] }
@@ -889,7 +909,7 @@ export class EditorController implements ViewHost {
     return anchorTargets(this.view.state.doc, anchors).map(t => {
       let blanks = 0
       for (let p = t.page - 1; p >= 2 && !listed.has(p); p--) blanks++
-      return t.offset > 0 ? { pos: t.pos + 1 + t.offset, inline: true, blanks } : { pos: t.pos, inline: false, blanks }
+      return t.offset > 0 ? { pos: t.pos + 1 + t.offset, inline: true, blanks, page: t.page } : { pos: t.pos, inline: false, blanks, page: t.page }
     })
   }
 
@@ -921,7 +941,7 @@ export class EditorController implements ViewHost {
         pdfPaged, own ? [] : this.pdfColumnStarts(),
         { notes: this.footnoteBoxes(geo).map(n => ({ pos: n.pos, height: n.height })) })
       : computeSpacers(this.view, geo, this.flowEl, own ? [] : starts, pdfPaged, figuresFloat(this.meta), allStarts ? this.pdfPages : 0,
-        this.anchorsDoc === this.view.state.doc)
+        this.anchorsDoc === this.view.state.doc, pdfPaged ? this.pdfPages : 0)
     if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))

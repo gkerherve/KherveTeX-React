@@ -39,6 +39,10 @@ describe('page start candidates', () => {
     expect(pageStartSnippets(page('Interpretation . . . . .', '12', 'Limitations . . . . .', '12', '6', 'Conclusion',
       '13', '6.1', 'Summary . . . . .', '13'))).toEqual([])
   })
+  it('reads a page of table rows ending in numbers as text, not as a contents page', () => {
+    expect(pageStartSnippets(page('Chapter 1', 'Heading 6', 'Item 0', '0', 'note', 'Item 1', '3', 'note', 'Item 2', '6')).slice(0, 3))
+      .toEqual(['Chapter 1', 'Heading 6', 'Item 0'])
+  })
   it('offers a "Label: text" line without its label', () => {
     expect(pageStartSnippets(page('Keywords: one, two'))).toEqual(['Keywords: one, two', 'one, two'])
   })

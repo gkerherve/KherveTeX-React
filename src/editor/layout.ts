@@ -171,6 +171,9 @@ export interface BlockLayout {
   // Room under a block for a label painted below it (the \\maketitle date
   // under a title block that runs across the columns).
   padBottom?: number
+  // A rule under the block (px under its text): the one-line
+  // \\maketitle's \\hrule.
+  ruleBelow?: number
   // A thebibliography block, drawn as the reference list LaTeX prints:
   // its unnumbered title (\refname / \bibname) and the entries.
   bib?: { title: string; titleChar: CharStyle; bodyChar: CharStyle }
@@ -335,8 +338,13 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   const measured = posterLook(moderncvLook(lookFor(meta.documentclass, meta.body_font_pt), meta), meta, doc)
   const k = pdf ? pdf.bodyPt / measured.body.size : 1
   const scaled = pdf && Math.abs(k - 1) > 0.04 && k > 0.6 && k < 1.6 ? scaleLook(measured, k) : measured
-  // Date switched off (Insert > Date): the page shows none, as \\date{}.
-  const look = meta.show_date === false ? { ...scaled, date: undefined } : scaled
+  // A \\maketitle redefined as one line (the planners' header: the title
+  // on the left, the author on the right, a rule under them).
+  const inlineTitle = INLINE_TITLE_RE.test(meta.preamble_extras || '')
+  // Date switched off (Insert > Date, or \\date{} in the preamble): the page
+  // shows none.
+  const noDate = meta.show_date === false || inlineTitle || /\\date\{\s*\}/.test(meta.preamble_extras || '')
+  const look = noDate ? { ...scaled, date: undefined } : scaled
   const g = look.geometry
   const pt = PT_PX
   const page = byCode(meta.page_size)
@@ -591,6 +599,10 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     if (key) {
       labels = layOutStyled(L, key, startsSheet, prevState, state, i === afterDate, number, prevLead, i === 0,
         runInNext)
+      if (inlineTitle && (key === 'title' || key === 'author')) {
+        labels = []
+        inlineHeader(L, key, blocks[i + 1]?.state === S.AUTHOR)
+      }
       const spans: boolean = spanning && geometry.cols > 1 && spansColumns(key)
       spanning = spans
       // \maketitle runs across the columns of the first sheet.
@@ -707,6 +719,33 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   }
 
   // ---------- helpers that close over the layout state ----------
+
+  // The one-line \\maketitle: {\\LARGE\\bfseries title}\\hfill{\\large author},
+  // then \\vspace{3pt}\\hrule\\vspace{4pt}. The author line is drawn over
+  // the title's, on the right, its baseline on the title's.
+  function inlineHeader(L: BlockLayout, key: 'title' | 'author', authorNext: boolean): void {
+    const big = body.size * 1.728, bigLead = big * 1.25
+    const large = body.size * 1.2, largeLead = large * 1.2
+    L.left = L.right = 0
+    L.tall = undefined
+    if (key === 'title') {
+      L.char = { ...bodyChar, sizePx: big * pt, bold: true, italic: false, upper: false }
+      L.align = 'left'
+      L.lineHeight = bigLead * pt
+      L.top = 0
+      L.bottom = authorNext ? -bigLead * pt : 4 * pt
+      if (!authorNext) L.ruleBelow = 3 * pt
+    } else {
+      L.char = { ...bodyChar, sizePx: large * pt, bold: false, italic: false, upper: false }
+      L.align = 'right'
+      L.lineHeight = largeLead * pt
+      // Baselines level (each about 0.78 down its line).
+      const drop = BASELINE_AT * (bigLead - largeLead)
+      L.top = (drop - bigLead) * pt
+      L.bottom = 4 * pt
+      L.ruleBelow = (bigLead - largeLead - drop + 3) * pt
+    }
+  }
 
   function spansColumns(key: StyleKey): boolean {
     if (g.follows_margins !== false) return ['title', 'author', 'affiliation', 'correspondence'].includes(key)
@@ -946,6 +985,7 @@ const LIST_TITLES: Record<string, string[]> = {
 }
 
 const BIB_ENV_RE = /\\begin\{thebibliography\}/
+const INLINE_TITLE_RE = /\\renewcommand\{?\\maketitle\}?\{[^\n]*\\@title[^\n]*\\hfill[^\n]*\\@author/
 const BIB_BLOCK_RE = /^\s*\\(?:begin\{thebibliography\}|bibliography\{|printbibliography\b)/
 
 const OBJ = '\ufffc'
@@ -1061,6 +1101,10 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
   for (const [page, snippet] of anchors) {
     const reach = MAX_PAGE_CHARS * Math.max(1, page - atPage)
     const tooFar = (i: number, offset: number) => atPage > 0 && startOf[i] + offset - atChar > reach
+    // A page holds a page of text: the next one cannot start a few words
+    // after the last start (a phrase repeated further into its paragraph).
+    const tooNear = (i: number, offset: number) => atPage > 0 && startOf[i] + offset - atChar < 400 * (page - atPage)
+      && startOf[i] + offset >= atChar && i === at
     const hit = (i: number, offset: number) => {
       out.push({ page, pos: blocks[i].pos, offset })
       at = i; atChar = startOf[i] + offset; atPage = page
@@ -1073,7 +1117,28 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
       const next = keys.slice(k + 1).find(x => x.length >= 8)
       if (!next) return true
       const ahead = normalizeForMatch(texts[i].slice(offset) + ' ' + texts.slice(i + 1, i + 4).join(' ')).slice(0, 1500)
-      return ahead.includes(next.slice(0, 12))
+      // Up to a citation's bracket: the editor holds a citation as an
+      // object, not its printed "(Nakamura and Fox, 2022)".
+      const words = next.slice(0, 12).split(/[([]/)[0].trim()
+      return ahead.includes(words.length >= 6 ? words : next.slice(0, 12))
+    }
+    // Found by a later line of the page at block `j`: the page may start
+    // with the element or table before it (over empty lines) that prints
+    // its first lines (a Gantt chart's "Month" header is in no setting, so
+    // its words did not start the page's).
+    const elementBefore = (j: number, k: number): number => {
+      const before = keys.slice(0, k).filter(x => x.length >= 5)
+      const lo = out.length ? at + 1 : 0
+      let best = j
+      for (let e = j - 1; e >= lo; e--) {
+        const b = blocks[e]
+        if (b.node.type.name === 'paragraph' && !b.text.trim()) continue
+        // Displayed maths: its lines are not text the page's match.
+        if (b.node.type.name === 'math_block') { best = e; continue }
+        if ((b.isTable || parseWidget(b.text)) && before.some(x => normalizeForMatch(texts[e]).includes(x))) return e
+        break
+      }
+      return best
     }
     search: for (const [k, keyNorm] of keys.entries()) {
       // A figure's caption prints after its label ("Figure 1: ...", and
@@ -1081,9 +1146,13 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
       const capKey = keyNorm.replace(/^(?:figure|fig\.?|table)\s*(?:[a-z]\.)?\d+(?:[.-]\d+)*[a-z]?\s*[.:|]?\s*/, '')
       for (let i = at; i < blocks.length; i++) {
         if (tooFar(i, 0)) break
+        // The first page starts with the first block: a later page cannot
+        // (only inside it, a long first paragraph running on).
+        const firstBlock = page >= 2 && i === 0 && blocks[0].pos === 0
         // A figure by its caption: a page the PDF starts with a figure
         // (one that floated to its top) starts with the caption's text.
         if (blocks[i].node.type.name === 'figure') {
+          if (firstBlock) continue
           const cap = normalizeForMatch(texts[i])
           if (cap && capKey.length >= 8 && (cap.startsWith(capKey) || capKey.startsWith(cap))) {
             hit(i, 0); break search
@@ -1093,6 +1162,7 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
         // A table or an element: the page starts with it when its words
         // start with the page's.
         if (blocks[i].isTable || parseWidget(blocks[i].text)) {
+          if (firstBlock) continue
           const own = normalizeForMatch(texts[i])
           const key12 = keyNorm.slice(0, 12)
           if (own && key12.length >= 6 && own.startsWith(key12)) {
@@ -1102,20 +1172,22 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
             for (let j = i + 1; j < blocks.length && !tooFar(j, 0); j++) {
               if ((blocks[j].isTable || parseWidget(blocks[j].text)) && normalizeForMatch(texts[j]).startsWith(key12)) { twin = true; break }
             }
-            if (!twin) { hit(i, 0); break search }
+            if (!twin) { hit(k > 0 ? elementBefore(i, k) : i, 0); break search }
+            // No start for this page rather than a wrong one: a later
+            // line would only find a block further down the page.
+            break search
           }
           continue
         }
         const idx = anchorOffset(blocks[i].text, keyNorm)
+        if (firstBlock && idx === 0) continue
         if (idx > 0 && !confirms(i, idx, k)) continue
-        if (idx >= 0 && !tooFar(i, idx)) {
+        if (idx >= 0 && !tooFar(i, idx) && !tooNear(i, idx)) {
           // Found by a later line of the page (its first ones did not
           // match) at a block's start, right after displayed maths: the
           // page starts with that maths (an equation's lines are not text).
           let j = i
-          if (k > 0 && idx === 0) {
-            while (j - 1 > at && blocks[j - 1].node.type.name === 'math_block') j--
-          }
+          if (k > 0 && idx === 0) j = elementBefore(j, k)
           // Found by a later line close to the block's start: the page's
           // first line(s) were that block's opening ("Home:" in bold came
           // out as a line too short to match), so it starts the block.

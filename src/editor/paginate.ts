@@ -31,6 +31,8 @@ interface Unit {
   // Forced only by where the PDF starts a page (not a page break or a
   // chapter in the text).
   pdfStart?: boolean
+  // The PDF page it starts (a page start found in the text).
+  page?: number
   // Columns of the table a row spacer sits in.
   cols?: number
   // The table has a rule between rows (grid): its continued part opens
@@ -172,7 +174,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
   const y = (clientY: number) => y0(clientY) + lifted
   let spanEnd: number | null = null
   let spanning = true
-  const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number, heading?: number, pdfStart = false) => {
+  const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number, heading?: number, pdfStart = false, blank = false) => {
     const bands = lineBands(el)
     const fast = bands.length > 1 && !el.querySelector('[data-kt-pos]')
       ? lineStarts(view, el, bands.slice(1).map(l => l.top)) : []
@@ -193,7 +195,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
         pos = hit ? hit.pos : start
       }
       units.push({ top: y(l.top), bottom: y(l.bottom), pos, kind: i === 0 ? 'block' : 'inline', forced: forced && i === 0, gap, heading,
-        empty: el.tagName === 'P' && !el.textContent?.trim(), pdfStart: pdfStart && i === 0 })
+        empty: blank || (el.tagName === 'P' && !el.textContent?.trim()), pdfStart: pdfStart && i === 0 })
     })
   }
   view.state.doc.forEach((node, offset) => {
@@ -226,7 +228,8 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
       return
     }
     if (node.isTextblock) {
-      textUnits(dom, offset, !!dom.dataset.break, cssGap(dom), node.type.name === 'section' ? offset : undefined, dom.dataset.break === 'pdf')
+      textUnits(dom, offset, !!dom.dataset.break, cssGap(dom), node.type.name === 'section' ? offset : undefined, dom.dataset.break === 'pdf',
+        isPageBreak(node))
       return
     }
     const r = dom.getBoundingClientRect()
@@ -262,16 +265,22 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
       lifted += lift
       return
     }
-    units.push({ top: y(r.top), bottom: y(r.bottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom) })
+    units.push({ top: y(r.top), bottom: y(r.bottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom),
+      empty: isPageBreak(node) })
   })
   return { units, spanEnd }
 }
+
+// A page break typed in (raw \newpage and the like): it prints nothing on
+// the sheet it ends.
+const PAGE_BREAK_RE = /^\s*\\(?:newpage|clearpage|cleardoublepage|pagebreak)\s*$/
+const isPageBreak = (node: import('prosemirror-model').Node) => node.type.name === 'raw_latex' && PAGE_BREAK_RE.test(node.textContent)
 
 // Where the compiled PDF starts a page: a block's position, or (`inline`)
 // a position inside a paragraph, whose line then starts the sheet as a
 // block the PDF starts a page with does. `blanks`: empty PDF pages just
 // before it (a chapter kept to a right-hand page), drawn as blank sheets.
-export interface PageStart { pos: number; inline: boolean; blanks: number }
+export interface PageStart { pos: number; inline: boolean; blanks: number; page?: number }
 
 // Mark the units the compiled PDF starts its pages with as forced (a block
 // by its position, a line inside a paragraph by the position it holds);
@@ -282,11 +291,17 @@ function forcePageStarts(units: Unit[], pageStarts: readonly PageStart[]): Map<n
     let hit = -1
     if (s.inline) {
       for (let i = 0; i < units.length && units[i].pos <= s.pos; i++) hit = i
-      if (hit > 0 && units[hit].kind === 'inline') Object.assign(units[hit], { forced: true, gap: 0, pdfStart: !units[hit].forced })
-      else if (hit > 0 && !units[hit].forced) hit = -1
+      if (hit > 0 && units[hit].kind === 'inline') Object.assign(units[hit], { forced: true, gap: 0, pdfStart: !units[hit].forced, page: s.page })
+      // On the block's first line (a few words in, the editor's line
+      // longer than the PDF's): the block starts the page.
+      else if (hit > 0 && units[hit].kind === 'block') {
+        if (!units[hit].forced) units[hit].pdfStart = true
+        units[hit].forced = true
+        units[hit].page = s.page
+      } else hit = -1
     } else {
       hit = units.findIndex(u => u.kind === 'block' && u.pos === s.pos)
-      if (hit > 0) { if (!units[hit].forced) units[hit].pdfStart = true; units[hit].forced = true }
+      if (hit > 0) { if (!units[hit].forced) units[hit].pdfStart = true; units[hit].forced = true; units[hit].page = s.page }
     }
     if (hit > 0 && s.blanks > 0) blanks.set(hit, s.blanks)
   }
@@ -317,7 +332,12 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   // The text unchanged since that PDF: a page that runs long stays one
   // page (the next starts lower on the next sheet) rather than breaking
   // at the paper's edge, which is only for text typed since.
-  pdfFresh = false): { spacers: Spacer[]; measure: PageMeasure } {
+  pdfFresh = false,
+  // The PDF's page count, its starts known or not: with the text unchanged
+  // since it (pdfFresh), the pages between two starts found never number
+  // more than the PDF's there (a page start not found left the editor to
+  // break where its own type overflows, a sheet or two more than the PDF).
+  pdfTotal = 0): { spacers: Spacer[]; measure: PageMeasure } {
   const root = view.dom as HTMLElement
   const z = zoomOf(page) || 1
   // y from the top of the first sheet.
@@ -352,6 +372,31 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     nextForced[i] = n
     if (units[i].forced) n = i
   }
+  // The PDF page the next page start found begins, from each unit: the
+  // sheets before it are the PDF's pages before it.
+  const nextPage: number[] = new Array(units.length)
+  for (let i = units.length - 1, p = pdfTotal ? pdfTotal + 1 : Infinity; i >= 0; i--) {
+    nextPage[i] = p
+    if (units[i].page) p = units[i].page!
+  }
+  const bounded = pdfFresh && pdfTotal > 0
+  // Empty lines right before a page break or a chapter: the PDF leaves
+  // them out (serializer), so they start no sheet of their own.
+  const beforeBreak: boolean[] = new Array(units.length).fill(false)
+  for (let i = units.length - 1, brk = false; i >= 0; i--) {
+    const u = units[i]
+    const nothing = !!u.empty
+    beforeBreak[i] = nothing && brk
+    if (u.forced) brk = !u.pdfStart
+    else if (!nothing) brk = false
+  }
+  // Empty lines (and page breaks) ending the document print nothing (the
+  // serializer leaves them out): they start no sheet.
+  let lastReal = units.length - 1
+  while (lastReal >= 0 && units[lastReal].empty) lastReal--
+  // Unless the caret is in them: typing goes there (Enter at the end, a
+  // page break to write on).
+  if (lastReal + 1 < units.length && view.state.selection.head >= units[lastReal + 1].pos) lastReal = units.length - 1
   const spacers: Spacer[] = []
   let shift = 0
   let k = 0
@@ -378,11 +423,19 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   // by its first text, with empty lines above it, belongs to the sheet
   // those lines began (they are the top of that page, not one of their own).
   let sheetText = false
+  // The bottom of what is placed so far.
+  let lastBottom = 0
   units.forEach((u, i) => {
+    if (i > lastReal && lastReal >= 0) return
     const t = u.top + shift
     const b = u.bottom + shift
+    const reach = lastBottom
+    if (b - t > 1 && !u.empty) lastBottom = Math.max(lastBottom, b)
     // PDF paging: the sheet is the PDF page's, however long it runs.
-    if (!pdfPages) k = Math.max(k, Math.floor(t / H))
+    // A forced break goes to the sheet after the one the text before it
+    // is on, not after the one its own top margin reaches (a chapter's
+    // drop ran past the sheet's end: a blank sheet before the chapter).
+    if (!pdfPages && !bounded) k = Math.max(k, Math.floor((u.forced && !first ? reach - 1 : t) / H))
     if (u.float) {
       const box = u.bottom - u.top
       const fits = b <= contentBottom(k) + 0.5 || t <= contentTop(k) + 1
@@ -405,14 +458,20 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       return end <= contentBottom(k) + slack
     }
     let skip = 0
-    if (u.forced && !first && (sheetText || !u.pdfStart)) {
+    // Nothing printed on the sheet yet (empty lines, which the PDF leaves
+    // out before a new page): a page break or chapter starts no new sheet,
+    // as LaTeX's \newpage on an empty page does not.
+    if (u.forced && !first && sheetText) {
       move = true
       skip = blanks.get(i) ?? 0
       want = contentTop(k + 1 + skip) + u.gap
     } else if (b > contentBottom(k) + 0.5 && t > contentTop(k) + 1 && !fitsSlack()
       // PDF paging: only past the paper's edge (text typed since the
       // compile), not into the bottom margin.
-      && (!pdfPages || (!pdfFresh && b > (k + 1) * H))) {
+      && (!pdfPages || (!pdfFresh && b > (k + 1) * H))
+      // A sheet more than the PDF has before its next page start: no.
+      && (!bounded || k + 1 < nextPage[i] - 1)
+      && !beforeBreak[i]) {
       // Does not fit: the next sheet, with the gap above it dropped.
       move = true
       want = contentTop(k + 1)
@@ -433,7 +492,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     first = false
   })
   let last = 0
-  for (const u of units) last = Math.max(last, u.bottom)
+  units.forEach((u, i) => { if (i <= lastReal || lastReal < 0) last = Math.max(last, u.bottom) })
   last += shift
   // Figures still waiting at the end: a sheet of their own after the text.
   if (pending.length) last = Math.max(last, contentTop(k + 1) + placePending(k + 1))

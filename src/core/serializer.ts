@@ -522,6 +522,19 @@ function paraFormatPreamble(doc: Document): [string[], string] {
   return [need, defs.join('\n')]
 }
 
+const NEW_PAGE_RE = /^\s*\\(?:newpage|clearpage|cleardoublepage|pagebreak)\b/
+
+// The blocks after `i` start a new page, past any further empty lines.
+function beforeNewPage(children: readonly Grouped[], i: number, hasChapters: boolean): boolean {
+  for (let j = i + 1; j < children.length; j++) {
+    const b = children[j]
+    if (b.type === 'Paragraph' && !serializeInlines(b.children).trim()) continue
+    if (b.type === 'RawLatex') return NEW_PAGE_RE.test(b.text)
+    return b.type === 'Section' && hasChapters && b.level <= 1
+  }
+  return false
+}
+
 export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; floatH?: boolean } = {}): string {
   const hasChapters = opts.hasChapters ?? false
   const floatH = opts.floatH ?? true
@@ -1728,7 +1741,9 @@ export function serializeDocument(doc: Document): string {
       // was shorter than the page and the page grew sheets the PDF did not
       // have. Not the empty lines at the very end.
       if (block.type === 'Paragraph' && i < lastContent && !serializeInlines(block.children).trim()) {
-        parts.push('\\null\n')
+        // Not right before a new page (a page break, a chapter): there they
+        // show nothing, and those that do not fit made a blank page.
+        if (!beforeNewPage(children, i, hasChapters)) parts.push('\\null\n')
         i += 1
         if (i < n) parts.push('\n')
         continue

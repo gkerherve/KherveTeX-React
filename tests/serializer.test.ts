@@ -469,6 +469,19 @@ describe('test_serializer.py', () => {
     expect(body.trim()).toBe('\\null')
   })
 
+  it('empty lines right before a new page are left out: they only made a blank page', () => {
+    const body = (blocks: Parameters<typeof document>[0], cls = 'article') =>
+      serializeDocument(document(blocks, docMeta({ title: '', documentclass: cls }))).split('\\begin{document}')[1]
+    const p = (s = '') => paragraph(s ? [text(s)] : [])
+    // Before a page break: none; between text lines: kept.
+    expect(count(body([p('One'), p(), p(), rawLatex('\\newpage'), p('Two')]), '\\null')).toBe(0)
+    expect(count(body([p('One'), p(), p(), p('Two')]), '\\null')).toBe(2)
+    // Before a chapter (it starts a page) in a report, not before a section
+    // in an article.
+    expect(count(body([p('One'), p(), section(1, [text('Next')]), p('x')], 'report'), '\\null')).toBe(0)
+    expect(count(body([p('One'), p(), section(1, [text('Next')]), p('x')]), '\\null')).toBe(1)
+  })
+
   it('test_table_without_caption_prints_no_table_number', () => {
     const body = (caption: string) => serializeDocument(document([
       table({ rows: [['a', 'b'], ['1', '2']], caption }),

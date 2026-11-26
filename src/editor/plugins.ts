@@ -335,6 +335,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       + `margin-left:${L.left}px;margin-right:${L.right}px;text-indent:${L.indent}px;` + lineHeightCss(L)
     if (L.char) style += charCss(L.char)
     if (L.spans) style += 'column-span:all;'
+    if (L.ruleBelow !== undefined) style += `padding-bottom:${L.ruleBelow}px;border-bottom:0.53px solid currentColor;`
     if (L.marker !== undefined) style += `list-style-type:${JSON.stringify(L.marker + '\u2002')};`
     // Word's shading and borders on a paragraph, as the PDF's box draws them.
     if (node.type.name === 'paragraph' && (node.attrs.shade || node.attrs.border)) {

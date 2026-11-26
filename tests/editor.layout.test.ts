@@ -221,6 +221,40 @@ describe('the compiled PDF and projects (paged_edit.py)', () => {
     expect(t.map(x => x.page)).toEqual([1])
   })
 
+  it("a \\maketitle redefined as one line (the planners' header) lays the title and author out on one row", () => {
+    const extras = '\\makeatletter\n\\renewcommand{\\maketitle}{\\par\\noindent{\\LARGE\\bfseries\\@title}\\hfill{\\large\\@author}\\par\\vspace{3pt}\\hrule\\vspace{4pt}}\n\\makeatother'
+    const L = lay([M.title([M.text('November 2026')]), M.author([M.text('Monthly planner')]), M.paragraph([M.text('Body.')])],
+      { body_font_pt: 10, preamble_extras: extras })
+    const [t, a] = L.blocks
+    expect(t.align).toBe('left')
+    expect(a.align).toBe('right')
+    // The author's line overlaps the title's (a negative gap), a rule under it, no date.
+    expect(a.gap).toBeLessThan(0)
+    expect(a.ruleBelow).toBeGreaterThan(0)
+    expect(L.look.date).toBeUndefined()
+    // Without it, the class's centred title block and its date.
+    const plain = lay([M.title([M.text('November 2026')]), M.author([M.text('Monthly planner')])], { body_font_pt: 10 })
+    expect(plain.blocks[0].align).toBe('center')
+  })
+
+  it('a page starting with an element whose first words are in no setting starts at the element', () => {
+    // A Gantt chart prints "Month" over its rows; its settings hold the
+    // task names the page goes on with.
+    const gantt = M.rawLatex('% kTeX gantt {"tasks":[["Literature review",1,3],["Experiments",2,5]]}\n\\begin{tikzpicture}\\end{tikzpicture}')
+    const blocks = [M.paragraph([M.text('First page text that goes on for a while here.')]), gantt, M.paragraph([]),
+      M.paragraph([M.text('Paragraph after the chart on the same page.')])]
+    const pm = docToPM(M.document(blocks))
+    const t = anchorTargets(pm, [[2, 'Month\nLiterature review\nExperiments\nParagraph after the char']])
+    expect(t.map(x => x.pos)).toEqual([pm.child(0).nodeSize])
+  })
+
+  it('a page is not started a few words after the last page start, in the same paragraph', () => {
+    const long = 'cleaned in ultra-high vacuum by repeated cycles. ' + 'more words here '.repeat(10) + 'cleaned in ultra-high vacuum again.'
+    const pm = docToPM(M.document([M.paragraph([M.text('Opening words of page one here.')]), M.paragraph([M.text('Paragraph 5: ' + long)])]))
+    const t = anchorTargets(pm, [[2, 'Paragraph 5: cleaned in'], [3, 'cleaned in ultra-high va']])
+    expect(t.map(x => x.page)).toEqual([2])
+  })
+
   it('anchor_offset: short keys must be the whole line, long ones may start mid-block', () => {
     expect(normalizeForMatch('  Ünïcode   TEXT ')).toBe('unicode text')
     expect(anchorOffset('Lists', 'lists')).toBe(0)
