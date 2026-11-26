@@ -1530,9 +1530,15 @@ export function serializeDocument(doc: Document): string {
   // ("Untitled"): no title block in the PDF (it printed "Untitled" and the
   // date over a document that has neither).
   const metaTitle = strip(m.title || '')
-  const titleText = inlineTitle !== null ? inlineTitle : escapeText(metaTitle === 'Untitled' ? '' : metaTitle)
+  // A chapter file (a class with chapters, the text starting with a
+  // chapter, no title or author in it): no title page from its properties
+  // (a chapter of a thesis printed a page "Thesis" before it).
+  const firstText = doc.children.find(b => !(b.type === 'RawLatex' && /^\s*(?:%.*)?$/.test(b.text)))
+  const chapterFile = classSupportsChapter(m.documentclass || '') && inlineTitle === null && authorParts.length === 0
+    && firstText?.type === 'Section' && firstText.level === 1
+  const titleText = inlineTitle !== null ? inlineTitle : chapterFile ? '' : escapeText(metaTitle === 'Untitled' ? '' : metaTitle)
   const inlineAuthor = authorParts.length ? authorParts.join(' \\\\\n') : null
-  let authorText = inlineAuthor !== null ? inlineAuthor : escapeAuthor(m.author || '')
+  let authorText = inlineAuthor !== null ? inlineAuthor : chapterFile ? '' : escapeAuthor(m.author || '')
   // \maketitle puts \@author in a non-wrapping tabular{c}: a long single
   // line overflows, so reflow it in a \parbox. With its own line breaks,
   // \maketitle centres each line and a parbox would swallow \thanks{}.

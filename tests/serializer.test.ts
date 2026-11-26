@@ -538,3 +538,13 @@ describe('test_serializer.py', () => {
     expect(classSupportsChapter('tufte-book')).toBe(true)
   })
 })
+
+describe('a chapter file', () => {
+  it('prints no title page from its properties', () => {
+    const tex = serializeDocument(document([section(1, [text('Investigation of noble metal clusters')]), paragraph([text('Text.')])],
+      docMeta({ title: 'Thesis', author: 'Me', documentclass: 'report' })))
+    expect(tex).not.toContain('\\maketitle')
+    // An article keeps the properties' title.
+    expect(serializeDocument(document([paragraph([text('Text.')])], docMeta({ title: 'Paper', documentclass: 'article' })))).toContain('\\maketitle')
+  })
+})

@@ -1232,6 +1232,9 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
         let idx = anchorOffset(blocks[i].text, keyNorm)
         if (idx < 0 && unlabelled.has(keyNorm) && keyNorm.length >= 8 && blocks[i].node.type.name === 'section'
           && normalizeForMatch(blocks[i].text).startsWith(keyNorm)) idx = 0
+        // A heading is never split by a page: a start found on its second
+        // line (wrapped elsewhere in the editor) is the heading's.
+        if (idx > 0 && blocks[i].node.type.name === 'section') idx = 0
         if (firstBlock && idx === 0) continue
         if (idx > 0 && !confirms(i, idx, k)) continue
         if (idx >= 0 && !tooFar(i, idx) && !tooNear(i, idx)) {
