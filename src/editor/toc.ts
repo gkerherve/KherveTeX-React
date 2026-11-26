@@ -36,8 +36,11 @@ export function tocEntries(doc: PMNode, kind: TocKind, depth: number | null,
   // LaTeX's default tocdepth: 3 (article), 2 with chapters (report, book).
   const maxLevel = depth ?? (hasChapters ? 2 : 3)
   let figs = 0, tabs = 0, chapter = 0
+  // After \\appendix the chapters are lettered.
+  let appendix = false
   doc.forEach((node, pos) => {
     const name = node.type.name
+    if (name === 'raw_latex' && /^\s*\\appendix\b/.test(node.textContent)) { appendix = true; chapter = 0 }
     if (name === 'section') {
       if (node.attrs.level === 0 && node.attrs.numbered) chapter += 1
       // Unnumbered headings are listed too, without a number, as in Word
@@ -45,7 +48,9 @@ export function tocEntries(doc: PMNode, kind: TocKind, depth: number | null,
       if (kind !== 'tableofcontents' || !node.textContent.trim()) return
       const level: number = node.attrs.level
       if (level > maxLevel) return
-      out.push({ level: hasChapters ? level : level - 1, number: node.attrs.numbered ? (numbers.get(pos) ?? '') : '', text: node.textContent, pos })
+      // A chapter's number is painted as its "Chapter N" line, not before it.
+      const own = level === 0 && hasChapters ? (appendix ? String.fromCharCode(64 + chapter) : String(chapter)) : ''
+      out.push({ level: hasChapters ? level : level - 1, number: node.attrs.numbered ? (numbers.get(pos) || own) : '', text: node.textContent, pos })
     } else if (name === 'figure' && node.attrs.caption) {
       figs += 1
       if (kind === 'listoffigures') out.push({ level: 0, number: hasChapters ? `${chapter}.${figs}` : String(figs), text: captionText(node.attrs.caption), pos })
@@ -65,14 +70,28 @@ export function pageOf(pos: number, starts: { page: number; pos: number }[]): nu
   return page
 }
 
+// How LaTeX sets the list (layout's TocLook): the title's font and room,
+// the entries' line height, the room before a chapter's entry.
+export interface TocStyle {
+  titleChar: { family: string; sizePx: number; bold: boolean; italic: boolean; color: string }
+  titleTop: number; titleBelow: number; rowPx: number; rowGap: number; chapterGap: number
+}
+
 export function tocWidget(kind: TocKind, entries: TocEntry[], pages: (number | null)[],
-  go: (pos: number) => void, remove?: () => void): HTMLElement {
+  go: (pos: number) => void, remove?: () => void, look?: TocStyle): HTMLElement {
   const box = document.createElement('div')
   box.className = 'kt-toc'
   box.contentEditable = 'false'
   const h = document.createElement('div')
   h.className = 'kt-toc-title'
   h.textContent = TOC_TITLES[kind]
+  if (look) {
+    const c = look.titleChar
+    Object.assign(h.style, {
+      fontFamily: c.family, fontSize: `${c.sizePx}px`, fontWeight: c.bold ? '700' : '400', fontStyle: c.italic ? 'italic' : 'normal',
+      color: c.color || '', lineHeight: '1.2', marginTop: `${look.titleTop}px`, marginBottom: `${look.titleBelow}px`,
+    })
+  }
   box.appendChild(h)
   // A click on the title selects the table, as in Word; its × removes it.
   if (remove) {
@@ -105,6 +124,12 @@ export function tocWidget(kind: TocKind, entries: TocEntry[], pages: (number | n
     const row = document.createElement('div')
     row.className = `kt-toc-row kt-toc-l${Math.min(4, e.level)}`
     row.style.paddingLeft = `${e.level * 1.5}em`
+    if (look) {
+      row.style.lineHeight = `${look.rowPx}px`
+      // Each entry a paragraph: \\parskip above it, and 1em more above a
+      // chapter's.
+      row.style.marginTop = `${(i > 0 ? look.rowGap : 0) + (e.level === 0 && i > 0 ? look.chapterGap : 0)}px`
+    }
     const num = document.createElement('span')
     num.className = 'kt-toc-num'
     num.textContent = e.number

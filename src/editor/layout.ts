@@ -160,6 +160,9 @@ export interface BlockLayout {
   breakBefore: boolean
   // The break is only where the compiled PDF starts a page.
   pdfBreak?: boolean
+  // The new page is a right-hand one (a chapter in a two-sided book):
+  // LaTeX leaves the left-hand page before it blank.
+  oddPage?: boolean
   // CSS margin-top after Qt's margin collapsing.
   gap: number
   // A heading the next paragraph's first line continues on (\paragraph).
@@ -204,7 +207,13 @@ export interface DocLayout {
   // The reference list LaTeX prints at the end (\bibliography): its
   // title and the title's look.
   bibTitle: { title: string; titleChar: CharStyle }
+  // A table of contents (list of figures, tables) as LaTeX sets it: its
+  // title an unnumbered chapter (or section) title, its entries on the
+  // body's line spacing, a chapter's entry 1em lower.
+  toc: TocLook
 }
+
+export interface TocLook { titleChar: CharStyle; titleTop: number; titleBelow: number; rowPx: number; rowGap: number; chapterGap: number }
 
 interface LBlock {
   node: PMNode
@@ -492,6 +501,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   // does nothing in LaTeX, so it starts no sheet here either.
   let onSheet = false
   const isBreakAt = (k: number) => k >= 0 && blocks[k].state === S.RAW && PAGE_BREAK_RE.test(blocks[k].text)
+  const openRight = opensRight(meta.documentclass, meta.class_options)
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i]
     const L: BlockLayout = {
@@ -537,8 +547,15 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     if (state === S.RAW && BIB_ENV_RE.test(text)) {
       L.bib = { title: classChapters ? 'Bibliography' : 'References', titleChar: styleChar('h1'), bodyChar }
       // \bibname is a \chapter*: a new page, unless the PDF says otherwise.
-      if (classChapters && i !== 0 && !pdfPaged) startsSheet = true
+      if (classChapters && i !== 0 && !pdfPaged) { startsSheet = true; L.oddPage = openRight }
     }
+    // \\tableofcontents and the lists are \\chapter* too.
+    // (Not in memoir, whose title and contents share the first page.)
+    if (state === S.RAW && tocBlock(text) && classChapters && i !== 0 && !pdfPaged && (meta.documentclass || '').toLowerCase() !== 'memoir') {
+      startsSheet = true
+      L.oddPage = openRight
+    }
+    if (isBreakAt(i - 1) && /cleardoublepage/.test(blocks[i - 1].text)) L.oddPage = openRight
     // After a page break (\newpage, \clearpage), the next block starts a
     // new sheet, as Word's page break does.
     // After a page break, unless nothing was printed on the sheet before it.
@@ -557,6 +574,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     if (level === 0 && text.trim() && i !== 0) {
       L.breakBefore = true
       L.pdfBreak = false
+      L.oddPage = openRight
       startsSheet = true
     }
     if (level !== null) {
@@ -713,8 +731,22 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     const f = b.state === S.TITLE ? 'title' : b.state === S.AUTHOR ? 'author' : b.state === S.AFFILIATION ? 'affil' : ''
     if (f && !(f in fields) && b.text.trim()) fields[f] = b.text.trim()
   }
+  // \\chapter*{Contents}: its title where a numbered chapter's "Chapter N"
+  // line is; \\section*{Contents} in a class without chapters.
+  const h1 = look.h1
+  const tocTitleChar = styleChar('h1', classChapters ? 1.0 : 1.44)
+  const h1Lead = styleLead('h1')
+  const tocTop = classChapters && h1?.top
+    ? Math.max(0, h1.top - topPx / pt - (look.chapter_label?.gap ?? 0) - BASELINE_AT * h1Lead) * pt
+    : (h1?.above ?? 0) * pt
+  const toc: TocLook = {
+    titleChar: tocTitleChar, titleTop: tocTop, titleBelow: (h1?.below ?? 12) * pt,
+    // Each entry is a paragraph: the line, and the \\parskip between paragraphs.
+    rowPx: bodyLinePx, rowGap: meta.paragraph_indent ? (body.parskip || 0) * pt : extrasParskip ?? 0.8 * emPx,
+    chapterGap: classChapters ? body.size * pt : 0,
+  }
   return {
-    look, geometry, blocks: out, heads, bodyChar, fields,
+    look, geometry, blocks: out, heads, bodyChar, fields, toc,
     bibTitle: { title: classChapters ? 'Bibliography' : 'References', titleChar: styleChar('h1') },
   }
 
@@ -985,6 +1017,17 @@ const LIST_TITLES: Record<string, string[]> = {
 }
 
 const BIB_ENV_RE = /\\begin\{thebibliography\}/
+
+// Two-sided with chapters on right-hand pages (\\cleardoublepage leaves a
+// blank left-hand page): the book classes by default, others when asked.
+const TWO_SIDED = new Set(['book', 'memoir', 'scrbook', 'amsbook', 'tufte-book', 'mimosis'])
+export function opensRight(documentclass: string, classOptions = ''): boolean {
+  const cls = (documentclass || '').toLowerCase()
+  const opts = (classOptions || '').toLowerCase().split(/[\s,]+/)
+  if (opts.includes('oneside') || opts.includes('openany')) return false
+  if (TWO_SIDED.has(cls)) return true
+  return opts.includes('twoside') && opts.includes('openright')
+}
 const INLINE_TITLE_RE = /\\renewcommand\{?\\maketitle\}?\{[^\n]*\\@title[^\n]*\\hfill[^\n]*\\@author/
 const BIB_BLOCK_RE = /^\s*\\(?:begin\{thebibliography\}|bibliography\{|printbibliography\b)/
 

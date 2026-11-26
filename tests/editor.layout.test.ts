@@ -7,7 +7,7 @@ import * as M from '../src/core/model.ts'
 import { isBroken, lookFor, LOOKS, numberLabel } from '../src/editor/classLooks.ts'
 import { docToPM } from '../src/editor/convert.ts'
 import { baselineskipPt } from '../src/editor/latexFonts.ts'
-import { anchorOffset, anchorTargets, BASELINE_AT, layoutDocument, normalizeForMatch, pdfPageStartBlocks, PX_PER_CM, screenFontFor,
+import { anchorOffset, anchorTargets, BASELINE_AT, layoutDocument, normalizeForMatch, opensRight, pdfPageStartBlocks, PX_PER_CM, screenFontFor,
   type BlockLayout } from '../src/editor/layout.ts'
 import { TEMPLATE_CHOICES } from '../src/ui/ribbonModel.ts'
 
@@ -219,6 +219,26 @@ describe('the compiled PDF and projects (paged_edit.py)', () => {
     // the recurring phrase twelve pages on must not take page 2's start.
     const t = anchorTargets(pm, [[1, 'Page one starts here and'], [2, 'taken at a photon energy']])
     expect(t.map(x => x.page)).toEqual([1])
+  })
+
+  it('two-sided book classes open chapters on a right-hand page; one-sided or openany do not', () => {
+    expect(opensRight('book')).toBe(true)
+    expect(opensRight('scrbook')).toBe(true)
+    expect(opensRight('book', 'openany')).toBe(false)
+    expect(opensRight('book', '12pt,oneside')).toBe(false)
+    expect(opensRight('report')).toBe(false)
+    expect(opensRight('report', 'twoside,openright')).toBe(true)
+    // A chapter in a book is marked for a right-hand page; the same in a report is not.
+    const doc = (cls: string) => lay([M.section(1, [M.text('One')]), M.paragraph([M.text('x')]), M.section(1, [M.text('Two')])], { documentclass: cls })
+    expect(doc('book').blocks[2].oddPage).toBe(true)
+    expect(doc('report').blocks[2].oddPage).toBeFalsy()
+  })
+
+  it('a table of contents is set as LaTeX sets it: the body line spacing and the paragraph gap', () => {
+    const L = lay([M.rawLatex('\\tableofcontents'), M.section(1, [M.text('One')])], { documentclass: 'report', line_spacing: 1.5, paragraph_indent: false })
+    expect(L.toc.rowGap).toBeGreaterThan(0)
+    expect(L.toc.rowPx).toBeGreaterThan(L.bodyChar.sizePx)
+    expect(L.toc.chapterGap).toBeGreaterThan(0)
   })
 
   it("a \\maketitle redefined as one line (the planners' header) lays the title and author out on one row", () => {

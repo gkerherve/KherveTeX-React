@@ -223,6 +223,20 @@ export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
 // first (page 1 has no break above it). The text is the page's candidate
 // first lines (pageStartSnippets), one per line of the string. Third, each
 // page's header and footer text (pageFurniture).
+// Text in the page's body, not only its running head or folio (a book's
+// blank left-hand page prints those).
+function bodyText(page: PdfTextDict): boolean {
+  for (const b of page.blocks) {
+    if (b.type !== 0) continue
+    for (const l of b.lines) {
+      const t = l.spans.map(s => s.text).join('').trim()
+      if (!t || /^([0-9]+|[ivxlcdm]+)$/i.test(t)) continue
+      if (l.bbox[1] > page.height * 0.09 && l.bbox[3] < page.height * 0.91) return true
+    }
+  }
+  return false
+}
+
 export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, string][], PageFurniture[], PdfTypography]> {
   const src = await openPdfSource(pdf)
   try {
@@ -234,8 +248,13 @@ export async function pageAnchors(pdf: Uint8Array): Promise<[number, [number, st
       dicts.push(dict)
       furniture.push(pageFurniture(dict))
       if (i === 0) continue
+      // Only a running head and a folio (a two-sided book's blank page): blank.
+      if (!bodyText(dict)) continue
       const snippets = pageStartSnippets(dict)
       if (snippets.length) anchors.push([i + 1, snippets.join('\n')])
+      // Text but no line to find it by (a contents page continued): listed
+      // with no snippet, so it is not taken for a blank page.
+      else anchors.push([i + 1, ''])
     }
     const typo = pdfTypography(dicts)
     if (typo.cols > 1) typo.columnStarts = columnStarts(dicts, typo.cols)

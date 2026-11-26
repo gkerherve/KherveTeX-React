@@ -33,6 +33,11 @@ interface Unit {
   pdfStart?: boolean
   // The PDF page it starts (a page start found in the text).
   page?: number
+  // A row of a drawn table of contents (kind 'toc').
+  row?: number
+  // Starts a right-hand page (a book's chapter): an even page before it
+  // stays blank.
+  odd?: boolean
   // Columns of the table a row spacer sits in.
   cols?: number
   // The table has a rule between rows (grid): its continued part opens
@@ -173,6 +178,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
   let lifted = 0
   const y = (clientY: number) => y0(clientY) + lifted
   let spanEnd: number | null = null
+  const oddAt = new Set<number>()
   let spanning = true
   const textUnits = (el: HTMLElement, start: number, forced: boolean, gap: number, heading?: number, pdfStart = false, blank = false) => {
     const bands = lineBands(el)
@@ -201,6 +207,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
   view.state.doc.forEach((node, offset) => {
     const dom = view.nodeDOM(offset) as HTMLElement | null
     if (!dom || !(dom instanceof HTMLElement)) return
+    if (dom.dataset.odd) oddAt.add(offset)
     // A folded chapter's blocks are not drawn.
     if (dom.classList.contains('kt-folded')) return
     // The title block spanning the columns comes first (SPANS_COLUMNS).
@@ -221,6 +228,19 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
     // drawn by the widget after their hidden LaTeX: one whole unit, moved
     // to the next sheet rather than cut by it.
     const drawn = dom.nextElementSibling
+    // A table of contents: its title with the first entry, then each
+    // entry, so a long one breaks between entries as LaTeX's does.
+    if (node.type.name === 'raw_latex' && drawn instanceof HTMLElement && drawn.classList.contains('kt-toc')) {
+      const rows = [...drawn.querySelectorAll<HTMLElement>('.kt-toc-row')]
+      const top = Math.min(dom.getBoundingClientRect().top, drawn.getBoundingClientRect().top)
+      const firstBottom = rows.length ? rows[0].getBoundingClientRect().bottom : drawn.getBoundingClientRect().bottom
+      units.push({ top: y(top), bottom: y(firstBottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom) })
+      rows.slice(1).forEach((r, i) => {
+        const rr = r.getBoundingClientRect()
+        units.push({ top: y(rr.top), bottom: y(rr.bottom), pos: offset, kind: 'toc', row: i + 1, forced: false, gap: 0 })
+      })
+      return
+    }
     if (node.type.name === 'raw_latex' && drawn instanceof HTMLElement && drawn.classList.contains('kt-widget')) {
       const dr = drawn.getBoundingClientRect()
       const top = Math.min(dom.getBoundingClientRect().top, dr.top)
@@ -268,6 +288,7 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
     units.push({ top: y(r.top), bottom: y(r.bottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom),
       empty: isPageBreak(node) })
   })
+  for (const u of units) if (u.kind === 'block' && oddAt.has(u.pos)) u.odd = true
   return { units, spanEnd }
 }
 
@@ -464,6 +485,9 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     if (u.forced && !first && sheetText) {
       move = true
       skip = blanks.get(i) ?? 0
+      // A right-hand page (no PDF to say where its blank pages are): the
+      // left-hand one before it stays blank.
+      if (u.odd && !pageStarts.length && (k + 1 + skip) % 2 === 1) skip += 1
       want = contentTop(k + 1 + skip) + u.gap
     } else if (b > contentBottom(k) + 0.5 && t > contentTop(k) + 1 && !fitsSlack()
       // PDF paging: only past the paper's edge (text typed since the
@@ -483,7 +507,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       // A spacer before a block sits above its margin; a page that ran
       // long (PDF paging) leaves its next start where it is.
       const h = Math.max(0, want - t)
-      spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols, ruled: u.ruled })
+      spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols, ruled: u.ruled, row: u.row })
       shift += h
       k += 1 + skip
       sheetText = false

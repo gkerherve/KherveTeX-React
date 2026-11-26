@@ -290,7 +290,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
       tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(at, tr.doc.content.size))))
       view.dispatch(tr.scrollIntoView())
       view.focus()
-    }), { side: -1, key, ignoreSelection: true }))
+    }, layout.toc), { side: -1, key: key + JSON.stringify(layout.toc), ignoreSelection: true }))
   })
   // Callout boxes: which paragraphs open and close each box.
   const callout = new Map<number, { first: boolean; last: boolean; color: string }>()
@@ -318,6 +318,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     if (node.type.name === 'table' || node.type.name === 'figure') {
       const attrs: Record<string, string> = { style: gapCss(pos, L.gap) }
       if (L.breakBefore) attrs['data-break'] = L.pdfBreak ? 'pdf' : '1'
+      if (L.breakBefore && L.oddPage) attrs['data-odd'] = '1'
       if (node.type.name === 'table') {
         tables += 1
         if (node.attrs.caption) attrs['data-caption'] = `Table ${tables}: ${captionText(node.attrs.caption)}`
@@ -377,6 +378,7 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     // its line and would take the clicks on its words.
     if (L.runInHeading) attrs.class = `${attrs.class ?? ''} kt-runin`.trim()
     if (L.breakBefore) attrs['data-break'] = L.pdfBreak ? 'pdf' : '1'
+    if (L.breakBefore && L.oddPage) attrs['data-odd'] = '1'
     if (L.spans) attrs['data-span'] = '1'
     if (L.equationNumber) attrs['data-eqno'] = L.equationNumber
     decos.push(Decoration.node(pos, pos + node.nodeSize, attrs, { layout: L }))
@@ -466,7 +468,10 @@ export interface Spacer {
   // of the next sheet, as LaTeX places a figure that does not fit.
   // 'col': (columns) where the next column of a sheet starts, a forced
   // column break, so the browser does not balance the columns its own way.
-  kind: 'block' | 'inline' | 'row' | 'span' | 'float' | 'col' | 'fill'
+  // 'toc': before entry `row` of the table of contents drawn after the
+  // \\tableofcontents block at `pos` (put into the drawn list, not the text).
+  kind: 'block' | 'inline' | 'row' | 'span' | 'float' | 'col' | 'fill' | 'toc'
+  row?: number
   // How far a floating figure is drawn below its place in the flow.
   dy?: number
   // A row spacer's table width in cells.
@@ -511,6 +516,7 @@ function spacerEl(s: Spacer): HTMLElement {
 function spacerDecos(doc: PMNode, spacers: Spacer[]): DecorationSet {
   const decos: Decoration[] = []
   for (const s of spacers) {
+    if (s.kind === 'toc') continue
     if (s.kind === 'float') {
       const node = doc.nodeAt(s.pos)
       if (!node) continue
@@ -547,5 +553,23 @@ export function pagesPlugin(): Plugin<PagesState> {
     props: {
       decorations: state => pagesKey.getState(state)!.decos,
     },
+    // Breaks inside a drawn table of contents: gaps put between its rows.
+    view: () => ({ update: view => placeTocGaps(view) }),
   })
+}
+
+function placeTocGaps(view: EditorView): void {
+  const spacers = pagesKey.getState(view.state)!.spacers.filter(s => s.kind === 'toc')
+  for (const old of view.dom.querySelectorAll('.kt-toc .kt-page-gap-toc')) old.remove()
+  for (const s of spacers) {
+    const raw = view.nodeDOM(s.pos)
+    const toc = raw instanceof HTMLElement ? raw.nextElementSibling : null
+    if (!(toc instanceof HTMLElement) || !toc.classList.contains('kt-toc')) continue
+    const row = toc.querySelectorAll('.kt-toc-row')[s.row ?? 0]
+    if (!row) continue
+    const gap = document.createElement('div')
+    gap.className = 'kt-page-gap kt-page-gap-toc'
+    gap.style.height = `${Math.max(0, s.height)}px`
+    row.before(gap)
+  }
 }
