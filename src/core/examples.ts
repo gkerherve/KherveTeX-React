@@ -99,10 +99,12 @@ import {
   toptesiThesis,
 } from './exampleDocs/thesisClasses.ts'
 
+import { architectureSheet, calculusWorksheet, distillationReport, geologyFieldReport, mathToolkit, opticsCircuitsLab, statisticsReport } from './exampleDocs/fieldTools.ts'
+
 export type Factory = () => Document
 
 export const GALLERY_CATEGORIES: readonly string[] = [
-  'Start', 'Boxes & elements', 'Articles', 'Journals', 'Theses & books', 'Teaching', 'Science', 'Letters & CV', 'Slides & posters', 'Planning',
+  'Start', 'Boxes & elements', 'Articles', 'Journals', 'Theses & books', 'Teaching', 'Science', 'Math & Science tools', 'Letters & CV', 'Slides & posters', 'Planning',
 ]
 
 // (category, label, factory, one line for the user), in gallery order.
@@ -248,6 +250,20 @@ export const GALLERY: [string, string, Factory, string][] = [
   ['Science', 'Lab SOP / risk assessment', labSop,
     'A standard operating procedure with risks, PPE and a training record.'],
 
+  ['Math & Science tools', 'Math toolkit', mathToolkit,
+    'The Math tab tool by tool: equations, matrices, units, theorems, algorithms, graphs, Venn, number line, geometry'],
+  ['Math & Science tools', 'Calculus worksheet', calculusWorksheet,
+    'Stationary points, inequalities on a number line, the unit circle, triangles and areas, with graphs'],
+  ['Math & Science tools', 'Statistics report', statisticsReport,
+    'A survey: histogram, box plot, Venn diagram of habits, a normal curve and summary tables'],
+  ['Math & Science tools', 'Distillation design (Chem. Eng.)', distillationReport,
+    'Process flow diagram, stream table, mass balance and a McCabe-Thiele diagram'],
+  ['Math & Science tools', 'Garden studio (Architect)', architectureSheet,
+    'Floor plan, scale bar with north arrow, room schedule, revisions and a drawing title block'],
+  ['Math & Science tools', 'Geology field report (Earth Science)', geologyFieldReport,
+    'Stratigraphic column, rose diagram of joints, QFL ternary plot and a scale bar'],
+  ['Math & Science tools', 'Optics and circuits practical', opticsCircuitsLab,
+    'Ray diagram, parallel circuit, forces on a slope, standing wave, energy levels and a Feynman diagram'],
   ['Letters & CV', 'Letter', letter,
     'A submission letter to an editor, in the letter class.'],
   ['Letters & CV', 'KOMA-Script letter', komaLetter,
