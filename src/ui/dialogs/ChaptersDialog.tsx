@@ -6,7 +6,12 @@ import { useEffect, useState } from 'react'
 import { openDialog, type Close } from './dialogHost'
 import './editorDialogs.css'
 
-export interface ChapterRow { title: string; key: string; compiled: boolean; shown: boolean; summary: string }
+export interface ChapterRow {
+  title: string; key: string; compiled: boolean; shown: boolean; summary: string
+  // The caret is in it; its headings (the Documents panel's Outline view).
+  current?: boolean
+  sections?: { title: string; level: number; pos: number }[]
+}
 
 export interface ChaptersApi {
   list(): ChapterRow[]

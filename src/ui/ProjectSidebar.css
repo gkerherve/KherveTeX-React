@@ -118,3 +118,44 @@
 .ps-eye { all: unset; width: 18px; text-align: center; cursor: pointer; font-size: 12px; opacity: .85; }
 .ps-eye.off { opacity: .45; }
 .ps-empty { color: #777; font-size: 12px; padding: 8px 4px; line-height: 1.4; }
+
+/* A window at the bottom right instead of the left dock (⧉ in its title),
+   moved by its title bar and resized from its corner. */
+.documents-dock.floating {
+  position: fixed;
+  z-index: 40;
+  width: 270px;
+  height: 340px;
+  min-width: 180px;
+  min-height: 160px;
+  max-height: calc(100vh - 80px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .18);
+  resize: both;
+  overflow: hidden;
+}
+.documents-dock.floating .dock-title { cursor: move; border-radius: 6px 6px 0 0; }
+.documents-dock .dock-title > span { flex: 1; }
+.documents-dock .dock-mode {
+  width: 18px; height: 18px; padding: 0; margin-right: 2px; border: none; border-radius: 3px;
+  background: transparent; color: var(--text-muted); font-size: 11px; line-height: 18px;
+}
+.documents-dock .dock-mode:hover { background: var(--hover-blue); }
+
+/* All / One / Outline. */
+.ps-views { display: flex; gap: 0; margin: 0 2px 2px; }
+.ps-views button {
+  flex: 1; padding: 2px 4px; font-size: 11px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); cursor: pointer;
+}
+.ps-views button + button { border-left: none; }
+.ps-views button:first-child { border-radius: 3px 0 0 3px; }
+.ps-views button:last-child { border-radius: 0 3px 3px 0; }
+.ps-views button.on { background: #dce8f8; border-color: #9fb6d8; font-weight: 600; }
+
+.ps-ch.current { background: #e7eef9; }
+.ps-ch.current .ps-text { font-weight: 600; }
+.ps-row[data-row]:focus { outline: 1px solid #6b93cf; outline-offset: -1px; }
+.ps-sec { cursor: pointer; font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ps-sec:hover { color: #1a56b0; }

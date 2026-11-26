@@ -128,7 +128,29 @@ export function setFoldedChapters(keys: Iterable<string>) {
 }
 
 // Told when the folded chapters change (the app keeps them per document).
-export const chapterHooks = { onFold: (_keys: string[]) => {}, openWindow: () => {} }
+// onUpdate: the text or the caret changed (the Documents panel marks the
+// chapter the caret is in).
+export const chapterHooks = { onFold: (_keys: string[]) => {}, openWindow: () => {}, onUpdate: () => {} }
+
+// The chapter holding `pos` (-1 before the first).
+export function chapterAt(list: readonly Chapter[], pos: number): number {
+  let at = -1
+  for (const c of list) if (c.from <= pos) at = c.index
+  return at
+}
+
+export interface OutlineEntry { title: string; level: number; pos: number }
+
+// The headings inside a chapter, below its own level.
+export function outlineOf(doc: PMNode, c: Chapter): OutlineEntry[] {
+  const out: OutlineEntry[] = []
+  doc.forEach((node, pos) => {
+    if (pos <= c.heading || pos >= c.end || node.type.name !== 'section') return
+    if ((node.attrs.level as number) <= c.level || !node.textContent.trim()) return
+    out.push({ title: node.textContent.trim(), level: (node.attrs.level as number) - c.level, pos })
+  })
+  return out
+}
 
 function describe(c: Chapter): string {
   const parts: string[] = []
@@ -195,6 +217,11 @@ export function chaptersPlugin(): Plugin {
       },
     },
     props: { decorations },
+    view: () => ({
+      update: (view, prev) => {
+        if (view.state.doc !== prev.doc || !view.state.selection.eq(prev.selection)) chapterHooks.onUpdate()
+      },
+    }),
     // The caret never rests inside a folded chapter: it goes past it (moving
     // down) or to its heading (moving up).
     appendTransaction: (trs, old, state) => {

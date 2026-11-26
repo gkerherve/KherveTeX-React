@@ -4,13 +4,13 @@
 // drag to reorder; Up / Down / Remove; Add (new or existing file, or a
 // file dropped on the panel); Compile; and the right-click menu. Its logic
 // is SidebarModel in src/app/project.ts; this is only the widgets.
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type DragEvent, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import { session, setDocumentsDock, useDocumentsDock } from '../app/actions/project'
 import { SECTION_TYPE_LABELS, type SidebarModel } from '../app/project'
 import { platform } from '../platform'
 import { openDialog, type Close } from './dialogs/dialogHost'
 import { promptText } from './dialogs/EditorDialogs'
-import { api as chaptersApi } from '../app/actions/chapters'
+import { api as chaptersApi, type ChapterView, type DocumentsWindow } from '../app/actions/chapters'
 import type { ChapterRow } from './dialogs/ChaptersDialog'
 import './ProjectSidebar.css'
 
@@ -48,32 +48,81 @@ function promptInt(title: string, label: string, value: number, min: number, max
 
 // A single document's chapters (one .ktex holding a thesis): each with
 // Compile and Show, dragged into order, clicked to go to it.
+// Keyboard on a row: Space hides or shows it (a chapter) or ticks it (a
+// project document); the arrows go to the row above or below; Enter opens.
+function rowKeys(e: ReactKeyboardEvent<HTMLDivElement>, space: () => void, enter: () => void): void {
+  if (e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault()
+    // The fold goes through the editor, which takes the focus: give it back
+    // to the row, so the next Space hides or shows again (not typed).
+    const row = e.currentTarget
+    space()
+    setTimeout(() => { if (row.isConnected) row.focus() }, 0)
+  }
+  else if (e.key === 'Enter') { e.preventDefault(); enter() }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    const rows = [...(e.currentTarget.closest('.ps-list')?.querySelectorAll<HTMLElement>('[data-row]') ?? [])]
+    const at = rows.indexOf(e.currentTarget)
+    rows[at + (e.key === 'ArrowDown' ? 1 : -1)]?.focus()
+  }
+}
+
+const VIEWS: [ChapterView, string, string][] = [
+  ['all', 'All', 'Every chapter shown in the editor'],
+  ['one', 'One', 'One chapter at a time: the one you go to is shown, the others are folded away'],
+  ['outline', 'Outline', 'Each chapter with its sections, to go straight to one'],
+]
+
 function ChapterList() {
   const [rows, setRows] = useState<ChapterRow[]>(() => chaptersApi.list())
+  const [view, setView] = useState<ChapterView>(() => chaptersApi.view())
   const [drag, setDrag] = useState<number | null>(null)
   const [over, setOver] = useState<number | null>(null)
-  useEffect(() => chaptersApi.subscribe(() => setRows(chaptersApi.list())), [])
+  useEffect(() => chaptersApi.subscribe(() => { setRows(chaptersApi.list()); setView(chaptersApi.view()) }), [])
+  const views = (
+    <div className='ps-views' role='radiogroup' aria-label='Show the chapters'>
+      {VIEWS.map(([v, label, tip]) => (
+        <button key={v} type='button' role='radio' aria-checked={view === v} className={view === v ? 'on' : ''} title={tip}
+          onClick={() => chaptersApi.setView(v)}>{label}</button>
+      ))}
+    </div>
+  )
   if (!rows.length) {
     return <div className='ps-empty'>No chapters yet. <b>+ Add</b> a document: it becomes a chapter of this file
       (each top-level heading is one).</div>
   }
   return (
-    <div className='ps-list ps-chapters' role='listbox'>
-      {rows.map((r, i) => (
-        <div key={r.key} className={`ps-row ps-ch${r.compiled ? '' : ' grey'}${over === i && drag !== null && drag !== i ? ' drop-above' : ''}`}
-          draggable onDragStart={e => { setDrag(i); e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}
-          onDragOver={e => { e.preventDefault(); setOver(i) }} onDragLeave={() => setOver(o => (o === i ? null : o))}
-          onDrop={e => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/plain') || drag); if (from !== i) chaptersApi.move(from, i); setDrag(null); setOver(null) }}
-          onDragEnd={() => { setDrag(null); setOver(null) }}
-          onClick={() => chaptersApi.goTo(i)} title={`${r.title} - ${r.summary}`}>
-          <input type='checkbox' checked={r.compiled} title='Compile (in the PDF preview)'
-            onClick={e => e.stopPropagation()} onChange={e => chaptersApi.setCompiled(i, e.target.checked)} />
-          <button type='button' className={`ps-eye${r.shown ? '' : ' off'}`} title={r.shown ? 'Shown - click to fold it away while you write' : 'Folded - click to show it'}
-            onClick={e => { e.stopPropagation(); chaptersApi.setShown(r.key, !r.shown) }}>{r.shown ? '👁' : '–'}</button>
-          <span className='ps-text'>{i + 1}. {r.title}</span>
-        </div>
-      ))}
-    </div>
+    <>
+      {views}
+      <div className='ps-list ps-chapters' role='listbox'>
+        {rows.map((r, i) => (
+          <div key={r.key}>
+            <div data-row tabIndex={0} role='option' aria-selected={!!r.current}
+              className={`ps-row ps-ch${r.compiled ? '' : ' grey'}${r.current ? ' current' : ''}${over === i && drag !== null && drag !== i ? ' drop-above' : ''}`}
+              draggable onDragStart={e => { setDrag(i); e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}
+              onDragOver={e => { e.preventDefault(); setOver(i) }} onDragLeave={() => setOver(o => (o === i ? null : o))}
+              onDrop={e => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/plain') || drag); if (from !== i) chaptersApi.move(from, i); setDrag(null); setOver(null) }}
+              onDragEnd={() => { setDrag(null); setOver(null) }}
+              onKeyDown={e => rowKeys(e, () => chaptersApi.toggleShown(i), () => chaptersApi.goTo(i))}
+              onClick={() => chaptersApi.goTo(i)} title={`${r.title} - ${r.summary}\nSpace: hide or show · Enter: go to it`}>
+              <input type='checkbox' checked={r.compiled} title='Compile (in the PDF preview)' tabIndex={-1}
+                onClick={e => e.stopPropagation()} onChange={e => chaptersApi.setCompiled(i, e.target.checked)} />
+              <button type='button' tabIndex={-1} className={`ps-eye${r.shown ? '' : ' off'}`} title={r.shown ? 'Shown - click (or Space) to fold it away while you write' : 'Folded - click (or Space) to show it'}
+                onClick={e => { e.stopPropagation(); chaptersApi.setShown(r.key, !r.shown) }}>{r.shown ? '👁' : '–'}</button>
+              <span className='ps-text'>{i + 1}. {r.title}</span>
+            </div>
+            {r.sections?.map((sct, k) => (
+              <div key={k} data-row tabIndex={0} className='ps-row ps-sec' style={{ paddingLeft: 10 + sct.level * 12 }}
+                onKeyDown={e => rowKeys(e, () => chaptersApi.toggleShown(i), () => chaptersApi.goToPos(sct.pos))}
+                onClick={() => chaptersApi.goToPos(sct.pos)} title={sct.title}>
+                <span className='ps-text'>{sct.title}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -209,7 +258,23 @@ export function ProjectSidebar() {
   const [width, setWidth] = useState(150)
   const [menu, setMenu] = useState<{ x: number; y: number; entries: MenuEntry[] } | null>(null)
   const [dropAt, setDropAt] = useState<number | null>(null)
+  // Docked on the left, or a window at the bottom right (moved by its title).
+  const [win, setWin] = useState<DocumentsWindow>(() => chaptersApi.window())
+  const [at, setAt] = useState<{ right: number; bottom: number }>({ right: 14, bottom: 34 })
+  useEffect(() => chaptersApi.subscribe(() => setWin(chaptersApi.window())), [])
   if (!visible) return null
+  const floating = win === 'float'
+  const moveWindow = (e: PointerEvent<HTMLDivElement>) => {
+    if (!floating || (e.target as HTMLElement).closest('button')) return
+    const sx = e.clientX, sy = e.clientY, start = at
+    const move = (ev: globalThis.PointerEvent) => setAt({
+      right: Math.max(0, Math.min(innerWidth - 120, start.right - (ev.clientX - sx))),
+      bottom: Math.max(0, Math.min(innerHeight - 60, start.bottom - (ev.clientY - sy))),
+    })
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
   const proj = sb.projectControlsVisible
 
   const dragSplitter = (e: PointerEvent<HTMLDivElement>) => {
@@ -247,9 +312,12 @@ export function ProjectSidebar() {
   }
 
   return (
-    <div className='documents-dock' style={{ width }}>
-      <div className='dock-title'>
+    <div className={'documents-dock' + (floating ? ' floating' : '')}
+      style={floating ? { right: at.right, bottom: at.bottom } : { width }}>
+      <div className='dock-title' onPointerDown={moveWindow}>
         <span>Documents</span>
+        <button type='button' className='dock-mode' title={floating ? 'Dock the panel on the left' : 'Make it a window at the bottom right'}
+          onClick={() => chaptersApi.setWindow(floating ? 'dock' : 'float')}>{floating ? '⇤' : '⧉'}</button>
         <button type='button' className='dock-close' title='Close' onClick={() => setDocumentsDock(false)}>
           {'✕'}
         </button>
@@ -268,7 +336,8 @@ export function ProjectSidebar() {
         {proj && <div className='ps-list' role='listbox' onContextMenu={e => onContext(e, null)}
           onClick={() => sb.setCurrentRow(-1)}>
           {sb.rows.map((r, i) => (
-            <div key={i} role='option' aria-selected={sb.currentRow === i}
+            <div key={i} role='option' aria-selected={sb.currentRow === i} data-row tabIndex={0}
+              onKeyDown={e => rowKeys(e, () => { if (r.checkable) void sb.setChecked(i, !r.checked) }, () => { if (r.checkable) void sb.doubleClick(i) })}
               className={'ps-row' + (sb.currentRow === i ? ' current' : '') + (r.grey ? ' grey' : '')
                 + (r.bold ? ' bold' : '') + (dropAt === i ? ' drop-above' : '')
                 + (dropAt === i + 1 && i === sb.rows.length - 1 ? ' drop-below' : '')}
@@ -329,7 +398,7 @@ export function ProjectSidebar() {
           )}
         </div>
       </div>
-      <div className='ps-splitter' onPointerDown={dragSplitter} />
+      {!floating && <div className='ps-splitter' onPointerDown={dragSplitter} />}
       {menu && <PopupMenu entries={menu.entries} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
     </div>
   )

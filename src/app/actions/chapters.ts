@@ -9,7 +9,7 @@ import { loadKdocz } from '../../core/kdocz.ts'
 import { importMd } from '../../core/importers.ts'
 import * as C from '../../editor/commands.ts'
 import {
-  chapterEnd, chapterHooks, chapters, foldedChapters, moveChapter, setChapterCompiled, setChapterFolded, setFoldedChapters,
+  chapterAt, chapterEnd, chapterHooks, chapters, foldedChapters, outlineOf, moveChapter, setChapterCompiled, setChapterFolded, setFoldedChapters,
 } from '../../editor/chapters.ts'
 import { editor } from '../../editor/controller.ts'
 import { platform } from '../../platform/index.ts'
@@ -34,6 +34,22 @@ chapterHooks.onFold = keys => {
   queueMicrotask(changed)
 }
 chapterHooks.openWindow = () => { void openChapters() }
+// The caret moved or the text changed: the panel's current chapter, and in
+// the one-at-a-time view the chapter it went into is the one shown.
+let lastCurrent = -1
+chapterHooks.onUpdate = () => {
+  const e = editor()
+  if (!e) return
+  const cur = chapterAt(chapters(e.view.state.doc), e.view.state.selection.head)
+  if (cur !== lastCurrent) { lastCurrent = cur; queueMicrotask(changed) }
+}
+
+// How the Documents panel shows the chapters: all of them, one at a time
+// (the others folded away), or with each one's headings (Outline).
+export type ChapterView = 'all' | 'one' | 'outline'
+const viewNow = (): ChapterView => setting<ChapterView>('chapters/view', 'all')
+// Where the panel sits: docked on the left, or a window at the bottom right.
+export type DocumentsWindow = 'dock' | 'float'
 
 // A document opened: its chapters folded as they were left.
 let lastPath: string | null = null
@@ -67,8 +83,23 @@ function describe(c: ReturnType<typeof chapters>[number]): string {
 function rows(): ChapterRow[] {
   const e = editor()
   if (!e) return []
-  const folded = foldedChapters(e.view.state)
-  return chapters(e.view.state.doc).map(c => ({ title: c.title, key: c.key, compiled: c.compiled, shown: !folded.has(c.key), summary: describe(c) }))
+  const st = e.view.state
+  const folded = foldedChapters(st)
+  const list = chapters(st.doc)
+  const cur = chapterAt(list, st.selection.head)
+  const outline = viewNow() === 'outline'
+  return list.map(c => ({
+    title: c.title, key: c.key, compiled: c.compiled, shown: !folded.has(c.key), summary: describe(c),
+    current: c.index === cur, ...(outline ? { sections: outlineOf(st.doc, c) } : {}),
+  }))
+}
+
+// Only chapter `i` shown, the others folded away.
+function showOnly(i: number): void {
+  const e = editor()
+  if (!e) return
+  const list = chapters(e.view.state.doc)
+  e.run(setFoldedChapters(list.filter(c => c.index !== i).map(c => c.key)))
 }
 
 // The blocks of another document, its pictures copied into this one's.
@@ -136,11 +167,40 @@ export const api = {
     for (let i = list.length - 1; i >= 0; i--) if (list[i].compiled !== on) e.run(setChapterCompiled(i, on))
   },
   move(i: number, before: number | null) { editor()?.run(moveChapter(i, before)) },
+  toggleShown(i: number) {
+    const r = rows()[i]
+    if (r) api.setShown(r.key, !r.shown)
+  },
+  view: viewNow,
+  setView(v: ChapterView) {
+    setSetting('chapters/view', v)
+    const e = editor()
+    if (e && v === 'one') showOnly(Math.max(0, chapterAt(chapters(e.view.state.doc), e.view.state.selection.head)))
+    else if (e && v === 'all') e.run(setFoldedChapters([]))
+    changed()
+  },
+  window: (): DocumentsWindow => setting<DocumentsWindow>('documents/window', 'dock'),
+  setWindow(w: DocumentsWindow) { setSetting('documents/window', w); changed() },
+  // A heading inside a chapter (Outline view).
+  goToPos(pos: number) {
+    const e = editor()
+    if (!e) return
+    const list = chapters(e.view.state.doc)
+    const i = chapterAt(list, pos)
+    if (i >= 0) {
+      if (viewNow() === 'one') showOnly(i)
+      else if (foldedChapters(e.view.state).has(list[i].key)) e.run(setChapterFolded(list[i].key, false))
+    }
+    const s = e.view.state
+    e.view.dispatch(s.tr.setSelection(TextSelection.near(s.doc.resolve(Math.min(pos + 1, s.doc.content.size)))).scrollIntoView())
+    e.view.focus()
+  },
   goTo(i: number) {
     const e = editor()
     const c = e && chapters(e.view.state.doc)[i]
     if (!e || !c) return
-    if (foldedChapters(e.view.state).has(c.key)) e.run(setChapterFolded(c.key, false))
+    if (viewNow() === 'one') showOnly(i)
+    else if (foldedChapters(e.view.state).has(c.key)) e.run(setChapterFolded(c.key, false))
     const s = e.view.state
     e.view.dispatch(s.tr.setSelection(TextSelection.near(s.doc.resolve(c.heading + 1))).scrollIntoView())
     e.view.focus()
