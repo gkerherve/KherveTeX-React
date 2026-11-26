@@ -1027,3 +1027,24 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-nc-toggle { position: absolute; right: 110px; top: -19px; height: 18px; padding: 0 9px; border: 1px solid #8aa3cc; border-radius: 3px;
   background: #eef4fc; color: #1f4e8c; font: 11px/16px Arial, sans-serif; cursor: pointer; z-index: 2; }
 .kt-nc-toggle:hover { background: #dce8f8; }
+
+/* europasscv drawn as printed (rawLook.ts): labels left in blue, content right. */
+.kt-rl-ecv { font-family: Arial, Helvetica, sans-serif; font-size: .78em; line-height: 1.35; color: #3f3a38; }
+.kt-ecv-row { display: grid; grid-template-columns: 28% 1fr; column-gap: 12px; margin: 3px 0; align-items: start; }
+.kt-ecv-label { text-align: right; color: #0e4194; font-size: .92em; padding-top: 1px; }
+.kt-ecv-section { margin-top: 12px; }
+.kt-ecv-section > .kt-ecv-label { text-transform: uppercase; font-size: .78em; letter-spacing: .02em; }
+.kt-ecv-rule > .kt-ecv-body { height: 8px; border-bottom: 1.2px solid #1593cb; position: relative; }
+.kt-ecv-rule > .kt-ecv-body::after { content: ''; position: absolute; right: 0; bottom: -3px; width: 5px; height: 5px; background: #1593cb; }
+.kt-ecv-name { font-size: 1.35em; color: #3f3a38; margin-bottom: 4px; }
+.kt-ecv-info { font-size: .92em; }
+.kt-ecv-blue { color: #0e4194; }
+.kt-ecv-titlerow { margin-top: 8px; }
+.kt-ecv-title { color: #0e4194; font-size: 1.08em; }
+.kt-ecv-list { margin: 2px 0; padding-left: 1.1em; list-style: '–  '; }
+.kt-ecv-langs { border-collapse: collapse; font-size: .85em; width: 100%; }
+.kt-ecv-langs th, .kt-ecv-langs td { border: .6px solid #b5c7dc; padding: 1px 4px; text-align: center; font-weight: 400; }
+.kt-ecv-langs tr:first-child th { color: #0e4194; font-size: .9em; }
+.kt-ecv-langs tr.sub th { font-size: .8em; color: #555; }
+.kt-ecv-langs tr > th:first-child { border: 0; text-align: right; color: #0e4194; }
+.kt-rl-ecv [data-color='ecvtextcolor'] { color: #3f3a38; font-size: .93em; }

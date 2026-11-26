@@ -86,6 +86,16 @@ export function inlineInto(el: HTMLElement, s: string, fontPx: number): void {
         }
       }
       if (name in SYMBOLS) { text += SYMBOLS[name]; i = /^[A-Za-z]/.test(name) ? at : i + 1 + name.length; continue }
+      if (name === 'newline') { flush(); el.appendChild(document.createElement('br')); i = at; continue }
+      // \\textcolor{colour}{text}: the text.
+      if (name === 'textcolor' && s[at] === '{') {
+        const c = braced(s, at)
+        const b = c && braced(s, c[1])
+        if (b) { flush(); const span = document.createElement('span'); span.dataset.color = c![0]; inlineInto(span, b[0], fontPx); el.appendChild(span); i = b[1]; continue }
+      }
+      // Europass's language levels (\\ecvCTwo: C2).
+      const lv = /^ecv([ABC])(One|Two)$/.exec(name)
+      if (lv) { text += lv[1] + (lv[2] === 'One' ? '1' : '2'); i = at; continue }
       if (name === 'hrulefill') { flush(); const r = document.createElement('span'); r.className = 'kt-rl-fill'; el.appendChild(r); i = at; continue }
       // Anything else: its argument's text, the command dropped.
       if (s[at] === '{') { const b = braced(s, at); if (b) { text += b[0]; i = b[1]; continue } }
@@ -175,6 +185,94 @@ function letterLook(text: string, meta: DocMeta, fontPx: number): HTMLElement | 
       lines(box, `cc: ${arg}`, fontPx, 'kt-rl-encl')
     } else if (cmd === 'ps') {
       lines(box, arg, fontPx, 'kt-rl-encl')
+    }
+  }
+  return box.childElementCount ? box : null
+}
+
+// --------------------------------------------------------------- Europass
+
+// The europasscv class's commands and how many arguments each takes.
+const ECV_ARGS: Record<string, number> = {
+  'begin{europasscv}': 0, 'end{europasscv}': 0, ecvpersonalinfo: 0, ecvsection: 1, ecvtitle: 2, ecvitem: 2, ecvblueitem: 2,
+  ecvmothertongue: 1, ecvlanguageheader: 0, ecvlanguage: 6, ecvlastlanguage: 6,
+}
+
+// A row of the CV's grid: the label (blue, right-aligned) and the content.
+function ecvRow(box: HTMLElement, label: string, fontPx: number, cls = ''): HTMLElement {
+  const row = div('kt-ecv-row ' + cls, box)
+  lines(row, label, fontPx, 'kt-ecv-label')
+  return div('kt-ecv-body', row)
+}
+
+// The content of an item: text, or a list (ecvitemize).
+function ecvContent(el: HTMLElement, s: string, fontPx: number): void {
+  const parts = s.split(/\\begin\{ecvitemize\}|\\end\{ecvitemize\}/)
+  parts.forEach((part, k) => {
+    if (k % 2 === 1) {
+      const ul = document.createElement('ul')
+      ul.className = 'kt-ecv-list'
+      for (const it of part.split(/\\item\b/).slice(1)) { const li = document.createElement('li'); inlineInto(li, it.trim(), fontPx); ul.appendChild(li) }
+      el.appendChild(ul)
+    } else if (part.trim()) inlineInto(el, part.trim(), fontPx)
+  })
+}
+
+function europassLook(text: string, meta: DocMeta, fontPx: number): HTMLElement | null {
+  const pre = meta.preamble_extras || ''
+  const box = div('kt-rl kt-rl-ecv')
+  let langs: HTMLTableElement | null = null
+  const src = text.replace(/%.*$/gm, '')
+  let i = 0
+  while (i < src.length) {
+    const m = /^\s*\\(begin\{europasscv\}|end\{europasscv\}|[A-Za-z]+)\s*/.exec(src.slice(i))
+    if (!m) { if (src.slice(i).trim()) return null; break }
+    const cmd = m[1]
+    if (!(cmd in ECV_ARGS)) return null
+    i += m[0].length
+    const args: string[] = []
+    for (let a = 0; a < ECV_ARGS[cmd]; a++) {
+      const b = braced(src, i)
+      if (!b) return null
+      args.push(b[0])
+      i = b[1]
+      while (/\s/.test(src[i] ?? '')) i++
+    }
+    if (cmd !== 'ecvlanguage' && cmd !== 'ecvlastlanguage') langs = cmd === 'ecvlanguageheader' ? langs : null
+    switch (cmd) {
+      case 'ecvpersonalinfo': {
+        const get = (c: string) => argOf(pre, c)
+        const head = ecvRow(box, 'Personal information', fontPx, 'kt-ecv-section')
+        lines(head, get('ecvname') ?? '', fontPx, 'kt-ecv-name')
+        for (const c of ['ecvaddress', 'ecvmobile', 'ecvtelephone', 'ecvemail', 'ecvhomepage']) { const v = get(c); if (v) lines(head, v, fontPx, 'kt-ecv-info') }
+        const facts = [['Date of birth', get('ecvdateofbirth')], ['Nationality', get('ecvnationality')]].filter(([, v]) => v)
+        if (facts.length) {
+          const d = div('kt-ecv-info kt-ecv-facts', head)
+          facts.forEach(([k, v], j) => { const l = document.createElement('span'); l.className = 'kt-ecv-blue'; l.textContent = (j ? ' | ' : '') + k + ' '; d.append(l, v as string) })
+        }
+        break
+      }
+      case 'ecvsection': ecvRow(box, args[0], fontPx, 'kt-ecv-section kt-ecv-rule'); break
+      case 'ecvtitle': { const b = ecvRow(box, args[0], fontPx, 'kt-ecv-titlerow'); const t = div('kt-ecv-title', b); ecvContent(t, args[1], fontPx); break }
+      case 'ecvitem': ecvContent(ecvRow(box, args[0], fontPx), args[1], fontPx); break
+      case 'ecvblueitem': ecvContent(ecvRow(box, args[0], fontPx, 'kt-ecv-blueitem'), args[1], fontPx); break
+      case 'ecvmothertongue': lines(ecvRow(box, 'Mother tongue(s)', fontPx), args[0], fontPx); break
+      case 'ecvlanguageheader': {
+        const b = ecvRow(box, 'Other language(s)', fontPx)
+        langs = document.createElement('table')
+        langs.className = 'kt-ecv-langs'
+        langs.innerHTML = '<tr><th></th><th colspan="2">UNDERSTANDING</th><th colspan="2">SPEAKING</th><th>WRITING</th></tr>'
+          + '<tr class="sub"><th></th><th>Listening</th><th>Reading</th><th>Spoken interaction</th><th>Spoken production</th><th></th></tr>'
+        b.appendChild(langs)
+        break
+      }
+      case 'ecvlanguage': case 'ecvlastlanguage': {
+        if (!langs) return null
+        const tr = document.createElement('tr')
+        args.forEach((a, k) => { const td = document.createElement(k ? 'td' : 'th'); inlineInto(td, a, fontPx); tr.appendChild(td) })
+        langs.appendChild(tr)
+        break
+      }
     }
   }
   return box.childElementCount ? box : null
@@ -331,6 +429,7 @@ export function rawLookOf(node: PMNode, doc: PMNode, meta: DocMeta | null, fontP
   if (!meta) return null
   const cls = (meta.documentclass || '').toLowerCase()
   if (cls === 'letter' || cls.startsWith('scrlttr')) return letterLook(text, meta, fontPx)
+  if (cls === 'europasscv') return europassLook(text, meta, fontPx)
   if (cls === 'exam') {
     const q = parseQuestions(text)
     if (q && /^\s*\\begin\{questions\}/.test(text) && /\\end\{questions\}\s*$/.test(text)) return questionsLook(q, fontPx)
@@ -342,12 +441,16 @@ export function rawLookOf(node: PMNode, doc: PMNode, meta: DocMeta | null, fontP
 interface LookState { decos: DecorationSet; editing: boolean }
 const rawLookKey = new PluginKey<LookState>('kt-raw-look')
 
+// The app's Edit window for a letter (app/actions/letter.ts); without it a
+// click shows the LaTeX.
+export const rawLookHooks: { letter: (() => void) | null } = { letter: null }
+
 // `meta`: the document's settings (the letter's sender, its class).
 export function rawLookPlugin(meta: (state: EditorState) => DocMeta | null, fontPx: () => number): Plugin {
   const build = (state: EditorState, editing: boolean): DecorationSet => {
     const m = meta(state)
     const cls = (m?.documentclass || '').toLowerCase()
-    if (!m || !(cls === 'letter' || cls.startsWith('scrlttr') || cls === 'exam')) return DecorationSet.empty
+    if (!m || !(cls === 'letter' || cls.startsWith('scrlttr') || cls === 'exam' || cls === 'europasscv')) return DecorationSet.empty
     const decos: Decoration[] = []
     const { from, to } = state.selection
     state.doc.forEach((node, pos) => {
@@ -363,15 +466,18 @@ export function rawLookPlugin(meta: (state: EditorState) => DocMeta | null, font
         const el = rawLookOf(node, view.state.doc, m, px) ?? look
         el.classList.add('kt-widget')
         el.contentEditable = 'false'
-        el.title = 'Click to edit its LaTeX'
+        const isLetter = el.classList.contains('kt-rl-letter')
+        el.title = isLetter && rawLookHooks.letter ? 'Click to edit the letter (its LaTeX is in the Code view)' : 'Click to edit its LaTeX'
         el.addEventListener('mousedown', e => {
           e.preventDefault()
+          // A letter: its Edit window.
+          if (isLetter && rawLookHooks.letter) { rawLookHooks.letter(); return }
           const at = view.state.doc.resolve(Math.min(pos + 1, view.state.doc.content.size))
           view.dispatch(view.state.tr.setSelection(TextSelection.near(at)))
           view.focus()
         })
         return el
-      }, { side: -1, ignoreSelection: true, key: `rl:${pos}:${node.textContent.length}:${cls}:${px}:${node.textContent.slice(0, 40)}` }))
+      }, { side: -1, ignoreSelection: true, key: `rl:${pos}:${cls}:${px}:${m.preamble_extras ?? ''}:${node.textContent}` }))
     })
     return DecorationSet.create(state.doc, decos)
   }

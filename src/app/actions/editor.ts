@@ -3,6 +3,7 @@
 // find, character formats, alignment, paragraph styles, lists, links,
 // footnotes, cross-references, raw LaTeX blocks, theorems, highlights and
 // comments.
+import './letter.ts'
 import { NodeSelection, TextSelection } from 'prosemirror-state'
 import { information } from '../../platform/MessageBox'
 import { redo, undo } from 'prosemirror-history'
