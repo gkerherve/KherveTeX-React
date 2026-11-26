@@ -955,9 +955,10 @@ export function Ribbon({ cmd, context }: { cmd: CommandState, context: ContextKi
         <TabBar tabs={visible} current={shown.name} onPick={pick} onFold={toggleFold} />
         <div className='rb-bar-fill' />
         <button type='button' className='rb-feedback'
-          title={`${SHORT_NAME} is in beta - some parts are still new. Click to email your feedback to ${FEEDBACK_EMAIL}`}
-          onClick={() => { void runAction('send_feedback') }}>
-          <span className='beta-tag'>beta</span> Send feedback
+          title={`${SHORT_NAME} is in beta - some parts are still new. Click to send feedback to ${FEEDBACK_EMAIL}`}
+          aria-label='Beta: send feedback' onClick={() => { void runAction('send_feedback') }}>
+          {/* Just the tag: the tabs need the room (the tooltip says the rest). */}
+          <span className='beta-tag'>beta</span>
         </button>
         <button type='button' className='rb-coffee' aria-label='Buy me a coffee'
           title='Buy me a coffee: support kTeX (shows a QR code)'

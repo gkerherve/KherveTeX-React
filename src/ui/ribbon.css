@@ -376,7 +376,7 @@
 .rb-classcell.on { background: var(--pressed-blue); }
 
 /* Beta notice beside the ribbon tabs: opens an email to the author. */
-.rb-feedback { flex: none; margin: 0 8px; padding: 2px 10px; border: 1px solid var(--border); border-radius: 12px;
+.rb-feedback { flex: none; margin: 0 4px; padding: 1px 3px; border: 1px solid var(--border); border-radius: 12px;
   background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .rb-feedback:hover { border-color: var(--accent); }
 .rb-coffee { flex: none; margin: 0 8px 0 -4px; padding: 1px 3px; border: 1px solid transparent; border-radius: 12px;
