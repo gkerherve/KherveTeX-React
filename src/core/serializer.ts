@@ -2,6 +2,7 @@
 // pure functions, one serializer per node type, no I/O. The output must stay
 // byte-identical to the Python app's (tests/serializer.parity.test.ts).
 
+import { skippedNumbering } from './numbering.ts'
 import { rawTexts, widgetPreamble } from './widgets.ts'
 import { FANCY_RULE_GREY, parseFancy, tint } from './fancyTable.ts'
 import { designPreamble } from './design.ts'
@@ -2124,6 +2125,13 @@ export function serializeProjectMaster(proj: Project, chapterDocs: Document[] | 
       runningPageOffset += ch.last_known_pages || 0
       skipped = true
       carried = carried.concat(cmds)
+      // Its figures, tables, equations and labels still count, so later
+      // documents keep their numbers and references into it resolve.
+      const cdoc = chapterDocs && chapterDocs.length === proj.chapters.length ? chapterDocs[idx] : null
+      if (cdoc) {
+        const steps = skippedNumbering(serializeChapterBody(cdoc).split('\n'))
+        if (steps.length) bodyParts.push(steps.join('\n') + '\n')
+      }
       continue
     }
     cmds.unshift(...carried)

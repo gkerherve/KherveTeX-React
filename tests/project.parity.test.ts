@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, unlinkSync
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { strFromU8, unzipSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import {
   chapterEntry, docMeta, document, paragraph, project, projectToJson, section, text, toJson,
 } from '../src/core/model.ts'
@@ -196,6 +196,9 @@ const FLOWS: Record<string, (root: string) => Promise<Snapshot[]>> = {
 }
 
 describe('project workflows match the Python app', () => {
+  // KT_UPDATE_GOLDEN=1: the masters written again from this app's output
+  // (a change meant to alter them).
+  afterAll(() => { if (process.env.KT_UPDATE_GOLDEN) writeFileSync(new URL('./golden/project_flow.json', import.meta.url), JSON.stringify(golden, null, 1) + '\n') })
   for (const [name, flow] of Object.entries(FLOWS)) {
     it(name, async () => {
       const steps = await flow(freshRoot())
@@ -204,8 +207,9 @@ describe('project workflows match the Python app', () => {
       for (const [k, step] of steps.entries()) {
         const exp = want[k]
         expect(step.listing, `${name}/${step.label} listing`).toEqual(exp.listing)
-        for (const [file, content] of Object.entries(exp.files)) {
-          expect(step.files[file], `${name}/${step.label} ${file}`).toBe(content)
+        for (const file of Object.keys(exp.files)) {
+          if (process.env.KT_UPDATE_GOLDEN && file.endsWith('-master.tex')) exp.files[file] = step.files[file]
+          expect(step.files[file], `${name}/${step.label} ${file}`).toBe(exp.files[file])
         }
         expect(Object.keys(step.files).sort(), `${name}/${step.label} files`).toEqual(Object.keys(exp.files).sort())
         expect(step.rows, `${name}/${step.label} rows`).toEqual(exp.rows)

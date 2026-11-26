@@ -14,6 +14,7 @@ import { standaloneDoc, templateAlgorithm } from './flowchart.ts'
 import type { Document } from './model.ts'
 import { basename, isAbsolute, join, normalize, suffix } from './paths.ts'
 import { strip } from './py.ts'
+import { skippedNumbering } from './numbering.ts'
 import { serializeDocument } from './serializer.ts'
 
 // What compile needs from the machine (pathlib, shutil, subprocess).
@@ -490,7 +491,8 @@ function markerPairs(lines: string[], start: string, end: string): [number, numb
   return pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1])
 }
 
-function wrapPairs(texSource: string, start: string, end: string, open: string, close: string): string {
+function wrapPairs(texSource: string, start: string, end: string, open: string, close: string,
+  after?: (hidden: string[]) => string[]): string {
   const lines = texSource.split('\n')
   const pairs = markerPairs(lines, start, end)
   if (!pairs.length) return texSource
@@ -498,6 +500,7 @@ function wrapPairs(texSource: string, start: string, end: string, open: string, 
   let prev = 0
   for (const [s, e] of pairs) {
     result.push(...lines.slice(prev, s), open, ...lines.slice(s, e + 1), close)
+    if (after) result.push(...after(lines.slice(s + 1, e)))
     prev = e + 1
   }
   result.push(...lines.slice(prev))
@@ -508,7 +511,7 @@ function wrapPairs(texSource: string, start: string, end: string, open: string, 
 // pairs are supported. Content between each pair is wrapped in
 // \iffalse...\fi. Unpaired markers are ignored.
 export function applyNotCompileRanges(texSource: string): string {
-  return wrapPairs(texSource, NOT_COMPILE_START, NOT_COMPILE_END, '\\iffalse', '\\fi')
+  return wrapPairs(texSource, NOT_COMPILE_START, NOT_COMPILE_END, '\\iffalse', '\\fi', skippedNumbering)
 }
 
 // Journal classes written for pdfLaTeX (iucr.cls with its pdf option)
