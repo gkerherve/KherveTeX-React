@@ -1048,3 +1048,13 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-ecv-langs tr.sub th { font-size: .8em; color: #555; }
 .kt-ecv-langs tr > th:first-child { border: 0; text-align: right; color: #0e4194; }
 .kt-rl-ecv [data-color='ecvtextcolor'] { color: #3f3a38; font-size: .93em; }
+
+/* Verbatim (and listings) as printed: typewriter, line for line, edited in
+   place; the \begin / \end lines hidden (rawLook.ts). */
+.kt-flow pre.kt-raw.kt-raw-verbatim { position: relative; color: #111; background: transparent; font-family: 'Latin Modern Mono', 'CMU Typewriter Text', Menlo, Consolas, monospace;
+  font-size: .95em; line-height: 1.2 !important; padding: 2px 0; border-left: 2px solid transparent; }
+.kt-flow pre.kt-raw.kt-raw-verbatim:hover { border-left-color: #b9cbe6; background: rgba(43, 87, 154, .03); }
+.kt-flow pre.kt-raw.kt-raw-verbatim:hover::before { content: attr(data-kind); position: absolute; right: 0; top: -14px; font: 10px/14px Arial, sans-serif;
+  color: #fff; background: #8aa3cc; padding: 0 5px; border-radius: 2px; }
+.kt-verb-hide { display: none; }
+body.kt-latex-source .kt-verb-hide { display: inline; color: #8a8a8a; }

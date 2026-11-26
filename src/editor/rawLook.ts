@@ -441,6 +441,28 @@ export function rawLookOf(node: PMNode, doc: PMNode, meta: DocMeta | null, fontP
 interface LookState { decos: DecorationSet; editing: boolean }
 const rawLookKey = new PluginKey<LookState>('kt-raw-look')
 
+// \\begin{verbatim} (lstlisting, Verbatim, minted) ... \\end{...}: the text
+// set as the PDF prints it - typewriter, line for line - and edited in
+// place; the two lines of LaTeX around it hidden.
+const VERBATIM_RE = /^(\s*\\begin\{(verbatim\*?|Verbatim|lstlisting|minted)\}(?:\[[^\]\n]*\])?(?:\{[^}\n]*\})?\n)([\s\S]*?)(\n\\end\{\2\}\s*)$/
+export function verbatimParts(text: string): { head: number; body: string; tail: number; kind: string } | null {
+  const m = VERBATIM_RE.exec(text)
+  return m ? { head: m[1].length, body: m[3], tail: m[4].length, kind: m[2] } : null
+}
+
+function verbatimDecos(doc: PMNode): Decoration[] {
+  const out: Decoration[] = []
+  doc.forEach((node, pos) => {
+    if (node.type.name !== 'raw_latex') return
+    const v = verbatimParts(node.textContent)
+    if (!v) return
+    const from = pos + 1, to = pos + node.nodeSize - 1
+    out.push(Decoration.node(pos, pos + node.nodeSize, { class: 'kt-raw-verbatim', 'data-kind': /lstlisting|minted/.test(v.kind) ? 'Code' : 'Verbatim' }))
+    out.push(Decoration.inline(from, from + v.head, { class: 'kt-verb-hide' }), Decoration.inline(to - v.tail, to, { class: 'kt-verb-hide' }))
+  })
+  return out
+}
+
 // The app's Edit window for a letter (app/actions/letter.ts); without it a
 // click shows the LaTeX.
 export const rawLookHooks: { letter: (() => void) | null } = { letter: null }
@@ -450,8 +472,8 @@ export function rawLookPlugin(meta: (state: EditorState) => DocMeta | null, font
   const build = (state: EditorState, editing: boolean): DecorationSet => {
     const m = meta(state)
     const cls = (m?.documentclass || '').toLowerCase()
-    if (!m || !(cls === 'letter' || cls.startsWith('scrlttr') || cls === 'exam' || cls === 'europasscv')) return DecorationSet.empty
-    const decos: Decoration[] = []
+    const decos: Decoration[] = verbatimDecos(state.doc)
+    if (!m || !(cls === 'letter' || cls.startsWith('scrlttr') || cls === 'exam' || cls === 'europasscv')) return DecorationSet.create(state.doc, decos)
     const { from, to } = state.selection
     state.doc.forEach((node, pos) => {
       if (node.type.name !== 'raw_latex') return
