@@ -558,6 +558,8 @@ function Item({ it, ctx, large, text }: {
 // high; 2 the labels go; 3 the whole group becomes one button that drops
 // it down. A gallery or a lone button skips straight to 3 (or never shrinks).
 export function shrinkSteps(g: RibbonGroup): number[] {
+  // A group kept as it is (Home ▸ Project): the others shrink instead.
+  if (g.keep) return []
   const large = g.large ?? []
   const items = large.length + (g.rows ?? []).reduce((n, r) => n + r.length, 0)
   const widgets = large.some(it => typeof it !== 'string')

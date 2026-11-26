@@ -84,6 +84,8 @@ export interface RibbonGroup {
   rows?: RibbonItem[][]
   // Labels beside the small icons.
   text?: boolean
+  // Never shrunk when the window is narrow (the others shrink first).
+  keep?: boolean
 }
 
 export type ContextKind = 'table' | 'figure' | 'theorem' | 'callout' | 'equation' | 'headerfooter'
@@ -1123,9 +1125,9 @@ export function orderedNames(names: string[], order: readonly string[]): string[
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
-    // Do not compile (big), then the documents of a thesis: Chapters and the
-    // Documents panel. Compiling itself is on the Compile tab.
-    { label: 'Compile', large: ['no_compile'], rows: [['chapters'], ['documents_dock']], text: true },
+    // A thesis or book in several documents: the Documents panel (big),
+    // Chapters and Do not compile.
+    { label: 'Project', large: ['documents_dock'], rows: [['chapters'], ['no_compile']], text: true, keep: true },
     { label: 'Font', rows: [
       [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
       ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'smallcaps', 'code', 'highlight', 'font_color']] },
