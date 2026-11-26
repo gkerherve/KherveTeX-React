@@ -1108,7 +1108,9 @@ const boxKinds = CALLOUT_MENU.map(([k]) => `box_kind_${k}`)
 // Toolbar); a tab missing from that order (new in an update) keeps its
 // place after the tab it follows by default.
 export function orderedNames(names: string[], order: readonly string[]): string[] {
-  const out = order.filter(n => names.includes(n))
+  // Tabs renamed since the order was saved.
+  const RENAMED: Record<string, string> = { 'Admin & Office': 'Office' }
+  const out = order.map(n => RENAMED[n] ?? n).filter(n => names.includes(n))
   names.forEach((n, i) => {
     if (out.includes(n)) return
     let at = 0
@@ -1121,9 +1123,9 @@ export function orderedNames(names: string[], order: readonly string[]): string[
 export const RIBBON_TABS: RibbonTab[] = [
   { name: 'Home', groups: [
     { label: 'Clipboard', large: ['paste'], rows: [['cut'], ['copy'], ['paste_special']], text: true },
-    // Compile (big), then the documents of a thesis: Chapters and the
-    // Documents panel, and Do not compile.
-    { label: 'Compile', large: ['compile_now'], rows: [['chapters'], ['documents_dock'], ['no_compile']], text: true },
+    // Do not compile (big), then the documents of a thesis: Chapters and the
+    // Documents panel. Compiling itself is on the Compile tab.
+    { label: 'Compile', large: ['no_compile'], rows: [['chapters'], ['documents_dock']], text: true },
     { label: 'Font', rows: [
       [{ widget: 'fontfamily' }, { widget: 'fontsize' }, 'grow_font', 'shrink_font', 'change_case', 'clear_fmt'],
       ['bold', 'italic', 'underline', 'strike', 'sub', 'super', 'smallcaps', 'code', 'highlight', 'font_color']] },

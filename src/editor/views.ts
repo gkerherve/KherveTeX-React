@@ -9,6 +9,7 @@ import { autoTableAlignment } from '../core/serializer.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView, ViewMutationRecord } from 'prosemirror-view'
 import { placementButton } from './placement.ts'
+import { inlineInto } from './rawLook.ts'
 import type { Inline } from '../core/model.ts'
 import { renderMath } from '../math/render.ts'
 import { captionHtml, cellDisplayText, cellLook, cellPictures } from './convert.ts'
@@ -629,6 +630,17 @@ function renderInlineRaw(dom: HTMLElement, latex: string, host: ViewHost) {
   // Layout ▸ Margin Note and Insert ▸ Drop Cap: drawn as the PDF shows them.
   const note = parseMarginNote(latex)
   if (note) { marginNoteElement(dom, note); return }
+  // \\marginnote{...}, \\sidenote{...}, \\marginpar{...} written in LaTeX
+  // (the Tufte classes, a thesis): the note in the right margin too.
+  const plain = /^\\(marginnote|sidenote|marginpar)\*?\s*(?:\[[^\]]*\])?\s*\{([\s\S]*)\}\s*$/.exec(latex.trim())
+  if (plain) {
+    marginNoteElement(dom, { color: '222222', style: 'plain', text: '' })
+    const text = dom.querySelector<HTMLElement>('.kt-marginnote-text')!
+    text.classList.add('kt-mn-latex')
+    inlineInto(text, plain[2], host.bodyPx() * 0.8)
+    dom.title = latex
+    return
+  }
   const cap = parseDropCap(latex)
   if (cap) { dropCapElement(dom, cap); return }
   const icon = parseIcon(latex)

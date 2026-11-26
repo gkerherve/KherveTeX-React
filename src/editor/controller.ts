@@ -859,6 +859,10 @@ export class EditorController implements ViewHost {
     if (!styleEl) { styleEl = document.createElement('style'); styleEl.className = 'kt-design-css'; this.root.prepend(styleEl) }
     if (styleEl.textContent !== dcss) styleEl.textContent = dcss
     st.setProperty('--kt-page-h', `${g.heightPx}px`)
+    this.root.classList.toggle('kt-sidenotes', /^tufte/i.test(this.meta.documentclass || ''))
+    // A margin note's width: the right margin, less the gap from the text
+    // and the paper's edge (wide in the Tufte classes).
+    st.setProperty('--kt-mn-w', `${Math.max(80, g.rightPx - 0.4 * 37.8 - 0.5 * 37.8)}px`)
     const f = this.flowEl.style
     f.paddingTop = `${g.topPx}px`
     f.paddingLeft = `${g.leftPx}px`
@@ -1045,11 +1049,16 @@ export class EditorController implements ViewHost {
     // Footnotes: numbered through the document, each at the foot of the
     // sheet its mark is on.
     const notes = new Map<number, { n: number; text: string }[]>()
+    const sideNotes = /^tufte/i.test(this.meta.documentclass || '')
     let fn = 0
     for (const el of this.flowEl.querySelectorAll<HTMLElement>('.kt-footnote')) {
       fn += 1
       const mark = el.querySelector('.kt-footnote-mark')
       if (mark) mark.textContent = String(fn)
+      const side = el.querySelector<HTMLElement>('.kt-footnote-text')
+      if (side) side.dataset.n = String(fn)
+      // The Tufte classes set a footnote beside its line, in the margin.
+      if (sideNotes) continue
       const sheet = this.sheetOf(el)
       if (!notes.has(sheet)) notes.set(sheet, [])
       notes.get(sheet)!.push({ n: fn, text: el.title })

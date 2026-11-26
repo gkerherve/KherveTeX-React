@@ -1152,7 +1152,14 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
       out.push({ page, pos: blocks[i].pos, offset })
       at = i; atChar = startOf[i] + offset; atPage = page
     }
-    const keys = (snippet || '').split('\n').map(s => normalizeForMatch(s.trim().slice(0, 24))).filter(k => k.length >= 3)
+    // A chapter's label on the title's line ("Chapter 1 Linear systems",
+    // elegantbook, KOMA): the title is what the document holds.
+    const label = /^(?:chapter|chapitre|kapitel|capitolo|cap[ií]tulo|hoofdstuk|rozdział|appendix|annexe|anhang|part|lecture)\s+[0-9a-z]{1,4}[.:]?\s+(?=\S{2})/i
+    const lines0 = (snippet || '').split('\n').map(s => s.trim())
+    // Keys that lost their label: cut short at 24 characters with it, they
+    // match the start of the heading ("Chapter 2 Controllabilit").
+    const unlabelled = new Set(lines0.filter(l => label.test(l)).map(l => normalizeForMatch(l.replace(label, '').slice(0, 24))))
+    const keys = lines0.map(s => s.replace(label, '')).map(s => normalizeForMatch(s.slice(0, 24))).filter(k => k.length >= 3)
     // The words the page goes on with, to confirm a match inside a
     // paragraph: a phrase such as "secondary electron cut-o" can recur,
     // and an earlier paragraph holding it made a page start far too soon.
@@ -1222,7 +1229,9 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
           }
           continue
         }
-        const idx = anchorOffset(blocks[i].text, keyNorm)
+        let idx = anchorOffset(blocks[i].text, keyNorm)
+        if (idx < 0 && unlabelled.has(keyNorm) && keyNorm.length >= 8 && blocks[i].node.type.name === 'section'
+          && normalizeForMatch(blocks[i].text).startsWith(keyNorm)) idx = 0
         if (firstBlock && idx === 0) continue
         if (idx > 0 && !confirms(i, idx, k)) continue
         if (idx >= 0 && !tooFar(i, idx) && !tooNear(i, idx)) {

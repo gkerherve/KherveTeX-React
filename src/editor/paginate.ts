@@ -448,6 +448,8 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   let sheetText = false
   // The bottom of what is placed so far.
   let lastBottom = 0
+  // The current sheet began with text that ran on past the PDF's page.
+  let ranOn = false
   units.forEach((u, i) => {
     if (i > lastReal && lastReal >= 0) return
     const t = u.top + shift
@@ -484,24 +486,31 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     // Nothing printed on the sheet yet (empty lines, which the PDF leaves
     // out before a new page): a page break or chapter starts no new sheet,
     // as LaTeX's \newpage on an empty page does not.
-    if (u.forced && !first && sheetText) {
+    // Text reaching the paper's edge (the editor's type a little taller
+    // than TeX's) goes to the next sheet whatever the PDF does: never across
+    // the gap between sheets.
+    const pastEdge = b > (k + 1) * H - geo.bottomPx * 0.35
+    // A sheet begun that way stands for the PDF's next page: its start, when
+    // it comes, starts no sheet of its own.
+    if (u.forced && !first && sheetText && !(u.pdfStart && ranOn)) {
       move = true
+      ranOn = false
       skip = blanks.get(i) ?? 0
       // A right-hand page (no PDF to say where its blank pages are): the
       // left-hand one before it stays blank.
       if (u.odd && !pageStarts.length && (k + 1 + skip) % 2 === 1) skip += 1
       want = contentTop(k + 1 + skip) + u.gap
     } else if (b > contentBottom(k) + 0.5 && t > contentTop(k) + 1 && !fitsSlack()
-      // PDF paging: only past the paper's edge (text typed since the
-      // compile), not into the bottom margin.
-      && (!pdfPages || (!pdfFresh && b > (k + 1) * H))
+      // PDF paging: only near the paper's edge, not into the bottom margin.
+      && (pastEdge || (!pdfPages
       // A sheet more than the PDF has before its next page start: no.
-      && (!bounded || k + 1 < nextPage[i] - 1)
+      && (!bounded || k + 1 < nextPage[i] - 1)))
       && !beforeBreak[i]) {
       // Does not fit: the next sheet, with the gap above it dropped.
       move = true
       want = contentTop(k + 1)
-    }
+      ranOn = !!pdfPages || (bounded && k + 1 >= nextPage[i] - 1)
+    } else if (u.forced && u.pdfStart && ranOn) ranOn = false
     if (move) {
       // The figures waiting go to the top of the new sheet, this unit
       // under them.

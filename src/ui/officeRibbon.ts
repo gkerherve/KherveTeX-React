@@ -91,7 +91,7 @@ const g = (label: string, ids: string[]) => ({ label, large: ids.map(k => `of_${
 
 // Admin & Office (after Insert): letters, meetings, forms, planning
 // (timeline, progress bars, steps) and the lab's safety and notebook.
-export const ADMIN_TAB: RibbonTab = { name: 'Admin & Office', groups: [
+export const ADMIN_TAB: RibbonTab = { name: 'Office', groups: [
   g('Letters', ['letterhead', 'signature', 'stamp']), g('Meetings', ['agenda', 'actions', 'calendar']), g('Forms', ['formfields', 'certificate']),
   { label: 'Plan', large: ['ins_timeline', 'ins_progress', 'ins_steps'] },
   { label: 'Safety & Lab', large: ['sci_notebook'], rows: [['sci_risk'], ['sci_signs']], text: true },

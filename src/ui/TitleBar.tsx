@@ -11,6 +11,7 @@ import { runAction } from '../app/actions'
 import { appStore } from '../app/store'
 import { isTauri } from '../platform'
 import { Icon } from './icons'
+import { lookupTip, useTipProps } from './Tooltip'
 import { WordControls } from './WordControls'
 import './titlebar.css'
 
@@ -45,11 +46,10 @@ export function TitleBar() {
     }
     setPref('save/autosave_minutes', AUTOSAVE_MINUTES)
   }
-  const btn = (id: string, icon: string, tip: string) => (
-    <button type='button' className='tb-btn' title={tip} aria-label={tip} onClick={() => { void runAction(id) }}>
-      <Icon name={icon} size={16} />
-    </button>
-  )
+  // The full tooltips (what a .ktex is; why Word export is beta).
+  const saveTip = useTipProps({ rich: lookupTip('act_save')!, shortcut: '⌘S' })
+  const docxTip = useTipProps({ rich: lookupTip('act_export_docx')! })
+  const pdfTip = useTipProps({ rich: lookupTip('act_export_pdf')! })
   return (
     <div className='titlebar' data-tauri-drag-region>
       <div className='tb-left'>
@@ -61,11 +61,13 @@ export function TitleBar() {
           <span className='tb-switch'><i /></span>
           <span className='tb-state'>{autosave ? 'On' : 'Off'}</span>
         </button>
-        {btn('save', 'tb_save', 'Save (⌘S)')}
-        <button type='button' className='tb-export' title='Export a Word document (.docx)' onClick={() => { void runAction('export_docx') }}>
+        <button type='button' className='tb-btn' aria-label='Save' {...saveTip} onClick={() => { void runAction('save') }}>
+          <Icon name='tb_save' size={16} />
+        </button>
+        <button type='button' className='tb-export' aria-label='Export a Word document (.docx), beta' {...docxTip} onClick={() => { void runAction('export_docx') }}>
           <Icon name='tb_docx' size={16} /><span>.docx</span>
         </button>
-        <button type='button' className='tb-export' title='Export the PDF' onClick={() => { void runAction('export_pdf') }}>
+        <button type='button' className='tb-export' aria-label='Export the PDF' {...pdfTip} onClick={() => { void runAction('export_pdf') }}>
           <Icon name='tb_pdf' size={16} /><span>.pdf</span>
         </button>
       </div>

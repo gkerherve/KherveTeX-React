@@ -449,7 +449,7 @@ ${show('Science', 'Chemistry')}
 elements: click it and its own tab opens (Edit…, its options, Colour, Move up / Move down, Delete, Close), even when its main tab
 is hidden; a double-click opens Edit…, the grip in the margin moves it and the × removes it. <b>Edit…</b> is a window with
 fields and a grid of rows: add, remove and move rows with buttons, no codes to type.</p>
-<h3>Admin &amp; Office</h3>
+<h3>Office</h3>
 ${table(['Tool', 'What it does'], [
   ['<b>Letterhead</b>', 'Organisation, tagline, address and contact line: on a coloured band, centred, or beside a side bar.'],
   ['<b>Signature Block</b>', 'One to four signature lines with names, roles and dated lines.'],
