@@ -1,6 +1,6 @@
 // MainWindow._first_text_snippet: where each PDF page starts.
 import { describe, expect, it } from 'vitest'
-import { firstTextSnippet, pageStartSnippets } from '../src/app/pageAnchors.ts'
+import { firstTextSnippet, pageStartSnippets, pdfTypography } from '../src/app/pageAnchors.ts'
 import type { PdfTextDict } from '../src/core/pdfText.ts'
 
 const page = (...lines: string[]): PdfTextDict => ({
@@ -45,5 +45,18 @@ describe('page start candidates', () => {
   })
   it('offers a "Label: text" line without its label', () => {
     expect(pageStartSnippets(page('Keywords: one, two'))).toEqual(['Keywords: one, two', 'one, two'])
+  })
+})
+
+describe('pdfTypography columns', () => {
+  const line = (x0: number, x1: number, y: number) => ({ bbox: [x0, y, x1, y + 10], spans: [{ text: 'Some words of body text here', size: 10 }] })
+  const page = (lines: ReturnType<typeof line>[]) => ({ width: 600, height: 800, blocks: [{ type: 0, lines }] }) as never
+  it('two columns of one width', () => {
+    const ls = Array.from({ length: 20 }, (_, i) => line(i % 2 ? 310 : 70, i % 2 ? 530 : 290, i * 12))
+    expect(pdfTypography([page(ls)]).cols).toBe(2)
+  })
+  it('text wrapped beside a sidebar is one column', () => {
+    const ls = Array.from({ length: 20 }, (_, i) => i % 2 ? line(345, 470, i * 12) : line(70, 330, i * 12))
+    expect(pdfTypography([page(ls)]).cols).toBe(1)
   })
 })

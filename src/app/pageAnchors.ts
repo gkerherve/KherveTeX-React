@@ -180,6 +180,9 @@ export function columnStarts(pages: PdfTextDict[], cols: number): [number, strin
   return out
 }
 
+const medianWidth = (a: { x0: number; x1: number }[]) => { const w = a.map(l => l.x1 - l.x0).sort((x, y) => x - y); return w[Math.floor(w.length / 2)] }
+const sameWidth = (a: { x0: number; x1: number }[], b: { x0: number; x1: number }[]) => { const x = medianWidth(a), y = medianWidth(b); return Math.min(x, y) >= Math.max(x, y) * 0.8 }
+
 export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
   const chars = new Map<number, number>()
   const votes = [0, 0, 0, 0]
@@ -207,7 +210,9 @@ export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
     const share = (a: unknown[]) => a.length / lines.length
     let cols = 1
     if (share(left) >= 0.2 && share(right.filter(l => l.x0 >= w * 0.6)) >= 0.2 && share(mid) >= 0.2) cols = 3
-    else if (share(left) >= 0.25 && share(right) >= 0.25) cols = 2
+    // Two columns have lines of one width; text wrapped beside a narrower
+    // panel (a sidebar's wrapfigure) has wide lines on one side only.
+    else if (share(left) >= 0.25 && share(right) >= 0.25 && sameWidth(left, right)) cols = 2
     votes[cols]++
     if (cols === 2) gaps.push(Math.min(...right.map(l => l.x0)) - Math.max(...left.map(l => l.x1)))
   }
