@@ -95,6 +95,24 @@ describe('LaTeX spacing in the page view', () => {
   })
 })
 
+describe('a project document after others', () => {
+  const blocks = [M.section(1, [M.text('Methods')]), M.section(2, [M.text('Samples')]), M.paragraph([M.text('Text.')])]
+  it('in a report its Heading 1 is the next chapter, its sections numbered in it', () => {
+    const meta = M.docMeta({ title: '', documentclass: 'report' })
+    // Two documents before it: two chapters, three sections in the second.
+    const L = layoutDocument(docToPM(M.document(blocks, meta)), meta, [0, 2, 3, 0, 0, 0])
+    const labels = L.blocks.flatMap(b => [b.number, ...b.above.map(a => a.text)]).join(' | ')
+    expect(labels).toContain('Chapter 3')
+    expect(labels).toContain('3.1')
+  })
+  it('in an article its Heading 1 is the next section', () => {
+    const meta = M.docMeta({ title: '' })
+    const L = layoutDocument(docToPM(M.document(blocks, meta)), meta, [0, 2, 3, 0, 0, 0])
+    expect(L.blocks[0].number.trim()).toBe('3')
+    expect(L.blocks[1].number.trim()).toBe('3.1')
+  })
+})
+
 describe('page starts', () => {
   const para = (i: number) => M.paragraph([M.text(`Line ${i}: The sample was cleaned in ultra-high vacuum by repeated cycles of ion bombardment and annealing until no contamination was seen.`)])
   it('a line the document repeats is taken where the page should start, not at its first place', () => {

@@ -497,7 +497,11 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   const hasChapters = hasChapterBlocks || offset[0] > 0 || classChapters
   const heads: RunningHead[] = []
   let spanning = true
-  const counters = [...offset]
+  // The offset counts the earlier documents' headings by their level
+  // (Heading 1 at index 1). In a class with chapters Heading 1 is the
+  // chapter and every level counts one place up here: without the shift a
+  // project's second document was "Chapter 1" again, its sections 1.1.
+  const counters = classChapters ? [offset[0] + (offset[1] ?? 0), ...offset.slice(2), 0] : [...offset]
   let eq = 0, thm = 0
   let prevState: number | null = null
   let prevLead = body.leading
