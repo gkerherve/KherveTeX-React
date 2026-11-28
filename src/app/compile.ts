@@ -27,6 +27,7 @@ import type { PageEditing } from './actions/page'
 import { pageAnchors } from './pageAnchors'
 import { buildFormat, formatPlan, markFormatBad } from '../core/fastFormat'
 import { imageProxyIn } from './imageProxy'
+import { pdfPictures, type PictureHost } from '../core/pictureCache'
 import { appStore, type AppState } from './store'
 
 export type Engine = 'latex' | 'typst'
@@ -113,6 +114,8 @@ export function compilerHost(): CompilerHost {
     copy: p.copy,
     readText: p.readText,
     writeText: p.writeText,
+    readFile: p.readFile,
+    writeFile: p.writeFile,
     remove: p.remove,
     findTectonic: tectonicPath,
     findTypst: p.findTypst,
@@ -129,6 +132,23 @@ let buildDirPromise: Promise<string> | null = null
 export function buildDir(): Promise<string> {
   if (!buildDirPromise) buildDirPromise = platform().makeTempDir('khervedoc-')
   return buildDirPromise
+}
+
+// The pictures' copies every compile uses (core/pictureCache.ts): each PNG
+// as a PDF of the same pixels, which the engine embeds without decoding it
+// (a thesis with 76 figures: 14 s a compile, now under one). Kept beside
+// the build folders, in the system's temporary folder, so they outlive the
+// session. Not online: the files live in memory there and the engine is
+// another.
+type PictureCopies = (path: string) => Promise<string | null>
+let pictureCopiesPromise: Promise<PictureCopies | undefined> | null = null
+
+function pictureCopies(): Promise<PictureCopies | undefined> {
+  if (platform().kind === 'browser') return Promise.resolve(undefined)
+  pictureCopiesPromise ??= buildDir()
+    .then(dir => pdfPictures(compilerHost() as PictureHost, join(dirname(dir), 'ktex-pictures')))
+    .catch(() => undefined)
+  return pictureCopiesPromise
 }
 
 // ---- KherveRef ----
@@ -267,8 +287,11 @@ export async function kickCompile(): Promise<void> {
     const opts = {
       sourceDir: resolvedSourceDir(), skipImages: ui.skipImages, useCompileRange: ui.useCompileRange,
       fast, format: plan?.ready ? plan.name : null,
-      imageProxy: pics && pics !== 'none' ? imageProxyIn(dir, PICTURE_SIDE[pics]) : undefined,
+      // Medium and low: smaller copies (a lighter PDF to show). Full: the
+      // pictures themselves, through their lossless copies below.
+      imageProxy: pics === 'medium' || pics === 'low' ? imageProxyIn(dir, PICTURE_SIDE[pics]) : undefined,
       draftImages: pics === 'none',
+      pictures: pics ? await pictureCopies() : undefined,
     }
     const t0 = Date.now()
     result = engine === 'typst'
@@ -300,6 +323,28 @@ export async function kickCompile(): Promise<void> {
   await onCompileDone(result, engine)
 }
 
+// The copy of the PDF beside the document, written once the compiles have
+// been quiet for a while rather than after each one: megabytes written on
+// every compile, into a folder a cloud service then uploads again each
+// time (a thesis on OneDrive).
+const BESIDE_QUIET_MS = 8000
+let beside: { path: string; bytes: Uint8Array; timer: ReturnType<typeof setTimeout> } | null = null
+
+function keepPdfBeside(docPath: string, bytes: Uint8Array): void {
+  if (beside) clearTimeout(beside.timer)
+  // Another document now: the first one's copy is written at once.
+  if (beside && beside.path !== docPath) writeBeside()
+  beside = { path: docPath, bytes, timer: setTimeout(writeBeside, BESIDE_QUIET_MS) }
+}
+
+function writeBeside(): Promise<void> {
+  const b = beside
+  beside = null
+  if (!b) return Promise.resolve()
+  clearTimeout(b.timer)
+  return platform().writeFile(join(dirname(b.path), `${docStem(b.path)}.pdf`), b.bytes).catch(() => {})
+}
+
 async function onCompileDone(result: CompileResult, engine: Engine): Promise<void> {
   // Typed during the compile: its PDF is already out of date. Skip
   // loading it and compile the new text once the keys pause.
@@ -328,10 +373,7 @@ async function onCompileDone(result: CompileResult, engine: Engine): Promise<voi
     // Cache the PDF next to the document for instant loading (not online,
     // where a file saved beside the document is a browser download).
     const path = appStore().get().path
-    if (path !== null && platform().kind !== 'browser' && !pendingRecompile) {
-      const bytes = pdf
-      afterTyping(() => void platform().writeFile(join(dirname(path), `${docStem(path)}.pdf`), bytes).catch(() => {}))
-    }
+    if (path !== null && platform().kind !== 'browser' && !pendingRecompile) keepPdfBeside(path, pdf)
     // Tell the editor how many pages the PDF has and the first text of
     // each later page, so its page breaks sit where the PDF's pages start
     // rather than at a uniform spacing (which falls apart when page 1 has
@@ -388,8 +430,17 @@ export async function compileProjectMaster(source: string, sourceDir: string): P
   appStore().set(s => ({ status: 'Compiling project\u2026', compile: { ...s.compile, running: true } }))
   let result: CompileResult
   try {
-    const opts = { sourceDir, skipImages: ui.skipImages, useCompileRange: false }
+    // A whole compile, as before (every pass the references need, the
+    // pictures at their own quality), but the .aux files are kept, so the
+    // next one runs one pass when they did not change, and the pictures
+    // come from their lossless copies (in the chapters' files too).
+    const opts = {
+      sourceDir, skipImages: ui.skipImages, useCompileRange: false, keepAux: true,
+      pictures: await pictureCopies(),
+    }
+    const t0 = Date.now()
     result = await compileTex(source, await buildDir(), opts, compilerHost())
+    lastMs = Date.now() - t0
   } catch (e) {
     result = { ok: false, pdfPath: null, log: '', error: e instanceof Error ? e.message : String(e) }
   }
@@ -453,7 +504,9 @@ export async function fullCompile(purpose: string, proceed?: () => Promise<boole
   const opts = { sourceDir: resolvedSourceDir() }
   if (engine === 'typst') return compileTypst(serializeTypst(doc), dir, opts, compilerHost())
   await stageBib(doc, [dir, join(dir, 'print')])
-  return compileTex(serializeDocument(doc), dir, opts, compilerHost())
+  // The pictures' lossless copies (the same pixels, embedded without being
+  // decoded and compressed again), and the last compile's .aux to start from.
+  return compileTex(serializeDocument(doc), dir, { ...opts, keepAux: true, pictures: await pictureCopies() }, compilerHost())
 }
 
 // Opening a saved document shows the PDF cached beside it at once, before
@@ -669,5 +722,5 @@ export function startCompileService(): void {
 // The window is closing: never start another compile, kill the running one.
 export async function shutdownCompiles(): Promise<void> {
   closed = true
-  await cancelRunning(compilerHost())
+  await Promise.all([cancelRunning(compilerHost()), writeBeside()])
 }

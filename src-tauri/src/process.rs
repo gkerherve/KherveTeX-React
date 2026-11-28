@@ -109,7 +109,10 @@ pub fn run_blocking(
             let _ = c.kill();
             break c.wait().ok();
         }
-        std::thread::sleep(Duration::from_millis(40));
+        // Looked at often at first: a preview compile lasts half a second,
+        // and 40 ms between looks added up to 40 ms to each one.
+        let nap = if start.elapsed() < Duration::from_secs(3) { 4 } else { 40 };
+        std::thread::sleep(Duration::from_millis(nap));
     };
     running().lock().unwrap().remove(&id);
     let stdout = String::from_utf8_lossy(&out_t.join().unwrap_or_default()).into_owned();

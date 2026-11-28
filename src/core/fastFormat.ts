@@ -13,7 +13,10 @@ import { join } from './paths.ts'
 
 // Packages loaded before the class, in this order, when the document
 // loads them without options.
-const SAFE = ['amsmath', 'amssymb', 'graphicx', 'booktabs', 'array', 'xcolor', 'tikz', 'pgfplots', 'chemfig', 'mhchem', 'siunitx']
+// Not booktabs: it sets its rules' widths and spaces in em and ex when it
+// is loaded, which here is before the class and its fonts, so every table
+// came out a little tighter than in the full compile (rows up to 1 pt off).
+const SAFE = ['amsmath', 'amssymb', 'graphicx', 'array', 'xcolor', 'tikz', 'pgfplots', 'chemfig', 'mhchem', 'siunitx']
 // These load xcolor themselves: an xcolor with options in the document
 // would then clash.
 const LOADS_XCOLOR = new Set(['tikz', 'pgfplots', 'chemfig', 'xcolor'])

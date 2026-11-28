@@ -31,6 +31,10 @@ export interface CompilerHost {
   copy(src: string, dest: string): Promise<void>
   readText(path: string): Promise<string>
   writeText(path: string, text: string): Promise<void>
+  // Whole files as bytes (the pictures' copies, pictureCache.ts); a host
+  // without them compiles the pictures as they are.
+  readFile?(path: string): Promise<Uint8Array>
+  writeFile?(path: string, data: Uint8Array): Promise<void>
   remove(path: string): Promise<void>
   findTectonic(): Promise<string | null>
   findTypst(): Promise<string | null>
@@ -113,27 +117,86 @@ const SIZED = (o: string | undefined) => !!o && /\b(?:width|height)\s*=/.test(o)
 // JPEG becomes a small low-resolution copy, and an unsized one a draft
 // frame of its size; otherwise only large PNGs are swapped.
 export async function proxyImages(tex: string, proxy: (path: string) => Promise<string | null>,
-  host: Pick<CompilerHost, 'stat'>, tiny = false): Promise<string> {
-  const swaps = new Map<string, string>()
+  host: Pick<CompilerHost, 'stat'>, tiny = false, resolve: (path: string) => string | null = p => p): Promise<string> {
+  const todo = new Map<string, string>()
   for (const m of tex.matchAll(INCLUDEGRAPHICS_RE)) {
     const [, , o, path] = m
-    if (swaps.has(path) || !(tiny ? RASTER : /\.png$/i).test(path) || !SIZED(o)) continue
+    if (todo.has(path) || !(tiny ? RASTER : /\.png$/i).test(path) || !SIZED(o)) continue
+    const file = resolve(path)
+    if (file !== null) todo.set(path, file)
+  }
+  const swaps = new Map<string, string>()
+  // A few at a time: each copy being made holds its picture in memory.
+  await pool([...todo], 4, async ([path, file]) => {
     if (!tiny) {
-      const st = await host.stat(path)
-      if (!st || (st.size ?? 0) < PROXY_MIN_BYTES) continue
+      const st = await host.stat(file)
+      if (!st || (st.size ?? 0) < PROXY_MIN_BYTES) return
     }
     // While typing, a copy not made yet is not waited for: a frame this
     // time, the copy (made meanwhile) the next.
-    const made = proxy(path).catch(() => null)
+    const made = proxy(file).catch(() => null)
     const small = tiny ? await Promise.race([made, new Promise<null>(r => setTimeout(() => r(null), 30))]) : await made
     if (small) swaps.set(path, small)
     else if (tiny) swaps.set(path, '')
-  }
+  })
   return tex.replace(INCLUDEGRAPHICS_RE, (whole, star: string, o: string | undefined, path: string) => {
     if (swaps.get(path)) return `\\includegraphics${star}${o ?? ''}{${swaps.get(path)!.replaceAll('\\', '/')}}`
     if (tiny && RASTER.test(path) && (!SIZED(o) || swaps.has(path))) return `\\includegraphics${star}[draft${o ? ',' + o.slice(1, -1) : ''}]{${path}}`
     return whole
   })
+}
+
+// `n` of `items` at a time.
+async function pool<T>(items: readonly T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let next = 0
+  const work = async () => { while (next < items.length) await fn(items[next++]) }
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, work))
+}
+
+// Options that say how the file is to be read: its picture stays as it is.
+const TYPED = /\b(?:type|ext|read|command|page)\s*=/
+
+// Every PNG swapped for its copy as a PDF (`copy`, pictureCache.ts): the
+// same pixels at the same size, which the engine embeds without decoding
+// them. A picture with no copy (null) stays as it is. Returns the new
+// source and how many pictures were swapped.
+export async function losslessPictures(tex: string, copy: (path: string) => Promise<string | null>,
+  resolve: (path: string) => string | null = p => p): Promise<[string, number]> {
+  const todo = new Map<string, string>()
+  for (const m of tex.matchAll(INCLUDEGRAPHICS_RE)) {
+    const [, , o, path] = m
+    if (todo.has(path) || !/\.png$/i.test(path) || (o && TYPED.test(o))) continue
+    const file = resolve(path)
+    if (file !== null) todo.set(path, file)
+  }
+  if (!todo.size) return [tex, 0]
+  const swaps = new Map<string, string>()
+  // All at once: the copies' maker takes them a few at a time itself.
+  await Promise.all([...todo].map(async ([path, file]) => {
+    const pdf = await copy(file).catch(() => null)
+    if (pdf) swaps.set(path, pdf)
+  }))
+  let n = 0
+  const out = tex.replace(INCLUDEGRAPHICS_RE, (whole, star: string, o: string | undefined, path: string) => {
+    const pdf = swaps.get(path)
+    if (!pdf || (o && TYPED.test(o))) return whole
+    n++
+    return `\\includegraphics${star}${o ?? ''}{${pdf.replaceAll('\\', '/')}}`
+  })
+  return [out, n]
+}
+
+// The files a source brings in with \\include or \\input that are in the build folder
+// (a project's chapters, copied there for the compile).
+export async function includedFiles(tex: string, workdir: string, host: Pick<CompilerHost, 'exists'>): Promise<string[]> {
+  const out: string[] = []
+  for (const m of tex.matchAll(/^[^%\n]*?\\(?:include|input)\s*\{([^}#\\]+)\}/gm)) {
+    const name = strip(m[1])
+    if (!name || isAbsolute(name) || name.split(/[\\/]/).includes('..')) continue
+    const path = join(workdir, /\.tex$/i.test(name) ? name : `${name}.tex`)
+    if (!out.includes(path) && await host.exists(path)) out.push(path)
+  }
+  return out
 }
 
 async function existingSet(paths: string[], host: Pick<CompilerHost, 'exists'>): Promise<Set<string>> {
@@ -545,6 +608,14 @@ export interface CompileOptions {
   // frames of their size where none can be made; the layout stays.
   draftImages?: boolean
   tinyProxy?: (path: string) => Promise<string | null>
+  // A PNG's copy as a PDF of the same pixels (pictureCache.ts), which the
+  // engine embeds without decoding it; null leaves the picture as it is.
+  // Used for every compile, Export and Print too: nothing is lost.
+  pictures?: (path: string) => Promise<string | null>
+  // A full compile that keeps its .aux, .toc... in the build folder: the
+  // next one starts from them and runs one pass when nothing they hold
+  // changed (tectonic still runs again whenever one does).
+  keepAux?: boolean
 }
 
 // Write `texSource` to `workdir/basename.tex` and compile with tectonic.
@@ -596,14 +667,42 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
   // Bundled and user styles (sn-jnl, mimosis, resume...) too: tectonic
   // ignores TEXINPUTS, so a class it cannot see in the workdir is "not found".
   await copyStyles(workdir, host)
+  const original = texSource
+  // The pictures' stand-ins, in this source and in each file it includes
+  // from the build folder (a project's chapters hold the pictures).
+  let swapped = 0
+  const standIns = async (tex: string, resolve?: (path: string) => string | null): Promise<string> => {
+    if (opts.draftImages && opts.tinyProxy) tex = await proxyImages(tex, opts.tinyProxy, host, true, resolve)
+    else if (opts.draftImages) tex = draftImages(tex)
+    else if (opts.imageProxy) tex = await proxyImages(tex, opts.imageProxy, host, false, resolve)
+    if (opts.pictures && !opts.draftImages) {
+      let n: number
+      ;[tex, n] = await losslessPictures(tex, opts.pictures, resolve)
+      swapped += n
+    }
+    return tex
+  }
+  const included = new Map<string, string>()
+  const wantsStandIns = !!(opts.skipImages || opts.imageProxy || opts.pictures || opts.tinyProxy)
+  if (wantsStandIns && texSource.includes('\\in')) {
+    const inSource = (path: string) => graphicTarget(path, sourceDir)
+    for (const file of await includedFiles(texSource, workdir, host)) {
+      try {
+        const text = await host.readText(file)
+        if (!text.includes('\\includegraphics')) continue
+        // No \begin{document} in a chapter: draft frames are set per picture.
+        const next = opts.skipImages ? stripImages(text)
+          : await standIns(text, inSource)
+        if (next !== text) { included.set(file, text); await host.writeText(file, next) }
+      } catch { /* left as it is */ }
+    }
+  }
   if (opts.skipImages) {
     texSource = stripImages(texSource)
   } else {
     const have = await existingSet(includegraphicsTargets(texSource, sourceDir), host)
     texSource = rewriteIncludegraphics(texSource, sourceDir, p => have.has(p))
-    if (opts.draftImages && opts.tinyProxy) texSource = await proxyImages(texSource, opts.tinyProxy, host, true)
-    else if (opts.draftImages) texSource = draftImages(texSource)
-    else if (opts.imageProxy) texSource = await proxyImages(texSource, opts.imageProxy, host)
+    texSource = await standIns(texSource)
   }
   if (opts.useCompileRange) {
     texSource = applyCompileRange(texSource)
@@ -634,7 +733,8 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
     const args: string[] = []
     if (onlyCached) args.push('--only-cached')
     if (opts.fast) args.push('-r', '0', '--keep-intermediates')
-    if (opts.fast && opts.format) args.push('-f', opts.format)
+    else if (opts.keepAux) args.push('--keep-intermediates')
+    if ((opts.fast || opts.keepAux) && opts.format) args.push('-f', opts.format)
     args.push('-Z', 'continue-on-errors', '--keep-logs', '--synctex', '--outdir', workdir, texPath)
     // Cache-only takes seconds; a run that may download needs room to fetch
     // the format and many packages on a slow line (a fresh install, a new
@@ -700,6 +800,12 @@ export async function compileTex(texSource: string, workdir: string, opts: Compi
   }
   const havePdf = await host.exists(pdfPath)
   if (code === 0 && havePdf) return { ok: true, pdfPath, log, error: null }
+  // The PDF could not be written with the pictures' copies in it: once
+  // more with the pictures as they are (as slow as it ever was, but whole).
+  if (swapped && !cancelled && /xdvipdfmx/i.test(log)) {
+    for (const [file, text] of included) await host.writeText(file, text).catch(() => {})
+    return compileTex(original, workdir, { ...opts, pictures: undefined }, host)
+  }
   return { ok: false, pdfPath: havePdf ? pdfPath : null, log, error: `tectonic exited with code ${code ?? -9}` }
 }
 

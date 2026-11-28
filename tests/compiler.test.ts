@@ -241,3 +241,81 @@ describe('compiler helpers', () => {
     expect(pageCounts(marks, 9)).toEqual([4, 5])
   })
 })
+
+import { includedFiles, losslessPictures } from '../src/core/compiler.ts'
+
+describe('the pictures\' lossless copies in a compile', () => {
+  const copy = async (p: string) => (p.includes('none') ? null : p.replace(/\.png$/, '.pdf').replace('/a/', '/cache/'))
+
+  it('swaps each PNG for its copy and keeps its options', async () => {
+    const [out, n] = await losslessPictures('\\includegraphics[width=0.8\\textwidth]{/a/fig.png} \\includegraphics*{/a/fig.png} '
+      + '\\includegraphics[scale=0.5]{/a/photo.jpg} \\includegraphics{/a/none.png}', copy)
+    expect(out).toBe('\\includegraphics[width=0.8\\textwidth]{/cache/fig.pdf} \\includegraphics*{/cache/fig.pdf} '
+      + '\\includegraphics[scale=0.5]{/a/photo.jpg} \\includegraphics{/a/none.png}')
+    expect(n).toBe(2)
+  })
+
+  it('leaves a picture whose options say how to read the file', async () => {
+    const tex = '\\includegraphics[type=png,ext=.png,read=.png]{/a/fig.png}'
+    expect(await losslessPictures(tex, copy)).toEqual([tex, 0])
+  })
+
+  it('finds the chapters a master includes from the build folder', async () => {
+    const d = tmp()
+    writeFileSync(join(d, 'ch1.tex'), '')
+    writeFileSync(join(d, 'ch 2.tex'), '')
+    const host = nodeHost(async () => proc(0, ''))
+    const tex = '\\include{ch1}\n% \\include{hidden}\n\\input{ch 2.tex}\n\\include{missing}\n\\input{../outside}\n\\includegraphics{ch1}\n\\includeonly{ch1}'
+    expect(await includedFiles(tex, d, host)).toEqual([join(d, 'ch1.tex'), join(d, 'ch 2.tex')])
+  })
+
+  it('compiles with the copies, in the master and in its chapters', async () => {
+    const d = tmp()
+    const src = tmp()
+    writeFileSync(join(src, 'fig.png'), 'x')
+    writeFileSync(join(d, 'ch1.tex'), `\\includegraphics[width=3cm]{${src}/fig.png}\n\\includegraphics{fig.png}`)
+    const args: string[][] = []
+    const host = nodeHost(async (_p, a) => { args.push(a); writeFileSync(join(d, 'document.pdf'), '%PDF'); return proc(0, '') })
+    const r = await compileTex('\\begin{document}\\includegraphics{fig.png}\\include{ch1}\\end{document}', d,
+      { sourceDir: src, keepAux: true, pictures: async p => p.replace(/\.png$/, '.pdf') }, host)
+    expect(r.ok).toBe(true)
+    expect(readFileSync(join(d, 'document.tex'), 'utf8')).toContain(`\\includegraphics{${src}/fig.pdf}`)
+    expect(readFileSync(join(d, 'ch1.tex'), 'utf8')).toBe(`\\includegraphics[width=3cm]{${src}/fig.pdf}\n\\includegraphics{${src}/fig.pdf}`)
+    // A whole compile that keeps its .aux for the next one.
+    expect(args[0]).toContain('--keep-intermediates')
+    expect(args[0]).not.toContain('-r')
+  })
+
+  it('compiles once more with the pictures as they are when the PDF cannot be written', async () => {
+    const d = tmp()
+    const src = tmp()
+    writeFileSync(join(src, 'fig.png'), 'x')
+    writeFileSync(join(d, 'ch1.tex'), `\\includegraphics{${src}/fig.png}`)
+    const seen: string[] = []
+    const host = nodeHost(async () => {
+      const tex = readFileSync(join(d, 'document.tex'), 'utf8') + readFileSync(join(d, 'ch1.tex'), 'utf8')
+      seen.push(tex)
+      if (tex.includes('fig.pdf')) return proc(1, 'note: Running xdvipdfmx ...\nerror: something bad happened inside xdvipdfmx')
+      writeFileSync(join(d, 'document.pdf'), '%PDF')
+      return proc(0, '')
+    })
+    const r = await compileTex('\\begin{document}\\includegraphics{fig.png}\\include{ch1}\\end{document}', d,
+      { sourceDir: src, pictures: async p => p.replace(/\.png$/, '.pdf') }, host)
+    expect(r.ok).toBe(true)
+    expect(seen[seen.length - 1]).not.toContain('fig.pdf')
+    expect(seen[seen.length - 1].match(/fig\.png/g)).toHaveLength(2)
+  })
+
+  it('a TeX error is not compiled twice', async () => {
+    const d = tmp()
+    const src = tmp()
+    writeFileSync(join(src, 'fig.png'), 'x')
+    let runs = 0
+    const host = nodeHost(async () => { runs++; return proc(1, 'error: halted on potentially-recoverable error') })
+    const r = await compileTex('\\begin{document}\\includegraphics{fig.png}\\end{document}', d,
+      { sourceDir: src, pictures: async p => p.replace(/\.png$/, '.pdf') }, host)
+    expect(r.ok).toBe(false)
+    // The cached run, then the online one: the same two as without copies.
+    expect(runs).toBe(2)
+  })
+})

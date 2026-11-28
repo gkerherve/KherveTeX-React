@@ -7,8 +7,12 @@ describe('Fast LaTeX format', () => {
     expect(preloadList(tex)).toEqual(['amsmath', 'amssymb', 'tikz'])
   })
   it('leaves out packages that load xcolor when xcolor has options', () => {
-    const tex = '\\documentclass{article}\\usepackage[table]{xcolor}\\usepackage{tikz}\\usepackage{booktabs}\\begin{document}\\end{document}'
-    expect(preloadList(tex)).toEqual(['booktabs'])
+    const tex = '\\documentclass{article}\\usepackage[table]{xcolor}\\usepackage{tikz}\\usepackage{siunitx}\\begin{document}\\end{document}'
+    expect(preloadList(tex)).toEqual(['siunitx'])
+  })
+  it('never preloads booktabs (its rule sizes depend on the class fonts)', () => {
+    const tex = '\\documentclass{article}\\usepackage{amsmath}\\usepackage{booktabs}\\begin{document}\\end{document}'
+    expect(preloadList(tex)).toEqual(['amsmath'])
   })
   it('names the format by its packages and saves it with no OpenType font', () => {
     expect(formatName(['tikz'])).toBe(formatName(['tikz']))
