@@ -157,6 +157,9 @@ pre.kt-nc-start::before { content: 'Not compiled'; position: absolute; left: 6px
 .kt-ch-btn.off { color: #a33; }
 .kt-ch-note { color: #6b7a90; margin-right: 4px; }
 .kt-chapter-folded { border-bottom: 1px dashed #a9bcdc; padding-bottom: 6px; }
+/* A folded chapter is only its bar: without the drop a chapter opens its
+   page with, so the bars of chapters folded one after another stand close. */
+.kt-flow > .kt-chapter-folded { margin-top: 64px !important; }
 .kt-chapter-folded::after { content: ''; display: block; }
 /* A run-in heading over the paragraph that shares its line: it takes the
    mouse only over its words (runInHitPlugin), so the rest of the line,
@@ -277,7 +280,8 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
 .kt-figure {
   margin-left: 10px;
   margin-right: 10px;
-  margin-bottom: 10px;
+  /* \intextsep above (the block's gap) and below (the next block's). */
+  margin-bottom: 0;
   /* Almost invisible, as the page will print it; a faint frame on hover. */
   border: 1px solid rgba(0, 0, 0, 0.04);
   background: transparent;
@@ -285,10 +289,14 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
   cursor: default;
 }
 .kt-figure:hover { border-color: rgba(46, 125, 50, 0.28); }
-.kt-figure-row { padding: 8px; text-align: center; }
+/* The picture and, \abovecaptionskip under it, the caption on the body's
+   line spacing: nothing else, so a figure is as tall as the PDF's. */
+.kt-figure-row { padding: 0 8px; text-align: center; }
+.kt-figure-row.kt-figure-image { line-height: 0; }
+.kt-figure-row.kt-figure-image .kt-figure-missing { line-height: normal; }
+.kt-figure-row.kt-figure-caption { padding-top: var(--kt-capskip, 13.3px); line-height: var(--kt-line, normal); }
 .kt-figure[data-align='left'] .kt-figure-row { text-align: left; }
 .kt-figure[data-align='right'] .kt-figure-row { text-align: right; }
-.kt-figure-row + .kt-figure-row { border-top: 1px solid rgba(0, 0, 0, 0.04); }
 .kt-figure-image img { max-width: 100%; vertical-align: top; }
 .kt-figure-pics { display: inline-flex; flex-wrap: wrap; gap: 0.4cm; align-items: center; justify-content: center; }
 .kt-figure-pics img { max-width: 100%; }
@@ -338,7 +346,7 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   text-indent: 0;
 }
 .kt-table {
@@ -346,7 +354,9 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
   border-spacing: 0;
 }
 .kt-table td {
-  padding: 2px 8px;
+  /* A tabular row is one line of the body (\arraystretch 1), \tabcolsep each side. */
+  padding: 0 8px;
+  line-height: var(--kt-line, normal);
   vertical-align: top;
   min-width: 1em;
   position: relative;
@@ -357,7 +367,8 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
 .kt-table td.selectedCell { background: rgba(26, 109, 216, 0.18) !important; }
 .kt-table-wrap[data-caption]::after {
   content: attr(data-caption);
-  padding-top: 8px;
+  padding-top: var(--kt-capskip, 13.3px);
+  line-height: var(--kt-line, normal);
   text-align: center;
   max-width: 100%;
 }
@@ -630,7 +641,7 @@ body.kt-latex-source .kt-inline-raw-shown > .kt-raw-source {
    draws it, a thin black frame at 95% of the line. */
 div.kt-box {
   border: 1px solid #000;
-  padding: 3px 6px;
+  padding: 2px 6px;
   width: 95%;
   box-sizing: border-box;
   text-indent: 0 !important;
@@ -806,7 +817,7 @@ body.kt-moving, body.kt-moving * { cursor: grabbing !important; user-select: non
   font-size: 0; line-height: 0; height: 0; min-height: 0; padding: 0; border: 0; overflow: hidden; color: transparent; background: transparent; caret-color: transparent;
 }
 body.kt-latex-source .kt-flow > pre.kt-raw.kt-raw-widget { font-size: 11px; line-height: normal; height: auto; color: #8a8a8a; }
-.kt-widget { position: relative; margin: 12px -7px 12px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; user-select: none; cursor: default; }
+.kt-widget { position: relative; margin: 4px -7px 4px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; user-select: none; cursor: default; }
 .kt-widget:hover { border-color: #d5dde9; }
 pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget { border-color: #6d93cf; background: rgba(43, 87, 154, .035); box-shadow: 0 0 0 1px rgba(43, 87, 154, .18); }
 .kt-widget-tag { position: absolute; top: -9px; left: 6px; display: none; font: 10px/14px Arial, sans-serif; color: #fff; background: #6d93cf; padding: 0 5px; border-radius: 2px; }
@@ -815,15 +826,21 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
   border-radius: 3px; background: #fff; color: #555; font: 16px/18px Arial, sans-serif; cursor: pointer; padding: 0; z-index: 2; }
 .kt-widget-close:hover { background: #fde7e7; color: #b71c1c; border-color: #e0a0a0; }
 .kt-widget:hover .kt-widget-close, pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-close { display: block; }
-.kt-w-title { font-weight: 700; margin-bottom: 4px; }
-.kt-w-checks { column-gap: 2em; }
-.kt-w-check { display: flex; align-items: center; gap: .5em; padding: 1px 0 1px 1em; break-inside: avoid; }
+/* The elements set as text keep LaTeX's own spacing: nothing around them
+   (the frame's room is taken back), lines on the body's line spacing. */
+.kt-widget-checklist, .kt-widget-progress { margin-top: -7px; margin-bottom: -7px; padding-top: 0; padding-bottom: 0; }
+.kt-w-title { font-weight: 700; line-height: var(--kt-line, normal); margin-bottom: 8px; }
+.kt-w-checks { column-gap: 2em; margin-bottom: 8px; }
+.kt-w-check { display: flex; align-items: center; gap: .5em; padding: 0 0 0 1em; line-height: var(--kt-line, normal); margin-bottom: 2.66px; break-inside: avoid; }
+.kt-w-check:last-child { margin-bottom: 0; }
 .kt-w-check svg { flex: none; }
-.kt-w-bars { display: inline-grid; column-gap: 1em; row-gap: .55em; align-items: center; }
+.kt-w-bars { display: inline-grid; column-gap: 1em; row-gap: .55em; align-items: center; margin: -3px 0; }
 .kt-w-bar { display: inline-flex; overflow: hidden; }
 .kt-w-bar > span { display: block; height: 100%; }
 .kt-w-bar-pct { text-align: right; }
-.kt-w-tl-v { display: flex; flex-direction: column; gap: .9em; margin: 0 auto; width: fit-content; position: relative; }
+.kt-w-tl-v { display: flex; flex-direction: column; gap: 5mm; margin: -3px auto; width: fit-content; position: relative; }
+.kt-w-tl-v .kt-w-ev-title { line-height: var(--kt-line, normal); }
+.kt-w-tl-v .kt-w-ev-body { line-height: 1.25; margin-top: 1px; }
 .kt-w-tl-v .kt-w-ev { display: grid; grid-template-columns: 4.5em 1.2em minmax(0, 24em); align-items: start; position: relative; }
 .kt-w-tl-v .kt-w-ev-date { text-align: right; padding-right: .5em; font-weight: 700; color: var(--kt-w); }
 .kt-w-tl-v .kt-w-ev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kt-w); margin: .45em auto 0; position: relative; z-index: 1; }
@@ -836,13 +853,14 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-w-tl-h .kt-w-ev { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 .3em; }
 .kt-w-tl-h .kt-w-ev-date { font-weight: 700; font-size: .9em; color: var(--kt-w); height: 1.4em; }
 .kt-w-tl-h .kt-w-ev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kt-w); position: relative; z-index: 1; margin-bottom: .4em; }
+.kt-w-qr { margin: -3px 0; }
 .kt-w-qr svg { display: inline-block; }
 .kt-w-qr-cap { font-size: .9em; margin-top: 2px; }
 .kt-w-qr-err { color: #b71c1c; font-style: italic; }
 .kt-w-code-title { text-align: center; margin-bottom: 3px; }
-.kt-w-code { font: 12px/1.45 Menlo, Consolas, monospace; padding: 4px 6px; white-space: pre-wrap; }
+.kt-w-code { font: 12px/18.07px Menlo, Consolas, monospace; padding: 4px 6px; white-space: pre-wrap; margin: -6px 0; }
 .kt-w-code-line { display: flex; }
-.kt-w-code-num { flex: none; width: 2em; text-align: right; padding-right: 1em; color: #999; font-size: 9px; line-height: 17px; }
+.kt-w-code-num { flex: none; width: 2em; text-align: right; padding-right: 1em; color: #999; font-size: 9px; line-height: 18.07px; }
 .kt-w-code-text { flex: 1; min-width: 0; }
 
 /* Layout ▸ Margin Note: a small flag in the text, the note in the right margin. */
@@ -883,10 +901,26 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-w-side-right { width: 38%; margin-left: auto; }
 .kt-w-side-left { width: 38%; }
 .kt-w-side-title { font-weight: 700; color: var(--kt-w); margin-bottom: 2px; }
+/* A sidebar beside the paragraph after it (a wrapfigure of 0.38\linewidth):
+   it floats in that paragraph, whose lines run around it. */
+.kt-widget.kt-widget-wrap { float: right; width: 38%; box-sizing: border-box; margin: 0 -7px 4px 13px; padding: 0 6px; text-indent: 0; text-align: left; white-space: normal; }
+.kt-widget.kt-widget-wrap.kt-wrap-left { float: left; margin: 0 13px 4px -7px; }
+.kt-widget-wrap .kt-w-side { width: auto; margin-left: 0; }
+.kt-widget-wrap .kt-w-side-hint { display: none; }
+.kt-flow > p.kt-has-wrap { display: flow-root; }
+/* In columns, the space above a block is dropped at the top of a column or
+   sheet, as LaTeX discards it there, in every browser (some kept it after
+   a forced break: each sheet then began a little lower than the last, ran
+   past its foot and gave up lines to the next). A chapter or a block after
+   a page break keeps its own. */
+.kt-cols > .kt-flow > .kt-page-gap-col + :not(.kt-page-gap):not([data-break]),
+.kt-cols > .kt-flow > .kt-page-gap-span + :not(.kt-page-gap):not([data-break]) { margin-top: 0 !important; }
+pre.kt-raw-widget.ProseMirror-selectednode + p > .kt-widget-wrap { border-color: #6d93cf; background: rgba(43, 87, 154, .035); box-shadow: 0 0 0 1px rgba(43, 87, 154, .18); }
+pre.kt-raw-widget.ProseMirror-selectednode + p > .kt-widget-wrap .kt-widget-tag, pre.kt-raw-widget.ProseMirror-selectednode + p > .kt-widget-wrap .kt-widget-close { display: block; }
 .kt-w-side-hint { font-size: 10px; color: #888; font-style: italic; margin-top: 3px; font-family: Arial, sans-serif; }
 .kt-w-para + .kt-w-para { margin-top: .5em; }
 /* Steps */
-.kt-w-steps-h { display: flex; justify-content: space-around; }
+.kt-w-steps-h { display: flex; justify-content: space-around; margin: 4px 0; }
 .kt-w-steps-h .kt-w-step { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; font-size: .9em; }
 .kt-w-steps-h .kt-w-step:not(:last-child)::after { content: ''; position: absolute; top: 15px; left: calc(50% + 20px); right: calc(-50% + 20px);
   border-top: 2px solid color-mix(in srgb, var(--kt-w) 60%, white); }
@@ -908,7 +942,8 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-edge-thumb { right: 0; width: 1.1cm; height: 1.6cm; color: #fff; display: flex; align-items: center; justify-content: center; border-radius: 4px 0 0 4px; }
 .kt-w-check-box { cursor: pointer; } .kt-w-check-box:hover { filter: brightness(0.8); transform: scale(1.12); }
 /* Science elements */
-.kt-w-hz { font-size: .85em; margin-top: 4px; }
+/* \\begin{flushleft}: \\topsep and \\partopsep above and below. */
+.kt-w-hz { font-size: .91em; line-height: 1.24; margin-top: 11px; margin-bottom: 6px; }
 .kt-w-scheme { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .kt-w-scheme-mol { text-align: center; }
 .kt-w-scheme-formula { font-size: 1.05em; }
@@ -917,7 +952,7 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-w-scheme-line { font-size: 2em; line-height: .8; color: #222; }
 .kt-w-alg { border-top: 1.2px solid #000; border-bottom: 1.2px solid #000; padding: 2px 0 4px; font-size: .92em; }
 .kt-w-alg-title { border-bottom: 0.8px solid #000; padding-bottom: 2px; margin-bottom: 3px; }
-.kt-w-alg-line { display: flex; gap: .5em; line-height: 1.45; }
+.kt-w-alg-line { display: flex; gap: .5em; line-height: 1.315; }
 .kt-w-alg-num { width: 1.8em; text-align: right; color: #555; font-size: .8em; flex: none; }
 .kt-w-nb { border: 1px solid var(--kt-w); border-radius: 2px; background: color-mix(in srgb, var(--kt-w) 4%, white); font-size: .92em; }
 .kt-w-nb-head { background: var(--kt-w); color: #fff; font: 700 .95em Helvetica, Arial, sans-serif; display: flex; justify-content: space-between; padding: 3px 8px; }
@@ -930,17 +965,33 @@ pre.kt-raw-widget.ProseMirror-selectednode + .kt-widget .kt-widget-tag { display
 .kt-w-nb-sign { padding: 10px 8px 6px; font-size: .9em; color: #333; }
 
 /* Admin & Office, Accountants, Architect tables (editor/officeView.ts). */
-.kt-o-table { font-size: 0.86em; }
-.kt-o-title { font-weight: 700; font-size: 1.15em; margin-bottom: 4px; }
-.kt-o-info { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
-.kt-o-table table { border-collapse: collapse; border-top: 1.5px solid #222; border-bottom: 1.5px solid #222; margin: 0 auto 0 0; }
-.kt-o-table th { background: color-mix(in srgb, var(--kO) 12%, white); border-bottom: 1px solid #222; padding: 3px 8px; font-weight: 700; }
-.kt-o-table td { padding: 2px 8px; vertical-align: top; }
-.kt-o-table tr.kt-o-heading td { font-weight: 700; padding-top: 6px; }
-.kt-o-table tr.kt-o-subtotal td { font-weight: 700; border-top: 0.5px solid #888; }
-.kt-o-table tr.kt-o-total td { font-weight: 700; border-top: 1px solid #222; border-bottom: 2.5px double #222; }
+/* As core/office.ts prints them: \small text, rows of 1.15 baselines
+   (\arraystretch), \tabcolsep 5pt, booktabs' room around its rules; the
+   title \large over a \smallskip, the details at the body's size. */
+.kt-o-table { font-size: 0.91em; margin: -17px 0 -7px; }
+.kt-widget-agenda .kt-o-table { margin: -8px 0 2px; }
+/* Drawings whose printed box differs from the drawn one (axis labels, a chemfig's depth). */
+.kt-widget-mccabe .kt-widget-body { margin: -16px 0; }
+.kt-widget-ternary .kt-widget-body { margin: -5.5px 0; }
+.kt-widget-pfd .kt-widget-body { margin: 3px 0; }
+.kt-widget-notebook .kt-widget-body { margin: 2.5px 0; }
+.kt-widget-formfields .kt-widget-body { margin: -8.5px 0; }
+.kt-w-scheme { margin: 20px 0 36px; }
+.kt-o-title { font-weight: 700; font-size: 1.32em; line-height: 1.25; margin-bottom: 4px; }
+.kt-o-info { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; font-size: 1.1em; line-height: var(--kt-line, normal); }
+.kt-o-table table { border-collapse: collapse; border-top: 1.3px solid #222; border-bottom: 1.3px solid #222; margin: 0 auto 0 0; }
+.kt-o-table th, .kt-o-table td { line-height: 1.43; padding: 0 6.67px; vertical-align: top; }
+.kt-o-table th { background: color-mix(in srgb, var(--kO) 12%, white); border-bottom: 0.8px solid #222; font-weight: 700; padding-top: 4px; padding-bottom: 2.5px; background-clip: content-box; }
+.kt-o-table tbody tr:first-child td { padding-top: 4px; }
+.kt-o-table tbody tr:last-child td { padding-bottom: 2.5px; }
+.kt-o-table tr.kt-o-heading td { font-weight: 700; }
+.kt-o-table tr.kt-o-subtotal td { font-weight: 700; padding-top: 6.5px; background: linear-gradient(#888, #888) 0 2.5px / 100% 0.5px no-repeat; }
+.kt-o-table tr.kt-o-subtotal td:first-child { background: none; }
+.kt-o-table tr.kt-o-total td { font-weight: 700; padding-top: 6.5px; padding-bottom: 2.5px; border-bottom: 1.1px solid #222; background: linear-gradient(#222, #222) 0 2.5px / 100% 0.8px no-repeat; }
+.kt-o-table tr.kt-o-total + tr td { padding-top: 4px; }
+.kt-o-table tbody tr.kt-o-total:last-child td { padding-bottom: 6px; }
 .kt-o-table tr.kt-o-muted td { color: #777; }
-.kt-o-note { font-size: 0.85em; color: #777; margin-top: 4px; }
+.kt-o-note { font-size: 0.913em; line-height: 1.2; color: #777; margin-top: 4px; }
 
 /* ----- The placement button on a figure or table ([H], [htbp]...) ----- */
 .kt-figure, .kt-table-wrap { position: relative; }

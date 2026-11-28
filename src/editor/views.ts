@@ -5,7 +5,7 @@
 import { parseDropCap, parseIcon, parseMarginNote } from '../core/widgets.ts'
 import { dropCapElement, iconElement, marginNoteElement } from './widgetView.ts'
 import { FANCY_RULE_GREY, parseFancy, tint } from '../core/fancyTable.ts'
-import { autoTableAlignment } from '../core/serializer.ts'
+import { autoTableAlignment, tableIsLong } from '../core/serializer.ts'
 import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView, NodeView, ViewMutationRecord } from 'prosemirror-view'
 import { placementButton } from './placement.ts'
@@ -371,10 +371,14 @@ class TableView implements NodeView {
   // Columns with LaTeX widths (m{0.36\textwidth}) take that share of the
   // text width, as the PDF does; the cells' share is set by tableCellStyles.
   private size() {
-    const fr = columnFractions(this.node.attrs.alignment || '')
+    const spec = tableSpec(this.node)
+    const fr = columnFractions(spec)
     const total = fr.reduce((a: number, b) => a + (b ?? 0), 0)
     const fixed = fr.length > 0 && fr.every((f) => f !== null)
-    this.table.style.width = fixed ? `${Math.min(100, total * 100 + fr.length * 2)}%` : ''
+    // p{0.3\textwidth} is the text's width, the \tabcolsep beside it;
+    // p{\dimexpr0.3\linewidth-2\tabcolsep} is the whole column.
+    const padded = spec.includes('\\dimexpr')
+    this.table.style.width = fixed ? `${Math.min(100, total * 100 + (padded ? 0 : fr.length * 2))}%` : ''
     this.table.style.tableLayout = fixed ? 'fixed' : ''
     // Its own text size (Font size on a selection holding the table).
     const pt = this.node.attrs.font_size
@@ -382,7 +386,9 @@ class TableView implements NodeView {
   }
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
+    // With no column spec the widths follow the cells' text (tableSpec).
     const spec = node.attrs.alignment !== this.node.attrs.alignment || node.attrs.font_size !== this.node.attrs.font_size
+      || (!node.attrs.alignment && tableSpec(node) !== tableSpec(this.node))
     if (node.attrs.placement !== this.node.attrs.placement) {
       const b = placementButton(node, this.view, this.getPos)
       this.place.replaceWith(b)
@@ -392,6 +398,32 @@ class TableView implements NodeView {
     if (spec) this.size()
     return true
   }
+}
+
+// A table's column spec: its own, or the one its LaTeX gets when it has
+// none (l columns, or p{} shares of the line for long text).
+export function tableSpec(node: PMNode): string {
+  if (node.attrs.alignment) return node.attrs.alignment
+  let ncols = 0
+  node.firstChild?.forEach(c => { ncols += c.attrs.colspan })
+  return autoTableAlignment(tableRowsText(node), ncols)
+}
+
+// The cells' LaTeX, row by row, as the model's table holds it.
+function tableRowsText(node: PMNode): string[][] {
+  const rows: string[][] = []
+  node.forEach(r => { const cells: string[] = []; r.forEach(c => cells.push(c.attrs.raw ?? c.textContent)); rows.push(cells) })
+  return rows
+}
+
+// The table breaks across pages in the PDF (a longtable: a repeated
+// header, a form's set widths, pictures in its cells, or too long for a
+// page); any other is a tabular, kept whole on one page.
+export function tableBreaks(node: PMNode): boolean {
+  if (node.childCount <= 1) return false
+  if (node.attrs.repeat_header || String(node.attrs.alignment || '').includes('\\dimexpr')) return true
+  const rows = tableRowsText(node)
+  return rows.some(r => r.some(c => c.includes('\\includegraphics'))) || tableIsLong(rows)
 }
 
 // Each column's width as a share of the text width, from p/m/b{0.36\textwidth}
@@ -499,10 +531,9 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
   const last = nrows - 1
   let [aligns, vrules] = parseColumnSpec(a.alignment || '', ncols)
   // No spec: the one the LaTeX gets (l columns, or p{} for long text).
-  const spec: string = a.alignment || autoTableAlignment(
-    (() => { const rows: string[][] = []; node.forEach(r => { const cells: string[] = []; r.forEach(c => cells.push(c.attrs.raw ?? c.textContent)); rows.push(cells) }); return rows })(), ncols)
+  const spec: string = tableSpec(node)
   const colTokens = spec.match(COL_SPEC_RE)?.filter((t: string) => t !== '|' && !'@!<>'.includes(t[0])) ?? []
-  const fr = columnFractions(a.alignment || '')
+  const fr = columnFractions(spec)
   const fixed = fr.length === ncols && fr.every((f) => f !== null)
   const frTotal = fixed ? fr.reduce((x: number, y) => x + y!, 0) || 1 : 1
   if (style === 'grid') vrules = Array(ncols + 1).fill(true)
@@ -537,6 +568,8 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
         + `border-left:${left}px solid ${left ? '#000' : 'transparent'};`
         + `border-right:${right}px solid ${right ? '#000' : 'transparent'};`
         + `text-align:${al === 'c' ? 'center' : al === 'r' ? 'right' : 'left'};`
+        // A vertical rule stands beside LaTeX's column, not inside it.
+        + (left || right ? `padding-left:${8 - left / 2}px;padding-right:${8 - right / 2}px;` : '')
         + (bg ? `background:${bg};` : '')
         + (tok[0] === 'm' ? 'vertical-align:middle;' : tok[0] === 'b' ? 'vertical-align:bottom;' : '')
         + (fixed && cell.attrs.colspan === 1 ? `width:${(fr[c]! / frTotal) * 100}%;` : '')
@@ -544,6 +577,15 @@ export function tableCellStyles(node: PMNode): { offset: number; style: string }
         // into the margin or the next column): nor does it here, so the
         // table is as tall as the PDF's.
         + (cell.attrs.colspan === 1 && /^[lcr]$/.test(tok) ? 'white-space:nowrap;--kt-cell-ws:pre;' : '')
+        // Flush-left columns (the ones the table's text set, a form's):
+        // LaTeX breaks no word there.
+        // Its spaces give a little (TeX closes a line up by a third of a
+        // space's shrink rather than set one more line).
+        + (!a.alignment || /raggedright/.test(a.alignment) ? `-webkit-hyphens:manual;hyphens:manual;${/^[pmb]/.test(tok) ? 'word-spacing:-0.03em;' : ''}` : '')
+        // booktabs leaves room around its rules (\belowrulesep 0.65ex under
+        // \toprule and \midrule, \aboverulesep 0.4ex over \midrule and
+        // \bottomrule): a tabular's \hline leaves none.
+        + (booktabs && !fancy ? `padding-top:${r <= 1 ? 0.28 : 0}em;padding-bottom:${(r === 0 && last > 0) || bottomRow >= last ? 0.17 : 0}em;` : '')
       // Header row bold; unedited cells show their LaTeX's bold / italic.
       // Bold or italic only when all of the cell's text is (a Word form's
       // cell with a bold heading over plain text is not bold).

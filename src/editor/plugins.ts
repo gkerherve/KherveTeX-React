@@ -265,11 +265,20 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
     // Insert ▸ Elements: the drawing over the hidden LaTeX.
     const w = parseWidget(node.textContent)
     if (w) {
-      decos.push(Decoration.widget(pos + node.nodeSize, view => {
+      // A sidebar on the left or right stands in the paragraph after it,
+      // which flows around it as the PDF's does (a wrapfigure).
+      const after = doc.nodeAt(pos + node.nodeSize)
+      const wraps = w.kind === 'sidebar' && (w.data as { position?: string }).position !== 'full'
+        && !!after && after.type.name === 'paragraph' && after.content.size > 0
+      if (wraps) decos.push(Decoration.node(pos + node.nodeSize, pos + node.nodeSize + after!.nodeSize, { class: 'kt-has-wrap' }))
+      decos.push(Decoration.widget(wraps ? pos + node.nodeSize + 1 : pos + node.nodeSize, view => {
         const at = () => {
           const p = view.posAtDOM(dom, 0)
-          const before = view.state.doc.resolve(p).nodeBefore
-          return before ? p - before.nodeSize : -1
+          const $p = view.state.doc.resolve(p)
+          // Inside the paragraph it wraps: its LaTeX is the block before that.
+          const q = $p.depth > 0 ? $p.before(1) : p
+          const before = view.state.doc.resolve(q).nodeBefore
+          return before ? q - before.nodeSize : -1
         }
         const act = (fn: (p: number) => void) => () => { const p = at(); if (p >= 0) { fn(p); view.focus() } }
         const dom: HTMLElement = widgetElement(w, {
@@ -281,8 +290,9 @@ function buildDecorations(doc: PMNode, layout: DocLayout, anchors: readonly Page
             updateWidget<'checklist'>(d => { if (d.items[i]) d.items[i].done = !d.items[i].done })(view.state, view.dispatch)
           })(),
         })
+        if (wraps) dom.classList.add('kt-widget-wrap', `kt-wrap-${(w.data as { position?: string }).position === 'left' ? 'left' : 'right'}`)
         return dom
-      }, { side: -1, key: 'w' + node.textContent, ignoreSelection: true, stopEvent: () => true }))
+      }, { side: -1, key: (wraps ? 'ww' : 'w') + node.textContent, ignoreSelection: true, stopEvent: () => true }))
       return
     }
     const t = tocBlock(node.textContent)

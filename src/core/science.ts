@@ -563,6 +563,28 @@ export function algorithmLatex(d: AlgorithmData): string {
   return `\\begin{algorithm}[H]\n${d.title.trim() ? `\\caption{${tex(d.title.trim())}}\n` : ''}\\begin{algorithmic}${d.numbers ? '[1]' : ''}\n${out.join('\n')}\n\\end{algorithmic}\n\\end{algorithm}\n`
 }
 
+// The lines the algorithm prints: its own, and the "end if", "end while",
+// "end for", "end function" algpseudocode adds where a block's indentation
+// ends. Each with its depth, for the editor to draw what the PDF prints.
+export function algorithmRows(d: AlgorithmData): { text: string; indent: number; end?: boolean }[] {
+  const out: { text: string; indent: number; end?: boolean }[] = []
+  const stack: { ind: number; end: string }[] = []
+  const close = (ind: number) => {
+    while (stack.length && stack[stack.length - 1].ind >= ind) { const b = stack.pop()!; out.push({ text: b.end, indent: stack.length, end: true }) }
+  }
+  for (const raw of d.code.split('\n').filter(l => l.trim())) {
+    const ind = raw.length - raw.trimStart().length
+    const l = raw.trim()
+    const isElse = /^(else\b|else if\b|elseif\b)/i.test(l)
+    if (isElse) close(ind + 1); else close(ind)
+    const m = /^(function|procedure|if|for|while)\b/i.exec(l)
+    out.push({ text: l, indent: isElse ? Math.max(0, stack.length - 1) : stack.length })
+    if (m && !isElse) stack.push({ ind, end: `end ${m[1].toLowerCase()}` })
+  }
+  close(-1)
+  return out
+}
+
 // ---------------------------------------------------------- lab notebook
 
 export function notebookSections(d: NotebookData): { heading: string; text: string }[] {

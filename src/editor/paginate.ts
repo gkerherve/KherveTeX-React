@@ -13,6 +13,7 @@
 import type { EditorView } from 'prosemirror-view'
 import type { PageGeometry } from './layout.ts'
 import type { Spacer } from './plugins.ts'
+import { tableBreaks } from './views.ts'
 
 interface Unit {
   top: number
@@ -170,7 +171,10 @@ function cssGap(el: HTMLElement): number {
 // The flow, unit by unit (_column_units): lines of text, table rows, and
 // whole figures and equations, in document order, at y = f(client y).
 function collectUnits(view: EditorView, y0: (clientY: number) => number, floats = false,
-  z = 1): { units: Unit[]; spanEnd: number | null } {
+  z = 1,
+  // The tallest a table LaTeX cannot break (a tabular) may be and still
+  // move whole to the next sheet; 0: every table breaks row by row.
+  wholeTable = 0): { units: Unit[]; spanEnd: number | null } {
   const units: Unit[] = []
   // A floating figure lifted out of the flow last time moved what follows
   // it up by its lift, and is drawn shifted: both are undone here, so the
@@ -247,15 +251,31 @@ function collectUnits(view: EditorView, y0: (clientY: number) => number, floats 
       units.push({ top: y(top), bottom: y(dr.bottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom) })
       return
     }
+    // A paragraph with a sidebar standing in it (its text flows around the
+    // sidebar): one piece, moved whole, as a figure is. A break inside it
+    // would stand beside the sidebar, and the lines never settled.
+    if (node.isTextblock && dom.classList.contains('kt-has-wrap')) {
+      const wr = dom.getBoundingClientRect()
+      units.push({ top: y(wr.top), bottom: y(wr.bottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom) })
+      return
+    }
     if (node.isTextblock) {
-      textUnits(dom, offset, !!dom.dataset.break, cssGap(dom), node.type.name === 'section' ? offset : undefined, dom.dataset.break === 'pdf',
+      // A folded chapter is only its bar: it starts no sheet of its own
+      // (all the chapters folded but one left a sheet for each bar).
+      const bar = dom.classList.contains('kt-chapter-folded')
+      textUnits(dom, offset, !!dom.dataset.break && !bar, cssGap(dom), node.type.name === 'section' ? offset : undefined, dom.dataset.break === 'pdf',
         isPageBreak(node))
       return
     }
     const r = dom.getBoundingClientRect()
     if (node.type.name === 'table') {
-      // Row by row, as a QTextTable breaks across pages; the caption
-      // under the table goes with the last row.
+      // A tabular is one box in the PDF: it moves whole to the next page.
+      if (wholeTable > 0 && (r.bottom - r.top) / z <= wholeTable && !tableBreaks(node)) {
+        units.push({ top: y(r.top), bottom: y(r.bottom), pos: offset, kind: 'block', forced: !!dom.dataset.break, pdfStart: dom.dataset.break === 'pdf', gap: cssGap(dom) })
+        return
+      }
+      // A longtable breaks row by row across pages; the caption under the
+      // table goes with the last row.
       const trs = [...dom.querySelectorAll<HTMLElement>('tr')].filter(t => !t.classList.contains('kt-page-gap'))
       let cols = 0
       node.firstChild?.forEach(c => { cols += c.attrs.colspan })
@@ -326,6 +346,19 @@ function forcePageStarts(units: Unit[], pageStarts: readonly PageStart[]): Map<n
       hit = units.findIndex(u => u.kind === 'block' && u.pos === s.pos)
       if (hit > 0) { if (!units[hit].forced) units[hit].pdfStart = true; units[hit].forced = true; units[hit].page = s.page }
     }
+    // LaTeX never breaks a page between a heading and the text under it:
+    // a page start found at that text (the heading's own line not matched,
+    // printed with its number) is the heading's.
+    if (hit > 0 && units[hit].forced && units[hit].kind === 'block' && units[hit].heading === undefined
+      && units[hit - 1].heading !== undefined && !units[hit - 1].forced) {
+      let h = hit - 1
+      while (h > 1 && units[h - 1].heading !== undefined && !units[h].forced) h--
+      if (units[h].kind === 'block' && h > 0) {
+        Object.assign(units[h], { forced: true, pdfStart: true, page: units[hit].page })
+        if (units[hit].pdfStart) Object.assign(units[hit], { forced: false, pdfStart: false, page: undefined })
+        hit = h
+      }
+    }
     if (hit > 0 && s.blanks > 0) blanks.set(hit, s.blanks)
   }
   return blanks
@@ -360,7 +393,10 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   // since it (pdfFresh), the pages between two starts found never number
   // more than the PDF's there (a page start not found left the editor to
   // break where its own type overflows, a sheet or two more than the PDF).
-  pdfTotal = 0): { spacers: Spacer[]; measure: PageMeasure } {
+  pdfTotal = 0,
+  // The breaks standing now: one found a few characters from where it
+  // already stands, in the same paragraph, stays (see steadied).
+  old: readonly Spacer[] = []): { spacers: Spacer[]; measure: PageMeasure } {
   const root = view.dom as HTMLElement
   const z = zoomOf(page) || 1
   // y from the top of the first sheet.
@@ -380,7 +416,8 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
     for (const g of gaps) if (g.at < v - 0.01) s += g.height
     return v - s
   }
-  const { units } = collectUnits(view, c => natural(yOf(c)), floats, z)
+  const { units } = collectUnits(view, c => natural(yOf(c)), floats, z,
+    geo.heightPx - geo.topPx - geo.bottomPx)
   // The line a mid-paragraph page start falls on: the last line unit at or
   // before it.
   const blanks = forcePageStarts(units, pageStarts)
@@ -428,6 +465,19 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   // drawn now (its top), its height and the space it gave up.
   let pending: { pos: number; top: number; box: number; lift: number }[] = []
   const capacity = contentBottom(0) - contentTop(0)
+  // A heading stays with what follows it (LaTeX allows no page break
+  // after a heading): where the first line or object under each heading
+  // ends, by the heading's first unit; headings straight after one
+  // another go together.
+  const keepEnd: number[] = new Array(units.length).fill(0)
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i]
+    if (u.heading === undefined || (i > 0 && units[i - 1].heading === u.heading)) continue
+    let j = i
+    while (j + 1 < units.length && units[j + 1].heading !== undefined && !units[j + 1].forced) j++
+    if (j + 1 < units.length && !units[j + 1].forced && !units[j + 1].float && !units[j + 1].empty) j++
+    if (j > i && units[j].bottom - u.top <= capacity * 0.7) keepEnd[i] = units[j].bottom
+  }
   // LaTeX's \textfloatsep: between the figures at a page's top and the text.
   const floatSep = 26
   // The pending figures at the top of sheet `sheet`: their spacers, and
@@ -453,9 +503,11 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   units.forEach((u, i) => {
     if (i > lastReal && lastReal >= 0) return
     const t = u.top + shift
-    const b = u.bottom + shift
+    // A heading is placed as tall as itself and the line under it.
+    const own = u.bottom + shift
+    const b = keepEnd[i] ? Math.max(own, keepEnd[i] + shift) : own
     const reach = lastBottom
-    if (b - t > 1 && !u.empty) lastBottom = Math.max(lastBottom, b)
+    if (own - t > 1 && !u.empty) lastBottom = Math.max(lastBottom, own)
     // PDF paging: the sheet is the PDF page's, however long it runs.
     // A forced break goes to the sheet after the one the text before it
     // is on, not after the one its own top margin reaches (a chapter's
@@ -511,6 +563,15 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
       want = contentTop(k + 1)
       ranOn = !!pdfPages || (bounded && k + 1 >= nextPage[i] - 1)
     } else if (u.forced && u.pdfStart && ranOn) ranOn = false
+    // Carried over the foot of a sheet by the space above it alone, into
+    // the next sheet's top margin (a folded chapter's bar under another,
+    // a heading's space at the very foot): down to where the text starts.
+    else if (!pdfPages && !bounded && k > 0 && !first && !u.float && t < contentTop(k) - 1 && b > k * H) {
+      const h = contentTop(k) - t
+      spacers.push({ pos: u.pos, height: h, kind: u.kind, cols: u.cols, ruled: u.ruled, row: u.row })
+      shift += h
+      sheetText = false
+    }
     if (move) {
       // The figures waiting go to the top of the new sheet, this unit
       // under them.
@@ -532,6 +593,7 @@ export function computeSpacers(view: EditorView, geo: PageGeometry, page: HTMLEl
   // Figures still waiting at the end: a sheet of their own after the text.
   if (pending.length) last = Math.max(last, contentTop(k + 1) + placePending(k + 1))
   const sheets = Math.max(pdfPages, 1, Math.ceil(Math.max(1, last) / H))
+  steadied(view, spacers, old, true)
   return { spacers, measure: { sheets } }
 }
 
@@ -669,6 +731,21 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     // row taller than measured overflows sideways, not down.
     const sideways: number[] = []
     const textRight = geo.widthPx - geo.rightPx + 2
+    const blockPast = new Map<Element, boolean>()
+    const pastLast = (n: Node): boolean => {
+      let el: Element | null = n.parentElement
+      while (el && el.parentElement !== view.dom) el = el.parentElement
+      if (!el) return true
+      let hit = blockPast.get(el)
+      if (hit === undefined) {
+        // Its fragment in this column: the leftmost of the block's boxes
+        // right of the text (a block may run over several columns).
+        const boxes = [...el.getClientRects()].filter(r => (r.left - pageLeft) / z > textRight - 4)
+        hit = boxes.length > 0 && boxes.every(r => r.width / z <= colW + 24)
+        blockPast.set(el, hit)
+      }
+      return hit
+    }
     const walk = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT)
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       if (!n.nodeValue?.trim() || (n.parentElement?.closest('.kt-page-gap, .kt-labels'))) continue
@@ -679,7 +756,11 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
         const i = Math.floor(y0 / H)
         const k = `${i},${colOf(b.left + 1)}`
         if (i >= 0 && y1 > (lowest.get(k) ?? -Infinity)) lowest.set(k, y1)
-        if (i >= 0 && (b.left - pageLeft) / z > textRight) sideways[i] = (sideways[i] ?? 0) + (y1 - y0)
+        // In a column past the last: its whole block stands right of the
+        // text. (A table or an element wider than its column only sticks
+        // out of it, as in the PDF; taken for a column too many, it took a
+        // quarter off every sheet it stood on.)
+        if (i >= 0 && (b.left - pageLeft) / z > textRight && pastLast(n)) sideways[i] = (sideways[i] ?? 0) + (y1 - y0)
       }
     }
     for (const nt of foot.notes) {
@@ -763,7 +844,20 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
     // its margin, rather than alone on a sheet the PDF does not have.
     if (over && pdfPaged && !notes && !u.forced && col === geo.cols - 1 && nextForced[ui] - u.top <= geo.bottomPx * 0.35
       && vy + (nextForced[ui] - usedFrom) <= limit) over = false
-    const colBreak = colForced.has(u) && col < geo.cols - 1
+    let colBreak = colForced.has(u) && col < geo.cols - 1
+    // A column or page the PDF is said to start here, with the column not
+    // half full and nothing tall coming: LaTeX fills its columns, so the
+    // start was found at the wrong place (the same words printed twice).
+    // It is let go rather than leave most of a sheet empty.
+    let pdfForced = u.forced && !ownStart.has(u)
+    // (A page start on the first sheet may be right: a title page is short.)
+    if (!over && ((pdfForced && sheet > 0) || colBreak)) {
+      const full = room - colTop()
+      const used = vy + (prevBottom - usedFrom) - colTop()
+      let tall = 0
+      for (let k = ui; k < Math.min(units.length, ui + 3); k++) tall = Math.max(tall, units[k].bottom - units[k].top)
+      if (full > 0 && used < full * 0.5 && tall < full * 0.3) { pdfForced = false; colBreak = false; if (u.forced && !ownStart.has(u)) u.forced = false }
+    }
     if (atStart || !(over || u.forced || colBreak)) { atStart = false; prevBottom = u.bottom; noteH += uNote; continue }
     noteH = uNote
     // A new sheet inside a list that began lower in this column: the
@@ -837,7 +931,33 @@ export function computeColumnSpacers(view: EditorView, geo: PageGeometry, page: 
   const order = (sp: Spacer) => (sp.kind === 'span' ? 1 : 0)
   spacers = [...extra.map((e, i) => ({ e, i })), ...spacers.map((e, i) => ({ e, i: 1e6 + i }))]
     .sort((a, b) => a.e.pos - b.e.pos || order(a.e) - order(b.e) || a.i - b.i).map(x => x.e)
+  steadied(view, spacers, old, false)
   return { spacers, measure: { sheets: starts.length + 1 } }
+}
+
+// A break inside a paragraph that falls in a hyphenated word: with the
+// break's own spacer standing in the word, the browser no longer
+// hyphenates it there, the line (measured again) starts a few characters
+// away, the break follows it, the word is whole again, and so on for ever
+// (the breaks never settled, and the page was left wherever the last
+// round stopped: a line in a margin, an element across the gap). A break
+// found a few characters from where it already stands, in the same
+// paragraph, stays there (and, on one column, as tall).
+function steadied(view: EditorView, spacers: Spacer[], old: readonly Spacer[], height: boolean): void {
+  const inside = (sp: Spacer) => sp.inline || sp.kind === 'inline'
+  const stood = old.filter(inside)
+  if (!stood.length) return
+  const doc = view.state.doc
+  const sameBlock = (a: number, b: number) => {
+    try { const x = doc.resolve(a), y = doc.resolve(b); return x.depth > 0 && x.parent === y.parent && x.start() === y.start() } catch { return false }
+  }
+  for (const sp of spacers) {
+    if (!inside(sp) || stood.some(o => o.pos === sp.pos)) continue
+    const near = stood.find(o => o.kind === sp.kind && Math.abs(o.pos - sp.pos) <= 14 && sameBlock(o.pos, sp.pos))
+    if (!near) continue
+    sp.pos = near.pos
+    if (height && Math.abs(near.height - sp.height) < 12) sp.height = near.height
+  }
 }
 
 export function sameSpacers(a: readonly Spacer[], b: readonly Spacer[]): boolean {

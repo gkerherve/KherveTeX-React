@@ -8,7 +8,7 @@ import { type Drawing } from '../core/draw.ts'
 import {
   bohrDrawing, circuitDrawing, elementTilesDrawing, feynmanDrawing, hazardDrawing, hazardLines, moDrawing, plotDrawing,
   type AlgorithmData, type BohrData, type CircuitData, type ElementTileData, type FeynmanData, type HazardData, type MoData,
-  type NotebookData, type PlotData, type SchemeData, notebookSections, parseNoteText,
+  type NotebookData, type PlotData, type SchemeData, algorithmRows, notebookSections, parseNoteText,
 } from '../core/science.ts'
 import {
   riskDrawing, signsDrawing, forcesDrawing, opticsDrawing, waveDrawing, levelsDrawing, functionDrawing, numberLineDrawing, vennDrawing, triangleDrawing, statsDrawing, unitCircleDrawing,
@@ -404,15 +404,18 @@ function algorithm(body: HTMLElement, d: AlgorithmData) {
     t.append(el('b', '', 'Algorithm '), document.createTextNode(d.title))
     box.appendChild(t)
   }
-  d.code.split('\n').filter(l => l.trim()).forEach((line, i) => {
+  // Line for line as the PDF prints it, the "end if" / "end while" lines
+  // algpseudocode adds included (without them the element was drawn
+  // shorter than it prints).
+  algorithmRows(d).forEach((line, i) => {
     const row = el('div', 'kt-w-alg-line')
     if (d.numbers) row.appendChild(el('span', 'kt-w-alg-num', `${i + 1}:`))
-    const ind = line.length - line.trimStart().length
     const txt = el('span', '')
-    txt.style.paddingLeft = `${ind * 0.6}em`
-    const t = line.trim()
+    txt.style.paddingLeft = `${line.indent * 1.5}em`
+    const t = line.text
     const m = ALG_KEYS.exec(t)
-    if (m) { txt.append(el('b', '', m[1]), document.createTextNode(t.slice(m[1].length).replace(/\s*=\s*/, ' ← '))) }
+    if (line.end) txt.append(el('b', '', t))
+    else if (m) { txt.append(el('b', '', m[1]), document.createTextNode(t.slice(m[1].length).replace(/\s*=\s*/, ' ← '))) }
     else txt.textContent = t.replace(/^(\w+)\s*=\s*/, '$1 ← ')
     row.appendChild(txt)
     box.appendChild(row)

@@ -24,7 +24,7 @@ function table(t: TableSpec): HTMLElement {
   tb.style.setProperty('--kO', C)
   if (t.header) {
     const tr = tb.createTHead().insertRow()
-    t.header.forEach((h, i) => { const th = document.createElement('th'); th.textContent = h; th.style.textAlign = t.cols[i]?.align === 'r' ? 'right' : t.cols[i]?.align === 'c' ? 'center' : 'left'; tr.appendChild(th) })
+    t.header.forEach((h, i) => { const th = document.createElement('th'); th.textContent = h; if (!t.cols[i]?.width) th.style.whiteSpace = 'nowrap'; th.style.textAlign = t.cols[i]?.align === 'r' ? 'right' : t.cols[i]?.align === 'c' ? 'center' : 'left'; tr.appendChild(th) })
   }
   const body = tb.createTBody()
   for (const r of t.rows) {
@@ -35,8 +35,10 @@ function table(t: TableSpec): HTMLElement {
       const td = tr.insertCell(); td.textContent = c
       const a = t.cols[i]?.align
       td.style.textAlign = a === 'r' ? 'right' : a === 'c' ? 'center' : 'left'
+      // A column of a set width (cm) wraps at it; the others never wrap,
+      // as LaTeX's l, c and r columns.
       const w = t.cols[i]?.width
-      if (w) td.style.width = `${w * 0.6}in`
+      if (w) { td.style.width = `${w}cm`; td.style.minWidth = `${w}cm`; td.style.maxWidth = `${w}cm` } else td.style.whiteSpace = 'nowrap'
       if (r.colors?.[i]) td.style.color = '#' + r.colors[i]
     })
   }

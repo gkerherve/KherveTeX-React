@@ -401,13 +401,15 @@ function signatureDrawing(d: SignatureData): Drawing {
 }
 
 function formDrawing(d: FormFieldsData): Drawing {
-  const C = hex(d.color), W = 16, rowH = 0.9
+  // Rows as tall as the PDF's: a field of 1.4em (3.2em for several lines,
+  // 1.1em for a tick box) on its line, 4pt below.
+  const C = hex(d.color), W = 16, rowH = 0.87
   const rows = d.rows.filter(r => (r[0] ?? '').trim())
-  const hgt = (r: string[]) => ((r[1] ?? '').toLowerCase().startsWith('multi') ? rowH * 2.2 : rowH)
-  const H = rows.reduce((s, r) => s + hgt(r), 0) + (d.title ? 0.9 : 0.1)
+  const hgt = (r: string[]) => { const t = (r[1] ?? '').toLowerCase(); return t.startsWith('multi') ? 1.62 : t === 'checkbox' ? 0.74 : rowH }
+  const H = rows.reduce((s, r) => s + hgt(r), 0) + (d.title ? 0.85 : 0.1)
   const s: Shape[] = []
   let y = H
-  if (d.title) { s.push(text(0, y - 0.35, d.title, { anchor: 'west', size: 13, bold: true, color: C })); y -= 0.9 }
+  if (d.title) { s.push(text(0, y - 0.35, d.title, { anchor: 'west', size: 13, bold: true, color: C })); y -= 0.85 }
   for (const r of rows) {
     const h = hgt(r), type = (r[1] ?? 'Text').toLowerCase()
     s.push(text(0, y - 0.38, r[0], { anchor: 'west', size: 9.5 }))

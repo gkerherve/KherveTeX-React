@@ -59,4 +59,35 @@ describe('pdfTypography columns', () => {
     const ls = Array.from({ length: 20 }, (_, i) => i % 2 ? line(345, 470, i * 12) : line(70, 330, i * 12))
     expect(pdfTypography([page(ls)]).cols).toBe(1)
   })
+  it('three columns of one width', () => {
+    const ls = Array.from({ length: 24 }, (_, i) => line(70 + (i % 3) * 160, 220 + (i % 3) * 160, i * 12))
+    expect(pdfTypography([page(ls)]).cols).toBe(3)
+  })
+  it('a sidebar, the text beside it and labels under them are one column, not three', () => {
+    // fuzz-7's page: a table caption and two signature names in the middle,
+    // a sidebar on the right, the paragraph wrapped on the left.
+    const ls = [line(251, 344, 0), line(361, 431, 12), line(361, 416, 24), line(361, 441, 36), line(361, 516, 48), line(361, 516, 60),
+      line(89, 342, 72), line(71, 342, 84), line(71, 342, 96), line(71, 342, 108), line(71, 342, 120), line(71, 195, 132),
+      line(163, 212, 144), line(307, 351, 156), line(302, 359, 168)]
+    expect(pdfTypography([page(ls)]).cols).toBe(1)
+  })
+  it('three columns with a ragged middle one are not two columns', () => {
+    const ls = Array.from({ length: 24 }, (_, i) => i % 3 === 1 ? line(230, 300 + (i * 11) % 70, i * 12) : line(70 + (i % 3) * 160, 220 + (i % 3) * 160, i * 12))
+    expect(pdfTypography([page(ls)]).cols).not.toBe(2)
+  })
+  it('a page of labels and narrow text says nothing about the columns', () => {
+    const ls = Array.from({ length: 15 }, (_, i) => line(70 + (i % 3) * 160, 150 + (i % 3) * 160 + (i * 7) % 60, i * 12))
+    const t = pdfTypography([page(ls)])
+    expect(t.cols).toBe(1)
+    expect(t.colsSure).toBe(false)
+  })
+  it('wide lines are one column for sure', () => {
+    const ls = Array.from({ length: 15 }, (_, i) => line(70, 530, i * 12))
+    expect(pdfTypography([page(ls)])).toMatchObject({ cols: 1, colsSure: true })
+  })
+  it('a table of three text columns over a paragraph is one column', () => {
+    const ls = [...Array.from({ length: 12 }, (_, i) => line(70 + (i % 3) * 160, 150 + (i % 3) * 160 + (i * 7) % 60, i * 12)),
+      ...Array.from({ length: 4 }, (_, i) => line(70, 530, 200 + i * 12))]
+    expect(pdfTypography([page(ls)]).cols).toBe(1)
+  })
 })

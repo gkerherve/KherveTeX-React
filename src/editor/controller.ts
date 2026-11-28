@@ -876,6 +876,10 @@ export class EditorController implements ViewHost {
     f.fontSize = `${body.sizePx}px`
     f.setProperty('--kt-body-family', body.family)
     f.setProperty('--kt-body-size', `${body.sizePx}px`)
+    // The lengths figures, tables and captions are set with, as LaTeX's.
+    const sp = this.layout.spacing
+    f.setProperty('--kt-line', `${sp.linePx}px`)
+    f.setProperty('--kt-capskip', `${sp.capSkipPx}px`)
     // Columns: one balanced run of CSS columns, the title spanning them.
     this.flowEl.classList.toggle('kt-cols', g.cols > 1)
     f.setProperty('--kt-cols', String(g.cols))
@@ -951,7 +955,7 @@ export class EditorController implements ViewHost {
         pdfPaged, own ? [] : this.pdfColumnStarts(),
         { notes: this.footnoteBoxes(geo).map(n => ({ pos: n.pos, height: n.height })) })
       : computeSpacers(this.view, geo, this.flowEl, own ? [] : starts, pdfPaged, figuresFloat(this.meta), allStarts ? this.pdfPages : 0,
-        this.anchorsDoc === this.view.state.doc, pdfPaged ? this.pdfPages : 0)
+        this.anchorsDoc === this.view.state.doc, pdfPaged ? this.pdfPages : 0, old)
     if (!sameSpacers(old, spacers) && this.pageIter < (geo.cols > 1 ? 14 : 6)) {
       this.pageIter += 1
       this.view.dispatch(this.view.state.tr.setMeta(pagesKey, spacers).setMeta('addToHistory', false))

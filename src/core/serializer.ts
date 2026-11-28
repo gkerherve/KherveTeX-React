@@ -216,19 +216,11 @@ function changesPreamble(authors: string[], mode: string): string {
 const MARK_ORDER = ['bold', 'italic', 'underline', 'smallcaps',
   'subscript', 'superscript', 'strikethrough', 'code']
 
-// round(x, 2): Python rounds the exact binary value half-to-even; the only
-// exact ties at two decimals are odd multiples of 1/8.
-function pyRound2(x: number): number {
-  const eighths = x * 8
-  if (Number.isInteger(eighths) && eighths % 2 !== 0) {
-    const lo = Math.floor(x * 100)
-    return (lo % 2 === 0 ? lo : lo + 1) / 100
-  }
-  return Number(x.toFixed(2))
-}
-
-// Short tables get bare l columns; wider ones get proportional p{} columns
-// so LaTeX can wrap long cell text instead of overflowing the margins.
+// Short tables get bare l columns; wider ones get p{} columns so LaTeX can
+// wrap long cell text. The columns' shares add up to the line: with each
+// p{} written as its share less the two \tabcolsep, the table is exactly
+// as wide as the text (p{0.06\textwidth} columns left short words over
+// their neighbours and the table past the right margin).
 export function autoTableAlignment(rows: string[][], cols: number): string {
   const maxLens: number[] = Array.from({ length: cols }, () => 0)
   for (const r of rows) {
@@ -237,11 +229,33 @@ export function autoTableAlignment(rows: string[][], cols: number): string {
   const total = maxLens.reduce((a, b) => a + b, 0) || 1
   // Plain l columns fit a standard page up to about 80 characters across.
   if (total <= 80) return 'l'.repeat(cols)
-  const usable = 0.95  // leave a small margin for \tabcolsep
-  return maxLens.map((ml) => {
-    const frac = Math.max(pyRound2(usable * ml / total), 0.06)
-    return `p{${frac.toFixed(2)}\\textwidth}`
-  }).join('')
+  // How wide each column's longest cell sets, in average characters:
+  // capitals and m, w are wide, i, l, t and punctuation narrow; the first
+  // row may be a bold header.
+  const widths: number[] = Array.from({ length: cols }, () => 0)
+  rows.forEach((r, i) => {
+    for (let j = 0; j < Math.min(r.length, cols); j++) {
+      let w = 0
+      for (const ch of r[j]) w += /[A-Zmw@%&]/.test(ch) ? 1.45 : /[ijlftr.,:;'!|()\[\] ]/.test(ch) ? 0.6 : 0.95
+      widths[j] = Math.max(widths[j], i === 0 ? w * 1.1 : w)
+    }
+  })
+  // A character and a column's two \tabcolsep, as shares of the line.
+  const CH = 0.016, PAD = 0.03, SHORT = 14
+  const need = widths.map(w => Math.min(w, SHORT) * CH + PAD)
+  const long = widths.map(w => w > SHORT)
+  const taken = need.reduce((a, n, j) => a + (long[j] ? 0 : n), 0)
+  const longChars = maxLens.reduce((a, ml, j) => a + (long[j] ? ml : 0), 0)
+  // Short columns take what their longest cell needs; the long ones share
+  // the rest by their length, never less than a short column.
+  const room = 1 - taken
+  let shares = maxLens.map((ml, j) => (long[j] ? Math.max(room * ml / (longChars || 1), need[j]) : need[j]))
+  const sum = shares.reduce((a, b) => a + b, 0) || 1
+  shares = shares.map(f => Math.max(0.04, Math.round(f / sum * 100) / 100))
+  // Rounding: the widest column takes the difference.
+  const widest = shares.indexOf(Math.max(...shares))
+  shares[widest] = Math.round((shares[widest] + 1 - shares.reduce((a, b) => a + b, 0)) * 100) / 100
+  return shares.map(f => `p{\\dimexpr${f.toFixed(2)}\\linewidth-2\\tabcolsep\\relax}`).join('')
 }
 
 export function serializeInline(node: Inline): string {
@@ -536,7 +550,7 @@ function beforeNewPage(children: readonly Grouped[], i: number, hasChapters: boo
   return false
 }
 
-export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; floatH?: boolean } = {}): string {
+export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; floatH?: boolean; breakTables?: boolean } = {}): string {
   const hasChapters = opts.hasChapters ?? false
   const floatH = opts.floatH ?? true
   switch (node.type) {
@@ -611,7 +625,7 @@ export function serializeBlock(node: Grouped, opts: { hasChapters?: boolean; flo
         + '\\end{figure}\n'
     }
     case 'Table':
-      return serializeTable(node, floatH)
+      return serializeTable(node, floatH, opts.breakTables ?? false)
     case 'RawLatex':
       return node.text + (node.text.endsWith('\n') ? '' : '\n')
     case 'Title':
@@ -703,7 +717,7 @@ const DIMEXPR_RE = /^[pm]\{\\dimexpr([0-9.]+)\\linewidth-2\\tabcolsep\\relax\}$/
 // Word sets a form's cells flush left, not justified.
 const RAGGED = '>{\\raggedright\\arraybackslash}'
 const raggedForm = (align: string) =>
-  align.replace(/(?<!\})([pm]\{\\dimexpr)/g, `${RAGGED}$1`)
+  align.replace(/(?<!\\arraybackslash\})([pm]\{\\dimexpr)/g, `${RAGGED}$1`)
 
 function spanAlign(grid: boolean, c: number, cs = 1, tokens: string[] = []): string {
   const shares = tokens.slice(c, c + cs).map((t) => DIMEXPR_RE.exec(t))
@@ -715,7 +729,25 @@ function spanAlign(grid: boolean, c: number, cs = 1, tokens: string[] = []): str
   return grid ? (c === 0 ? '|c|' : 'c|') : 'c'
 }
 
-function serializeTable(node: Table, floatH = true): string {
+// A table too long to stand on one page: LaTeX cannot break a tabular, so
+// it ran off the foot of the page and its last rows were lost. Such a
+// table is set as a longtable, which breaks between rows.
+export const LONG_TABLE_ROWS = 20
+export function tableIsLong(rows: string[][]): boolean {
+  if (rows.length > LONG_TABLE_ROWS) return true
+  let lines = 0
+  for (const r of rows) lines += Math.max(1, ...r.map((c) => Math.ceil(pyLen(c) / 60)))
+  return lines > 30
+}
+
+// Tables may break across pages (longtable) in one column only: longtable
+// does not work in two-column text, and journal classes set their own.
+export function breaksTables(m: DocMeta): boolean {
+  return (m.column_count ?? 1) <= 1 && STANDARD_SERIALIZER_CLASSES.has((m.documentclass || '').toLowerCase())
+    && !/twocolumn/.test(m.class_options || '')
+}
+
+function serializeTable(node: Table, floatH = true, breakTables = false): string {
   if (!node.rows.length) return ''
   const cols = Math.max(...node.rows.map((r) => r.length))
   const style = node.style
@@ -737,6 +769,9 @@ function serializeTable(node: Table, floatH = true): string {
   } else {
     topRule = midRule = bottomRule = '\\hline'
   }
+  // Columns the table's text set (no spec of its own): flush left, as the
+  // editor shows them (justified, narrow columns set with wide gaps).
+  const autoAlign = !strip(node.alignment)
   let align = strip(node.alignment) || autoTableAlignment(node.rows, cols)
   if (grid && !align.includes('|')) align = '|' + (align.match(COL_TOKEN_RE) ?? []).join('|') + '|'
   const [anchors, covered] = mergeMaps(node)
@@ -813,12 +848,22 @@ function serializeTable(node: Table, floatH = true): string {
       + (bottomRule ? `${bottomRule}\n` : '')
       + '\\end{longtable}\n')
   }
+  if (breakTables && bodyRows.length > 1 && tableIsLong(node.rows)) {
+    // The header row again on each page; the caption under the table, as
+    // a tabular's.
+    const head = node.header ? `${[topRule, bodyRows[0]].filter((x) => x).join('\n')}\n\\endhead\n` : (topRule ? `${topRule}\n` : '')
+    const rest = (node.header ? bodyRows.slice(1) : bodyRows).join('\n')
+    return sized(`\\begin{longtable}{${raggedForm(align)}}\n${head}${rest}\n`
+      + (bottomRule ? `${bottomRule}\n` : '')
+      + (cap ? `\\caption{${cap}}${strip(lab)}\\\\\n` : '')
+      + '\\end{longtable}\n')
+  }
   const body = bodyRows.join('\n    ')
   const rule = (x: string) => (x ? `    ${x}\n` : '')
   return `\\begin{table}${placementArg(floatH, node.placement)}\n`
     + '  \\centering\n'
     + (sizeCmd ? `  ${sizeCmd}` : '')
-    + `  \\begin{tabular}{${align}}\n`
+    + `  \\begin{tabular}{${autoAlign ? raggedForm(align) : align}}\n`
     + rule(topRule)
     + `    ${body}\n`
     + rule(bottomRule)
@@ -836,9 +881,10 @@ function tablePackages(doc: Document): string[] {
     if (b.type !== 'Table') continue
     if (b.merges.some((m) => m[2] > 1) && !need.includes('multirow')) need.push('multirow')
     if ((Object.keys(b.shading).length || b.style === 'striped' || parseFancy(b.style)) && !need.includes('colortbl')) need.push('colortbl')
-    if ((b.repeat_header || tableHasPictures(b)) && !need.includes('longtable')) need.push('longtable')
+    if ((b.repeat_header || tableHasPictures(b) || (breaksTables(doc.meta) && tableIsLong(b.rows))) && !need.includes('longtable')) need.push('longtable')
     // m{} / b{} columns (vertically centred or bottom-aligned) are array's.
-    if ((/[mb]\{|\\dimexpr/.test(b.alignment || '') || b.rows.some((r) => r.some((c) => c.includes('\\arraybackslash')))) && !need.includes('array')) need.push('array')
+    if ((/[mb]\{|\\dimexpr/.test(b.alignment || '') || b.rows.some((r) => r.some((c) => c.includes('\\arraybackslash')))
+      || (!strip(b.alignment) && b.rows.length > 0 && autoTableAlignment(b.rows, Math.max(...b.rows.map((r) => r.length))).includes('\\dimexpr'))) && !need.includes('array')) need.push('array')
   }
   return need
 }
@@ -1606,7 +1652,7 @@ export function serializeDocument(doc: Document): string {
 
     const bodyParts: string[] = []
     bodyBlocks.forEach((b, i) => {
-      bodyParts.push(serializeBlock(b, { hasChapters, floatH: pinsFloats(m, isJournal) }))
+      bodyParts.push(serializeBlock(b, { hasChapters, floatH: pinsFloats(m, isJournal), breakTables: breaksTables(m) }))
       if (i < bodyBlocks.length - 1) bodyParts.push('\n')
     })
     let body = bodyParts.join('')
@@ -1765,7 +1811,7 @@ export function serializeDocument(doc: Document): string {
         if (i < n) parts.push('\n')
         continue
       }
-      const rendered = serializeBlock(block, { hasChapters, floatH: pinsFloats(m, isJournal) })
+      const rendered = serializeBlock(block, { hasChapters, floatH: pinsFloats(m, isJournal), breakTables: breaksTables(m) })
       if (block.type === 'Title') {
         emittedMaketitle = true
       } else if (block.type === 'RawLatex' && block.text.includes('\\maketitle')) {
@@ -1848,7 +1894,7 @@ export function serializeChapterBody(doc: Document): string {
       if (i < n) parts.push('\n')
       continue
     }
-    parts.push(serializeBlock(block, { hasChapters, floatH: pinsFloats(m, isJournal) }))
+    parts.push(serializeBlock(block, { hasChapters, floatH: pinsFloats(m, isJournal), breakTables: breaksTables(m) }))
     i += 1
     if (i < n) parts.push('\n')
   }

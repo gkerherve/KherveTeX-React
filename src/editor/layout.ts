@@ -211,6 +211,9 @@ export interface DocLayout {
   // title an unnumbered chapter (or section) title, its entries on the
   // body's line spacing, a chapter's entry 1em lower.
   toc: TocLook
+  // LaTeX's lengths the drawn blocks are set with (px): the body's line,
+  // \\intextsep around a figure or table, \\abovecaptionskip.
+  spacing: { linePx: number; intextPx: number; capSkipPx: number }
 }
 
 export interface TocLook { titleChar: CharStyle; titleTop: number; titleBelow: number; rowPx: number; rowGap: number; chapterGap: number }
@@ -374,7 +377,9 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     cols: g.follows_margins !== false ? Math.max(1, Math.trunc(meta.column_count || 1)) : Math.max(1, Math.trunc(g.cols || 1)),
     colGapPx: (g.colsep || 10) * pt,
   }
-  if (pdf && pdf.cols !== geometry.cols) {
+  // Only when the PDF shows its columns: pages of tables and elements do
+  // not, and the document's own setting stands.
+  if (pdf && pdf.colsSure !== false && pdf.cols !== geometry.cols) {
     geometry.cols = pdf.cols
     if (pdf.colGapPt) geometry.colGapPx = pdf.colGapPt * pt
   }
@@ -433,6 +438,20 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   const spacing = Math.max(0.5, Number(meta.line_spacing || 1.0))
   const stretch = baselineskipPt(meta.body_font_pt, spacing) / baselineskipPt(meta.body_font_pt, 1.0)
   const bodyLinePx = body.leading * stretch * pt
+  // The standard classes' lengths at the document's size (size10.clo,
+  // size11.clo, size12.clo): \\intextsep, and each list level's
+  // [\\topsep, \\parsep, \\itemsep] with \\partopsep.
+  const sizeStep = (meta.body_font_pt || body.size) >= 11.5 ? 2 : (meta.body_font_pt || body.size) >= 10.5 ? 1 : 0
+  const intextPx = [12, 12, 14][sizeStep] * pt
+  const partopsep = [2, 3, 3][sizeStep]
+  const LIST_SEP: [number, number, number][] = [
+    [[8, 4, 4], [9, 4.5, 4.5], [10, 5, 5]][sizeStep] as [number, number, number],
+    [[4, 2, 2], [4.5, 2, 2], [5, 2.5, 2.5]][sizeStep] as [number, number, number],
+    [[2, 0, 2], [2, 0, 2], [2.5, 0, 2.5]][sizeStep] as [number, number, number],
+  ]
+  const listSep = (level: number) => LIST_SEP[Math.max(0, Math.min(2, level || 0))]
+  // The space between paragraphs outside a list (\\parskip).
+  const parskipPx = meta.paragraph_indent ? (body.parskip || 0) * pt : extrasParskip ?? 0.8 * emPx
 
   // ---- _title_page_breaks ----
   const titleBreaks = new Set<number>()
@@ -483,6 +502,8 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   let prevState: number | null = null
   let prevLead = body.leading
   const out: BlockLayout[] = []
+  // The gap above a heading that follows a heading (by block index).
+  const after = new Map<number, number>()
 
   const styleLead = (key: StyleKey): number => {
     const spec = look[key] ?? body
@@ -514,8 +535,8 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     if (i > 0) onSheet = (out[i - 1].breakBefore ? false : onSheet) || !isBreakAt(i - 1)
     out.push(L)
     if (b.isTable) {
-      // Table / figure frames: QTextTableFormat.setMargin (8 / 10 px).
-      L.top = L.bottom = b.node.type.name === 'figure' ? 10 : 8
+      // A figure or table float set in the text: \\intextsep above and below.
+      L.top = L.bottom = intextPx
       // After a page break, on a new sheet, as a paragraph would be.
       if (geometry.cols <= 1 && isBreakAt(i - 1) && onSheet) L.breakBefore = true
       continue
@@ -527,16 +548,29 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
     if (node.type.name === 'paragraph') L.align = node.attrs.alignment
     else if (state === S.THEOREM) {
       L.align = 'justify'
-      L.top = node.attrs.start ? 6 : 0
-      L.bottom = 6
+      // A theorem is a trivlist: \topsep + \partopsep (and the \parskip)
+      // above and below; amsthm's proof leaves only a few points; a
+      // callout box (tcolorbox) its own small margins.
+      const next = blocks[i + 1]
+      const goesOn = !!next && !next.isTable && next.state === S.THEOREM && !next.node.attrs.start
+      const kind: string = node.attrs.kind || 'theorem'
+      const sep = isCallout(kind) ? 9 : kind === 'proof' ? 4 : (listSep(0)[0] + partopsep) * pt + parskipPx
+      L.top = node.attrs.start ? sep : 0
+      L.bottom = goesOn ? 0 : sep
     } else if (state === S.BOX) {
-      // \fbox{\parbox{..}}: flush left, a \medskip above, the frame drawn by CSS.
+      // \fbox{\parbox{..}}: flush left, a \medskip above, the frame drawn
+      // by CSS. The box stands on the line's axis, so with its frame it
+      // takes hardly more than its lines.
       L.align = 'left'
-      L.top = 6
-      L.bottom = 6
+      L.top = 2
+      L.bottom = 0
     } else if (state === S.MATH_BLOCK) L.align = 'center'
     else if (state === S.TITLE || state === S.AUTHOR || state === S.AFFILIATION || state === S.CORRESPONDENCE) L.align = 'center'
-    else if (state === S.RAW) { L.top = 6; L.bottom = 6 }
+    else if (state === S.RAW) {
+      L.top = 6; L.bottom = 6
+      // A sidebar beside the next paragraph takes no room of its own.
+      if (/^% kTeX sidebar \{.*"position":"(?:left|right)"/.test(text)) { L.top = 0; L.bottom = 0 }
+    }
 
     // Start a new sheet exactly where the compiled PDF does; with columns
     // a forced break would only start a new column, so paging is left to
@@ -669,7 +703,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       L.numberStyle = label.startsWith('Proof') ? 'proof' : 'theorem'
       L.numberGap = bodyChar.sizePx * FONT_HEIGHT_EM * 0.4
     }
-    if (state === S.PARAGRAPH || state === S.BOX) L.lineHeight = bodyLinePx * (node.type.name === 'paragraph' && node.attrs.spacing ? node.attrs.spacing : 1)
+    if (state === S.PARAGRAPH || state === S.BOX || state === S.THEOREM) L.lineHeight = bodyLinePx * (node.type.name === 'paragraph' && node.attrs.spacing ? node.attrs.spacing : 1)
     else if (key) { /* set with the style's own leading */ }
     else if (Math.abs(spacing - 1.0) > 0.01) L.lineHeight = { proportional: spacing }
     else L.lineHeight = 'normal'
@@ -682,11 +716,18 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       if (a.after_pt) L.bottom += a.after_pt * pt
     }
     if (b.item) {
-      // LaTeX's list spacing: \topsep around the list and \itemsep
-      // between items (10pt and 5pt at 12pt).
-      const size = body.size
-      L.top = (b.item.index === 0 ? 0.83 : 0.42) * size * pt
-      L.bottom = b.item.index === b.item.count - 1 ? 0.83 * size * pt : 0
+      // LaTeX's list spacing: \topsep + \partopsep (and the \parskip)
+      // around the list, \itemsep + \parsep between items (13pt and
+      // 10pt at 12pt); a nested list opens after its own \topsep and the
+      // \parsep of the item it is in.
+      const lv: number = node.attrs.level || 0
+      const prevItem = b.item.index > 0 ? blocks[i - 1] : null
+      const pl: number = prevItem ? prevItem.node.attrs.level || 0 : 0
+      const around = (listSep(0)[0] + partopsep) * pt + parskipPx
+      if (!prevItem) L.top = around
+      else if (lv > pl) L.top = (listSep(lv)[0] + listSep(pl)[1]) * pt
+      else L.top = (listSep(lv)[2] + listSep(lv)[1]) * pt
+      L.bottom = b.item.index === b.item.count - 1 ? around : 0
       // A list item's block format is Qt's default: flush left.
       L.align = 'left'
       // Nested: 40 px a level, as the list's own indent.
@@ -713,6 +754,17 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
       }
     }
     if (key && runInNext) L.runInHeading = true
+    // A heading straight after a heading: LaTeX leaves only the first
+    // one's space below it (\@startsection adds no space above while
+    // \if@nobreak is set), not the larger of the two.
+    if (key && key.startsWith('h') && i > 0 && !L.breakBefore) {
+      const pk = blocks[i - 1].isTable ? null : styleKey(blocks[i - 1].state)
+      const ps = pk && pk.startsWith('h') ? look[pk] : null
+      if (ps && !ps.run_in && ps.below !== null && ps.below !== undefined && !out[i - 1].runInHeading) {
+        const lead = styleLead(key)
+        after.set(i, Math.max(0, ps.below - (1 - BASELINE_AT) * styleLead(pk!) - BASELINE_AT * lead) * pt)
+      }
+    }
     if (text.trim() || state !== S.PARAGRAPH) {
       prevState = state
       prevLead = key && typeof L.lineHeight === 'number' ? L.lineHeight / pt : body.leading * stretch
@@ -723,7 +775,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   // margin collapse to the larger; the first block's top margin is
   // ignored.
   for (let i = 0; i < out.length; i++) {
-    out[i].gap = i === 0 ? 0 : Math.max(out[i].top, out[i - 1].bottom)
+    out[i].gap = i === 0 ? 0 : after.get(i) ?? Math.max(out[i].top, out[i - 1].bottom)
   }
 
   const fields: Record<string, string> = {}
@@ -747,6 +799,7 @@ export function layoutDocument(doc: PMNode, meta: DocMeta, headingOffset: number
   }
   return {
     look, geometry, blocks: out, heads, bodyChar, fields, toc,
+    spacing: { linePx: bodyLinePx, intextPx, capSkipPx: 10 * pt },
     bibTitle: { title: classChapters ? 'Bibliography' : 'References', titleChar: styleChar('h1') },
   }
 
@@ -1141,6 +1194,8 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
   let at = 0
   let atChar = 0
   let atPage = 0
+  // About how much of the running text a page holds.
+  const perPage = run / Math.max(1, anchors.length ? anchors[anchors.length - 1][0] : 1)
   for (const [page, snippet] of anchors) {
     const reach = MAX_PAGE_CHARS * Math.max(1, page - atPage)
     const tooFar = (i: number, offset: number) => atPage > 0 && startOf[i] + offset - atChar > reach
@@ -1205,7 +1260,9 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
           if (firstBlock) continue
           const cap = normalizeForMatch(texts[i])
           if (cap && capKey.length >= 8 && (cap.startsWith(capKey) || capKey.startsWith(cap))) {
-            hit(i, 0); break search
+            // Found by a later line: the page may start with the displayed
+            // maths or the element just before the figure.
+            hit(k > 0 ? elementBefore(i, k) : i, 0); break search
           }
           continue
         }
@@ -1229,15 +1286,35 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
           }
           continue
         }
-        let idx = anchorOffset(blocks[i].text, keyNorm)
-        if (idx < 0 && unlabelled.has(keyNorm) && keyNorm.length >= 8 && blocks[i].node.type.name === 'section'
-          && normalizeForMatch(blocks[i].text).startsWith(keyNorm)) idx = 0
-        // A heading is never split by a page: a start found on its second
-        // line (wrapped elsewhere in the editor) is the heading's.
-        if (idx > 0 && blocks[i].node.type.name === 'section') idx = 0
-        if (firstBlock && idx === 0) continue
-        if (idx > 0 && !confirms(i, idx, k)) continue
-        if (idx >= 0 && !tooFar(i, idx) && !tooNear(i, idx)) {
+        // Where block `b` holds the page's line, checked; -1 when not.
+        const textAt = (b: number): number => {
+          let x = anchorOffset(blocks[b].text, keyNorm)
+          if (x < 0 && unlabelled.has(keyNorm) && keyNorm.length >= 8 && blocks[b].node.type.name === 'section'
+            && normalizeForMatch(blocks[b].text).startsWith(keyNorm)) x = 0
+          // A heading is never split by a page: a start found on its second
+          // line (wrapped elsewhere in the editor) is the heading's.
+          if (x > 0 && blocks[b].node.type.name === 'section') x = 0
+          if (page >= 2 && b === 0 && blocks[0].pos === 0 && x === 0) return -1
+          if (x > 0 && !confirms(b, x, k)) return -1
+          return x >= 0 && !tooFar(b, x) && !tooNear(b, x) ? x : -1
+        }
+        let idx = textAt(i)
+        if (idx >= 0) {
+          // The same words further on too (a sentence the document
+          // repeats): the place nearest to where this page should start,
+          // by the text a page holds, not simply the first.
+          const want = atChar + perPage * (page - Math.max(1, atPage))
+          let best = i, bestGap = Math.abs(startOf[i] + idx - want)
+          for (let j = i + 1, seen = 0; j < blocks.length && !tooFar(j, 0) && seen < 60; j++) {
+            if (blocks[j].isTable || blocks[j].node.type.name === 'figure') continue
+            const x = textAt(j)
+            if (x < 0) continue
+            seen++
+            const gap = Math.abs(startOf[j] + x - want)
+            if (gap < bestGap) { best = j; bestGap = gap; idx = x }
+            else if (startOf[j] > want) break
+          }
+          i = best
           // Found by a later line of the page (its first ones did not
           // match) at a block's start, right after displayed maths: the
           // page starts with that maths (an equation's lines are not text).
@@ -1246,7 +1323,11 @@ export function anchorTargets(doc: PMNode, anchors: readonly PageAnchor[]): { pa
           // Found by a later line close to the block's start: the page's
           // first line(s) were that block's opening ("Home:" in bold came
           // out as a line too short to match), so it starts the block.
-          const near = k > 0 && idx > 0 && idx <= 40
+          // Or no further into the block than the lines that did not
+          // match can hold (a theorem's "Theorem 1.1 (Title)" label, an
+          // item's number, are printed but not in its text): the page
+          // cannot start after the block's start then.
+          const near = k > 0 && idx > 0 && (idx <= 40 || idx <= k * 90)
           hit(j, j === i && !near ? idx : 0)
           break search
         }

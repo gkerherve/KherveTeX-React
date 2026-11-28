@@ -142,6 +142,10 @@ export function pageFurniture(page: PdfTextDict): PageFurniture {
 // ([11pt]amsart, [sigconf]acmart).
 export interface PdfTypography {
   bodyPt: number; cols: number; colGapPt: number
+  // false when no page of the PDF says how many columns it has (too few
+  // lines, or pages of tables and elements): the document's own setting
+  // then stands.
+  colsSure?: boolean
   // In columns: where each column after a page's first starts, as
   // [page + column / 10, candidate first lines] (1.1 = page 1's second
   // column), for the editor to break its columns where the PDF's do.
@@ -183,6 +187,17 @@ export function columnStarts(pages: PdfTextDict[], cols: number): [number, strin
 const medianWidth = (a: { x0: number; x1: number }[]) => { const w = a.map(l => l.x1 - l.x0).sort((x, y) => x - y); return w[Math.floor(w.length / 2)] }
 const sameWidth = (a: { x0: number; x1: number }[], b: { x0: number; x1: number }[]) => { const x = medianWidth(a), y = medianWidth(b); return Math.min(x, y) >= Math.max(x, y) * 0.8 }
 
+// A column of running text: a good share of its lines run its full width
+// (a table's cells and an element's labels are each as long as their words).
+const filled = (a: { x0: number; x1: number }[]) => {
+  const full = Math.max(...a.map(l => l.x1 - l.x0))
+  return a.filter(l => l.x1 - l.x0 >= full * 0.92).length >= a.length * 0.35
+}
+
+// Every line of `a` ends before the lines of `b` start (a gutter between).
+const apart = (a: { x0: number; x1: number }[], b: { x0: number; x1: number }[]) =>
+  Math.max(...a.map(l => l.x1)) <= Math.min(...b.map(l => l.x0)) + 1
+
 export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
   const chars = new Map<number, number>()
   const votes = [0, 0, 0, 0]
@@ -209,10 +224,21 @@ export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
     const right = narrow.filter(l => l.x0 >= w * 0.48)
     const share = (a: unknown[]) => a.length / lines.length
     let cols = 1
-    if (share(left) >= 0.2 && share(right.filter(l => l.x0 >= w * 0.6)) >= 0.2 && share(mid) >= 0.2) cols = 3
-    // Two columns have lines of one width; text wrapped beside a narrower
-    // panel (a sidebar's wrapfigure) has wide lines on one side only.
-    else if (share(left) >= 0.25 && share(right) >= 0.25 && sameWidth(left, right)) cols = 2
+    const far = right.filter(l => l.x0 >= w * 0.6)
+    // Columns have lines of one width, most of them full, and none of a
+    // column's lines reaches into the next column. Text wrapped beside a narrower panel (a
+    // sidebar's wrapfigure) has wide lines on one side only, and a table's
+    // or an element's labels stand over the lines beside them.
+    if (share(left) >= 0.2 && share(far) >= 0.2 && share(mid) >= 0.2
+      && sameWidth(left, mid) && sameWidth(mid, far) && apart(left, mid) && apart(mid, far)
+      && filled(left) && filled(mid) && filled(far)) cols = 3
+    // Two columns have no lines starting between them (a page of three
+    // columns, its middle one not made out, is not a page of two).
+    else if (share(left) >= 0.25 && share(right) >= 0.25 && sameWidth(left, right) && apart(left, right)
+      && filled(left) && filled(right) && share(narrow.filter(l => l.x0 >= w * 0.3 && l.x0 < w * 0.45)) < 0.12) cols = 2
+    // One column shows as lines wider than half the page; a page with
+    // neither (labels, cells, text beside a sidebar) says nothing.
+    if (cols === 1 && share(lines.filter(l => l.x1 - l.x0 >= w * 0.5)) < 0.3) continue
     votes[cols]++
     if (cols === 2) gaps.push(Math.min(...right.map(l => l.x0)) - Math.max(...left.map(l => l.x1)))
   }
@@ -221,7 +247,7 @@ export function pdfTypography(pages: PdfTextDict[]): PdfTypography {
   for (const [size, n] of chars) if (n > most) { most = n; bodyPt = size }
   const cols = votes[3] > votes[2] && votes[3] > votes[1] ? 3 : votes[2] > votes[1] ? 2 : 1
   gaps.sort((a, b) => a - b)
-  return { bodyPt, cols, colGapPt: gaps.length ? Math.max(6, gaps[Math.floor(gaps.length / 2)]) : 0 }
+  return { bodyPt, cols, colGapPt: gaps.length ? Math.max(6, gaps[Math.floor(gaps.length / 2)]) : 0, colsSure: votes[cols] > 0 }
 }
 
 // The page count and [(page_no, first text)] of every page after the
